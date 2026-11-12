@@ -344,17 +344,9 @@ export function watchReveal(initial = false) {
 
       const at = Number(latest.at) || 0;
       const now = S.store?.serverNow ? S.store.serverNow() : Date.now();
-      if (rvSeen !== latest.id && at && Math.abs(now - at) <= 5000) {
-        rvSeen = latest.id;
-        console.info('[reveal] late-join replay', {
-          id: latest.id, at,
-          startAt: Number(latest.startAt) || at,
-          serverNow: now, page: S.page, key: S.key
-        });
-        playReveal(latest, false);
-      } else if (rvSeen === null) {
-        rvSeen = latest.id;
-      }
+      // 최초 접속/새로고침에서는 과거 이벤트를 절대 재생하지 않는다.
+      // 승률 공개는 "발생 이후 실시간으로 들어온 이벤트"만 재생한다.
+      if (latest && rvSeen === null) rvSeen = latest.id;
       return;
     }
 
