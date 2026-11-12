@@ -1,0 +1,13 @@
+rules_version = '2';
+// Firebase 콘솔 > Firestore Database > 규칙 탭에 이 내용을 그대로 붙여넣고 "게시"를 누르세요.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 초대 링크의 ?k= 코드(15자 이상)를 아는 사람만 그 리그를 읽고 쓸 수 있다.
+    // leagues 목록 자체는 조회할 수 없어서, 코드를 모르면 어떤 리그가 있는지도 알 수 없다.
+    match /leagues/{key}/{col}/{id} {
+      allow read: if key.size() >= 15;
+      allow create, update: if key.size() >= 15;
+      allow delete: if false; // 완전 삭제 금지: 앱에서는 '삭제 표시'만 하므로 언제든 복구 가능
+    }
+  }
+}
