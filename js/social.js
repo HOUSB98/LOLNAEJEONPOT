@@ -3,7 +3,8 @@ import { S, act, esc, uid, col, settings, toast, modal, closeModal, mh, ic, logo
 
 const cid = localStorage.getItem('naejeon:cid') || (() => { const v = uid(); localStorage.setItem('naejeon:cid', v); return v; })();
 export const nick = () => localStorage.getItem('naejeon:nick') || '';
-const ONLINE_MS = 5 * 60e3, BEAT_MS = 2 * 60e3;
+// 40초마다 생존 신호를 보내고, 100초 동안 신호가 없으면 나간 것으로 본다. 탭을 닫으면 그 즉시 나감 표시(at:0)를 보낸다.
+const ONLINE_MS = 100e3, BEAT_MS = 40e3;
 const hue = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
 
 // ---------- 접속자 ----------
@@ -12,15 +13,38 @@ const KICK_MS = 10 * 60e3;
 const kickedUntil = (id = cid) => +(S.store.data.meta?.kicks?.[id] || 0);
 const isKicked = (id = cid) => kickedUntil(id) > Date.now();
 function beat(off) {
-  if (isKicked() && !off) return;
   if (!nick()) return;
-  S.store.put('presence', cid, { nick: nick(), at: off ? 0 : Date.now() }).catch(() => {});
+  if (off) return S.store.bye('presence', cid, 'at', 0); // 탭 닫기·숨김 직전에도 끝까지 전송되는 방식
+  if (isKicked()) return;
+  S.store.put('presence', cid, { nick: nick(), at: Date.now() }).catch(() => {});
 }
-const online = () => col('presence').filter((p) => Date.now() - p.at < ONLINE_MS && !isKicked(p.id)).sort((a, b) => (a.id === cid ? -1 : b.id === cid ? 1 : a.nick.localeCompare(b.nick, 'ko')));
+const online = () => col('presence').filter((p) => p.nick && Date.now() - p.at < ONLINE_MS && !isKicked(p.id)).sort((a, b) => (a.id === cid ? -1 : b.id === cid ? 1 : a.nick.localeCompare(b.nick, 'ko')));
+// 입장·퇴장 알림(왼쪽 아래). 처음 화면을 그릴 때 이미 있던 사람은 알리지 않는다.
+let prevOn = null, prSig = '';
+function feed(name, kind) {
+  let box = document.getElementById('joinfeed');
+  if (!box) { box = document.createElement('div'); box.id = 'joinfeed'; document.body.appendChild(box); }
+  const el = document.createElement('div');
+  el.className = 'jf ' + kind;
+  el.innerHTML = `<i style="--h:${hue(name)}"></i><span><b>${esc(name)}</b> 님이 ${kind === 'join' ? '입장했습니다' : '나갔습니다'}</span><em>${kind === 'join' ? 'JOIN' : 'LEFT'}</em>`;
+  box.appendChild(el);
+  while (box.children.length > 4) box.firstElementChild.remove();
+  setTimeout(() => { el.classList.add('bye'); setTimeout(() => el.remove(), 500); }, 4200);
+}
 export function renderPresence() {
   const el = document.getElementById('presence'); if (!el) return;
-  const list = online();
-  el.innerHTML = `<div class="prh">${ic('users')}<b>접속 중</b><span class="mono">${list.length}</span></div>
+  const list = online(), now = new Map(list.map((p) => [p.id, p.nick]));
+  if (prevOn) {
+    for (const [id, name] of now) if (id !== cid && !prevOn.has(id)) feed(name, 'join');
+    for (const [id, name] of prevOn) if (id !== cid && !now.has(id)) feed(name, 'leave');
+  }
+  const bump = prevOn && prevOn.size !== now.size;
+  prevOn = now;
+  const sig = list.map((p) => p.id + ':' + p.nick).join('|');
+  if (sig === prSig && el.firstChild) return; // 목록이 그대로면 다시 그리지 않는다
+  prSig = sig;
+  const cnt = String(list.length).padStart(2, '0');
+  el.innerHTML = `<div class="prh">${ic('users')}<b>접속 중</b><span class="pcount ${bump ? 'bump' : ''}" title="현재 접속자 ${list.length}명"><i></i><b class="mono">${cnt}</b><small>ONLINE</small></span></div>
     <div class="prl">${list.map((p) => `<button class="${p.id === cid ? 'me' : ''}" ${p.id === cid ? 'data-a="nickEdit" title="닉네임 변경"' : `data-cid="${esc(p.id)}" data-nick="${esc(p.nick)}" title="우클릭: 관리자 메뉴"`}><i style="--h:${hue(p.nick)}"></i>${esc(p.nick)}${p.id === cid ? '<small>나</small>' : ''}</button>`).join('') || '<span class="mut sm">아직 아무도 없어요</span>'}</div>`;
   const c = document.getElementById('chat-on'); if (c) c.textContent = list.length;
 }
@@ -48,7 +72,7 @@ const STICKERS = [
 const EMOJI = ['😂', '🔥', '👍', '😭', '🤡', '💀', '🫡', '🙏', '👀', '🎉', '😎', '🥲'];
 const STK = Object.fromEntries(STICKERS.map((s) => [s[0], s]));
 let unread = 0, lastSeenAt = +localStorage.getItem('naejeon:chatseen') || 0, lastSend = 0, tray = false;
-const isOpen = () => document.body.classList.contains('chat-open') || matchMedia('(min-width: 1281px)').matches;
+const isOpen = () => !document.body.classList.contains('chat-closed');
 const msgs = () => col('chat').filter((m) => !m.deleted && m.at > (+settings().chatClearedAt || 0)).sort((a, b) => a.at - b.at);
 function send(kind, text) {
   if (isKicked()) return toast('강퇴 상태에서는 채팅을 보낼 수 없습니다');
@@ -66,7 +90,7 @@ export function sysChat(text) {
 }
 function buildChat() {
   document.getElementById('chat').innerHTML = `
-    <header><div class="ch-t"><span class="ch-k"><i class="live"></i>LIVE</span><b>Lobby<i>Chat</i></b><small><span id="chat-on">0</span>명 접속 중</small></div><div class="ch-btns"><button class="btn ghost xs" data-a="chatClear" title="채팅 전체 삭제 (관리자)" aria-label="채팅 전체 삭제">${ic('trash')}</button><button class="btn ghost xs chatx" data-a="chatToggle">${ic('x')}</button></div></header>
+    <header><div class="ch-t"><span class="ch-k"><i class="live"></i>LIVE</span><b>Lobby<i>Chat</i></b><small><span id="chat-on">0</span>명 접속 중</small></div><div class="ch-btns"><button class="btn ghost xs" data-a="chatClear" title="채팅 전체 삭제 (관리자)" aria-label="채팅 전체 삭제">${ic('trash')}</button><button class="btn ghost xs chatx" data-a="chatToggle" title="채팅창 접기" aria-label="채팅창 접기">${ic('fold')}</button></div></header>
     <div id="chatlog"></div>
     <div id="chattray" hidden>
       <div class="stk-grid">${STICKERS.map(([k, t, c]) => `<button class="sticker ${c}" data-a="chatStk" data-k="${k}">${esc(t)}</button>`).join('')}</div>
@@ -80,7 +104,12 @@ function buildChat() {
     if (!v) return;
     send('m', v); inp.value = '';
   };
-  document.getElementById('chatfab').innerHTML = `${ic('chat')}<span id="chatbadge" hidden></span>`;
+  const fab = document.getElementById('chatfab');
+  fab.title = '채팅창 펼치기';
+  fab.innerHTML = `<span class="cf-ring"></span><span class="cf-core">${ic('chat')}<i class="cf-line"></i></span><em>CHAT</em><span id="chatbadge" hidden></span>`;
+  const lz = document.createElement('div'); lz.id = 'chatlaser'; lz.innerHTML = '<i class="a"></i><i class="b"></i><u></u>'; document.body.appendChild(lz);
+  // 넓은 화면은 지난번 상태를 기억하고, 좁은 화면은 접힌 채로 시작한다
+  if (!matchMedia('(min-width: 1281px)').matches || localStorage.getItem('naejeon:chatclosed') === '1') document.body.classList.add('chat-closed');
 }
 export function renderChat(force) {
   const log = document.getElementById('chatlog'); if (!log) return;
@@ -102,7 +131,21 @@ export function renderChat(force) {
   else unread = list.filter((m) => m.at > lastSeenAt && m.cid !== cid).length;
   const b = document.getElementById('chatbadge'); if (b) { b.hidden = !unread; b.textContent = unread > 99 ? '99+' : unread; }
 }
-act('chatToggle', () => { document.body.classList.toggle('chat-open'); renderChat(true); });
+// 접기/펼치기: 레이저 선이 그어진 뒤 위아래로 갈라지며 열리고, 닫을 때는 선으로 모였다가 사라진다(#chatlaser + #chat clip-path)
+let chatAnim = 0;
+act('chatToggle', () => {
+  const b = document.body, chat = document.getElementById('chat'), lz = document.getElementById('chatlaser');
+  const closing = isOpen(), reduce = matchMedia('(prefers-reduced-motion: reduce)').matches, T = reduce ? 0 : closing ? 560 : 760;
+  clearTimeout(chatAnim); chat.classList.remove('opening', 'closing'); lz.classList.remove('opening', 'closing');
+  const done = () => { chat.classList.remove('opening', 'closing'); lz.classList.remove('opening', 'closing'); if (closing) b.classList.add('chat-closed'); else renderChat(true); };
+  if (!closing) b.classList.remove('chat-closed');
+  if (matchMedia('(min-width: 1281px)').matches) localStorage.setItem('naejeon:chatclosed', closing ? '1' : '0');
+  if (!T) return done();
+  void chat.offsetWidth;
+  chat.classList.add(closing ? 'closing' : 'opening'); lz.classList.add(closing ? 'closing' : 'opening');
+  chatAnim = setTimeout(done, T);
+  if (!closing) renderChat(true);
+});
 act('chatTray', () => { tray = !tray; document.getElementById('chattray').hidden = !tray; renderChat(true); });
 act('chatStk', (d) => send('s', d.k));
 act('chatEmo', (d) => { const i = document.getElementById('chatinp'); i.value += d.e; i.focus(); });
@@ -153,9 +196,11 @@ export function initSocial() {
   document.getElementById('presence').addEventListener('contextmenu', (e) => { const b = e.target.closest('[data-cid]'); if (!b) return; e.preventDefault(); openCtx(e.clientX, e.clientY, b.dataset.cid, b.dataset.nick); });
   document.addEventListener('click', (e) => { if (!e.target.closest('#ctx')) closeCtx(); });
   beat();
-  setInterval(() => { if (document.visibilityState === 'visible') beat(); renderPresence(); }, BEAT_MS);
+  setInterval(beat, BEAT_MS);
+  setInterval(renderPresence, 10e3); // 신호가 끊긴 사람을 목록에서 내린다
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') beat(); });
   addEventListener('pagehide', () => beat(true));
+  addEventListener('pageshow', (e) => { if (e.persisted) beat(); });
 }
 
 // ---------- 관리자: 채팅 전체 삭제 · 강퇴 ----------

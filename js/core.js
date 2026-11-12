@@ -44,6 +44,7 @@ const I = {
   code: '<path d="m8 7-5 5 5 5M16 7l5 5-5 5M13.500 4l-3 16"/>',
   trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/>',
   kick: '<circle cx="10" cy="8" r="3.500"/><path d="M3.500 20c.5-3.500 3-5.500 6.500-5.500 1.200 0 2.300.2 3.200.7M16 14l5 5M21 14l-5 5"/>',
+  fold: '<path d="M8 6l6 6-6 6M19 4v16"/>',
   replay: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8h18M7 4l2 4M12 4l2 4M17 4l2 4M10 11.500v5l4.500-2.500z"/>',
 };
 export const ic = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.700" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n] || ''}</svg>`;
@@ -72,7 +73,7 @@ export const act = (name, fn) => (acts[name] = fn);
 export const NAV = [
   ['', 'LEAGUE'], ['home', '홈'], ['rank', '랭킹'], ['matches', '경기 기록'], ['players', '선수 카드'],
   ['', 'ANALYSIS'], ['champs', '챔피언'], ['chem', '케미'],
-  ['', 'PLAY'], ['today', '오늘의 내전'], ['auction', '팀 경매'], ['replay', '리플레이 분석', '예정'], ['admin', '관리'],
+  ['', 'PLAY'], ['today', '오늘의 내전'], ['auction', '팀 경매'], ['replay', '리플레이 분석'], ['admin', '관리'],
   ['', 'CREDITS'], ['maker', '제작자'],
 ];
 export function go(hash) { location.hash = hash; }
@@ -134,10 +135,34 @@ export function champIcon(name, cls = '') {
 //   splashUrl: 원본 일러스트(구도가 제각각이라 큰 배경에만).
 const IMG_ID = { Fiddlesticks: 'FiddleSticks' };
 const imgId = (name) => { const id = S.champBy[name]?.id; return id ? IMG_ID[id] || id : ''; };
-const cimg = (kind) => (name) => (imgId(name) ? `https://ddragon.leagueoflegends.com/cdn/img/champion/${kind}/${imgId(name)}_0.jpg` : '');
+const cimg = (kind) => (name) => (imgId(name) ? `https://ddragon.leagueoflegends.com/cdn/img/champion/${kind}/${imgId(name)}_${S.champBy[name].skin || 0}.jpg` : '');
 export const splashUrl = cimg('splash');
 export const tileUrl = cimg('tiles');
 export const artUrl = cimg('centered');
+// 선수별 스킨 지정: 그 선수의 대표 챔피언이 champ일 때 초상화·일러스트를 해당 스킨으로 바꾼다.
+// 스킨 번호는 패치 데이터에서 이름(kw)으로 찾고, 못 찾으면 num을 쓴다. 다른 선수도 여기에 한 줄 추가하면 된다.
+const SKIN_PREF = [{ player: '혜나', champ: '유미', kw: ['불꽃놀이', '폭죽'], num: 70 }];
+const skinStore = (() => { try { return JSON.parse(localStorage.getItem('naejeon:skins')) || {}; } catch { return {}; } })();
+const skinKey = (p) => p.champ + '|' + p.kw[0];
+function applySkins() {
+  for (const p of SKIN_PREF) {
+    const c = S.champBy[p.champ]; if (!c) continue;
+    const info = skinStore[skinKey(p)] || { num: p.num, name: `${p.kw[0]} ${p.champ}` };
+    p.alias = info.name;
+    S.champBy[info.name] = { id: c.id, name: info.name, skin: info.num, img: `https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/${IMG_ID[c.id] || c.id}_${info.num}.jpg` };
+  }
+}
+async function loadSkins() {
+  for (const p of SKIN_PREF) {
+    const c = S.champBy[p.champ]; if (!c || skinStore[skinKey(p)]?.ver === S.ver) continue;
+    try {
+      const d = (await (await fetch(`https://ddragon.leagueoflegends.com/cdn/${S.ver}/data/ko_KR/champion/${c.id}.json`)).json()).data[c.id];
+      const sk = d.skins.find((x) => p.kw.some((k) => x.name.includes(k)));
+      if (sk) { skinStore[skinKey(p)] = { num: sk.num, name: sk.name, ver: S.ver }; localStorage.setItem('naejeon:skins', JSON.stringify(skinStore)); applySkins(); refresh(); }
+    } catch (e) { console.warn('스킨 정보를 불러오지 못했습니다', e); }
+  }
+}
+const skinFor = (s, name) => { const p = SKIN_PREF.find((x) => x.alias && x.champ === name && s.name.includes(x.player)); return p ? p.alias : name; };
 // 화면에 보일 때만 배경 이미지를 받는다: <i data-art="주소"> → 보이면 style="--img:url(주소)"
 let artIO = null;
 export function lazyArt(root = document) {
@@ -162,12 +187,12 @@ export function sigChamp(s) {
     sigCache.set(st, cnt);
   }
   const top = Object.entries(cnt[s.id] || {}).sort((a, b) => b[1].g - a[1].g || b[1].w - a[1].w)[0];
-  if (top) return top[0];
+  if (top) return skinFor(s, top[0]);
   const most = s.p.solo?.most || '';
   const solo = S.champs.map((c) => c.name).filter((n) => most.includes(n)).sort((a, b) => most.indexOf(a) - most.indexOf(b))[0];
-  if (solo) return solo;
+  if (solo) return skinFor(s, solo);
   const own = Object.entries(s.champs).sort((a, b) => b[1].g - a[1].g || b[1].w - a[1].w)[0];
-  return own ? own[0] : '';
+  return own ? skinFor(s, own[0]) : '';
 }
 export function toast(msg) {
   const t = document.getElementById('toast');
@@ -220,7 +245,7 @@ const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
 const cho = (s) => [...s].map((c) => { const n = c.charCodeAt(0) - 0xac00; return n >= 0 && n < 11172 ? CHO[Math.floor(n / 588)] : c; }).join('');
 export async function loadChamps() {
   const KEY = 'naejeon:champs2';
-  const set = (o) => { S.ver = o.ver; S.champs = o.list; S.champBy = Object.fromEntries(o.list.map((c) => [c.name, c])); };
+  const set = (o) => { S.ver = o.ver; S.champs = o.list; S.champBy = Object.fromEntries(o.list.map((c) => [c.name, c])); applySkins(); loadSkins(); };
   try {
     const cached = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (cached) { set(cached); refresh(); } // 저장해 둔 목록을 적용한 뒤 화면을 다시 그려야 첫 화면의 이미지가 비지 않는다

@@ -53,52 +53,58 @@ function mergeDraftChanges(base, local, remote) {
   return next;
 }
 
-async function syncDraft() {
+// 라인업 초안 동기화(meta/todayDraft). 연속 입력은 한 번으로 묶고(120ms), 전송은 한 번에 하나만 보낸다.
+// 보내는 동안 또 바뀌면 끝난 뒤 최신 상태로 한 번 더 보낸다. 다른 사람의 변경과는 칸 단위로 합친다(mergeDraftChanges).
+let syncTimer = 0, syncBusy = false, syncAgain = false, appliedAt = -1;
+function syncDraft() {
   if (edit || S.store?.mode !== 'firebase' || !draft) return;
-  const local = cloneDraft(draft);
-  const base = cloneDraft(draftBase || remoteDraft() || blank());
+  clearTimeout(syncTimer); syncTimer = setTimeout(pushDraft, 120);
+}
+async function pushDraft() {
+  syncTimer = 0;
+  if (syncBusy) { syncAgain = true; return; }
+  if (edit || !draft) return;
+  syncBusy = true;
+  const local = cloneDraft(draft), base = cloneDraft(draftBase || remoteDraft() || blank());
   try {
     const merged = await S.store.tx('meta', 'todayDraft', (remote) => mergeDraftChanges(base, local, remote || blank()));
     if (merged) {
-      draft = merged;
-      draftUpdatedAt = Number(merged.updatedAt) || Date.now();
-      draftBase = cloneDraft(merged);
-      localStorage.setItem(dkey(), JSON.stringify(draft));
-      refresh();
+      const changedMeanwhile = draftState(draft) !== draftState(local); // 전송 중에 내가 또 고쳤으면 그 내용은 다음 전송에서 합친다
+      draftBase = cloneDraft(merged); appliedAt = Number(merged.updatedAt) || 0;
+      if (!changedMeanwhile) {
+        const same = draftState(merged) === draftState(draft);
+        draft = merged; draftUpdatedAt = appliedAt || Date.now();
+        localStorage.setItem(dkey(), JSON.stringify(draft));
+        if (!same) refresh();
+      } else syncAgain = true;
     }
   } catch (e) {
     toast('팀 동기화 실패: ' + (e.code || e.message));
   }
+  syncBusy = false;
+  if (syncAgain) { syncAgain = false; pushDraft(); }
 }
 
 function applyRemoteDraft() {
   if (edit || S.store?.mode !== 'firebase') return;
   const r = remoteDraft();
   if (!r) return;
-
+  const at = Number(r.updatedAt) || 0;
+  if (draft && at === appliedAt) return; // 이미 반영한 버전: 화면을 그릴 때마다 다시 비교하지 않는다
+  if (syncBusy) return; // 내 변경을 보내는 중이면 응답에서 합쳐진다
+  appliedAt = at;
+  const pad = (a) => [...(a || []), '', '', '', '', ''].slice(0, 5);
   const remote = {
-    ...blank(), ...r,
-    blue: [...(r.blue || five()), '', '', '', '', ''].slice(0, 5),
-    red: [...(r.red || five()), '', '', '', '', ''].slice(0, 5),
-    champs: {
-      blue: [...(r.champs?.blue || five()), '', '', '', '', ''].slice(0, 5),
-      red: [...(r.champs?.red || five()), '', '', '', '', ''].slice(0, 5)
-    },
-    bans: {
-      blue: [...(r.bans?.blue || five()), '', '', '', '', ''].slice(0, 5),
-      red: [...(r.bans?.red || five()), '', '', '', '', ''].slice(0, 5)
-    },
-    kda: { ...(r.kda || {}) }
+    ...blank(), ...r, blue: pad(r.blue), red: pad(r.red),
+    champs: { blue: pad(r.champs?.blue), red: pad(r.champs?.red) }, bans: { blue: pad(r.bans?.blue), red: pad(r.bans?.red) }, kda: { ...(r.kda || {}) },
   };
-
   if (!draft || draftState(remote) !== draftState(draft)) {
-    draft = remote;
-    draftUpdatedAt = Number(r.updatedAt) || Date.now();
-    draftBase = cloneDraft(remote);
+    // 아직 보내지 않은 내 변경이 있으면 원격 내용 위에 내 변경을 얹는다
+    draft = draft && draftBase && syncTimer && draftState(draft) !== draftState(draftBase) ? mergeDraftChanges(draftBase, draft, remote) : remote;
+    draftUpdatedAt = at || Date.now();
     localStorage.setItem(dkey(), JSON.stringify(draft));
-  } else if (!draftBase) {
-    draftBase = cloneDraft(remote);
   }
+  draftBase = cloneDraft(remote);
 }
 const dkey = () => 'naejeon:draft:' + S.key;
 let draft = null, edit = null, lastSaved = null;
@@ -282,128 +288,49 @@ act('tSave', async (d, btn) => {
 
 // ---------- 팀 확정 → 예상 승률 공개 ----------
 // 누군가 "정했어!"를 누르면 meta/reveal 문서에 적고, 접속한 모든 사람의 화면에서 같은 연출이 재생된다(주사위와 같은 방식).
-let rvSeen = null;
-let rvDocWatch = false;
-
-/*
- * reveal은 meta 전체 컬렉션 변경 감지와 분리해서 문서 하나를 직접 구독한다.
- * 중요: S.store.data.meta를 다시 읽어서 처리하지 않는다.
- * Firestore의 onSnapshot 문서 리스너가 최초 현재값 1회 + 이후 변경을
- * 순서대로 전달하므로, 최초값은 기준점으로만 잡고 이후 id가 바뀐 경우에만
- * 연출을 재생한다. 이렇게 하면 일반 meta snapshot과의 실행 순서 경쟁도 없다.
- */
+// 누군가 "정했어!"를 누르면 reveals 컬렉션에 이벤트 문서를 하나 만들고, 접속한 모든 사람의 화면에서 같은 연출이 재생된다.
+// 시작 시각(startAt)은 서버 시각 기준이라 각자 시계가 달라도 같은 순간에 맞춰진다.
+const rvSeen = new Set();
+let rvWatch = false;
 const playReveal = (d, mine = false) => {
   try {
-    // 연출 함수가 예외를 내더라도 이벤트 수신 자체가 조용히 실패하지 않도록 한다.
-    // startAt은 연출 시작 시각, now는 현재 서버 보정 시각이다.
-    const payload = {
-      pb: Number(d.pb) || 50,
-      blue: Array.isArray(d.blue) ? d.blue : [],
-      red: Array.isArray(d.red) ? d.red : [],
-      by: mine ? '' : (d.by || ''),
-      startAt: Number(d.startAt) || Number(d.at) || Date.now(),
-      now: S.store?.serverNow ? S.store.serverNow() : Date.now(),
-      from: S.page === 'today' ? document.querySelector('.arena .ring') : null
-    };
-    console.info('[reveal] play', payload);
-    reveal(payload);
-  } catch (e) {
-    console.error('[reveal] play failed', e);
-    toast('승률 공개 연출 오류: ' + (e?.message || e));
-  }
-};
-
-export function watchReveal(initial = false) {
-  if (rvDocWatch || !S.store?.watchCollection) return;
-  rvDocWatch = true;
-
-  // reveal 이벤트는 문서 하나를 덮어쓰지 않고 이벤트마다 별도 문서를 만든다.
-  // 최초 snapshot은 "현재 존재하는 이벤트 목록"이므로 여기서는 기준점을 잡고,
-  // 이후 새로 추가된 문서만 실시간 이벤트로 처리한다.
-  let primed = false;
-
-  S.store.watchCollection('reveals', (snap) => {
-    const changes = typeof snap?.docChanges === 'function'
-      ? snap.docChanges()
-      : (typeof snap?.changes === 'function' ? snap.changes() : []);
-
-    if (!primed) {
-      primed = true;
-
-      // 최초 접속 때 과거 이벤트를 여러 번 재생하지 않는다.
-      // 단, 리스너가 붙는 순간 최근 5초 이내의 가장 최신 이벤트가 있다면
-      // 다른 브라우저가 늦게 들어온 것으로 보고 그 1건만 재생한다.
-      const docs = changes
-        .filter((change) => change.type === 'added')
-        .map((change) => change.doc?.data ? { ...change.doc.data(), id: change.doc.id } : change.doc)
-        .filter((doc) => doc?.id)
-        .sort((a, b) => (Number(b.at) || 0) - (Number(a.at) || 0));
-
-      const latest = docs[0];
-      if (!latest) return;
-
-      const at = Number(latest.at) || 0;
-      const now = S.store?.serverNow ? S.store.serverNow() : Date.now();
-      // 최초 접속/새로고침에서는 과거 이벤트를 절대 재생하지 않는다.
-      // 승률 공개는 "발생 이후 실시간으로 들어온 이벤트"만 재생한다.
-      if (latest && rvSeen === null) rvSeen = latest.id;
-      return;
-    }
-
-    // 최초 snapshot 이후에는 실제로 추가된 reveal만 처리한다.
-    changes.forEach((change) => {
-      if (change.type !== 'added') return;
-      const doc = change.doc?.data ? { ...change.doc.data(), id: change.doc.id } : change.doc;
-      if (!doc?.id || doc.id === rvSeen) return;
-
-      rvSeen = doc.id;
-      console.info('[reveal] received', {
-        id: doc.id,
-        at: Number(doc.at) || 0,
-        startAt: Number(doc.startAt) || Number(doc.at) || 0,
-        serverNow: S.store?.serverNow ? S.store.serverNow() : Date.now(),
-        page: S.page,
-        key: S.key
-      });
-      playReveal(doc, false);
+    reveal({
+      pb: Number(d.pb) || 50, blue: Array.isArray(d.blue) ? d.blue : [], red: Array.isArray(d.red) ? d.red : [], by: mine ? '' : (d.by || ''),
+      startAt: Number(d.startAt) || Number(d.at) || Date.now(), now: S.store.serverNow(),
+      from: S.page === 'today' ? document.querySelector('.arena .ring') : null,
     });
-  }, (err) => {
-    console.error('[reveal] realtime collection listener failed', err);
-    toast('승률 공개 실시간 연결 실패: ' + (err?.code || err?.message || 'unknown'));
-  });
+  } catch (e) { console.error('[reveal]', e); }
+};
+export function watchReveal() {
+  if (rvWatch || !S.store?.watchCollection) return;
+  rvWatch = true;
+  let primed = false;
+  S.store.watchCollection('reveals', (snap) => {
+    const changes = typeof snap?.docChanges === 'function' ? snap.docChanges() : snap.changes();
+    const docs = changes.filter((c) => c.type === 'added').map((c) => (c.doc?.data ? { ...c.doc.data(), id: c.doc.id } : c.doc)).filter((d) => d?.id);
+    // 첫 응답은 이미 지나간 이벤트 목록이다: 재생하지 않고 "본 것"으로만 표시한다(새로고침 때 다시 나오지 않게)
+    if (!primed) { primed = true; docs.forEach((d) => rvSeen.add(d.id)); return; }
+    for (const d of docs) {
+      if (rvSeen.has(d.id)) continue;
+      rvSeen.add(d.id);
+      if (S.store.serverNow() - (Number(d.at) || 0) < 20000) playReveal(d, false); // 너무 늦게 도착한 이벤트(오프라인 복귀 등)는 건너뛴다
+    }
+  }, (err) => console.error('[reveal] listener', err));
 }
 
 act('tqNo', () => { TQ.no = lineKey(D()); refresh(); });
-act('tqYes', () => {
+act('tqYes', async () => {
   const d = D(); if (!isFull(d)) return toast('양 팀 10명을 모두 배치해 주세요');
   const nm = (ids) => ids.map((id) => S.st.P[id]?.name || '?');
-  const send = async () => {
-    try {
-      // 서버 시각을 기준으로 1.8초 뒤를 시작점으로 잡는다.
-      // 로컬 시계가 틀려 있어도 모든 브라우저가 같은 wall-clock을 기준으로 계산한다.
-      await S.store.syncServerClock?.();
-      const now = S.store.serverNow ? S.store.serverNow() : Date.now();
-      const r = { id: uid(), at: now, startAt: now + 1800, pb: Math.round(evalLineup(d.blue, d.red, S.st).pBlue * 100), blue: nm(d.blue), red: nm(d.red), by: nick() || '익명' };
-      TQ.done = lineKey(d);
-
-      // 내 브라우저는 Firestore snapshot을 기다리지 않고 즉시 재생한다.
-      // 동시에 rvSeen에 이벤트 id를 먼저 기록해서 자신의 snapshot이 도착해도
-      // 같은 연출을 두 번 재생하지 않는다.
-      rvSeen = r.id;
-      console.info('[reveal] local trigger', r);
-      toast('승률 공개 연출 시작');
-      playReveal(r, true);
-
-      await S.store.put('reveals', r.id, r);
-      console.info('[reveal] firestore write complete', {
-        collection: 'reveals', id: r.id, key: S.key, at: r.at, startAt: r.startAt
-      });
-      sysChat('팀 확정 · 예상 승률 블루 ' + r.pb + '% : 레드 ' + (100 - r.pb) + '%');
-      // 다른 브라우저는 meta/reveal 문서 변경을 받아 같은 startAt으로 재생한다.
-      refresh();
-    } catch (e) {
-      toast('중계 전송 실패: ' + (e.code || e.message));
-    }
-  };
-  send();
+  try {
+    await S.store.syncServerClock?.();
+    const now = S.store.serverNow();
+    const r = { id: uid(), at: now, startAt: now + 1800, pb: Math.round(evalLineup(d.blue, d.red, S.st).pBlue * 100), blue: nm(d.blue), red: nm(d.red), by: nick() || '익명' };
+    TQ.done = lineKey(d);
+    rvSeen.add(r.id); // 내 화면은 응답을 기다리지 않고 바로 재생하고, 내 이벤트가 돌아와도 두 번 재생하지 않는다
+    playReveal(r, true);
+    refresh();
+    await S.store.put('reveals', r.id, r);
+    sysChat('팀 확정 · 예상 승률 블루 ' + r.pb + '% : 레드 ' + (100 - r.pb) + '%');
+  } catch (e) { toast('중계 전송 실패: ' + (e.code || e.message)); }
 });

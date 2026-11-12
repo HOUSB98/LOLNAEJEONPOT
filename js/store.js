@@ -3,7 +3,8 @@
 //   put / patch / tx : 쓰기. 삭제는 없다(문서에 deleted:true 를 표시하는 방식).
 import { FIREBASE_CONFIG } from './config.js';
 
-const WATCHED = ['players', 'matches', 'auctions', 'meta', 'reveals', 'presence', 'chat'];
+// reveals(승률 공개 이벤트)는 계속 쌓이는 기록이라 전체를 구독하지 않고 watchCollection으로 최근 것만 따로 듣는다.
+const WATCHED = ['players', 'matches', 'auctions', 'meta', 'presence', 'chat'];
 const CHAT_LIMIT = 300; // 채팅은 문서가 계속 쌓이므로 최근 것만 구독한다(기록 자체는 DB에 남는다)
 const clean = (o) => JSON.parse(JSON.stringify(o)); // Firestore는 undefined를 받지 않는다
 const FB ='https://www.gstatic.com/firebasejs/10.12.5/';
@@ -16,12 +17,17 @@ function localStore(key, onChange) {
   const k = (col) => `naejeon:${key}:${col}`;
   const load = (col) => { try { return JSON.parse(localStorage.getItem(k(col))) || {}; } catch { return {}; } };
   const data = {};
-  WATCHED.concat('history').forEach((c) => (data[c] = load(c)));
+  WATCHED.concat('history', 'reveals').forEach((c) => (data[c] = load(c)));
+  const subs = {}; // 체험 모드에서도 다른 탭의 이벤트(승률 공개)를 받을 수 있게 한다
   const bc = 'BroadcastChannel' in window ? new BroadcastChannel('naejeon:' + key) : null;
-  if (bc) bc.onmessage = (e) => { data[e.data] = load(e.data); onChange(e.data); };
-  const save = (col) => {
+  if (bc) bc.onmessage = (e) => {
+    const c = e.data.col || e.data; data[c] = load(c);
+    if (e.data.id && subs[c]) { const doc = data[c][e.data.id]; if (doc) subs[c].forEach((f) => f({ changes: () => [{ type: 'added', doc }] })); }
+    onChange(c);
+  };
+  const save = (col, id) => {
     localStorage.setItem(k(col), JSON.stringify(data[col]));
-    if (bc) bc.postMessage(col);
+    if (bc) bc.postMessage({ col, id });
     onChange(col);
   };
   return {
@@ -34,9 +40,11 @@ function localStore(key, onChange) {
     },
     watchCollection: (col, onSnap, onError) => {
       onSnap({ changes: () => Object.values(data[col] || {}).map((d) => ({ type: 'added', doc: d })) });
+      (subs[col] ||= []).push(onSnap);
       return () => {};
     },
-    async put(col, id, doc) { data[col][id] = { ...doc, id }; save(col); },
+    bye() {},
+    async put(col, id, doc) { data[col][id] = { ...doc, id }; save(col, id); },
     async patch(col, id, part) { data[col][id] = { ...(data[col][id] || { id }), ...part }; save(col); },
     async tx(col, id, fn) {
       data[col] = load(col);
@@ -60,7 +68,7 @@ async function firebaseStore(key, onChange) {
     if (clockPromise) return clockPromise;
     clockPromise = (async () => {
       const before = Date.now();
-      const clockRef = ref('meta', 'serverClock');
+      const clockRef = ref('clock', 'sync'); // 구독하지 않는 컬렉션에 둔다(meta에 두면 누가 접속할 때마다 모두의 화면이 다시 그려진다)
       await fs.setDoc(clockRef, { at: fs.serverTimestamp() }, { merge: true });
       const snap = await fs.getDocFromServer(clockRef);
       const ts = snap.data()?.at;
@@ -112,6 +120,13 @@ async function firebaseStore(key, onChange) {
         ? fs.query(src, fs.orderBy('at', 'desc'), fs.limit(20))
         : src;
       return fs.onSnapshot(q, onSnap, onError);
+    },
+    // 탭을 닫는 순간에도 전송이 끝까지 가도록 keepalive 요청(REST)으로 숫자 필드 하나만 고친다. 접속 종료 표시용.
+    bye(col, id, field, value) {
+      try {
+        const u = `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/(default)/documents/leagues/${key}/${col}/${id}?updateMask.fieldPaths=${field}&key=${FIREBASE_CONFIG.apiKey}`;
+        fetch(u, { method: 'PATCH', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: { [field]: { integerValue: String(value) } } }) }).catch(() => {});
+      } catch {}
     },
     put: (col, id, doc) => fs.setDoc(ref(col, id), clean({ ...doc, id })),
     patch: (col, id, part) => fs.setDoc(ref(col, id), clean(part), { merge: true }),

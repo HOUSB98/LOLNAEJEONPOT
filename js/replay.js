@@ -1,6 +1,7 @@
 // 리플레이(.rofl) 분석: 파일 안에 들어 있는 경기 결과 JSON(statsJson)을 브라우저에서 직접 읽는다. 파일은 어디에도 올라가지 않는다.
 import { S, page, act, esc, go, refresh, champIcon, toast, ic, modal, closeModal, mh, history, LANES, LANE_NAME, LANE_ICON } from './core.js';
 import { importDraft } from './today.js';
+import { XKEYS } from './stats.js';
 
 const R = { name: '', meta: null, rows: [], winner: '', dur: 0, err: '', busy: false };
 const POS = { TOP: 0, JUNGLE: 1, MIDDLE: 2, MID: 2, BOTTOM: 3, BOT: 3, ADC: 3, UTILITY: 4, SUPPORT: 4 };
@@ -50,6 +51,14 @@ function toRows(meta) {
       k: n(p.CHAMPIONS_KILLED), d: n(p.NUM_DEATHS), a: n(p.ASSISTS), cs: n(p.MINIONS_KILLED) + n(p.NEUTRAL_MINIONS_KILLED),
       gold: n(p.GOLD_EARNED), dmg: n(p.TOTAL_DAMAGE_DEALT_TO_CHAMPIONS), taken: n(p.TOTAL_DAMAGE_TAKEN), vis: n(p.VISION_SCORE), wards: n(p.WARD_PLACED),
       lvl: n(p.LEVEL), multi: n(p.LARGEST_MULTI_KILL), items: [0, 1, 2, 3, 4, 5, 6].map((i) => n(p['ITEM' + i])),
+      // 확장 지표(v2): 파일의 경기 결과에 들어 있는 나머지 수치 전부
+      mk: n(p.MINIONS_KILLED), jk: n(p.NEUTRAL_MINIONS_KILLED),
+      pd: n(p.PHYSICAL_DAMAGE_DEALT_TO_CHAMPIONS), md: n(p.MAGIC_DAMAGE_DEALT_TO_CHAMPIONS), td: n(p.TRUE_DAMAGE_DEALT_TO_CHAMPIONS),
+      obj: n(p.TOTAL_DAMAGE_DEALT_TO_OBJECTIVES), tur: n(p.TOTAL_DAMAGE_DEALT_TO_TURRETS || p.TOTAL_DAMAGE_DEALT_TO_BUILDINGS),
+      heal: n(p.TOTAL_HEAL), healT: n(p.TOTAL_HEAL_ON_TEAMMATES), shT: n(p.TOTAL_DAMAGE_SHIELDED_ON_TEAMMATES), mit: n(p.TOTAL_DAMAGE_SELF_MITIGATED),
+      cc: n(p.TIME_CCING_OTHERS), wk: n(p.WARD_KILLED), cw: n(p.VISION_WARDS_BOUGHT_IN_GAME),
+      dk: n(p.DOUBLE_KILLS), tk: n(p.TRIPLE_KILLS), qk: n(p.QUADRA_KILLS), pk: n(p.PENTA_KILLS), spree: n(p.LARGEST_KILLING_SPREE),
+      tw: n(p.TURRETS_KILLED || p.TURRET_TAKEDOWNS), spent: n(p.GOLD_SPENT), dead: n(p.TOTAL_TIME_SPENT_DEAD), crit: n(p.LARGEST_CRITICAL_STRIKE),
     };
   });
   // 포지션 정보가 없는 경우(일부 사용자 설정 게임)는 팀 안에서 비어 있는 라인을 순서대로 채운다
@@ -60,6 +69,8 @@ function toRows(meta) {
   }
   return rows;
 }
+// 경기 문서에 저장할 선수별 상세 기록 (Firestore: undefined 금지 → 전부 숫자)
+const statsOf = (r) => ({ v: 2, cs: r.cs, gold: r.gold, dmg: r.dmg, taken: r.taken, vis: r.vis, wards: r.wards, lvl: r.lvl, multi: r.multi, items: r.items, ...Object.fromEntries(XKEYS.map((k) => [k, r[k] || 0])) });
 const fmtDur = (ms) => { const s = Math.round(ms / 1000); return `${Math.floor(s / 60)}분 ${String(s % 60).padStart(2, '0')}초`; };
 const itemImg = (id) => (id && S.ver ? `<img class="it" src="https://ddragon.leagueoflegends.com/cdn/${S.ver}/img/item/${id}.png" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : '<span class="it"></span>');
 
@@ -79,7 +90,12 @@ page('replay', {
         <td class="mono">${k(r.gold)}</td><td class="mono">${k(r.dmg)}</td><td class="mono">${r.vis}</td><td class="l items">${r.items.map(itemImg).join('')}</td></tr>`; }).join('')}
       </tbody></table></div></div>`;
     };
+    const st = S.st, rp = st.matches.filter((x) => x.stats), rdays = [...new Set(rp.map((x) => st.MI[x.id].day))].reverse();
+    const arch = `<div class="sec-h"><h2>${ic('cal')}리플레이 기록 보관함</h2><span class="tag gold">${rp.length}경기</span><span class="mut sm">날짜별 · 경기를 누르면 상세 기록이 열립니다</span></div>
+      ${rdays.map((dy) => `<div class="rpday"><h3 class="day"><span class="mono">${dy.replace(/-/g, '.')}</span><small>${rp.filter((x) => st.MI[x.id].day === dy).length}경기</small></h3><div class="rpl">${rp.filter((x) => st.MI[x.id].day === dy).reverse().map((x) => { const mi = st.MI[x.id], mn = (x.dur || 0) / 60000;
+        return `<button class="rpi ${x.winner}" data-a="matchDetail" data-id="${x.id}"><b class="mono">#${mi.no}</b><span class="rpc">${(x.champs?.blue || []).map((c) => champIcon(c, 'sm')).join('')}<i>VS</i>${(x.champs?.red || []).map((c) => champIcon(c, 'sm')).join('')}</span><em class="${x.winner}">${x.winner === 'blue' ? 'BLUE' : 'RED'} WIN</em><small class="mono">${mn ? Math.floor(mn) + '분' : ''}</small></button>`; }).join('')}</div></div>`).join('') || '<div class="panel empty">아직 리플레이를 넣은 경기가 없습니다. 경기 기록에서 각 경기의 <em>리플레이</em> 버튼으로 파일을 넣어 주세요.</div>'}`;
     return `<div class="h2row"><h1>${ic('replay')}리플레이 분석</h1><span class="tag gold">${REPLAY_PAGE ? 'BETA' : '도입 예정'}</span></div>
+    ${arch}
     ${REPLAY_PAGE ? '' : `<div class="panel soonbox">${ic('alert')}<div><b>도입 예정인 기능입니다</b><span>리플레이를 올리면 해당 경기를 자동으로 찾아 주는 기능과 함께 열릴 예정입니다. 그때까지는 <a href="#/matches">경기 기록</a>에서 각 경기의 <em>리플레이</em> 버튼으로 파일을 넣어 주세요.</span></div></div>`}
     <label class="drop ${R.busy ? 'busy' : ''} ${REPLAY_PAGE ? '' : 'off'}" id="rdrop"><input type="file" accept=".rofl" id="rfile" hidden ${REPLAY_PAGE ? '' : 'disabled'}>
       <div class="dr-ic">${ic('replay')}</div><b>${!REPLAY_PAGE ? '도입 예정 — 지금은 파일을 넣을 수 없습니다' : R.busy ? '분석 중…' : '.rofl 리플레이 파일을 끌어다 놓거나 눌러서 선택'}</b>
@@ -95,7 +111,7 @@ page('replay', {
         <button class="btn pri block big" data-a="rpSend">${ic('today')}오늘의 내전 입력 화면으로 보내기</button><p class="hint center">보낸 뒤 입력 화면에서 확인하고 "경기 결과 저장"을 눌러야 기록됩니다. 피어리스·시리즈 판정도 그 화면에서 그대로 적용됩니다.</p></div>`
     : `<div class="grid2"><div class="panel"><div class="ph"><b>읽을 수 있는 정보</b></div><ul class="rlist">
         <li>챔피언, 소환사(롤 닉네임), 진영, 포지션, 승패</li><li>킬 · 데스 · 어시스트, 최대 연속 킬</li><li>CS(미니언 + 정글몹), 골드, 레벨</li>
-        <li>챔피언에게 가한 피해량, 받은 피해량</li><li>시야 점수, 와드 설치 수</li><li>최종 아이템 7칸, 경기 시간, 게임 버전</li></ul></div>
+        <li>챔피언에게 가한 피해량, 받은 피해량</li><li>시야 점수, 와드 설치·제거, 제어 와드 구매</li><li>물리·마법·고정 피해 구성, 오브젝트·포탑 피해</li><li>치유·아군 보호막·피해 경감·CC 시간, 멀티킬, 사망 시간</li><li>최종 아이템 7칸, 경기 시간, 게임 버전</li></ul></div>
       <div class="panel"><div class="ph"><b>알아 둘 점</b></div><ul class="rlist">
         <li>리플레이는 롤 클라이언트에서 <b>현재 패치</b> 경기만 다운로드할 수 있습니다.</li><li>사용자 설정(내전) 경기도 전적에 남아 있으면 다운로드할 수 있습니다.</li>
         <li>밴 정보와 타임라인(분당 골드 그래프 등)은 파일 앞부분 정보에 들어 있지 않아 읽지 않습니다.</li><li>읽은 상세 기록(CS·골드·피해량·시야)은 경기와 함께 저장되어 이후 통계에 쓸 수 있습니다.</li></ul></div></div>`}`;
@@ -152,7 +168,7 @@ act('atApply', async () => {
   const kda = { ...(m.kda || {}) }, stats = {}, champs = { blue: [...(m.champs?.blue || ['', '', '', '', ''])], red: [...(m.champs?.red || ['', '', '', '', ''])] };
   for (const r of AT.rows) {
     kda[r.pid] = [r.k, r.d, r.a];
-    stats[r.pid] = { cs: r.cs, gold: r.gold, dmg: r.dmg, taken: r.taken, vis: r.vis, wards: r.wards, lvl: r.lvl, multi: r.multi, items: r.items };
+    stats[r.pid] = statsOf(r);
     const side = m.blue.includes(r.pid) ? 'blue' : 'red', i = m[side].indexOf(r.pid);
     if (S.champBy[r.champ]) champs[side][i] = r.champ;
   }
@@ -182,7 +198,7 @@ act('rpSend', () => {
     if (r.lane < 0 || x[r.side][r.lane]) return toast(`${r.side === 'blue' ? '블루' : '레드'} 팀의 라인이 겹칩니다`);
     x[r.side][r.lane] = r.pid; x.champs[r.side][r.lane] = S.champBy[r.champ] ? r.champ : '';
     x.kda[r.pid] = `${r.k}/${r.d}/${r.a}`;
-    x.stats[r.pid] = { cs: r.cs, gold: r.gold, dmg: r.dmg, taken: r.taken, vis: r.vis, wards: r.wards, lvl: r.lvl, multi: r.multi, items: r.items };
+    x.stats[r.pid] = statsOf(r);
   }
   if (new Set(R.rows.map((r) => r.pid)).size !== R.rows.length) return toast('같은 선수가 두 번 선택되었습니다');
   importDraft(x); toast('입력 화면에 채웠습니다. 확인 후 저장하세요'); go('#/today');

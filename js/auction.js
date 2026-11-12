@@ -1,5 +1,5 @@
 // 팀 경매: 팀장이 한정 포인트로 선수를 한 명씩 입찰. 타이머·입찰은 DB 트랜잭션으로 모든 접속자에게 동기화된다.
-import { S, page, act, esc, uid, col, pname, go, refresh, toast, needAdmin, LANES, LANE_NAME, LANE_ICON } from './core.js';
+import { S, page, act, esc, uid, col, pname, go, refresh, toast, needAdmin, ic, champIcon, sigChamp, LANES, LANE_NAME, LANE_ICON, LANE_COLOR } from './core.js';
 import { dayKey } from './stats.js';
 import { setDraftTeams } from './today.js';
 
@@ -60,16 +60,25 @@ function lobbyList() {
   <h2>새 경매 만들기</h2>
   <div class="panel">
     <label class="fld"><span>방 이름</span><input id="auName" class="inp" value="${esc(AU.name)}" placeholder="예: 11월 2주차 내전" data-i="auF" data-k="name"></label>
-    <div class="ph"><b>참가자 · 팀장 선택</b><small class="mut">한 번 누르면 참가, 두 번 누르면 👑팀장, 세 번 누르면 해제</small><span class="grow"></span><button class="btn xs" data-a="auRecent">최근 내전 참가자</button></div>
-    <div class="chipsel">${st.list.map((s) => `<button class="${['', 'on', 'cap'][AU.role[s.id] || 0]}" data-a="auRole" data-id="${s.id}">${AU.role[s.id] === 2 ? '👑 ' : ''}${esc(s.name)}</button>`).join('') || '<span class="mut">선수가 없습니다. 관리에서 먼저 선수를 등록하세요.</span>'}</div>
-    <p class="sm">👑 팀장 <b>${caps.length}</b>명 · 매물 <b>${parts.length}</b>명 ${caps.length >= 2 ? `<span class="mut">(팀당 ${4}명 필요 → ${caps.length * 4}명 중 ${Math.min(parts.length, caps.length * 4)}명 배정${parts.length > caps.length * 4 ? `, ${parts.length - caps.length * 4}명은 예비` : ''})</span>` : ''}</p>
+    <div class="ausel">
+      <div class="au-pool">
+        <div class="ph"><b>참가자</b><span class="tag ok">${parts.length + caps.length}명 선택</span><small class="mut">이름을 누르면 참가 ↔ 제외 · 왕관을 누르면 팀장</small><span class="grow"></span><button class="btn xs" data-a="auRecent">최근 내전 참가자</button><button class="btn xs" data-a="auAll">전원</button><button class="btn xs ghost" data-a="auNone">해제</button></div>
+        ${st.list.length ? LANES.map((l) => { const g = st.byOvr.filter((s) => s.mainLane === l); return g.length ? `<div class="au-lane" style="--tc:${LANE_COLOR[l]}"><span class="au-ll">${LANE_ICON[l]}<b>${LANE_NAME[l]}</b><small class="mono">${g.filter((s) => AU.role[s.id]).length}/${g.length}</small></span>
+          <div>${g.map((s) => { const r = AU.role[s.id] || 0; return `<span class="auc ${['', 'on', 'cap'][r]}"><button class="auc-n" data-a="auRole" data-id="${s.id}" data-r="1" title="${r ? '누르면 제외' : '누르면 참가'}">${esc(s.name)}<small class="mono">${s.ovr}</small></button><button class="auc-c" data-a="auRole" data-id="${s.id}" data-r="2" title="${r === 2 ? '팀장 해제' : '팀장으로 지정'}" aria-label="팀장 지정">${ic('crown')}</button></span>`; }).join('')}</div></div>` : ''; }).join('') : '<span class="mut">선수가 없습니다. 관리에서 먼저 선수를 등록하세요.</span>'}
+      </div>
+      <div class="au-caps">
+        <div class="ph">${ic('crown')}<b>팀장</b><span class="tag gold">${caps.length}팀</span><span class="grow"></span><small class="mut">핸디캡 = 시작 포인트에서 차감</small></div>
+        ${caps.map((id, i) => { const c = st.P[id]; return c ? `<div class="aucap" style="--tc:${LANE_COLOR[c.mainLane]}"><i class="mono">${i + 1}</i>${champIcon(sigChamp(c), 'face')}<div><b>${esc(c.name)}</b><small>${LANE_ICON[c.mainLane]} ${LANE_NAME[c.mainLane]} · OVR ${c.ovr}</small></div><label title="시작 포인트에서 차감할 포인트"><span>핸디캡</span><input id="auH${id}" class="inp xs mono" type="number" value="${AU.hcap[id] || 0}" data-i="auHc" data-id="${id}"></label><button class="btn ghost xs" data-a="auRole" data-id="${id}" data-r="2" title="팀장 해제">${ic('x')}</button></div>` : ''; }).join('') || `<div class="aucap-emp">${ic('crown')}<p>왼쪽 참가자 이름 옆의 <b>왕관</b>을 눌러<br>팀장을 2명 이상 지정하세요.</p></div>`}
+        <div class="au-sum"><div><small>팀장</small><b class="mono">${caps.length}</b></div><div><small>매물</small><b class="mono">${parts.length}</b></div><div><small>필요</small><b class="mono">${caps.length * 4}</b></div></div>
+        <p class="sm ${caps.length >= 2 && parts.length < caps.length * 4 ? 'bad' : 'mut'}">${caps.length < 2 ? '팀장이 정해지면 필요한 인원이 계산됩니다.' : parts.length < caps.length * 4 ? `팀당 4명이 필요합니다 · 매물이 ${caps.length * 4 - parts.length}명 부족합니다.` : parts.length > caps.length * 4 ? `${caps.length * 4}명 배정 · ${parts.length - caps.length * 4}명은 예비가 됩니다.` : '인원이 딱 맞습니다.'}</p>
+      </div>
+    </div>
     <div class="fgrid">
       <label class="fld"><span>시작 포인트</span><input id="auP" class="inp" type="number" value="${AU.points}" data-i="auF" data-k="points"></label>
       <label class="fld"><span>입찰 단위</span><input id="auU" class="inp" type="number" value="${AU.unit}" data-i="auF" data-k="unit"></label>
       <label class="fld"><span>경매 시간(초)</span><input id="auS" class="inp" type="number" value="${AU.sec}" data-i="auF" data-k="sec"></label>
       <label class="fld"><span>입찰 시 최소 남은 시간(초)</span><input id="auE" class="inp" type="number" value="${AU.ext}" data-i="auF" data-k="ext"></label>
     </div>
-    ${caps.length ? `<div class="ph"><b>팀장 핸디캡</b><small class="mut">시작 포인트에서 차감할 포인트</small></div><div class="fgrid">${caps.map((id) => `<label class="fld"><span>👑 ${pname(id)}</span><input id="auH${id}" class="inp" type="number" value="${AU.hcap[id] || 0}" data-i="auHc" data-id="${id}"></label>`).join('')}</div>` : ''}
     <label class="mini"><input type="checkbox" data-c="auHide" ${AU.hide ? 'checked' : ''}> 경매 순서 비공개 (무작위)</label>
     <button class="btn pri block big" data-a="auCreate">경매 방 만들기</button>
   </div>`;
@@ -160,10 +169,14 @@ page('auction', {
 act('auF', (d, el) => { AU[d.k] = d.k === 'name' ? el.value : Math.max(0, +el.value || 0); });
 act('auHc', (d, el) => { AU.hcap[d.id] = +el.value || 0; });
 act('auHide', (d, el) => { AU.hide = el.checked; });
-act('auRole', (d) => { AU.role[d.id] = ((AU.role[d.id] || 0) + 1) % 3; refresh(); });
+// r=1: 이름(참가 ↔ 제외, 팀장이면 일반 참가자로) · r=2: 왕관(팀장 ↔ 참가자)
+act('auRole', (d) => { const cur = AU.role[d.id] || 0; AU.role[d.id] = d.r === '2' ? (cur === 2 ? 1 : 2) : cur === 1 ? 0 : 1; refresh(); });
+act('auAll', () => { S.st.list.forEach((s) => { AU.role[s.id] ||= 1; }); refresh(); });
+act('auNone', () => { AU.role = {}; refresh(); });
 act('auRecent', () => {
-  const st = S.st; AU.role = {};
+  const st = S.st; const keep = Object.keys(AU.role).filter((k) => AU.role[k] === 2); AU.role = {};
   st.matches.filter((m) => st.MI[m.id].day === st.lastDay).forEach((m) => [...m.blue, ...m.red].forEach((id) => (AU.role[id] = 1)));
+  keep.forEach((id) => { if (AU.role[id]) AU.role[id] = 2; });
   refresh();
 });
 act('auChatI', (d, el) => { AU.chat = el.value; });
@@ -172,7 +185,7 @@ act('auAs', (d, el) => { AU.as = +el.value; refresh(); });
 act('auCopy', async (d) => { try { await navigator.clipboard.writeText(d.u); toast('링크를 복사했습니다'); } catch { prompt('이 링크를 복사하세요', d.u); } });
 act('auCreate', async () => {
   const caps = Object.keys(AU.role).filter((k) => AU.role[k] === 2), parts = Object.keys(AU.role).filter((k) => AU.role[k] === 1);
-  if (caps.length < 2) return toast('팀장을 2명 이상 지정해 주세요 (이름을 두 번 누르기)');
+  if (caps.length < 2) return toast('팀장을 2명 이상 지정해 주세요 (이름 옆 왕관 누르기)');
   if (!parts.length) return toast('경매에 나올 참가자를 선택해 주세요');
   if (AU.unit < 1 || AU.sec < 5) return toast('입찰 단위는 1 이상, 경매 시간은 5초 이상이어야 합니다');
   for (let i = parts.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [parts[i], parts[j]] = [parts[j], parts[i]]; }

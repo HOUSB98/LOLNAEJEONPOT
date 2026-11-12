@@ -25,6 +25,8 @@ export function dayKey(at) {
 const pk = (a, b) => (a < b ? a + '|' + b : b + '|' + a);
 const blank = () => ({ g: 0, w: 0 });
 const add = (o, win) => { o.g++; if (win) o.w++; };
+// 리플레이에서 읽는 확장 지표(경기별 stats에 v:2와 함께 저장). 뜻은 js/replay.js의 toRows 참고
+export const XKEYS = ['mk', 'jk', 'pd', 'md', 'td', 'obj', 'tur', 'heal', 'healT', 'shT', 'mit', 'cc', 'wk', 'cw', 'dk', 'tk', 'qk', 'pk', 'spree', 'tw', 'spent', 'dead', 'crit'];
 
 export function compute(playerList, matchList, settings) {
   const cfg = { ...DEFAULTS, ...settings };
@@ -37,8 +39,7 @@ export function compute(playerList, matchList, settings) {
       id: p.id, name: p.name, p, g: 0, w: 0, results: [], mmrInit: mmr, mmr, mmrLast: 0,
       lanes: Object.fromEntries(LANES.map((l) => [l, blank()])), side: { blue: blank(), red: blank() },
       champs: {}, days: {}, off: blank(), upsetWins: 0, dogWins: 0, dogGames: 0, favLosses: 0, pSum: 0,
-      lastAt: 0, dawn: 0, kda: [0, 0, 0], kdaG: 0, cur: 0, maxStreak: 0, zkw: 0, dx: null,
-      dt: { g: 0, cspm: 0, gpm: 0, dpm: 0, vpm: 0, share: 0, taken: 0, on: 0, gd: 0, csd: 0, ic: 0, ig: 0, id: 0, iv: 0 },
+      lastAt: 0, dawn: 0, kda: [0, 0, 0], kdaG: 0, cur: 0, maxStreak: 0, zkw: 0, dx: null, dxl: {},
       mainLane: p.mainLane || LANES.reduce((a, l) => ((p.scores?.[l] || 0) > (p.scores?.[a] || 0) ? l : a), 'top'),
     };
   }
@@ -109,28 +110,45 @@ export function compute(playerList, matchList, settings) {
     if (!m.stats || min <= 0) return;
     for (const side of ['blue', 'red']) {
       const other = m[side === 'blue' ? 'red' : 'blue'], tdmg = m[side].reduce((a, id) => a + (+m.stats[id]?.dmg || 0), 0);
+      const tk = m[side].reduce((a, id) => a + (+m.kda?.[id]?.[0] || 0), 0);
       m[side].forEach((id, i) => {
         const x = m.stats[id], s = P[id]; if (!x || !s) return;
-        const o = m.stats[other[i]], lane = LANES[i];
-        const r = { s, lane, cspm: x.cs / min, gpm: x.gold / min, dpm: x.dmg / min, vpm: x.vis / min, share: tdmg ? x.dmg / tdmg : 0, taken: +x.taken || 0, gd: o ? x.gold - o.gold : null, csd: o ? x.cs - o.cs : null };
+        const o = m.stats[other[i]], lane = LANES[i], kda = m.kda?.[id] || null;
+        const r = { s, lane, x, min, kda, kp: kda && tk ? (kda[0] + kda[2]) / tk : null, win: m.winner === side, cspm: x.cs / min, gpm: x.gold / min, dpm: x.dmg / min, vpm: x.vis / min, share: tdmg ? x.dmg / tdmg : 0, taken: +x.taken || 0, gd: o ? x.gold - o.gold : null, csd: o ? x.cs - o.cs : null };
         rows.push(r);
         const a = (LA[lane] ||= { n: 0, cspm: 0, gpm: 0, dpm: 0, vpm: 0 });
         a.n++; for (const k of ['cspm', 'gpm', 'dpm', 'vpm']) a[k] += r[k];
       });
     }
   });
+  // 선수별로 "전체"와 "라인별" 두 묶음에 같은 방식으로 쌓는다
+  const bucket = () => ({ g: 0, w: 0, cspm: 0, gpm: 0, dpm: 0, vpm: 0, share: 0, taken: 0, wards: 0, multi: 0, on: 0, gd: 0, csd: 0, ic: 0, ig: 0, id: 0, iv: 0, kg: 0, k: 0, d: 0, a: 0, kpg: 0, kp: 0, xg: 0, xmin: 0, x: {} });
+  const DT = {};
   rows.forEach((r) => {
-    const a = LA[r.lane], d = r.s.dt, ix = (k) => (a[k] > 0 ? r[k] / (a[k] / a.n) : 1);
-    d.g++; for (const k of ['cspm', 'gpm', 'dpm', 'vpm', 'share', 'taken']) d[k] += r[k];
-    if (r.gd !== null) { d.on++; d.gd += r.gd; d.csd += r.csd; }
-    d.ic += ix('cspm'); d.ig += ix('gpm'); d.id += ix('dpm'); d.iv += ix('vpm');
+    const a = LA[r.lane], ix = (k) => (a[k] > 0 ? r[k] / (a[k] / a.n) : 1), o = (DT[r.s.id] ||= { all: bucket(), lanes: {} });
+    for (const d of [o.all, (o.lanes[r.lane] ||= bucket())]) {
+      d.g++; if (r.win) d.w++;
+      for (const k of ['cspm', 'gpm', 'dpm', 'vpm', 'share', 'taken']) d[k] += r[k];
+      d.wards += +r.x.wards || 0; d.multi = Math.max(d.multi, +r.x.multi || 0);
+      if (r.gd !== null) { d.on++; d.gd += r.gd; d.csd += r.csd; }
+      d.ic += ix('cspm'); d.ig += ix('gpm'); d.id += ix('dpm'); d.iv += ix('vpm');
+      if (r.kda) { d.kg++; d.k += r.kda[0]; d.d += r.kda[1]; d.a += r.kda[2]; if (r.kp !== null) { d.kpg++; d.kp += r.kp; } }
+      if (r.x.v >= 2) { d.xg++; d.xmin += r.min; for (const k of XKEYS) d.x[k] = (d.x[k] || 0) + (+r.x[k] || 0); d.x.critMax = Math.max(d.x.critMax || 0, +r.x.crit || 0); }
+    }
   });
-  for (const s of Object.values(P)) {
-    const d = s.dt; if (!d.g) continue;
-    s.dx = { g: d.g, cspm: d.cspm / d.g, gpm: d.gpm / d.g, dpm: d.dpm / d.g, vpm: d.vpm / d.g, share: d.share / d.g, taken: d.taken / d.g,
+  const fin = (d) => {
+    const o = { g: d.g, w: d.w, cspm: d.cspm / d.g, gpm: d.gpm / d.g, dpm: d.dpm / d.g, vpm: d.vpm / d.g, share: d.share / d.g, taken: d.taken / d.g, wards: d.wards / d.g, multi: d.multi,
       gd: d.on ? d.gd / d.on : null, csd: d.on ? d.csd / d.on : null,
-      idx: { cs: Math.round((100 * d.ic) / d.g), gold: Math.round((100 * d.ig) / d.g), dmg: Math.round((100 * d.id) / d.g), vis: Math.round((100 * d.iv) / d.g) } };
-    s.dx.score = Math.round((s.dx.idx.gold + s.dx.idx.dmg + s.dx.idx.vis) / 3); // 라인 보정 종합(골드·피해·시야). CS는 서폿에게 의미가 없어 제외
+      kda: d.kg ? [d.k / d.kg, d.d / d.kg, d.a / d.kg] : null, kp: d.kpg ? d.kp / d.kpg : null,
+      idx: { cs: Math.round((100 * d.ic) / d.g), gold: Math.round((100 * d.ig) / d.g), dmg: Math.round((100 * d.id) / d.g), vis: Math.round((100 * d.iv) / d.g) },
+      xg: d.xg, xmin: d.xmin, x: d.xg ? d.x : null }; // x: 확장 지표의 합계(xg판, xmin분)
+    o.score = Math.round((o.idx.gold + o.idx.dmg + o.idx.vis) / 3); // 라인 보정 종합(골드·피해·시야). CS는 서폿에게 의미가 없어 제외
+    return o;
+  };
+  for (const s of Object.values(P)) {
+    const o = DT[s.id]; if (!o) continue;
+    s.dx = fin(o.all);
+    s.dxl = Object.fromEntries(Object.entries(o.lanes).map(([l, d]) => [l, fin(d)]));
   }
   const list = Object.values(P);
   const days = Object.keys(dayCount).sort();
@@ -246,23 +264,36 @@ export const TITLES = [
   { e: '👻', n: '무영객', d: '명단에는 있는데 아직 한 판도 안 뜀', test: (s) => s.g === 0 },
 ];
 
-// 듀오/상대 전적 요약 (케미 분석, 선수 카드 공용)
+// ---------- 케미 기준 (케미 분석, 선수 카드, 홈 공지 공용) ----------
+// 1) 최소 판수(min) 이상 함께/상대한 기록만 본다.
+// 2) 순위는 "보정 승률" (승+2)/(판+4) 로 매긴다. 표본이 적을수록 50%에 가깝게 당겨져 3전 3승이 20전 15승을 이기지 못한다.
+// 3) 좋은 관계(베스트 듀오·내가 강한 상대)는 실제 승률이 50%를 넘을 때만, 나쁜 관계(상극 듀오·천적)는 50% 미만일 때만 선정한다.
+// 4) 한 사람은 네 칸 중 한 칸에만 나온다. 겹치면 50%에서 더 멀리 벗어난(=더 뚜렷한) 관계가 그 사람을 가져가고, 다른 칸은 차순위로 채운다.
+export const CHEM_RULE = '보정 승률 (승+2)/(판+4) 기준 · 승률 50% 초과만 베스트/강한 상대, 50% 미만만 상극/천적 · 한 선수는 한 칸에만 표시';
+export const adjWr = (v) => (v.w + 2) / (v.g + 4);
 export function chem(st, id, min) {
   const duo = [], vs = [];
   for (const [k, v] of Object.entries(st.together)) {
     const [a, b] = k.split('|');
-    if ((a === id || b === id) && v.g >= min) duo.push({ id: a === id ? b : a, ...v, wr: pct(v.w, v.g) });
+    if ((a === id || b === id) && v.g >= min) duo.push({ id: a === id ? b : a, ...v, wr: pct(v.w, v.g), adj: adjWr(v) });
   }
   for (const [k, v] of Object.entries(st.versus)) {
     const [a, b] = k.split('>');
-    if (a === id && v.g >= min) vs.push({ id: b, ...v, wr: pct(v.w, v.g) });
+    if (a === id && v.g >= min) vs.push({ id: b, ...v, wr: pct(v.w, v.g), adj: adjWr(v) });
   }
-  const top = (arr, dir) => [...arr].sort((x, y) => dir * (y.wr - x.wr) || y.g - x.g)[0] || null;
-  const flat = (arr) => arr.length > 0 && arr.every((x) => x.wr === arr[0].wr);
+  const cand = [];
+  duo.forEach((x) => { if (x.w * 2 > x.g) cand.push(['best', x, x.adj - 0.5]); else if (x.w * 2 < x.g) cand.push(['worst', x, 0.5 - x.adj]); });
+  vs.forEach((x) => { if (x.w * 2 > x.g) cand.push(['prey', x, x.adj - 0.5]); else if (x.w * 2 < x.g) cand.push(['nemesis', x, 0.5 - x.adj]); });
+  const out = { duo, vs, best: null, worst: null, prey: null, nemesis: null }, taken = new Set();
+  cand.sort((a, b) => b[2] - a[2] || b[1].g - a[1].g).forEach(([slot, x]) => { if (!out[slot] && !taken.has(x.id)) { out[slot] = x; taken.add(x.id); } });
+  return out;
+}
+// 리그 전체 듀오 순위: 승률 50% 초과 조합만 "최강", 50% 미만 조합만 "상극" 후보가 된다(같은 조합이 양쪽에 나오지 않는다)
+export function duoRank(st, min, n = 15) {
+  const pairs = Object.entries(st.together).filter(([, v]) => v.g >= min).map(([k, v]) => ({ ids: k.split('|'), ...v, wr: pct(v.w, v.g), adj: adjWr(v) }));
   return {
-    duo, vs,
-    best: flat(duo) && duo.length > 1 ? null : top(duo, 1), worst: flat(duo) ? null : top(duo, -1),
-    prey: flat(vs) && vs.length > 1 ? null : top(vs, 1), nemesis: flat(vs) ? null : top(vs, -1),
+    top: pairs.filter((x) => x.w * 2 > x.g).sort((a, b) => b.adj - a.adj || b.g - a.g).slice(0, n),
+    low: pairs.filter((x) => x.w * 2 < x.g).sort((a, b) => a.adj - b.adj || b.g - a.g).slice(0, n),
   };
 }
 
@@ -279,7 +310,7 @@ export function bestDuo(ids, st, min = 3) {
   let best = null;
   ids.forEach((a, i) => ids.slice(i + 1).forEach((b) => {
     const v = a && b && st.together[pk(a, b)];
-    if (v && v.g >= min && (!best || v.w / v.g > best.w / best.g)) best = { a, b, ...v };
+    if (v && v.g >= min && (!best || adjWr(v) > adjWr(best))) best = { a, b, ...v };
   }));
   return best;
 }

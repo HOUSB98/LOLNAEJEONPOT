@@ -4,6 +4,7 @@ import { createStore } from './store.js';
 import { S, page, act, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, toast, download, csv, needAdmin, history, modal, mh, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
 import { initSocial, renderChat, renderPresence, onMeta } from './social.js';
 import { watchReveal } from './today.js';
+import { duoRank } from './stats.js';
 import { watchDice } from './dice.js';
 import './replay.js';
 import './players.js';
@@ -43,8 +44,8 @@ function notices() {
     add('REPORT', 'blue', `${fmtDay(st.lastDay).slice(5)} 내전 결산 — ${x.lastDayN}경기`, mvp ? `최다 승리는 ${esc(mvp.name)} (${mvp.today.w}승 ${mvp.today.g - mvp.today.w}패). 누적 ${x.n}경기, 내전 ${x.days}일차입니다.` : '');
   }
   if (x.best10) add('RANK', 'gold', `승률 1위 ${esc(x.best10.name)} — ${x.best10.wr}%`, `10판 이상 출전자 기준. ${x.best10.g}판 ${x.best10.w}승 ${x.best10.g - x.best10.w}패로 리그 정상을 지키고 있습니다.`);
-  const duo = Object.entries(st.together).filter(([, v]) => v.g >= 5).map(([k, v]) => ({ k, ...v, r: v.w / v.g })).sort((a, b) => b.r - a.r || b.g - a.g)[0];
-  if (duo) { const [a, b] = duo.k.split('|'); add('SYNERGY', 'teal', `최강 듀오 ${pname(a)} + ${pname(b)}`, `함께한 ${duo.g}판에서 승률 ${Math.round(duo.r * 100)}%. 같은 팀이 되면 경계 대상 1순위입니다.`); }
+  const duo = duoRank(st, 5, 1).top[0];
+  if (duo) { const [a, b] = duo.ids; duo.r = duo.w / duo.g; add('SYNERGY', 'teal', `최강 듀오 ${pname(a)} + ${pname(b)}`, `함께한 ${duo.g}판에서 승률 ${Math.round(duo.r * 100)}%. 같은 팀이 되면 경계 대상 1순위입니다.`); }
   const tc = st.champs[0];
   if (tc) { const safe = st.champs.filter((c) => c.g >= 3 && c.w === c.g)[0]; add('META', 'blue', `최다 픽 ${esc(tc.name)} (${tc.g}회)${safe ? ` · 불패 카드 ${esc(safe.name)}` : ''}`, safe ? `${esc(safe.name)}는 ${safe.g}전 전승. 피어리스에서 먼저 가져가는 팀이 유리합니다.` : `${esc(tc.name)}의 승률은 ${pct(tc.w, tc.g)}%입니다. 인기와 성적은 별개일 수 있습니다.`); }
   const bw = pct(x.blueW, x.n);
@@ -109,13 +110,32 @@ function laneChamps() {
   })));
   return by;
 }
+// 한 라인의 챔피언 목록에 티어와 표시(OP·꿀벌)를 붙인다.
+//   OP  : 3픽 이상 + 1티어(보정 승률+선택 빈도 64점 이상) 중 점수 상위, 라인별 최대 3개
+//   꿀벌: OP가 아닌 챔피언 중 2픽 이상 + 승률 50% 이상 + 3티어 이내, 점수 상위, 라인별 최대 5개 (무난하게 쓰기 좋은 픽)
+function laneTierList(lane) {
+  const list = Object.values(laneChamps()[lane]).sort((a, b) => b.g - a.g || b.w - a.w), maxG = Math.max(1, ...list.map((c) => c.g));
+  list.forEach((c) => { c.tier = tierOf(c, maxG); c.v = tierVal(c, maxG); });
+  const byV = [...list].sort((a, b) => b.v - a.v || b.g - a.g);
+  byV.filter((c) => c.g >= 3 && c.tier === 1).slice(0, 3).forEach((c) => (c.mark = 'op'));
+  byV.filter((c) => !c.mark && c.g >= 2 && c.w * 2 >= c.g && c.tier <= 3).slice(0, 5).forEach((c) => (c.mark = 'bee'));
+  return list;
+}
+const BEE = '<svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="8" cy="8" rx="4.6" ry="3" transform="rotate(-28 8 8)" fill="#eaf6ff" opacity=".92"/><ellipse cx="16" cy="8" rx="4.6" ry="3" transform="rotate(28 16 8)" fill="#eaf6ff" opacity=".92"/><ellipse cx="12" cy="14" rx="5.2" ry="6.4" fill="#ffc531"/><path d="M7.4 11.6h9.2M6.9 14.6h10.2M8 17.6h8" stroke="#2a1a05" stroke-width="1.9" stroke-linecap="round"/><circle cx="10.2" cy="9.6" r=".9" fill="#2a1a05"/><circle cx="13.8" cy="9.6" r=".9" fill="#2a1a05"/></svg>';
+const markHtml = (c) => (c.mark === 'op' ? '<i class="mk op" title="OP · 내전에서 성능이 검증된 픽"><u>OP</u></i>' : c.mark === 'bee' ? `<i class="mk bee" title="꿀픽 · 무난하게 쓰기 좋은 픽">${BEE}</i>` : '');
+function tierRows(list, { all = false, pctOn = false } = {}) {
+  const rows = [1, 2, 3, 4, 5].map((t) => [t, list.filter((c) => c.tier === t)]).filter(([, cs]) => all || cs.length);
+  return rows.map(([t, cs]) => `<div class="trow t${t}"><b><span>${t}</span><small>TIER</small></b><div>${cs.map((c) => `<span class="tc ${c.mark || ''}" title="${esc(c.name)} · ${c.g}픽 ${c.w}승 · ${pct(c.w, c.g)}%${c.mark === 'op' ? ' · OP' : c.mark === 'bee' ? ' · 꿀픽' : ''}"><span class="tcp">${champIcon(c.name)}${markHtml(c)}</span><small>${esc(c.name)}</small>${pctOn ? `<em class="mono">${pct(c.w, c.g)}%</em>` : ''}</span>`).join('') || '<em class="mut sm">해당 없음</em>'}</div></div>`).join('');
+}
+const today = () => { const d = new Date(); return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`; };
+const laneSeg = (cur, a, withAll) => `<div class="seg full lseg">${withAll ? `<button class="${cur === 'all' ? 'on' : ''}" data-a="${a}" data-l="all"><span>전체</span></button>` : ''}${LANES.map((l) => `<button class="${cur === l ? 'on' : ''}" data-a="${a}" data-l="${l}" title="${LANE_NAME[l]}">${LANE_ICON[l]}<span>${LANE_NAME[l]}</span></button>`).join('')}</div>`;
+const tierLegend = '<span class="tlegend"><span><i class="mk op"><u>OP</u></i>성능 검증 · 라인별 최대 3</span><span><i class="mk bee">' + BEE + '</i>쓰기 좋은 꿀픽 · 최대 5</span></span>';
 function laneTierPanel() {
-  const list = Object.values(laneChamps()[HM.lane]).sort((a, b) => b.g - a.g || b.w - a.w), maxG = Math.max(1, ...list.map((c) => c.g));
-  const rows = [1, 2, 3, 4, 5].map((t) => [t, list.filter((c) => tierOf(c, maxG) === t)]).filter(([, cs]) => cs.length);
+  const list = laneTierList(HM.lane);
   return `<section class="panel ltier"><div class="sec-h"><h2>${ic('champs')}챔피언 티어</h2><span class="mut sm">${LANE_NAME[HM.lane]} · ${list.length}종</span><span class="grow"></span><a class="mut sm" href="#/champs">전체 보기 →</a></div>
-    <div class="seg full lseg">${LANES.map((l) => `<button class="${HM.lane === l ? 'on' : ''}" data-a="homeLane" data-l="${l}" title="${LANE_NAME[l]}">${LANE_ICON[l]}<span>${LANE_NAME[l]}</span></button>`).join('')}</div>
-    <div class="tiers mini">${rows.map(([t, cs]) => `<div class="trow t${t}"><b>${t}<small>TIER</small></b><div>${cs.map((c) => `<span title="${esc(c.name)} · ${c.g}픽 ${c.w}승 · ${pct(c.w, c.g)}%">${champIcon(c.name)}<small>${esc(c.name)}</small><em class="mono">${pct(c.w, c.g)}%</em></span>`).join('')}</div></div>`).join('') || `<p class="mut sm center">${LANE_NAME[HM.lane]} 챔피언 기록이 아직 없습니다. 경기 입력 때 챔피언을 고르면 쌓입니다.</p>`}</div>
-    <p class="hint">내전 기록 기준 · 보정 승률(표본 반영) + 선택 빈도</p></section>`;
+    ${laneSeg(HM.lane, 'homeLane')}
+    <div class="tiers mini">${tierRows(list, { pctOn: true }) || `<p class="mut sm center">${LANE_NAME[HM.lane]} 챔피언 기록이 아직 없습니다. 경기 입력 때 챔피언을 고르면 쌓입니다.</p>`}</div>
+    <p class="hint">내전 기록 기준 · 보정 승률(표본 반영) + 선택 빈도 <span class="asof mono">기준 ${today()}</span></p></section>`;
 }
 // 진영 승률과 요즘 폼(최근 5판) — 홈 오른쪽 아래 칸
 function formPanel() {
@@ -323,11 +343,12 @@ export function exportMatches() {
 act('exportCsv', exportMatches);
 
 // ---------- 챔피언 ----------
-const CH = { sort: 'tier', dir: 1, q: '' };
+const CH = { sort: 'tier', dir: 1, q: '', lane: 'top', si: 0, t: 0 };
 // 티어: 보정 승률(표본이 적을수록 50%에 가깝게) + 선택 빈도 가산점
+const tierVal = (c, maxG) => ((c.w + 3) / (c.g + 6)) * 100 + (c.g / maxG) * 8;
 function tierOf(c, maxG) {
   if (!c.g) return 0;
-  const v = ((c.w + 3) / (c.g + 6)) * 100 + (c.g / maxG) * 8;
+  const v = tierVal(c, maxG);
   return v >= 64 ? 1 : v >= 56 ? 2 : v >= 48 ? 3 : v >= 42 ? 4 : 5;
 }
 page('champs', {
@@ -342,24 +363,26 @@ page('champs', {
     const q2 = picked.filter((c) => c.g >= 2), best = [...q2].sort((a, b) => b.w / b.g - a.w / a.g || b.g - a.g)[0], worst = [...q2].sort((a, b) => a.w / a.g - b.w / b.g || b.g - a.g)[0];
     const banned = [...all].sort((a, b) => b.ban - a.ban)[0];
     const wide = [...st.list].sort((a, b) => b.champKinds - a.champKinds)[0];
-    let sig = null;
-    st.list.forEach((s) => Object.entries(s.champs).forEach(([n, v]) => { if (!sig || v.g > sig.g) sig = { s, n, ...v }; }));
-    const ins = (cap, title, name, sub, tone) => `<div class="ins ${tone}" style="--img:url('${tileUrl(name)}')"><small>${cap}</small><span>${title}</span><b>${esc(name || '—')}</b><em>${sub}</em></div>`;
-    return `<div class="h2row"><h1>${ic('champs')}챔피언 분석</h1><span class="tag">${picked.length}종 · ${totalPicks}픽</span><span class="grow"></span><input id="chq" class="inp" placeholder="챔피언 검색" value="${esc(CH.q)}" data-i="chQ"></div>
-    <div class="insg">
+    // 선수별 시그니처(가장 많이 쓴 챔피언). 2판 이상인 선수가 있으면 그 선수들만, 없으면 전원
+    let sigs = st.list.map((x) => { const e = Object.entries(x.champs).sort((a, b) => b[1].g - a[1].g || b[1].w - a[1].w)[0]; return e ? { s: x, n: e[0], ...e[1] } : null; }).filter(Boolean).sort((a, b) => b.g - a.g || b.w - a.w);
+    if (sigs.some((x) => x.g >= 2)) sigs = sigs.filter((x) => x.g >= 2);
+    CH.si %= Math.max(1, sigs.length);
+    const ins = (cap, title, name, sub, tone, cls = '') => `<div class="ins ${tone} ${cls}" style="--img:url('${tileUrl(name)}')"><small>${cap}</small><span>${title}</span><b>${esc(name || '—')}</b><em>${sub}</em></div>`;
+    const topN = picked.slice(0, 7), topMax = topN[0].g;
+    const tl = CH.lane === 'all' ? picked : laneTierList(CH.lane);
+    return `<div class="h2row"><h1>${ic('champs')}챔피언 분석</h1><span class="tag">${picked.length}종 · ${totalPicks}픽 · 다양성 ${Math.round((picked.length / totalPicks) * 100)}%</span><span class="grow"></span><input id="chq" class="inp" placeholder="챔피언 검색" value="${esc(CH.q)}" data-i="chQ"></div>
+    <div class="chtop">
+      <div class="stat gold toprank"><small>MOST PICKED · 선택 순위 TOP ${topN.length}</small><div class="trk">${topN.map((c, i) => `<div class="trk-r r${i + 1}" style="--d:${i}"><i class="mono">${i + 1}</i>${champIcon(c.name, 'sm')}<span>${esc(c.name)}</span><u><s style="width:${(c.g / topMax) * 100}%"></s></u><b class="mono">${c.g}<small>픽</small></b><em class="mono ${wrClass(pct(c.w, c.g))}">${pct(c.w, c.g)}%</em></div>`).join('')}</div></div>
+      ${best ? ins('HIGHEST WIN RATE', '최고 승률 (2픽 이상)', best.name, `${best.g}전 ${best.w}승 · ${pct(best.w, best.g)}%`, 'teal') : '<div></div>'}
+      ${worst && worst !== best ? ins('LOWEST WIN RATE', '고전 중인 카드', worst.name, `${worst.g}전 ${worst.w}승 · ${pct(worst.w, worst.g)}%`, 'red') : '<div></div>'}
       ${ins('MOST PICKED', '최다 선택', picked[0].name, `${picked[0].g}픽 · 승률 ${pct(picked[0].w, picked[0].g)}%`, 'gold')}
-      ${best ? ins('HIGHEST WIN RATE', '최고 승률 (2픽 이상)', best.name, `${best.g}전 ${best.w}승 · ${pct(best.w, best.g)}%`, 'teal') : ''}
-      ${worst && worst !== best ? ins('LOWEST WIN RATE', '고전 중인 카드', worst.name, `${worst.g}전 ${worst.w}승 · ${pct(worst.w, worst.g)}%`, 'red') : ''}
-      ${sig ? ins('SIGNATURE PICK', `${esc(sig.s.name)}의 시그니처`, sig.n, `${sig.g}판 · 승률 ${pct(sig.w, sig.g)}%`, 'blue') : ''}
-    </div>
-    <div class="stats">
-      <div class="stat gold"><small>선택 순위 TOP 3</small><div class="top3">${picked.slice(0, 3).map((c, i) => `<span><i class="mono">${i + 1}</i>${champIcon(c.name, 'sm')}${esc(c.name)}<small class="mono">${c.g}</small></span>`).join('')}</div></div>
-      ${stat('target', '픽 다양성', Math.round((picked.length / totalPicks) * 100) + '%', `${totalPicks}픽 중 ${picked.length}종 등장`, 'teal')}
+      ${ins('MOST BANNED', '최다 밴', banned?.ban ? banned.name : '', banned?.ban ? `${banned.ban}회 밴` : '밴 기록 없음', 'red')}
       ${stat('users', '최다 챔피언 폭', wide?.champKinds ? esc(wide.name) : '-', wide?.champKinds ? `${wide.champKinds}종 사용` : '', 'blue')}
-      ${stat('fearless', '최다 밴', banned?.ban ? esc(banned.name) : '-', banned?.ban ? `${banned.ban}회 밴` : '밴 기록 없음', 'red')}
+      <div class="sigrot" id="sigrot">${sigs.map((x, i) => ins('SIGNATURE PICK', `${esc(x.s.name)}의 시그니처`, x.n, `${x.g}판 · 승률 ${pct(x.w, x.g)}%`, 'blue', i === CH.si ? 'on' : '')).join('') || ins('SIGNATURE PICK', '시그니처', '', '기록 없음', 'blue', 'on')}${sigs.length > 1 ? `<div class="sigdots">${sigs.slice(0, 12).map((_, i) => `<i class="${i === CH.si ? 'on' : ''}"></i>`).join('')}</div>` : ''}</div>
     </div>
-    <div class="sec-h"><h2>티어 리스트</h2><span class="mut sm">보정 승률(표본 반영) + 선택 빈도 기준 · 내전 데이터 한정</span></div>
-    <div class="tiers">${[1, 2, 3, 4, 5].map((t) => `<div class="trow t${t}"><b>${t}<small>TIER</small></b><div>${picked.filter((c) => c.tier === t).map((c) => `<span title="${esc(c.name)} · ${c.g}픽 ${pct(c.w, c.g)}%">${champIcon(c.name)}<small>${esc(c.name)}</small></span>`).join('') || '<em class="mut sm">해당 없음</em>'}</div></div>`).join('')}</div>
+    <div class="sec-h"><h2>티어 리스트</h2><span class="mut sm">보정 승률(표본 반영) + 선택 빈도 기준 · 내전 데이터 한정</span><span class="grow"></span>${tierLegend}<span class="asof mono">기준 ${today()}</span></div>
+    ${laneSeg(CH.lane, 'chLane', true)}
+    <div class="tiers">${tierRows(tl, { all: true, pctOn: true })}</div>
     <div class="sec-h"><h2>전체 통계</h2></div>
     <div class="tw"><table class="tbl"><thead><tr>${th('tier', '티어')}<th class="l">챔피언</th>${th('g', '픽')}${th('w', '승')}${th('wr', '승률')}${th('ban', '밴')}<th class="l">주 사용자</th></tr></thead>
     <tbody>${rows.map((c) => {
@@ -367,7 +390,19 @@ page('champs', {
       return `<tr><td>${c.tier ? `<span class="tbadge t${c.tier}">${c.tier}</span>` : '<span class="mut">-</span>'}</td><td class="l nm">${champIcon(c.name, 'sm')} ${esc(c.name)}</td>${num(`<span class="mono">${c.g}</span>`)}${num(`<span class="mono">${c.w}</span>`)}${num(wrBar(c.w, c.g))}${num(`<span class="mono">${c.ban || '-'}</span>`)}<td class="l users">${u.slice(0, 5).map(([id, n]) => `<span>${pname(id)}<small class="mono">${n}</small></span>`).join('')}</td></tr>`;
     }).join('') || '<tr><td colspan="7" class="empty">검색 결과가 없습니다.</td></tr>'}</tbody></table></div>`;
   },
+  after() { // 시그니처 칸: 4초마다 다음 선수로
+    clearInterval(CH.t);
+    CH.t = setInterval(() => {
+      if (S.page !== 'champs') return clearInterval(CH.t);
+      const box = document.getElementById('sigrot'), cards = box ? box.querySelectorAll('.ins') : [];
+      if (cards.length < 2 || box.matches(':hover') || document.visibilityState !== 'visible') return;
+      CH.si = (CH.si + 1) % cards.length;
+      cards.forEach((c, i) => c.classList.toggle('on', i === CH.si));
+      box.querySelectorAll('.sigdots i').forEach((c, i) => c.classList.toggle('on', i === CH.si));
+    }, 4000);
+  },
 });
+act('chLane', (d) => { CH.lane = d.l; refresh(); });
 act('chSort', (d) => { if (CH.sort === d.k) CH.dir *= -1; else { CH.sort = d.k; CH.dir = d.k === 'tier' ? 1 : -1; } refresh(); });
 act('chQ', (d, el) => { CH.q = el.value; refresh(); });
 
@@ -406,6 +441,28 @@ act('flSel', (d, el) => { FL.id = el.value; refresh(); });
 act('flLeft', (d, el) => { FL.left = el.checked; refresh(); });
 
 // ---------- 부팅 ----------
+// DB 변경 → 화면 갱신. 바뀐 내용과 지금 보고 있는 화면에 꼭 필요한 만큼만 다시 그린다.
+//  · 통계 재계산(compute)은 선수·경기·설정이 바뀔 때만
+//  · meta는 문서별로 무엇이 바뀌었는지 가려서 처리(라인업 초안은 오늘의 내전 화면에서만, 주사위·강퇴는 각자 처리)
+const metaSig = {};
+function metaDiff() {
+  const m = S.store.data.meta || {}, ch = {};
+  for (const k of new Set([...Object.keys(m), ...Object.keys(metaSig)])) { const v = JSON.stringify(m[k] ?? null); if (metaSig[k] !== v) { metaSig[k] = v; ch[k] = 1; } }
+  return ch;
+}
+function onStore(c) {
+  if (c === 'chat') return renderChat();
+  if (c === 'presence') return renderPresence();
+  if (c === 'auctions') { if (S.page === 'auction') refresh(); return; }
+  if (c === 'meta') {
+    const ch = metaDiff();
+    if (ch.dice) watchDice();
+    if (ch.settings || ch.kicks) onMeta();
+    if (ch.settings) refresh(true); else if (ch.todayDraft && S.page === 'today') refresh();
+    return;
+  }
+  if (c === 'players' || c === 'matches') refresh(true);
+}
 (async () => {
   const qs = new URLSearchParams(location.search), key = qs.has('demo') ? 'local' : qs.get('k');
   const main = document.getElementById('main');
@@ -427,9 +484,9 @@ act('flLeft', (d, el) => { FL.left = el.checked; refresh(); });
     S.store = await createStore(S.key, (c, err) => {
       if (c === 'error') return toast('DB 연결 오류: ' + (err?.code || err));
       if (!up) return;
-      if (c === 'chat') renderChat(); else if (c === 'presence') renderPresence(); else { if (c === 'meta') { watchDice(); watchReveal(); onMeta(); } refresh(true); }
+      onStore(c);
     });
     await S.store.ready;
   } catch (e) { main.innerHTML = `<div class="panel landing"><h1>연결 실패</h1><p>${esc(e.message || e)}</p><p class="hint">js/config.js 의 Firebase 설정과 Firestore 규칙을 확인하세요.</p></div>`; return; }
-  up = true; watchDice(true); watchReveal(true); initShell(); initSocial(); loadChamps();
+  metaDiff(); up = true; watchDice(true); watchReveal(true); initShell(); initSocial(); loadChamps();
 })();
