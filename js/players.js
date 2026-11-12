@@ -19,7 +19,7 @@ function listView() {
       ${o.most ? `<div class="sm">모스트 3 · ${esc(o.most)}</div>` : ''}${o.comment ? `<p>${esc(o.comment)}</p>` : '<p class="mut">솔랭 분석 정보가 없습니다.</p>'}</div>`; }).join('')}</div>`;
   }
   return `<div class="h2row"><h1>${ic('players')}선수 카드</h1><span class="tag">${n}명</span><span class="grow"></span>${seg}</div>
-  <div class="pgrid">${st.byOvr.map((s, i) => { const r = rarity(s, n); return `<a class="pcard ${r[2]}" href="#/players/${s.id}" style="--tc:${LANE_COLOR[s.mainLane]};--img:url('${tileUrl(sigChamp(s))}');--d:${Math.min(i, 16)}">
+  <div class="pgrid">${[...st.byOvr].sort((a, b) => (b.g >= 5) - (a.g >= 5)).map((s, i) => { // 랭킹과 같은 순서: 5판 이상(OVR순) 먼저, 그 뒤에 나머지 const r = rarity(s, n); return `<a class="pcard ${r[2]}" href="#/players/${s.id}" style="--tc:${LANE_COLOR[s.mainLane]};--img:url('${tileUrl(sigChamp(s))}');--d:${Math.min(i, 16)}">
     <div class="pc-art"></div>
     <div class="pc-top"><span class="pc-type">${LANE_ICON[s.mainLane]}</span><b>${esc(s.name)}</b><span class="pc-ovr mono"><small>OVR</small>${s.ovr}</span></div>
     <div class="pc-bot"><span class="mono">${s.g ? `${s.wr}% · ${s.g}판` : '출전 없음'}</span><span class="pc-rar">${r[0]}</span></div>

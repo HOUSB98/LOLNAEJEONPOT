@@ -795,3 +795,25 @@ canvas.fx{position:fixed;inset:0;pointer-events:none;z-index:70}
 @media (max-width:1280px){#mkcv{width:calc(100vw - var(--sw))}}
 @media (max-width:1100px){.mk-grid{grid-template-columns:1fr}}
 @media (max-width:860px){#mkcv{left:0;width:100vw}.stat b{font-size:27px}.st-ic{width:32px;height:36px;right:10px;top:10px}.mk-code{font-size:11.500px}.holo-lights{inset:-8% -6% 2%}.rv-side em{display:none}}
+
+/* ---------- 채팅창 새 디자인 ---------- */
+#chat{background:radial-gradient(420px 260px at 100% 0,rgba(217,164,65,.1),transparent 70%),radial-gradient(360px 300px at 0 100%,rgba(63,208,224,.06),transparent 70%),linear-gradient(180deg,#0a0f1a,#05080e);border-left:1px solid #2a2415;box-shadow:-24px 0 50px -30px #000}
+#chat::before{content:"";position:absolute;inset:0 auto 0 0;width:1px;background:linear-gradient(180deg,transparent,var(--gold) 30%,var(--gold2) 50%,var(--gold) 70%,transparent);opacity:.55;pointer-events:none}
+#chat header{position:relative;padding:18px 16px 14px;border-bottom:0;background:linear-gradient(180deg,rgba(217,164,65,.13),transparent)}
+#chat header::after{content:"";position:absolute;left:16px;right:16px;bottom:0;height:1px;background:linear-gradient(90deg,var(--gold),rgba(217,164,65,.15) 60%,transparent)}
+#chatlog{padding:14px 14px 10px;gap:3px;scrollbar-width:thin}
+.cday::before{background:linear-gradient(90deg,transparent,var(--line2),transparent)}
+.cday span{background:#080c15;border:1px solid var(--line);border-radius:99px;padding:2px 12px;letter-spacing:.1em}
+.cn{font-weight:700;font-size:11.500px;letter-spacing:.01em;display:inline-flex;align-items:center;gap:6px}
+.cn::before{content:"";width:6px;height:6px;border-radius:50%;background:hsl(var(--h) 80% 65%);box-shadow:0 0 8px hsl(var(--h) 80% 65%)}
+.cb{background:linear-gradient(180deg,#151f31,#0f1726);border:1px solid #26344a;border-radius:5px 15px 15px 15px;padding:8px 12px;box-shadow:0 6px 14px -10px #000,inset 0 1px 0 rgba(255,255,255,.05)}
+.cm.me .cb{background:linear-gradient(160deg,#f6e3a8,#d9a441 55%,#b47a1e);border-color:#fff3c9;border-radius:15px 5px 15px 15px;box-shadow:0 8px 18px -10px rgba(217,164,65,.9),inset 0 1px 0 rgba(255,255,255,.5)}
+.csys{border-radius:99px;padding:5px 14px;background:linear-gradient(90deg,rgba(217,164,65,.04),rgba(217,164,65,.14),rgba(217,164,65,.04));border-color:#4a3b17}
+.croll{background:linear-gradient(180deg,#151f31,#0f1726);border-color:#4a3b17;border-radius:12px;box-shadow:0 0 18px -8px var(--gold)}
+#chattray{background:#080c15;border-top:1px solid #2a2415}
+#chatform{margin:0 12px 14px;padding:6px;gap:5px;border:1px solid #2a3550;border-radius:14px;background:linear-gradient(180deg,#0e1524,#0a0f1a);box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 10px 24px -18px #000;transition:border-color .2s,box-shadow .2s}
+#chatform:focus-within{border-color:var(--gold);box-shadow:0 0 0 3px rgba(217,164,65,.14),0 10px 24px -18px #000}
+#chatinp{border:0;background:transparent;box-shadow:none!important;padding:8px 6px;min-height:34px}
+.cbtn2{width:34px;height:34px;border-radius:10px;border-color:transparent;background:rgba(255,255,255,.04)}
+.cbtn2.go{box-shadow:0 6px 16px -8px rgba(217,164,65,.9)}
+.cempty .ic{color:var(--gold);opacity:.5}

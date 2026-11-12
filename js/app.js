@@ -197,7 +197,7 @@ act('carGo', (d) => carMove(+d.d));
 act('carSet', (d) => carMove(0, +d.i));
 
 // ---------- 랭킹 ----------
-const LB = { view: 'all', sort: 'ovr', dir: -1, min: 0 };
+const LB = { view: 'all', sort: 'ovr', dir: -1, min: 5 };
 // 랭킹에 띄울 대표 챔피언: 주라인에서 가장 많이 쓴 챔피언 → (기록이 없으면) 솔랭 모스트 → 내전 모스트
 function laneSigs() {
   const cnt = {};
