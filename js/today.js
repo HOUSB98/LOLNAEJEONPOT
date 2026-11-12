@@ -10,6 +10,14 @@ const blank = () => ({ blue: five(), red: five(), winner: '', champs: { blue: fi
 const remoteDraft = () => S.store?.data?.meta?.todayDraft || null;
 let draftUpdatedAt = 0;
 
+function draftState(d) {
+  return JSON.stringify({
+    blue: d.blue, red: d.red, winner: d.winner || '',
+    champs: d.champs, bans: d.bans, kda: d.kda || {},
+    newSeries: !!d.newSeries, at: d.at || '', more: !!d.more
+  });
+}
+
 function syncDraft() {
   if (edit || S.store?.mode !== 'firebase' || !draft) return;
   draftUpdatedAt = Date.now();
@@ -29,23 +37,25 @@ function applyRemoteDraft() {
   if (edit || S.store?.mode !== 'firebase') return;
   const r = remoteDraft();
   if (!r) return;
-  const at = Number(r.updatedAt) || 0;
-  if (at > draftUpdatedAt) {
-    draft = {
-      ...blank(), ...r,
-      blue: [...(r.blue || five()), '', '', '', '', ''].slice(0, 5),
-      red: [...(r.red || five()), '', '', '', '', ''].slice(0, 5),
-      champs: {
-        blue: [...(r.champs?.blue || five()), '', '', '', '', ''].slice(0, 5),
-        red: [...(r.champs?.red || five()), '', '', '', '', ''].slice(0, 5)
-      },
-      bans: {
-        blue: [...(r.bans?.blue || five()), '', '', '', '', ''].slice(0, 5),
-        red: [...(r.bans?.red || five()), '', '', '', '', ''].slice(0, 5)
-      },
-      kda: { ...(r.kda || {}) }
-    };
-    draftUpdatedAt = at;
+
+  const remote = {
+    ...blank(), ...r,
+    blue: [...(r.blue || five()), '', '', '', '', ''].slice(0, 5),
+    red: [...(r.red || five()), '', '', '', '', ''].slice(0, 5),
+    champs: {
+      blue: [...(r.champs?.blue || five()), '', '', '', '', ''].slice(0, 5),
+      red: [...(r.champs?.red || five()), '', '', '', '', ''].slice(0, 5)
+    },
+    bans: {
+      blue: [...(r.bans?.blue || five()), '', '', '', '', ''].slice(0, 5),
+      red: [...(r.bans?.red || five()), '', '', '', '', ''].slice(0, 5)
+    },
+    kda: { ...(r.kda || {}) }
+  };
+
+  if (!draft || draftState(remote) !== draftState(draft)) {
+    draft = remote;
+    draftUpdatedAt = Number(r.updatedAt) || Date.now();
     localStorage.setItem(dkey(), JSON.stringify(draft));
   }
 }
@@ -87,7 +97,6 @@ const keep = () => {
 const toLocal = (at) => { const d = new Date(at - new Date().getTimezoneOffset() * 6e4); return d.toISOString().slice(0, 16); };
 export function setDraftTeams(blue, red) {
   D(); draft = { ...blank(), blue: [...blue, ...five()].slice(0, 5), red: [...red, ...five()].slice(0, 5) };
-  draftUpdatedAt = Date.now(); draft.updatedAt = draftUpdatedAt;
   draftUpdatedAt = Date.now(); draft.updatedAt = draftUpdatedAt;
   localStorage.setItem(dkey(), JSON.stringify(draft)); syncDraft();
 }
@@ -194,11 +203,7 @@ act('tNew', (d, el) => { D().newSeries = el.checked; keep(); });
 act('tAt', (d, el) => { D().at = el.value; keep(); });
 act('tKda', (d, el) => {
   D().kda[d.id] = el.value.trim();
-  if (!edit) {
-    draftUpdatedAt = Date.now(); draft.updatedAt = draftUpdatedAt;
-    localStorage.setItem(dkey(), JSON.stringify(draft));
-    syncDraft();
-  }
+  if (!edit) keep();
 });
 act('tSwap', () => { const dr = D(); [dr.blue, dr.red] = [dr.red, dr.blue]; [dr.champs.blue, dr.champs.red] = [dr.champs.red, dr.champs.blue]; [dr.bans.blue, dr.bans.red] = [dr.bans.red, dr.bans.blue]; if (dr.winner) dr.winner = dr.winner === 'blue' ? 'red' : 'blue'; keep(); });
 act('tClear', () => { if (confirm('라인업과 입력 내용을 모두 비울까요?')) { draft = blank(); keep(); } });
