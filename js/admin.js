@@ -14,8 +14,9 @@ page('admin', {
       <p class="hint">${S.store.mode === 'local' ? '⚠️ 지금은 체험 모드라 데이터가 이 브라우저에만 저장됩니다. Firebase를 연결하면 친구들과 실시간으로 공유됩니다(README 참고).' : '데이터는 Firebase에 저장됩니다. Firestore 무료 요금제는 오래 안 써도 일시정지되지 않지만, 가끔 전체 백업을 내려받아 두세요.'}</p></div>
 
     <div class="panel"><div class="ph"><b>🧑‍🤝‍🧑 선수 관리</b><span class="tag">${st.list.length}명</span><span class="grow"></span><button class="btn pri xs" data-a="plEdit" data-id="">＋ 선수 추가</button></div>
-      <div class="tw"><table class="tbl"><thead><tr><th class="l">이름</th>${LANES.map((l) => `<th>${LANE_ICON[l]}</th>`).join('')}<th>주라인</th><th class="l">솔랭 티어</th><th>시작 MMR</th><th></th></tr></thead>
-      <tbody>${st.list.map((s) => `<tr><td class="l nm">${esc(s.name)}</td>${LANES.map((l) => `<td class="num">${s.p.scores?.[l] ?? 0}</td>`).join('')}<td class="num">${LANE_NAME[s.mainLane]}</td><td class="l">${esc(s.p.soloTier || '-')}</td><td class="num">${s.mmrInit}</td><td><button class="btn xs" data-a="plEdit" data-id="${s.id}">수정</button></td></tr>`).join('') || '<tr><td colspan="10" class="empty">선수가 없습니다.</td></tr>'}</tbody></table></div>
+      <p class="hint">점수와 주라인은 칸에서 바로 고치면 즉시 저장됩니다(관리자 PIN 필요). 이름·솔랭 정보는 "상세"에서 수정합니다.</p>
+      <div class="tw"><table class="tbl edit"><thead><tr><th class="l">이름</th>${LANES.map((l) => `<th>${LANE_ICON[l]}${LANE_NAME[l]}</th>`).join('')}<th>평균</th><th>주라인</th><th class="l">솔랭 티어</th><th>시작 MMR</th><th></th></tr></thead>
+      <tbody>${st.list.map((s) => `<tr><td class="l nm">${esc(s.name)}</td>${LANES.map((l) => `<td><input id="sc-${s.id}-${l}" class="inp cell mono" type="number" min="0" max="20" step="0.5" value="${s.p.scores?.[l] ?? 0}" data-c="plScore" data-id="${s.id}" data-l="${l}"></td>`).join('')}<td class="num mono">${s.avg.toFixed(1)}</td><td><select class="inp cell" data-c="plMain" data-id="${s.id}">${LANES.map((l) => `<option value="${l}" ${s.mainLane === l ? 'selected' : ''}>${LANE_NAME[l]}</option>`).join('')}</select></td><td class="l">${esc(s.p.soloTier || '-')}</td><td class="num mono">${s.mmrInit}</td><td><button class="btn xs" data-a="plEdit" data-id="${s.id}">상세</button></td></tr>`).join('') || '<tr><td colspan="10" class="empty">선수가 없습니다.</td></tr>'}</tbody></table></div>
       ${gone.length ? `<p class="sm mut">숨긴 선수: ${gone.map((p) => `${esc(p.name)} <button class="btn xs ghost" data-a="plRestore" data-id="${p.id}">복구</button>`).join(' ')}</p>` : ''}</div>
 
     <div class="panel"><div class="ph"><b>📥 구글 시트 데이터 가져오기</b></div>
@@ -27,6 +28,7 @@ page('admin', {
         <label class="fld"><span>리그 이름</span><input class="inp" name="leagueName" value="${esc(cfg.leagueName)}"></label>
         <label class="fld"><span>예상승률 스케일 <small class="mut">(작을수록 점수 차에 민감)</small></span><input class="inp" name="scale" type="number" step="0.5" value="${cfg.scale}"></label>
         <label class="fld"><span>MMR 변동폭 K</span><input class="inp" name="k" type="number" value="${cfg.k}"></label>
+        <label class="fld wide"><span>홈 고정 공지 <small class="mut">(첫 줄은 제목, 비우면 표시 안 함)</small></span><textarea class="inp" name="notice" rows="3" placeholder="예: 이번 주 토요일 밤 9시 내전&#10;참가 가능한 사람은 채팅에 남겨 주세요.">${esc(cfg.notice || '')}</textarea></label>
         <label class="fld"><span>&nbsp;</span><button class="btn pri">설정 저장</button></label>
       </form>
       <p class="hint">예상승률 = 1 / (1 + 10^(−점수차/스케일)). 현재 10점 차 = ${Math.round(100 / (1 + Math.pow(10, -10 / cfg.scale)))}%. MMR은 솔랭 티어를 시작값으로 경기마다 Elo 방식으로 변합니다.</p>
@@ -39,7 +41,7 @@ page('admin', {
   },
   after() {
     const f = document.getElementById('cfgf');
-    if (f) f.onsubmit = (e) => { e.preventDefault(); const d = new FormData(f); needAdmin(async () => { await S.store.patch('meta', 'settings', { leagueName: d.get('leagueName').trim() || DEFAULTS.leagueName, scale: Math.max(1, +d.get('scale') || DEFAULTS.scale), k: Math.max(0, +d.get('k') || DEFAULTS.k) }); toast('설정을 저장했습니다'); }); };
+    if (f) f.onsubmit = (e) => { e.preventDefault(); const d = new FormData(f); needAdmin(async () => { await S.store.patch('meta', 'settings', { leagueName: d.get('leagueName').trim() || DEFAULTS.leagueName, scale: Math.max(1, +d.get('scale') || DEFAULTS.scale), k: Math.max(0, +d.get('k') || DEFAULTS.k), notice: String(d.get('notice') || '').trim().slice(0, 300) }); toast('설정을 저장했습니다'); }); };
   },
 });
 
@@ -96,7 +98,17 @@ act('plEdit', (d) => needAdmin(() => {
     await S.store.patch('players', p.id, { deleted: true }); closeModal(); toast('숨겼습니다');
   };
 }));
-act('plRestore', (d) => needAdmin(() => S.store.patch('players', d.id, { deleted: false })));
+// 표에서 바로 수정: 값이 바뀌면 즉시 저장
+act('plScore', (d, el) => {
+  const p = S.store.data.players[d.id]; if (!p) return;
+  const v = Math.max(0, Math.min(20, +el.value || 0));
+  needAdmin(async () => { await S.store.patch('players', d.id, { scores: { ...p.scores, [d.l]: v } }); toast(`${p.name} ${LANE_NAME[d.l]} ${v}점 저장`); });
+});
+act('plMain', (d, el) => {
+  const p = S.store.data.players[d.id]; if (!p) return;
+  needAdmin(async () => { await S.store.patch('players', d.id, { mainLane: el.value }); toast(`${p.name} 주라인 ${LANE_NAME[el.value]} 저장`); });
+});
+act('plRestore',(d) => needAdmin(() => S.store.patch('players', d.id, { deleted: false })));
 act('mRestore', (d) => needAdmin(() => S.store.patch('matches', d.id, { deleted: false }).then(() => toast('복구했습니다'))));
 act('pinChange', () => needAdmin(async () => {
   if (!confirm('관리자 PIN을 초기화할까요? 초기화 후 다음 관리자 작업 때 새 PIN을 정하게 됩니다.')) return;

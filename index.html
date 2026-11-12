@@ -3,20 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0d0e12">
+<meta name="theme-color" content="#05070d">
 <meta name="robots" content="noindex">
-<title>내전 기록실</title>
+<title>NAEJEONPOT · 내전 기록실</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Cinzel:wght@600;800&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+<div id="splash"></div>
 <aside id="side">
-  <div class="brand"><div class="logo">내전</div><div><b id="league">친구 내전 리그</b><small>IN-HOUSE STATS</small></div></div>
-  <a class="btn pri block" href="#/today">＋ 경기 결과 추가하기</a>
-  <button class="btn block" data-a="copyLink">🔗 초대 링크 복사</button>
+  <a class="brand" href="#/home"><span id="brandlogo"></span><span class="bt"><b>NAEJEON<i>POT</i></b><small id="league">친구 내전 리그</small></span></a>
+  <a class="btn pri block" href="#/today">경기 결과 추가</a>
   <nav id="nav"></nav>
-  <div id="mode"></div>
+  <div id="presence"></div>
+  <div class="sidefoot"><span id="mode"></span><button class="btn ghost xs" data-a="copyLink" title="초대 링크 복사">초대 링크</button></div>
 </aside>
 <main id="main"><p class="mut pad">불러오는 중…</p></main>
+<aside id="chat"></aside>
+<button id="chatfab" data-a="chatToggle" aria-label="채팅 열기"></button>
 <div id="modal"></div>
 <div id="toast"></div>
 <script type="module" src="js/app.js"></script>

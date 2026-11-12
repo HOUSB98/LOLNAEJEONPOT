@@ -1,16 +1,17 @@
 // 오늘의 내전: 라인업 보드(점수·예상승률·해설) + 경기 결과 입력/수정
-import { S, page, act, esc, uid, pname, go, refresh, fmtDT, champIcon, toast, pickChamp, pickPlayer, history, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
+import { S, page, act, esc, uid, pname, go, refresh, champIcon, toast, pickChamp, pickPlayer, history, ic, dots, burst, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
 import { evalLineup, commentary, bestDuo } from './stats.js';
 import { seriesUsed, matchCard } from './app.js';
+import { sysChat } from './social.js';
 
 const five = () => ['', '', '', '', ''];
 const blank = () => ({ blue: five(), red: five(), winner: '', champs: { blue: five(), red: five() }, bans: { blue: five(), red: five() }, kda: {}, newSeries: false, at: '', more: false });
 const dkey = () => 'naejeon:draft:' + S.key;
 let draft = null, edit = null, lastSaved = null;
 function D() {
-  if (S.arg[0] === 'edit') {
+  if (S.page === 'today' && S.arg[0] === 'edit') {
     const m = S.store.data.matches[S.arg[1]];
-    if (m && edit?.id !== m.id) edit = { ...blank(), ...JSON.parse(JSON.stringify(m)), champs: { blue: five(), red: five(), ...m.champs }, bans: { blue: five(), red: five(), ...m.bans }, kda: Object.fromEntries(Object.entries(m.kda || {}).map(([k, v]) => [k, v.join('/')])), at: toLocal(m.at), more: true };
+    if (m && edit?.id !== m.id) edit = { ...blank(), ...JSON.parse(JSON.stringify(m)), champs: { blue: five(), red: five(), ...m.champs }, bans: { blue: [...(m.bans?.blue || []), ...five()].slice(0, 5), red: [...(m.bans?.red || []), ...five()].slice(0, 5) }, kda: Object.fromEntries(Object.entries(m.kda || {}).map(([k, v]) => [k, v.join('/')])), at: toLocal(m.at), more: true };
     if (m) return edit;
   }
   edit = null;
@@ -23,6 +24,13 @@ export function setDraftTeams(blue, red) {
   D(); draft = { ...blank(), blue: [...blue, ...five()].slice(0, 5), red: [...red, ...five()].slice(0, 5) };
   localStorage.setItem(dkey(), JSON.stringify(draft));
 }
+// 주사위 결과 반영: 해당 라인의 블루/레드 자리에 두 사람을 넣는다
+export function assignLane(i, blueId, redId) {
+  const d = D();
+  for (const s of ['blue', 'red']) d[s] = d[s].map((id) => (id === blueId || id === redId ? '' : id));
+  d.blue[i] = blueId; d.red[i] = redId; keep();
+}
+export const placedIds = () => { const d = D(); return [...d.blue, ...d.red].filter(Boolean); };
 const sameRoster = (m, d) => { const k = (a) => [...a].sort().join(); const a = k(m.blue), b = k(m.red), x = k(d.blue), y = k(d.red); return (a === x && b === y) || (a === y && b === x); };
 function seriesFor(d) {
   if (edit) return edit.seriesId || edit.id;
@@ -36,47 +44,52 @@ page('today', {
   render() {
     const d = D(), st = S.st, ev = evalLineup(d.blue, d.red, st);
     const sid = seriesFor(d), sr = sid && st.series.find((s) => s.id === sid);
-    const pb = Math.round(ev.pBlue * 100);
+    const any = d.blue.some(Boolean) || d.red.some(Boolean), pb = any ? Math.round(ev.pBlue * 100) : 50;
+    const filled = [...d.blue, ...d.red].filter(Boolean).length;
     const slot = (side, i) => {
-      const id = d[side][i], l = LANES[i];
-      return `<button class="slot ${side} ${id ? '' : 'emp'}" data-a="tSlot" data-s="${side}" data-i="${i}">${id ? `<b>${pname(id)}</b><small>${(+st.P[id]?.p.scores?.[l] || 0).toFixed(1)}</small>` : '<span>선수 선택</span>'}</button>`;
+      const id = d[side][i], l = LANES[i], s = st.P[id];
+      const champ = `<button class="sl-champ" data-a="tChamp" data-s="${side}" data-i="${i}" title="챔피언 선택 (선택 사항)">${d.champs[side][i] ? champIcon(d.champs[side][i]) : `<span class="ci plus">${ic('plus')}</span>`}</button>`;
+      if (!s) return `<div class="slot ${side} emp">${champ}<button class="sl-body" data-a="tSlot" data-s="${side}" data-i="${i}"><span>${ic('plus')}${LANE_NAME[l]} 선수 선택</span></button></div>`;
+      const ln = s.lanes[l], off = s.mainLane !== l;
+      return `<div class="slot ${side}">${champ}<button class="sl-body" data-a="tSlot" data-s="${side}" data-i="${i}">
+        <span class="sl-top"><b>${esc(s.name)}</b>${off ? `<i class="off" title="주라인은 ${LANE_NAME[s.mainLane]}">${LANE_ICON[s.mainLane]}오프</i>` : '<i class="main">주라인</i>'}</span>
+        <span class="sl-meta"><span>${LANE_NAME[l]} ${ln.g ? `${pct(ln.w, ln.g)}% · ${ln.g}판` : '기록 없음'}</span><span class="mono">MMR ${Math.round(s.mmr)}</span>${dots(s.recent)}</span>
+      </button><span class="sl-score mono">${(+s.p.scores?.[l] || 0).toFixed(1)}</span></div>`;
     };
-    const champ = (side, i) => `<button class="cbtn" data-a="tChamp" data-s="${side}" data-i="${i}" title="챔피언 선택">${d.champs[side][i] ? champIcon(d.champs[side][i]) : '<span class="ci plus">＋</span>'}</button>`;
-    const duo = (side) => { const b = bestDuo(d[side], st); return b ? `${side === 'blue' ? '🔵' : '🔴'} ${pname(b.a)} + ${pname(b.b)} · ${pct(b.w, b.g)}% (${b.g}판)` : `${side === 'blue' ? '🔵' : '🔴'} 아직 함께한 기록이 적어요`; };
-    return `<div class="h2row"><h1>${edit ? `✏️ 경기 수정 #${st.MI[edit.id]?.no ?? ''}` : '⚔️ 오늘의 내전'}</h1><span class="grow"></span>
-      ${edit ? '<a class="btn" href="#/matches">취소</a>' : '<button class="btn xs" data-a="tSwap">🔀 진영 바꾸기</button><button class="btn xs ghost" data-a="tClear">비우기</button>'}</div>
-    <div class="panel talk">${esc(commentary(ev, st))}</div>
-    <div class="panel board">
-      <div class="brow head"><span></span><span class="blue">🔵 블루</span><span>격차</span><span class="red">🔴 레드</span><span></span></div>
-      ${ev.lanes.map((x, i) => { const g = x.bs - x.rs; return `<div class="brow">${champ('blue', i)}${slot('blue', i)}
-        <span class="gap"><i>${LANE_ICON[x.lane]}</i><small class="${g > 0 ? 'blue' : g < 0 ? 'red' : ''}">${x.b && x.r ? (g === 0 ? '0' : (g > 0 ? '블 +' : '레 +') + Math.abs(g).toFixed(1)) : LANE_NAME[x.lane]}</small></span>
-        ${slot('red', i)}${champ('red', i)}</div>`; }).join('')}
-      <div class="brow sum"><span></span><b class="blue">${ev.bs.toFixed(1)}</b><span class="gap"><small>합계</small></span><b class="red">${ev.rs.toFixed(1)}</b><span></span></div>
-      <div class="prob"><div class="pb" style="width:${pb}%">블루 ${pb}%</div><div class="pr">${100 - pb}% 레드</div></div>
-      <div class="sub"><span>⚖️ 평균 MMR ${ev.mmrB ? Math.round(ev.mmrB) : '-'} vs ${ev.mmrR ? Math.round(ev.mmrR) : '-'}</span><span>🔥 시너지 ${duo('blue')} <b>VS</b> ${duo('red')}</span></div>
-    </div>
-    <p class="hint">자리를 눌러 선수를 고르세요. 이미 배치된 선수를 고르면 두 자리가 서로 바뀝니다. ＋는 챔피언(선택)입니다.</p>
+    const duo = (side) => { const b = bestDuo(d[side], st); return b ? `<span class="${side}">${pname(b.a)} + ${pname(b.b)} <b class="mono">${pct(b.w, b.g)}%</b> <small>${b.g}판</small></span>` : `<span class="mut">${side === 'blue' ? '블루' : '레드'} — 함께한 기록 부족</span>`; };
+    return `<div class="h2row"><h1>${ic('today')}${edit ? `경기 수정 <span class="mono">#${st.MI[edit.id]?.no ?? ''}</span>` : '오늘의 내전'}</h1><span class="tag">${filled}/10 배치</span><span class="grow"></span>
+      ${edit ? '<a class="btn" href="#/matches">취소</a>' : `<button class="btn gold" data-a="tDice">${ic('dice')}라인 주사위</button><button class="btn" data-a="tSwap">${ic('swap')}진영 교체</button><button class="btn ghost" data-a="tClear">비우기</button>`}</div>
+    <section class="arena">
+      <div class="scorebar"><div class="sb blue"><small>BLUE TEAM</small><b class="mono">${ev.bs.toFixed(1)}</b><span>평균 MMR ${ev.mmrB ? Math.round(ev.mmrB) : '—'}</span></div>
+        <div class="sb-mid"><div class="ring" style="--p:${pb}"><b class="mono">${pb}<small>%</small></b><span>블루 예상 승률</span></div></div>
+        <div class="sb red"><small>RED TEAM</small><b class="mono">${ev.rs.toFixed(1)}</b><span>평균 MMR ${ev.mmrR ? Math.round(ev.mmrR) : '—'}</span></div></div>
+      <div class="prob"><i style="width:${pb}%"></i></div>
+      ${ev.lanes.map((x, i) => { const g = x.bs - x.rs, both = x.b && x.r; return `<div class="lrow" style="--d:${i}">${slot('blue', i)}
+        <div class="lmid">${LANE_ICON[x.lane]}<small class="${both ? (g > 0 ? 'blue' : g < 0 ? 'red' : '') : ''} mono">${both ? (g === 0 ? 'EVEN' : (g > 0 ? '◀ ' : '') + Math.abs(g).toFixed(1) + (g < 0 ? ' ▶' : '')) : LANE_NAME[x.lane]}</small></div>
+        ${slot('red', i)}</div>`; }).join('')}
+      <div class="talk">${ic('mega')}<p>${esc(commentary(ev, st).replace('🎙️ ', ''))}</p></div>
+      <div class="syn"><small>SYNERGY</small>${duo('blue')}<i>VS</i>${duo('red')}</div>
+    </section>
 
-    <h2>🏆 경기 결과 기록</h2>
+    <div class="sec-h"><h2>${ic('rank')}경기 결과 기록</h2>${edit ? '' : sr ? `<span class="tag ok">시리즈 ${sr.ms.length + 1}번째 판</span><span class="mut sm">피어리스: 사용된 챔피언 ${Object.keys(seriesUsed(sid)).length}개 잠김</span><label class="mini"><input type="checkbox" data-c="tNew" ${d.newSeries ? 'checked' : ''}> 새 시리즈로 시작</label>` : '<span class="tag">새 시리즈 1번째 판</span>'}</div>
     <div class="panel">
-      <div class="sub">${edit ? '' : sr ? `<span class="tag ok">시리즈 ${sr.ms.length + 1}번째 판</span><span>피어리스: 이 시리즈에서 쓴 챔피언 ${Object.keys(seriesUsed(sid)).length}개 잠김</span><label class="mini"><input type="checkbox" data-c="tNew" ${d.newSeries ? 'checked' : ''}> 새 시리즈로 시작</label>` : '<span class="tag">새 시리즈 1번째 판</span><span class="mut">같은 두 팀으로 이어서 기록하면 자동으로 한 시리즈로 묶입니다.</span>'}</div>
-      <div class="winrow"><button class="wbtn blue ${d.winner === 'blue' ? 'on' : ''}" data-a="tWin" data-w="blue">🔵 블루 승리</button><button class="wbtn red ${d.winner === 'red' ? 'on' : ''}" data-a="tWin" data-w="red">🔴 레드 승리</button></div>
-      <button class="btn block ghost" data-a="tMore">${d.more ? '▲ 밴·KDA·시간 접기' : '▼ 밴 · KDA · 경기 시간 입력 (선택)'}</button>
+      <div class="winrow"><button class="wbtn blue ${d.winner === 'blue' ? 'on' : ''}" data-a="tWin" data-w="blue"><small>BLUE</small>블루 승리</button><button class="wbtn red ${d.winner === 'red' ? 'on' : ''}" data-a="tWin" data-w="red"><small>RED</small>레드 승리</button></div>
+      <button class="btn block ghost" data-a="tMore">${d.more ? '밴 · KDA · 시간 접기' : '밴 · KDA · 경기 시간 입력 (선택)'}</button>
       ${d.more ? `<div class="more">
-        ${['blue', 'red'].map((s) => `<div class="banrow"><small>${s === 'blue' ? '🔵 밴' : '🔴 밴'}</small>${d.bans[s].map((b, i) => `<button class="cbtn" data-a="tBan" data-s="${s}" data-i="${i}">${b ? champIcon(b) : '<span class="ci plus">＋</span>'}</button>`).join('')}</div>`).join('')}
-        <div class="kda">${['blue', 'red'].map((s) => `<div>${d[s].map((id, i) => (id ? `<label><span>${LANE_ICON[LANES[i]]} ${pname(id)}</span><input class="inp xs2" id="kda-${id}" inputmode="numeric" placeholder="K/D/A" value="${esc(d.kda[id] || '')}" data-c="tKda" data-id="${id}"></label>` : '')).join('')}</div>`).join('')}</div>
+        ${['blue', 'red'].map((s) => `<div class="banrow"><small>${s === 'blue' ? 'BLUE BAN' : 'RED BAN'}</small>${d.bans[s].map((b, i) => `<button class="sl-champ" data-a="tBan" data-s="${s}" data-i="${i}">${b ? champIcon(b) : `<span class="ci plus">${ic('plus')}</span>`}</button>`).join('')}</div>`).join('')}
+        <div class="kda">${['blue', 'red'].map((s) => `<div>${d[s].map((id, i) => (id ? `<label><span>${LANE_ICON[LANES[i]]} ${pname(id)}</span><input class="inp xs2 mono" id="kda-${id}" inputmode="numeric" placeholder="K/D/A" value="${esc(d.kda[id] || '')}" data-c="tKda" data-id="${id}"></label>` : '')).join('')}</div>`).join('')}</div>
         <label class="mini">경기 시간 <input class="inp" type="datetime-local" value="${esc(d.at)}" data-c="tAt"> <span class="mut">비우면 지금 시각</span></label>
       </div>` : ''}
       <button class="btn pri block big" data-a="tSave">${edit ? '수정 내용 저장' : '경기 결과 저장'}</button>
     </div>
-    ${lastSaved && !edit && S.st.MI[lastSaved] ?`<h2>방금 기록한 경기</h2>${matchCard(S.store.data.matches[lastSaved])}` : ''}`;
+    ${lastSaved && !edit && S.st.MI[lastSaved] ? `<div class="sec-h"><h2>방금 기록한 경기</h2></div>${matchCard(S.store.data.matches[lastSaved])}` : ''}`;
   },
 });
 
 act('tSlot', (d) => {
   const dr = D(), i = +d.i;
   pickPlayer({
-    title: `${d.s === 'blue' ? '🔵 블루' : '🔴 레드'} ${LANE_NAME[LANES[i]]}`, lane: LANES[i], allowClear: !!dr[d.s][i],
+    title: `${d.s === 'blue' ? '블루' : '레드'} ${LANE_NAME[LANES[i]]}`, lane: LANES[i], allowClear: !!dr[d.s][i],
     onPick(id) {
       if (id) for (const s of ['blue', 'red']) { const j = dr[s].indexOf(id); if (j >= 0) dr[s][j] = dr[d.s][i]; }
       dr[d.s][i] = id; keep();
@@ -93,7 +106,7 @@ function usedNow(dr, skip) {
 }
 act('tChamp', (d) => {
   const dr = D(), i = +d.i, id = dr[d.s][i];
-  pickChamp({ title: `${id ? pname(id) : LANE_NAME[LANES[i]]} 챔피언`, used: usedNow(dr, `c${d.s}${i}`), current: dr.champs[d.s][i], onPick(n) { dr.champs[d.s][i] = n; keep(); } });
+  pickChamp({ title: `${id ? S.st.P[id]?.name : LANE_NAME[LANES[i]]} 챔피언`, used: usedNow(dr, `c${d.s}${i}`), current: dr.champs[d.s][i], onPick(n) { dr.champs[d.s][i] = n; keep(); } });
 });
 act('tBan', (d) => {
   const dr = D(), i = +d.i;
@@ -130,7 +143,9 @@ act('tSave', async (d, btn) => {
   } catch (e) { btn.disabled = false; return toast('저장 실패: ' + (e.code || e.message)); }
   toast(old ? '수정했습니다' : `저장했습니다 · ${dr.winner === 'blue' ? '블루' : '레드'} 승리`);
   if (old) { edit = null; return go('#/matches'); }
+  burst(innerWidth / 2, innerHeight / 3);
+  sysChat(`경기 기록 · ${dr.winner === 'blue' ? '블루' : '레드'} 승리 (${m[dr.winner].map((p) => S.st.P[p]?.name).join(', ')})`);
   lastSaved = id;
   draft = { ...blank(), blue: dr.blue, red: dr.red }; // 같은 팀으로 다음 판을 바로 기록할 수 있게 라인업은 유지
-  keep(); window.scrollTo(0, 0);
+  keep(); window.scrollTo(0, 0); document.getElementById('main').scrollTop = 0;
 });
