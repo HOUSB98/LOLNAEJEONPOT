@@ -67,8 +67,10 @@ export const page = (id, def) => (pages[id] = def);
 export const act = (name, fn) => (acts[name] = fn);
 export const NAV = [
   ['', 'LEAGUE'], ['home', '홈'], ['rank', '랭킹'], ['matches', '경기 기록'], ['players', '선수 카드'],
-  ['', 'ANALYSIS'], ['chem', '케미'], ['champs', '챔피언'], ['fearless', '피어리스'],
-  ['', 'PLAY'], ['today', '오늘의 내전'], ['replay', '리플레이 분석'], ['auction', '팀 경매'], ['admin', '관리'],
+  ['', 'ANALYSIS'], ['champs', '챔피언'], ['chem', '케미'], ['fearless', '피어리스'],
+  // 리플레이 분석 화면은 "리플레이를 올리면 경기를 자동으로 찾아 주는" 기능이 생길 때까지 메뉴에서 뺀다.
+  // 다시 켜려면 아래 줄의 '관리' 앞에 ['replay', '리플레이 분석'] 을 넣고 js/replay.js 의 REPLAY_PAGE 를 true 로 바꾼다.
+  ['', 'PLAY'], ['today', '오늘의 내전'], ['auction', '팀 경매'], ['admin', '관리'],
 ];
 export function go(hash) { location.hash = hash; }
 function parseHash() {
@@ -90,6 +92,7 @@ export function render() {
   lastRoute = route;
   main.innerHTML = pages[S.page].render(...S.arg);
   if (entering) { main.classList.remove('enter'); void main.offsetWidth; main.classList.add('enter'); clearTimeout(render.t); render.t = setTimeout(() => main.classList.remove('enter'), 900); }
+  lazyArt(main);
   pages[S.page].after?.(entering);
   if (fid) { const el = document.getElementById(fid); if (el) { el.focus(); try { el.setSelectionRange(sel, sel); } catch {} } }
 }
@@ -121,10 +124,27 @@ export function champIcon(name, cls = '') {
   const c = S.champBy[name];
   return c ? `<img class="ci ${cls}" src="${c.img}" alt="${esc(name)}" title="${esc(name)}" loading="lazy">` : `<span class="ci txt ${cls}" title="${esc(name)}">${esc(name.slice(0, 2))}</span>`;
 }
-export const splashUrl = (name) => (S.champBy[name]?.id ? `https://ddragon.leagueoflegends.com/cdn/img/champion/splash/${S.champBy[name].id}_0.jpg` : '');
-// 작은 칸(랭킹 행, 카드, 듀오 등)에는 용량이 1/5 수준인 얼굴 중심 정사각 이미지를 쓴다
-export const tileUrl = (name) => (S.champBy[name]?.id ? `https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/${S.champBy[name].id}_0.jpg` : '');
-export const loadingUrl =(name) => (S.champBy[name]?.id ? `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${S.champBy[name].id}_0.jpg` : '');
+// 챔피언 이미지 3종. 파일 이름이 목록의 id와 다른 챔피언은 IMG_ID에서 바로잡는다.
+//   artUrl   : 챔피언이 한가운데 오도록 맞춘 가로 일러스트(1280x720). 얼굴이 항상 가로 중앙·위에서 22% 근처라서
+//              가로로 긴 칸(랭킹 행, 라인업 칸, 듀오, 배너)에 쓴다. CSS도 `center 22%` 기준으로 맞춰 둔다.
+//   tileUrl  : 얼굴 중심 정사각. 세로로 길거나 정사각에 가까운 카드에 쓴다.
+//   splashUrl: 원본 일러스트(구도가 제각각이라 큰 배경에만).
+const IMG_ID = { Fiddlesticks: 'FiddleSticks' };
+const imgId = (name) => { const id = S.champBy[name]?.id; return id ? IMG_ID[id] || id : ''; };
+const cimg = (kind) => (name) => (imgId(name) ? `https://ddragon.leagueoflegends.com/cdn/img/champion/${kind}/${imgId(name)}_0.jpg` : '');
+export const splashUrl = cimg('splash');
+export const tileUrl = cimg('tiles');
+export const artUrl = cimg('centered');
+// 화면에 보일 때만 배경 이미지를 받는다: <i data-art="주소"> → 보이면 style="--img:url(주소)"
+let artIO = null;
+export function lazyArt(root = document) {
+  const els = root.querySelectorAll('[data-art]');
+  if (!els.length) return;
+  const show = (el) => { if (el.dataset.art) el.style.setProperty('--img', `url('${el.dataset.art}')`); el.removeAttribute('data-art'); };
+  if (!('IntersectionObserver' in window)) return els.forEach(show);
+  artIO ||= new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { artIO.unobserve(e.target); show(e.target); } }), { rootMargin: '300px' });
+  els.forEach((el) => artIO.observe(el));
+}
 // 선수의 대표 챔피언: 내전 모스트 → 솔랭 모스트 순
 export function sigChamp(s) {
   const own = Object.entries(s.champs).sort((a, b) => b[1].g - a[1].g || b[1].w - a[1].w)[0];

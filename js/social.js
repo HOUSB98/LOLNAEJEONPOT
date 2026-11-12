@@ -44,7 +44,7 @@ const EMOJI = ['😂', '🔥', '👍', '😭', '🤡', '💀', '🫡', '🙏', '
 const STK = Object.fromEntries(STICKERS.map((s) => [s[0], s]));
 let unread = 0, lastSeenAt = +localStorage.getItem('naejeon:chatseen') || 0, lastSend = 0, tray = false;
 const isOpen = () => document.body.classList.contains('chat-open') || matchMedia('(min-width: 1281px)').matches;
-const msgs = () => col('chat').sort((a, b) => a.at - b.at);
+const msgs = () => col('chat').filter((m) => !m.deleted).sort((a, b) => a.at - b.at);
 function send(kind, text) {
   if (!nick()) return askNick(true);
   const now = Date.now();
@@ -60,7 +60,7 @@ export function sysChat(text) {
 }
 function buildChat() {
   document.getElementById('chat').innerHTML = `
-    <header><div class="ch-t"><span class="ch-k"><i class="live"></i>LIVE</span><b>Lobby<i>Chat</i></b><small><span id="chat-on">0</span>명 접속 중 · 모두가 함께 보는 채팅</small></div><button class="btn ghost xs chatx" data-a="chatToggle">${ic('x')}</button></header>
+    <header><div class="ch-t"><span class="ch-k"><i class="live"></i>LIVE</span><b>Lobby<i>Chat</i></b><small><span id="chat-on">0</span>명 접속 중</small></div><button class="btn ghost xs chatx" data-a="chatToggle">${ic('x')}</button></header>
     <div id="chatlog"></div>
     <div id="chattray" hidden>
       <div class="stk-grid">${STICKERS.map(([k, t, c]) => `<button class="sticker ${c}" data-a="chatStk" data-k="${k}">${esc(t)}</button>`).join('')}</div>
@@ -87,7 +87,7 @@ export function renderChat(force) {
     const me = m.cid === cid, who = m.cid + m.nick, head = who !== prevWho;
     prevWho = who;
     const body = m.k === 's' && STK[m.t] ? `<span class="sticker big ${STK[m.t][2]}">${esc(STK[m.t][1])}</span>` : m.k === 'r' ? `<span class="croll">${ic('dice')}<b>${esc(m.t)}</b><small>1~100</small></span>` : `<span class="cb ${/^\p{Extended_Pictographic}{1,3}$/u.test(m.t) ? 'emo' : ''}">${esc(m.t)}</span>`;
-    html += `<div class="cm ${me ? 'me' : ''} ${head ? 'head' : ''}">${head && !me ? `<b class="cn" style="--h:${hue(m.nick)}">${esc(m.nick)}</b>` : ''}<div class="cl">${body}<small>${tm}</small></div></div>`;
+    html += `<div class="cm ${me ? 'me' : ''} ${head ? 'head' : ''}">${head && !me ? `<b class="cn" style="--h:${hue(m.nick)}">${esc(m.nick)}</b>` : ''}<div class="cl">${body}<small>${tm}</small>${me ? `<button class="cdel" data-a="chatDel" data-id="${m.id}" title="내 메시지 지우기" aria-label="메시지 지우기">${ic('x')}</button>` : ''}</div></div>`;
   }
   log.innerHTML = html || `<div class="cempty">${ic('chat')}<p>첫 메시지를 남겨 보세요.<br>스티커와 주사위도 있어요.</p></div>`;
   if (atBottom) log.scrollTop = log.scrollHeight;
@@ -101,6 +101,12 @@ act('chatTray', () => { tray = !tray; document.getElementById('chattray').hidden
 act('chatStk', (d) => send('s', d.k));
 act('chatEmo', (d) => { const i = document.getElementById('chatinp'); i.value += d.e; i.focus(); });
 act('chatRoll', () => send('r', 1 + Math.floor(Math.random() * 100)));
+// 내가 쓴 글만 지울 수 있다. DB 문서는 지우지 않고 삭제 표시만 한다(다른 사람 화면에서도 바로 사라진다).
+act('chatDel', (d) => {
+  const m = S.store.data.chat?.[d.id];
+  if (!m || m.cid !== cid || !confirm('이 메시지를 지울까요?')) return;
+  S.store.patch('chat', d.id, { deleted: true }).catch((e) => toast('삭제 실패: ' + (e.code || e.message)));
+});
 
 // ---------- 환영 인트로 ----------
 function embers(canvas) {

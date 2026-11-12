@@ -63,8 +63,11 @@ function toRows(meta) {
 const fmtDur = (ms) => { const s = Math.round(ms / 1000); return `${Math.floor(s / 60)}분 ${String(s % 60).padStart(2, '0')}초`; };
 const itemImg = (id) => (id && S.ver ? `<img class="it" src="https://ddragon.leagueoflegends.com/cdn/${S.ver}/img/item/${id}.png" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : '<span class="it"></span>');
 
+// 리플레이 분석 화면 사용 여부. 자동 경기 매칭이 생기기 전까지는 꺼 두고, 경기 기록의 경기별 "리플레이" 버튼만 쓴다.
+const REPLAY_PAGE = false;
 page('replay', {
   render() {
+    if (!REPLAY_PAGE) return `<h1>${ic('replay')}리플레이 분석</h1><div class="panel empty">리플레이 분석 화면은 준비 중입니다.<br>지금은 경기 기록에서 각 경기의 <b>리플레이</b> 버튼으로 파일을 넣어 주세요.<br><a class="btn pri" href="#/matches">경기 기록으로 가기</a></div>`;
     const m = R.meta, k = (v) => v.toLocaleString('ko-KR');
     const team = (side) => {
       const rows = R.rows.filter((r) => r.side === side).sort((a, b) => a.lane - b.lane), tot = (f) => rows.reduce((s, r) => s + r[f], 0);

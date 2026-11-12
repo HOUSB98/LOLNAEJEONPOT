@@ -1,7 +1,7 @@
 // 시작점 + 홈 / 랭킹 / 경기 기록 / 챔피언 / 피어리스 화면
 import { FIREBASE_CONFIG } from './config.js';
 import { createStore } from './store.js';
-import { S, page, act, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, tileUrl, sigChamp, toast, download, csv, needAdmin, history, modal, mh, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
+import { S, page, act, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, toast, download, csv, needAdmin, history, modal, mh, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
 import { initSocial, renderChat, renderPresence } from './social.js';
 import './today.js';
 import { watchDice } from './dice.js';
@@ -55,25 +55,79 @@ function notices() {
   if (rookies.length || ghosts.length) add('ROSTER', 'purple', `신예 ${rookies.length}명 · 미데뷔 ${ghosts.length}명`, `${rookies.length ? `${rookies.slice(0, 4).map((s) => esc(s.name)).join(', ')} — 표본이 쌓이는 중입니다. ` : ''}${ghosts.length ? '아직 한 판도 뛰지 않은 소환사가 데뷔를 기다립니다.' : ''}`);
   return out;
 }
-const HM = { i: 0, t: 0 };
+const HM = { i: 0, t: 0, lane: 'top' };
+// 홈 배너: 내전에 나온 챔피언(적으면 전체)의 일러스트를 순서를 섞어 차례로 보여 준다
+const HERO = { list: [], i: 0, t: 0, flip: 0 };
+function heroList() {
+  if (HERO.list.length || !S.champs.length) return HERO.list;
+  const played = S.st.champs.filter((c) => c.g && S.champBy[c.name]).map((c) => c.name);
+  const pool = played.length >= 6 ? played : S.champs.map((c) => c.name);
+  HERO.list = pool.map((n) => [Math.random(), n]).sort((a, b) => a[0] - b[0]).map((x) => x[1]).slice(0, 40);
+  return HERO.list;
+}
+function heroNext() {
+  const list = HERO.list, bgs = document.querySelectorAll('.hero-bg'); if (list.length < 2 || bgs.length < 2) return;
+  const name = list[(HERO.i + 1) % list.length], url = artUrl(name), img = new Image();
+  img.onload = () => {
+    if (S.page !== 'home' || !document.body.contains(bgs[0])) return;
+    HERO.i = (HERO.i + 1) % list.length; HERO.flip ^= 1;
+    const show = bgs[HERO.flip], hide = bgs[HERO.flip ^ 1];
+    show.style.setProperty('--img', `url('${url}')`); show.classList.add('on'); hide.classList.remove('on');
+    const cap = document.getElementById('herocap');
+    if (cap) { cap.classList.remove('sw'); void cap.offsetWidth; cap.querySelector('b').textContent = name; cap.classList.add('sw'); }
+  };
+  img.src = url;
+}
+// 라인별 챔피언 기록: 경기 기록의 챔피언 칸 순서(탑→서폿)로 라인을 나눈다
+function laneChamps() {
+  const by = Object.fromEntries(LANES.map((l) => [l, {}]));
+  S.st.matches.forEach((m) => ['blue', 'red'].forEach((side) => (m.champs?.[side] || []).forEach((c, i) => {
+    if (!c || !LANES[i]) return;
+    const o = (by[LANES[i]][c] ||= { name: c, g: 0, w: 0 });
+    o.g++; if (m.winner === side) o.w++;
+  })));
+  return by;
+}
+function laneTierPanel() {
+  const list = Object.values(laneChamps()[HM.lane]).sort((a, b) => b.g - a.g || b.w - a.w), maxG = Math.max(1, ...list.map((c) => c.g));
+  const rows = [1, 2, 3, 4, 5].map((t) => [t, list.filter((c) => tierOf(c, maxG) === t)]).filter(([, cs]) => cs.length);
+  return `<section class="panel ltier"><div class="sec-h"><h2>${ic('champs')}챔피언 티어</h2><span class="mut sm">${LANE_NAME[HM.lane]} · ${list.length}종</span><span class="grow"></span><a class="mut sm" href="#/champs">전체 보기 →</a></div>
+    <div class="seg full lseg">${LANES.map((l) => `<button class="${HM.lane === l ? 'on' : ''}" data-a="homeLane" data-l="${l}" title="${LANE_NAME[l]}">${LANE_ICON[l]}<span>${LANE_NAME[l]}</span></button>`).join('')}</div>
+    <div class="tiers mini">${rows.map(([t, cs]) => `<div class="trow t${t}"><b>${t}<small>TIER</small></b><div>${cs.map((c) => `<span title="${esc(c.name)} · ${c.g}픽 ${c.w}승 · ${pct(c.w, c.g)}%">${champIcon(c.name)}<small>${esc(c.name)}</small><em class="mono">${pct(c.w, c.g)}%</em></span>`).join('')}</div></div>`).join('') || `<p class="mut sm center">${LANE_NAME[HM.lane]} 챔피언 기록이 아직 없습니다. 경기 입력 때 챔피언을 고르면 쌓입니다.</p>`}</div>
+    <p class="hint">내전 기록 기준 · 보정 승률(표본 반영) + 선택 빈도</p></section>`;
+}
+// 진영 승률과 요즘 폼(최근 5판) — 홈 오른쪽 아래 칸
+function formPanel() {
+  const st = S.st, x = st.sum, bw = pct(x.blueW, x.n);
+  const act5 = st.list.filter((s) => s.recent.length >= 3), score = (s) => s.recent.filter(Boolean).length / s.recent.length;
+  const hot = [...act5].sort((a, b) => score(b) - score(a) || b.cur - a.cur || b.mmr - a.mmr).slice(0, 3);
+  const cold = [...act5].sort((a, b) => score(a) - score(b) || a.cur - b.cur || a.mmr - b.mmr).filter((s) => !hot.includes(s)).slice(0, 3);
+  const li = (s) => `<a class="fm" href="#/players/${s.id}">${champIcon(sigChamp(s), 'face')}<b>${esc(s.name)}</b>${streak(s.cur)}<span class="grow"></span>${dots(s.recent)}</a>`;
+  return `<section class="panel formbox"><div class="sec-h"><h2>${ic('scale')}진영 · 요즘 폼</h2><span class="grow"></span><span class="mut sm">최근 5판 기준</span></div>
+    <div class="sidebar2"><b class="blue mono">BLUE ${x.blueW}승 <small>${bw}%</small></b><b class="red mono"><small>${x.n ? 100 - bw : 0}%</small> ${x.redW}승 RED</b></div>
+    <div class="prob"><i style="width:${x.n ? bw : 50}%"></i></div>
+    <div class="fmg"><div><small class="fmh hot">${ic('flame')}상승세</small>${hot.map(li).join('') || '<p class="mut sm">3판 이상 뛴 선수가 없습니다.</p>'}</div>
+      <div><small class="fmh cold">${ic('alert')}반등 필요</small>${cold.map(li).join('') || '<p class="mut sm">—</p>'}</div></div></section>`;
+}
 page('home', {
   render() {
-    const st = S.st, x = st.sum, now = new Date(), day = Math.floor(now.getTime() / 864e5);
-    const pool = st.champs.filter((c) => c.g && S.champBy[c.name]).map((c) => c.name);
-    const hero = pool.length ? pool[day % pool.length] : S.champs.length ? S.champs[day % S.champs.length].name : '';
+    const st = S.st, x = st.sum, now = new Date();
+    const hl = heroList(), hero = hl.length ? hl[HERO.i % hl.length] : '';
     const date = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')} ${'일월화수목금토'[now.getDay()]}요일`;
     const patch = S.ver ? S.ver.split('.').slice(0, 2).join('.') : '—';
     const hof = hofList(), top = st.list.filter((s) => s.g >= 3).sort((a, b) => b.ovr - a.ovr).slice(0, 3), nt = notices();
     const last = [...st.matches].slice(-2).reverse();
+    HERO.flip = 0;
     return `
-    <section class="hero" style="--img:url('${splashUrl(hero)}')">
+    <section class="hero">
+      <div class="hero-bg on" style="--img:url('${artUrl(hero)}')"></div><div class="hero-bg alt"></div>
       <div class="hero-in">
         <div class="hero-logo">${logo(true, 92)}<div><div class="word"><span>NAEJEON</span><i>POT</i></div><p>${esc(settings().leagueName || '친구 내전 리그')} · IN-HOUSE LEAGUE</p></div></div>
         <h1 class="hero-h">우리들의 협곡,<br><em>모든 기록이 여기에.</em></h1>
         <div class="hero-meta"><span>${ic('cal')}${date}</span><span class="patch">PATCH ${patch}</span><span>${ic('today')}누적 ${x.n}경기</span></div>
         <div class="hero-cta"><a class="btn pri" href="#/today">${ic('today')}오늘의 내전 시작</a><a class="btn" href="#/rank">${ic('rank')}랭킹 보기</a></div>
       </div>
-      ${hero ? `<span class="hero-cap">TODAY'S SPLASH · ${esc(hero)}</span>` : ''}
+      ${hero ? `<span class="hero-cap" id="herocap">CHAMPION · <b>${esc(hero)}</b></span>` : ''}
     </section>
     <div class="stats">
       ${stat('today', '총 경기', x.n, `내전 ${x.days}일`, 'gold')}
@@ -82,18 +136,20 @@ page('home', {
       ${stat('target', '예측 적중률', x.hit === null ? '-' : x.hit + '%', `밸런스 지수 ${x.balance ?? '-'}%`, 'purple')}
     </div>
     <div class="home-grid">
-      <section class="notice">
+      <div class="home-main"><section class="notice">
         <div class="sec-h"><h2>${ic('mega')}공지사항</h2><span class="tag gold">PATCH ${patch}</span><span class="mut sm">${date} 자동 갱신</span></div>
         <ol>${nt.map((n, i) => `<li class="${n.tone}" style="--d:${i}"><span class="ntag">${n.tag}</span><div><b>${n.title}</b><p>${n.body}</p></div></li>`).join('')}</ol>
       </section>
+      ${x.n ? formPanel() : ''}</div>
       <div class="home-side">
+        ${laneTierPanel()}
         <section class="car" id="car">
           <div class="sec-h"><h2>${ic('crown')}명예의 전당</h2><span class="grow"></span><button class="btn ghost xs" data-a="carGo" data-d="-1">‹</button><button class="btn ghost xs" data-a="carGo" data-d="1">›</button></div>
-          <div class="car-view"><div class="car-track" style="transform:translateX(-${HM.i * 100}%)">${hof.map(([i, en, ko, a, b, tone, ch]) => `<article class="hslide ${tone}" style="--img:url('${splashUrl(ch)}')"><div class="hs-ic">${ic(i)}</div><small>${en}</small><span>${ko}</span><b>${a}</b><em>${b}</em></article>`).join('')}</div></div>
+          <div class="car-view"><div class="car-track" style="transform:translateX(-${HM.i * 100}%)">${hof.map(([i, en, ko, a, b, tone, ch]) => `<article class="hslide ${tone}" style="--img:url('${artUrl(ch)}')"><div class="hs-ic">${ic(i)}</div><small>${en}</small><span>${ko}</span><b>${a}</b><em>${b}</em></article>`).join('')}</div></div>
           <div class="car-dots">${hof.map((_, i) => `<i class="${i === HM.i ? 'on' : ''}" data-a="carSet" data-i="${i}"></i>`).join('')}</div>
         </section>
         <section class="panel podium"><div class="sec-h"><h2>${ic('rank')}POWER RANKING</h2><a class="mut sm" href="#/rank">전체 보기 →</a></div>
-          ${top.map((s, i) => `<a class="pod p${i + 1}" href="#/players/${s.id}" style="--img:url('${tileUrl(sigChamp(s))}')"><i class="mono">${i + 1}</i><div><b>${esc(s.name)}</b><small>${LANE_ICON[s.mainLane]} ${LANE_NAME[s.mainLane]} · ${s.wr}% · ${s.g}판</small></div><em class="mono">${s.ovr}</em></a>`).join('') || '<p class="mut">3판 이상 출전한 선수가 생기면 표시됩니다.</p>'}
+          ${top.map((s, i) => `<a class="pod p${i + 1}" href="#/players/${s.id}" style="--img:url('${artUrl(sigChamp(s))}')"><i class="mono">${i + 1}</i><div><b>${esc(s.name)}</b><small>${LANE_ICON[s.mainLane]} ${LANE_NAME[s.mainLane]} · ${s.wr}% · ${s.g}판</small></div><em class="mono">${s.ovr}</em></a>`).join('') || '<p class="mut">3판 이상 출전한 선수가 생기면 표시됩니다.</p>'}
         </section>
       </div>
     </div>
@@ -101,10 +157,12 @@ page('home', {
   },
   after(entering) {
     if (entering) countUp(document.getElementById('main'));
-    clearInterval(HM.t);
+    clearInterval(HM.t); clearInterval(HERO.t);
     HM.t = setInterval(() => { if (S.page !== 'home') return clearInterval(HM.t); if (!document.querySelector('#car:hover')) carMove(1); }, 4200);
+    HERO.t = setInterval(() => { if (S.page !== 'home') return clearInterval(HERO.t); if (document.visibilityState === 'visible') heroNext(); }, 6500);
   },
 });
+act('homeLane', (d) => { HM.lane = d.l; refresh(); });
 function carMove(d, abs) {
   const n = document.querySelectorAll('.hslide').length; if (!n) return;
   HM.i = abs !== undefined ? abs : (HM.i + d + n) % n;
@@ -136,7 +194,13 @@ page('rank', {
     const st = S.st, x = st.sum;
     const cols = COLS[LB.view], sortCol = cols.find((c) => c[0] === LB.sort) || cols[0];
     const rows = st.list.filter((s) => s.g >= LB.min).sort((a, b) => LB.dir * (sortCol[2](a) - sortCol[2](b)) || b.ovr - a.ovr);
-    return `<div class="h2row"><h1>${ic('rank')}랭킹</h1><span class="grow"></span>
+    // 상단 TOP 3 카드: 지금 정렬 기준의 1~3위
+    const medal = ['CHAMPION', 'RUNNER-UP', 'THIRD'];
+    const spot = rows.slice(0, 3).map((s, i) => `<a class="spot s${i + 1}" href="#/players/${s.id}" style="--img:url('${artUrl(sigChamp(s))}');--d:${i}">
+      <span class="sp-rk mono">${i + 1}</span><small>${medal[i]}</small><b>${esc(s.name)}</b>
+      <span class="sp-meta">${LANE_ICON[s.mainLane]}${LANE_NAME[s.mainLane]}<i></i>${s.g ? `${s.wr}% · ${s.g}판` : '출전 없음'}${s.titles[0] ? `<i></i>${s.titles[0].e} ${s.titles[0].n}` : ''}</span>
+      <span class="sp-val"><em class="mono">${s.ovr}</em><small>OVR</small></span></a>`).join('');
+    return `<div class="h2row"><h1>${ic('rank')}랭킹</h1><span class="tag gold">SEASON LADDER</span><span class="grow"></span>
       <div class="seg">${[['all', '종합'], ['score', '라인 점수'], ['lane', '라인별 승률']].map(([k, t]) => `<button class="${LB.view === k ? 'on' : ''}" data-a="lbView" data-v="${k}">${t}</button>`).join('')}</div>
       <label class="mini">최소 <input class="inp xs" type="number" min="0" value="${LB.min}" data-c="lbMin"> 판</label></div>
     <div class="stats">
@@ -145,9 +209,10 @@ page('rank', {
       ${stat('scale', '팀 밸런스 지수', x.balance === null ? '-' : x.balance + '%', `평균 점수 차 ${x.avgGap.toFixed(1)}점`, 'purple')}
       ${stat('alert', '업셋', x.upsets, '예상 40% 미만 팀 승리', 'red')}
     </div>
-    <div class="tw"><table class="tbl lb">
+    ${rows.length >= 3 ? `<div class="spots">${spot}</div>` : ''}
+    <div class="tw lbw"><table class="tbl lb">
       <thead><tr><th>#</th><th class="l">소환사</th>${cols.map((c) => `<th data-a="lbSort" data-k="${c[0]}" class="s ${sortCol[0] === c[0] ? 'on' : ''}">${c[1]}${sortCol[0] === c[0] ? (LB.dir < 0 ? ' ▾' : ' ▴') : ''}</th>`).join('')}${LB.view === 'all' ? '<th class="l">칭호</th>' : ''}<th class="art"></th></tr></thead>
-      <tbody>${rows.map((s, i) => `<tr data-a="goPlayer" data-id="${s.id}" style="--d:${Math.min(i, 14)}"><td class="rk r${i + 1} mono">${i + 1}</td><td class="l nm">${esc(s.name)}</td>${cols.map((c) => num(c[3](s))).join('')}${LB.view === 'all' ? `<td class="l chips">${titleChips(s, 1)}</td>` : ''}<td class="art"><i style="--img:url('${tileUrl(sigChamp(s))}')"></i></td></tr>`).join('') || `<tr><td colspan="20" class="empty">조건에 맞는 선수가 없습니다.</td></tr>`}</tbody>
+      <tbody>${rows.map((s, i) => `<tr class="${i < 3 ? 'top t' + (i + 1) : ''}" data-a="goPlayer" data-id="${s.id}" style="--d:${Math.min(i, 14)}"><td class="rk mono"><span class="rkb r${i + 1}">${i + 1}</span></td><td class="l nm">${esc(s.name)}</td>${cols.map((c) => num(c[3](s))).join('')}${LB.view === 'all' ? `<td class="l chips">${titleChips(s, 1)}</td>` : ''}<td class="art"><u class="rowfx"></u><i data-art="${artUrl(sigChamp(s))}"></i></td></tr>`).join('') || `<tr><td colspan="20" class="empty">조건에 맞는 선수가 없습니다.</td></tr>`}</tbody>
     </table></div>
     <p class="hint">머리글을 누르면 정렬됩니다. 행을 누르면 선수 카드가 열립니다. OVR = 내전 MMR 50% + 상위 3개 라인 점수 50%.</p>`;
   },

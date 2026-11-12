@@ -1,5 +1,5 @@
 // 선수 카드(홀로 카드) / 솔랭 분석 / 케미 분석
-import { S, page, act, esc, pname, go, refresh, fmtDT, wrClass, wrBar, dots, streak, titleChips, champIcon, splashUrl, tileUrl, sigChamp, ic, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct } from './core.js';
+import { S, page, act, esc, pname, go, refresh, fmtDT, wrClass, wrBar, dots, streak, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, ic, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct } from './core.js';
 import { chem, playerLine } from './stats.js';
 
 const PV = { view: 'card' };
@@ -33,7 +33,7 @@ function holo(s, n) {
   return `<div class="holo-wrap"><div class="holo ${r[2]}" style="--tc:${LANE_COLOR[s.mainLane]}">
     <div class="hc-in">
       <div class="hc-head"><span class="hc-stage">${r[1]}</span><b>${esc(s.name)}</b><span class="hc-hp mono"><small>OVR</small>${s.ovr}</span><span class="hc-type">${LANE_ICON[s.mainLane]}</span></div>
-      <div class="hc-art" style="--img:url('${splashUrl(sig)}')">${sig ? `<span>SIGNATURE · ${esc(sig)}</span>` : `<i>${LANE_ICON[s.mainLane]}</i>`}</div>
+      <div class="hc-art" style="--img:url('${artUrl(sig)}')">${sig ? `<span>SIGNATURE · ${esc(sig)}</span>` : `<i>${LANE_ICON[s.mainLane]}</i>`}</div>
       <div class="hc-strip">No.${String(s.ovrRank).padStart(3, '0')} · ${LANE_NAME[s.mainLane]} 타입 · ${s.g ? `${s.g}전 ${s.w}승 ${s.g - s.w}패` : '미데뷔'} · MMR ${Math.round(s.mmr)}</div>
       ${move(sc[0])}${move(sc[1])}
       <div class="hc-foot"><div><small>약점</small>${LANE_ICON[weak]}<b class="mono">${sc[4][1]}</b></div><div><small>폼</small><b>${{ '⬆️': '최상', '↗️': '좋음', '➡️': '보통', '↘️': '주춤', '⬇️': '부진', '➖': '—' }[s.cond]}</b></div><div><small>통산 승률</small><b class="mono">${s.g ? s.wr + '%' : '—'}</b></div></div>
@@ -46,7 +46,7 @@ function holo(s, n) {
 // 리플레이로 쌓인 상세 지표. 여러 라인을 도는 선수가 불리하지 않도록 "맞라인 대비"와 "라인 평균=100 지수"를 함께 보여 준다
 function detailPanel(s) {
   const x = s.dx;
-  if (!x) return `<div class="panel"><div class="ph"><b>상세 지표</b><span class="tag">리플레이 0판</span></div><p class="mut sm">리플레이 분석으로 입력한 경기가 생기면 분당 CS·피해량·시야와 라인 보정 지수가 표시됩니다.</p></div>`;
+  if (!x) return `<div class="panel"><div class="ph"><b>상세 지표</b><span class="tag">리플레이 0판</span></div><p class="mut sm">경기 기록에서 리플레이를 넣은 경기가 생기면 분당 CS·피해량·시야와 라인 보정 지수가 표시됩니다.</p></div>`;
   const n = (v, d = 0) => v.toLocaleString('ko-KR', { maximumFractionDigits: d, minimumFractionDigits: d });
   const sign = (v, d = 0) => (v === null ? '—' : `<span class="${v >= 0 ? 'good' : 'bad'}">${v >= 0 ? '+' : '−'}${n(Math.abs(v), d)}</span>`);
   const cell = (label, val, sub) => `<div class="dcell"><small>${label}</small><b class="mono">${val}</b><span>${sub || ''}</span></div>`;
@@ -90,7 +90,7 @@ function cardView(id) {
         ${row('내전 MMR', `<span class="mono">${Math.round(s.mmr).toLocaleString()}</span> <small class="${s.mmrLast >= 0 ? 'good' : 'bad'}">${s.g ? (s.mmrLast >= 0 ? '▲' : '▼') + Math.abs(Math.round(s.mmrLast)) : ''}</small> <small>시작 ${s.mmrInit} · 신뢰도 ${s.rel[1]}</small>`)}
         ${row('평균 KDA', kda)}${row('마지막 출전', s.lastAt ? `${fmtDT(s.lastAt)} (${Math.floor((Date.now() - s.lastAt) / 864e5)}일 전)` : '—')}</div>
       <div class="panel"><div class="ph"><b>케미</b><a class="btn xs" href="#/chem/${id}">자세히</a></div>
-        ${row('베스트 듀오', who(c.best, duoF))}${row('상극 듀오', who(c.worst, duoF))}${row('천적', who(c.nemesis, vsF))}${row('밥', who(c.prey, vsF))}
+        ${row('베스트 듀오', who(c.best, duoF))}${row('상극 듀오', who(c.worst, duoF))}${row('천적 (내가 약한 상대)', who(c.nemesis, vsF))}${row('내가 강한 상대', who(c.prey, vsF))}
         <div class="ph"><b>맞라인 전적</b></div>${LANES.map((l) => row(`${LANE_ICON[l]} ${LANE_NAME[l]}`, laneOpp(l))).join('')}</div>
     </div>
     ${detailPanel(s)}
@@ -107,13 +107,18 @@ page('players', {
   render: (id) => (id ? cardView(id) : listView()),
   after() { // 홀로 카드: 마우스 위치에 따라 기울기와 빛 반사를 바꾼다
     const w = document.querySelector('.holo-wrap'), h = w?.querySelector('.holo'); if (!h) return;
-    w.onpointermove = (e) => {
-      const r = h.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+    // 카드가 기울면 카드의 화면상 크기도 바뀌므로, 기준 좌표는 기울지 않는 바깥 틀(w)에서 잡는다(안 그러면 떨린다).
+    // 마우스 이벤트마다 그리지 않고 화면 주사율에 맞춰 한 번씩만 갱신한다.
+    if (matchMedia('(hover: none), (prefers-reduced-motion: reduce)').matches) return;
+    let raf = 0, px = 0, py = 0;
+    const paint = () => {
+      raf = 0;
+      const r = w.getBoundingClientRect(), x = Math.min(1, Math.max(0, (px - r.left) / r.width)), y = Math.min(1, Math.max(0, (py - r.top) / h.offsetHeight));
       h.style.setProperty('--mx', (x * 100).toFixed(1) + '%'); h.style.setProperty('--my', (y * 100).toFixed(1) + '%');
-      h.style.setProperty('--rx', ((0.5 - y) * 22).toFixed(1) + 'deg'); h.style.setProperty('--ry', ((x - 0.5) * 26).toFixed(1) + 'deg');
-      h.classList.add('live');
+      h.style.setProperty('--rx', ((0.5 - y) * 9).toFixed(2) + 'deg'); h.style.setProperty('--ry', ((x - 0.5) * 11).toFixed(2) + 'deg');
     };
-    w.onpointerleave = () => { h.classList.remove('live'); h.style.setProperty('--rx', '0deg'); h.style.setProperty('--ry', '0deg'); };
+    h.onpointermove = (e) => { px = e.clientX; py = e.clientY; h.classList.add('live'); if (!raf) raf = requestAnimationFrame(paint); };
+    h.onpointerleave = () => { cancelAnimationFrame(raf); raf = 0; h.classList.remove('live'); h.style.setProperty('--rx', '0deg'); h.style.setProperty('--ry', '0deg'); };
   },
 });
 act('pvView', (d) => { PV.view = d.v; refresh(); });
@@ -130,7 +135,7 @@ page('chem', {
     const topDuo = [...pairs].sort((a, b) => b.wr - a.wr || b.g - a.g).slice(0, 5), lowDuo = [...pairs].sort((a, b) => a.wr - b.wr || b.g - a.g).slice(0, 5);
     const face = (pid) => { const ch = sigChamp(st.P[pid]); return ch ? champIcon(ch, 'face') : `<span class="ci face txt">${pname(pid).slice(0, 1)}</span>`; };
     const lvl = (w) => (w >= 60 ? 'hi' : w >= 45 ? 'mid' : 'lo');
-    const rank = (arr, tone) => arr.map((x, i) => `<div class="duo ${tone}" style="--img:url('${tileUrl(sigChamp(st.P[x.ids[i % 2]]))}');--d:${i}">
+    const rank = (arr, tone) => arr.map((x, i) => `<div class="duo ${tone}" style="--img:url('${artUrl(sigChamp(st.P[x.ids[i % 2]]))}');--d:${i}">
       <i class="drk mono">${i + 1}</i><span class="faces">${face(x.ids[0])}${face(x.ids[1])}</span>
       <span class="dnm"><b>${pname(x.ids[0])}</b><em>&amp;</em><b>${pname(x.ids[1])}</b><small class="mono">${x.g}판 · ${x.w}승 ${x.g - x.w}패</small></span>
       <span class="dwr"><b class="mono ${tone}">${x.wr}<small>%</small></b><span class="wrb"><i style="width:${x.wr}%" class="${lvl(x.wr)}"></i></span></span></div>`).join('') || `<p class="mut">${CM.min}판 이상 함께한 조합이 없습니다.</p>`;
@@ -151,8 +156,8 @@ page('chem', {
     </div>
     <div class="sec-h"><h2>${ic('users')}선수별 관계도</h2><span class="mut sm">선수를 누르면 그 선수 기준으로 바뀝니다</span></div>
     <div class="pchips">${on.map((s) => `<a class="${s.id === cur ? 'on' : ''}" href="#/chem/${s.id}">${face(s.id)}<span>${esc(s.name)}</span></a>`).join('')}</div>
-    <div class="focus" style="--img:url('${splashUrl(sigChamp(st.P[cur]))}')"><div class="fc-in">${face(cur)}<div><small>FOCUS</small><b>${pname(cur)}</b><span class="mono">${st.P[cur].g}판 · 승률 ${st.P[cur].wr}% · MMR ${Math.round(st.P[cur].mmr)}</span></div></div></div>
-    <div class="insg">${hi('BEST PARTNER', '베스트 듀오', c.best, duoF, 'teal')}${hi('WORST PARTNER', '상극 듀오', c.worst, duoF, 'purple')}${hi('NEMESIS', '천적', c.nemesis, vsF, 'red')}${hi('FAVORITE PREY', '밥', c.prey, vsF, 'gold')}</div>
+    <div class="focus" style="--img:url('${artUrl(sigChamp(st.P[cur]))}')"><div class="fc-in">${face(cur)}<div><small>FOCUS</small><b>${pname(cur)}</b><span class="mono">${st.P[cur].g}판 · 승률 ${st.P[cur].wr}% · MMR ${Math.round(st.P[cur].mmr)}</span></div></div></div>
+    <div class="insg">${hi('BEST PARTNER', '베스트 듀오', c.best, duoF, 'teal')}${hi('WORST PARTNER', '상극 듀오', c.worst, duoF, 'purple')}${hi('NEMESIS', '천적 (내가 약한 상대)', c.nemesis, vsF, 'red')}${hi('STRONG AGAINST', '내가 강한 상대', c.prey, vsF, 'gold')}</div>
     <div class="grid2"><div class="cbox"><div class="cbh"><small>TEAMMATE</small><h2>${pname(cur)}와 같은 팀일 때</h2><span>듀오 승률 · 높은 순</span></div>${bars(c.duo)}</div>
       <div class="cbox"><div class="cbh"><small>RIVALRY</small><h2>${pname(cur)}가 상대했을 때</h2><span>상대 전적 · 높은 순</span></div>${bars(c.vs)}</div></div>
     <details class="panel"><summary><b>전체 매트릭스 펼치기</b><small class="mut"> 세로 선수 기준 · 큰 숫자는 승률(%), 작은 숫자는 판수</small></summary>

@@ -1,13 +1,18 @@
 // 오늘의 내전: 라인업 보드(점수·예상승률·해설) + 경기 결과 입력/수정
-import { S, page, act, esc, uid, pname, go, refresh, champIcon, tileUrl, toast, pickChamp, pickPlayer, history, ic, dots, burst, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
+import { S, page, act, esc, uid, pname, go, refresh, champIcon, artUrl, toast, pickChamp, pickPlayer, history, ic, dots, burst, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
 import { evalLineup, commentary, bestDuo } from './stats.js';
 import { seriesUsed, matchCard } from './app.js';
 import { sysChat } from './social.js';
+import { mascot, reveal } from './reveal.js';
 
 const five = () => ['', '', '', '', ''];
 const blank = () => ({ blue: five(), red: five(), winner: '', champs: { blue: five(), red: five() }, bans: { blue: five(), red: five() }, kda: {}, newSeries: false, at: '', more: false });
 const dkey = () => 'naejeon:draft:' + S.key;
 let draft = null, edit = null, lastSaved = null;
+// 팀 확정 질문: 10명이 다 찬 "그 라인업"에 대해 한 번만 묻는다. 한 명이라도 바뀌면 다시 묻는다.
+const TQ = { shown: '', no: '', done: '' };
+const lineKey = (d) => d.blue.join() + '|' + d.red.join();
+const isFull = (d) => { const all = [...d.blue, ...d.red]; return all.every(Boolean) && new Set(all).size === 10; };
 function D() {
   if (S.page === 'today' && S.arg[0] === 'edit') {
     const m = S.store.data.matches[S.arg[1]];
@@ -51,9 +56,10 @@ page('today', {
     const sid = seriesFor(d), sr = sid && st.series.find((s) => s.id === sid);
     const any = d.blue.some(Boolean) || d.red.some(Boolean), pb = any ? Math.round(ev.pBlue * 100) : 50;
     const filled = [...d.blue, ...d.red].filter(Boolean).length;
+    const full = isFull(d), key = lineKey(d), ask = full && !edit && TQ.no !== key && TQ.done !== key;
     const slot = (side, i) => {
       const id = d[side][i], l = LANES[i], s = st.P[id];
-      const ch = d.champs[side][i], art = ch && tileUrl(ch) ? ` art" style="--img:url('${tileUrl(ch)}')` : '';
+      const ch = d.champs[side][i], art = ch && artUrl(ch) ? ` art" style="--img:url('${artUrl(ch)}')` : '';
       const champ = `<button class="sl-champ" data-a="tChamp" data-s="${side}" data-i="${i}" title="챔피언 선택 (선택 사항)">${ch ? champIcon(ch) : `<span class="ci plus">${ic('plus')}</span>`}</button>`;
       if (!s) return `<div class="slot ${side} emp${art}">${champ}<button class="sl-body" data-a="tSlot" data-s="${side}" data-i="${i}"><span>${ic('plus')}${LANE_NAME[l]} 선수 선택</span></button></div>`;
       const ln = s.lanes[l], off = s.mainLane !== l;
@@ -63,7 +69,7 @@ page('today', {
       </button><span class="sl-score mono">${(+s.p.scores?.[l] || 0).toFixed(1)}</span></div>`;
     };
     const duo = (side) => { const b = bestDuo(d[side], st); return b ? `<span class="${side}">${pname(b.a)} + ${pname(b.b)} <b class="mono">${pct(b.w, b.g)}%</b> <small>${b.g}판</small></span>` : `<span class="mut">${side === 'blue' ? '블루' : '레드'} — 함께한 기록 부족</span>`; };
-    return `<div class="h2row"><h1>${ic('today')}${edit ? `경기 수정 <span class="mono">#${st.MI[edit.id]?.no ?? ''}</span>` : '오늘의 내전'}</h1><span class="tag">${filled}/10 배치</span><span class="grow"></span>
+    return `<div class="h2row"><h1>${ic('today')}${edit ? `경기 수정 <span class="mono">#${st.MI[edit.id]?.no ?? ''}</span>` : '오늘의 내전'}</h1><span class="tag ${full ? 'ok' : ''}">${filled}/10 배치</span>${full && !edit ? `<button class="btn xs gold" data-a="tqYes">${ic('bolt')}승률 공개</button>` : ''}<span class="grow"></span>
       ${edit ? '<a class="btn" href="#/matches">취소</a>' : `<button class="btn gold" data-a="tDice">${ic('dice')}라인 주사위</button><button class="btn" data-a="tSwap">${ic('swap')}진영 교체</button><button class="btn ghost" data-a="tClear">비우기</button>`}</div>
     <section class="arena">
       <div class="scorebar"><div class="sb blue"><small>BLUE TEAM</small><b class="mono">${ev.bs.toFixed(1)}</b><span>평균 MMR ${ev.mmrB ? Math.round(ev.mmrB) : '—'}</span></div>
@@ -88,8 +94,10 @@ page('today', {
       </div>` : ''}
       <button class="btn pri block big" data-a="tSave">${edit ? '수정 내용 저장' : '경기 결과 저장'}</button>
     </div>
-    ${lastSaved && !edit && S.st.MI[lastSaved] ? `<div class="sec-h"><h2>방금 기록한 경기</h2></div>${matchCard(S.store.data.matches[lastSaved])}` : ''}`;
+    ${lastSaved && !edit && S.st.MI[lastSaved] ? `<div class="sec-h"><h2>방금 기록한 경기</h2></div>${matchCard(S.store.data.matches[lastSaved])}` : ''}
+    ${ask ? `<div class="ask ${TQ.shown === key ? '' : 'in'}" role="dialog" aria-label="팀 확정 확인">${mascot()}<div class="ask-b"><b>팀을 정하셨나요?</b><span>다 정했으면 예상 승률을 공개할게요!</span><div class="row"><button class="btn pri" data-a="tqYes">정했어!</button><button class="btn ghost" data-a="tqNo">아직이야</button></div></div></div>` : ''}`;
   },
+  after() { const d = D(); TQ.shown = isFull(d) && !edit ? lineKey(d) : ''; }, // 같은 라인업으로 화면만 다시 그릴 때는 등장 모션을 반복하지 않는다
 });
 
 act('tSlot', (d) => {
@@ -155,4 +163,12 @@ act('tSave', async (d, btn) => {
   lastSaved = id;
   draft = { ...blank(), blue: dr.blue, red: dr.red }; // 같은 팀으로 다음 판을 바로 기록할 수 있게 라인업은 유지
   keep(); window.scrollTo(0, 0); document.getElementById('main').scrollTop = 0;
+});
+
+// ---------- 팀 확정 → 예상 승률 공개 ----------
+act('tqNo', () => { TQ.no = lineKey(D()); refresh(); });
+act('tqYes', () => {
+  const d = D(); if (!isFull(d)) return toast('양 팀 10명을 모두 배치해 주세요');
+  TQ.done = lineKey(d); refresh();
+  reveal({ pb: Math.round(evalLineup(d.blue, d.red, S.st).pBlue * 100), from: document.querySelector('.arena .ring') });
 });
