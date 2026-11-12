@@ -1,5 +1,5 @@
 // 오늘의 내전: 라인업 보드(점수·예상승률·해설) + 경기 결과 입력/수정
-import { S, page, act, esc, uid, pname, go, refresh, champIcon, splashUrl, toast, pickChamp, pickPlayer, history, ic, dots, burst, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
+import { S, page, act, esc, uid, pname, go, refresh, champIcon, tileUrl, toast, pickChamp, pickPlayer, history, ic, dots, burst, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
 import { evalLineup, commentary, bestDuo } from './stats.js';
 import { seriesUsed, matchCard } from './app.js';
 import { sysChat } from './social.js';
@@ -53,7 +53,7 @@ page('today', {
     const filled = [...d.blue, ...d.red].filter(Boolean).length;
     const slot = (side, i) => {
       const id = d[side][i], l = LANES[i], s = st.P[id];
-      const ch = d.champs[side][i], art = ch && splashUrl(ch) ? ` art" style="--img:url('${splashUrl(ch)}')` : '';
+      const ch = d.champs[side][i], art = ch && tileUrl(ch) ? ` art" style="--img:url('${tileUrl(ch)}')` : '';
       const champ = `<button class="sl-champ" data-a="tChamp" data-s="${side}" data-i="${i}" title="챔피언 선택 (선택 사항)">${ch ? champIcon(ch) : `<span class="ci plus">${ic('plus')}</span>`}</button>`;
       if (!s) return `<div class="slot ${side} emp${art}">${champ}<button class="sl-body" data-a="tSlot" data-s="${side}" data-i="${i}"><span>${ic('plus')}${LANE_NAME[l]} 선수 선택</span></button></div>`;
       const ln = s.lanes[l], off = s.mainLane !== l;

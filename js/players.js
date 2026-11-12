@@ -1,5 +1,5 @@
 // 선수 카드(홀로 카드) / 솔랭 분석 / 케미 분석
-import { S, page, act, esc, pname, go, refresh, fmtDT, wrClass, wrBar, dots, streak, titleChips, champIcon, splashUrl, sigChamp, ic, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct } from './core.js';
+import { S, page, act, esc, pname, go, refresh, fmtDT, wrClass, wrBar, dots, streak, titleChips, champIcon, splashUrl, tileUrl, sigChamp, ic, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct } from './core.js';
 import { chem, playerLine } from './stats.js';
 
 const PV = { view: 'card' };
@@ -19,7 +19,7 @@ function listView() {
       ${o.most ? `<div class="sm">모스트 3 · ${esc(o.most)}</div>` : ''}${o.comment ? `<p>${esc(o.comment)}</p>` : '<p class="mut">솔랭 분석 정보가 없습니다.</p>'}</div>`; }).join('')}</div>`;
   }
   return `<div class="h2row"><h1>${ic('players')}선수 카드</h1><span class="tag">${n}명</span><span class="grow"></span>${seg}</div>
-  <div class="pgrid">${st.byOvr.map((s, i) => { const r = rarity(s, n); return `<a class="pcard ${r[2]}" href="#/players/${s.id}" style="--tc:${LANE_COLOR[s.mainLane]};--img:url('${splashUrl(sigChamp(s))}');--d:${Math.min(i, 16)}">
+  <div class="pgrid">${st.byOvr.map((s, i) => { const r = rarity(s, n); return `<a class="pcard ${r[2]}" href="#/players/${s.id}" style="--tc:${LANE_COLOR[s.mainLane]};--img:url('${tileUrl(sigChamp(s))}');--d:${Math.min(i, 16)}">
     <div class="pc-art"></div>
     <div class="pc-top"><span class="pc-type">${LANE_ICON[s.mainLane]}</span><b>${esc(s.name)}</b><span class="pc-ovr mono"><small>OVR</small>${s.ovr}</span></div>
     <div class="pc-bot"><span class="mono">${s.g ? `${s.wr}% · ${s.g}판` : '출전 없음'}</span><span class="pc-rar">${r[0]}</span></div>
@@ -109,11 +109,11 @@ page('chem', {
     const topDuo = [...pairs].sort((a, b) => b.wr - a.wr || b.g - a.g).slice(0, 5), lowDuo = [...pairs].sort((a, b) => a.wr - b.wr || b.g - a.g).slice(0, 5);
     const face = (pid) => { const ch = sigChamp(st.P[pid]); return ch ? champIcon(ch, 'face') : `<span class="ci face txt">${pname(pid).slice(0, 1)}</span>`; };
     const lvl = (w) => (w >= 60 ? 'hi' : w >= 45 ? 'mid' : 'lo');
-    const rank = (arr, tone) => arr.map((x, i) => `<div class="duo ${tone}" style="--img:url('${splashUrl(sigChamp(st.P[x.ids[i % 2]]))}');--d:${i}">
+    const rank = (arr, tone) => arr.map((x, i) => `<div class="duo ${tone}" style="--img:url('${tileUrl(sigChamp(st.P[x.ids[i % 2]]))}');--d:${i}">
       <i class="drk mono">${i + 1}</i><span class="faces">${face(x.ids[0])}${face(x.ids[1])}</span>
       <span class="dnm"><b>${pname(x.ids[0])}</b><em>&amp;</em><b>${pname(x.ids[1])}</b><small class="mono">${x.g}판 · ${x.w}승 ${x.g - x.w}패</small></span>
       <span class="dwr"><b class="mono ${tone}">${x.wr}<small>%</small></b><span class="wrb"><i style="width:${x.wr}%" class="${lvl(x.wr)}"></i></span></span></div>`).join('') || `<p class="mut">${CM.min}판 이상 함께한 조합이 없습니다.</p>`;
-    const hi = (cap, t, x, f, tone) => `<div class="ins ${tone}" style="--img:url('${x ? splashUrl(sigChamp(st.P[x.id])) : ''}')"><small>${cap}</small><span>${t}</span><b>${x ? pname(x.id) : '—'}</b><em>${x ? f(x) : `${CM.min}판 이상 기록 없음`}</em></div>`;
+    const hi = (cap, t, x, f, tone) => `<div class="ins ${tone}" style="--img:url('${x ? tileUrl(sigChamp(st.P[x.id])) : ''}')"><small>${cap}</small><span>${t}</span><b>${x ? pname(x.id) : '—'}</b><em>${x ? f(x) : `${CM.min}판 이상 기록 없음`}</em></div>`;
     const duoF = (x) => `함께 ${x.g}판 · 승률 ${x.wr}%`, vsF = (x) => `${x.g}번 대결 · ${x.w}승 ${x.g - x.w}패`;
     const bars = (arr) => [...arr].sort((x, y) => y.wr - x.wr || y.g - x.g).map((x, i) => `<a class="rel" href="#/chem/${x.id}" style="--d:${i}">${face(x.id)}<span class="rnm"><b>${pname(x.id)}</b><small class="mono">${x.g}판 · ${x.w}승 ${x.g - x.w}패</small></span><span class="wrb"><i style="width:${x.wr}%" class="${lvl(x.wr)}"></i></span><b class="mono ${wrClass(x.wr)}">${x.wr}%</b></a>`).join('') || `<p class="mut">${CM.min}판 이상 기록이 없습니다.</p>`;
     const cell = (a, b) => {

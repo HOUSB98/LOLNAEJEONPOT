@@ -1,7 +1,7 @@
 // 시작점 + 홈 / 랭킹 / 경기 기록 / 챔피언 / 피어리스 화면
 import { FIREBASE_CONFIG } from './config.js';
 import { createStore } from './store.js';
-import { S, page, act, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, sigChamp, toast, download, csv, needAdmin, history, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
+import { S, page, act, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, tileUrl, sigChamp, toast, download, csv, needAdmin, history, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
 import { initSocial, renderChat, renderPresence } from './social.js';
 import './today.js';
 import { watchDice } from './dice.js';
@@ -93,7 +93,7 @@ page('home', {
           <div class="car-dots">${hof.map((_, i) => `<i class="${i === HM.i ? 'on' : ''}" data-a="carSet" data-i="${i}"></i>`).join('')}</div>
         </section>
         <section class="panel podium"><div class="sec-h"><h2>${ic('rank')}POWER RANKING</h2><a class="mut sm" href="#/rank">전체 보기 →</a></div>
-          ${top.map((s, i) => `<a class="pod p${i + 1}" href="#/players/${s.id}" style="--img:url('${splashUrl(sigChamp(s))}')"><i class="mono">${i + 1}</i><div><b>${esc(s.name)}</b><small>${LANE_ICON[s.mainLane]} ${LANE_NAME[s.mainLane]} · ${s.wr}% · ${s.g}판</small></div><em class="mono">${s.ovr}</em></a>`).join('') || '<p class="mut">3판 이상 출전한 선수가 생기면 표시됩니다.</p>'}
+          ${top.map((s, i) => `<a class="pod p${i + 1}" href="#/players/${s.id}" style="--img:url('${tileUrl(sigChamp(s))}')"><i class="mono">${i + 1}</i><div><b>${esc(s.name)}</b><small>${LANE_ICON[s.mainLane]} ${LANE_NAME[s.mainLane]} · ${s.wr}% · ${s.g}판</small></div><em class="mono">${s.ovr}</em></a>`).join('') || '<p class="mut">3판 이상 출전한 선수가 생기면 표시됩니다.</p>'}
         </section>
       </div>
     </div>
@@ -147,7 +147,7 @@ page('rank', {
     </div>
     <div class="tw"><table class="tbl lb">
       <thead><tr><th>#</th><th class="l">소환사</th>${cols.map((c) => `<th data-a="lbSort" data-k="${c[0]}" class="s ${sortCol[0] === c[0] ? 'on' : ''}">${c[1]}${sortCol[0] === c[0] ? (LB.dir < 0 ? ' ▾' : ' ▴') : ''}</th>`).join('')}${LB.view === 'all' ? '<th class="l">칭호</th>' : ''}<th class="art"></th></tr></thead>
-      <tbody>${rows.map((s, i) => `<tr data-a="goPlayer" data-id="${s.id}" style="--d:${Math.min(i, 14)}"><td class="rk r${i + 1} mono">${i + 1}</td><td class="l nm">${esc(s.name)}</td>${cols.map((c) => num(c[3](s))).join('')}${LB.view === 'all' ? `<td class="l chips">${titleChips(s, 1)}</td>` : ''}<td class="art"><i style="--img:url('${splashUrl(sigChamp(s))}')"></i></td></tr>`).join('') || `<tr><td colspan="20" class="empty">조건에 맞는 선수가 없습니다.</td></tr>`}</tbody>
+      <tbody>${rows.map((s, i) => `<tr data-a="goPlayer" data-id="${s.id}" style="--d:${Math.min(i, 14)}"><td class="rk r${i + 1} mono">${i + 1}</td><td class="l nm">${esc(s.name)}</td>${cols.map((c) => num(c[3](s))).join('')}${LB.view === 'all' ? `<td class="l chips">${titleChips(s, 1)}</td>` : ''}<td class="art"><i style="--img:url('${tileUrl(sigChamp(s))}')"></i></td></tr>`).join('') || `<tr><td colspan="20" class="empty">조건에 맞는 선수가 없습니다.</td></tr>`}</tbody>
     </table></div>
     <p class="hint">머리글을 누르면 정렬됩니다. 행을 누르면 선수 카드가 열립니다. OVR = 내전 MMR 50% + 상위 3개 라인 점수 50%.</p>`;
   },
@@ -230,7 +230,7 @@ page('champs', {
     const wide = [...st.list].sort((a, b) => b.champKinds - a.champKinds)[0];
     let sig = null;
     st.list.forEach((s) => Object.entries(s.champs).forEach(([n, v]) => { if (!sig || v.g > sig.g) sig = { s, n, ...v }; }));
-    const ins = (cap, title, name, sub, tone) => `<div class="ins ${tone}" style="--img:url('${splashUrl(name)}')"><small>${cap}</small><span>${title}</span><b>${esc(name || '—')}</b><em>${sub}</em></div>`;
+    const ins = (cap, title, name, sub, tone) => `<div class="ins ${tone}" style="--img:url('${tileUrl(name)}')"><small>${cap}</small><span>${title}</span><b>${esc(name || '—')}</b><em>${sub}</em></div>`;
     return `<div class="h2row"><h1>${ic('champs')}챔피언 분석</h1><span class="tag">${picked.length}종 · ${totalPicks}픽</span><span class="grow"></span><input id="chq" class="inp" placeholder="챔피언 검색" value="${esc(CH.q)}" data-i="chQ"></div>
     <div class="insg">
       ${ins('MOST PICKED', '최다 선택', picked[0].name, `${picked[0].g}픽 · 승률 ${pct(picked[0].w, picked[0].g)}%`, 'gold')}

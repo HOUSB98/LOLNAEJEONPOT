@@ -122,7 +122,9 @@ export function champIcon(name, cls = '') {
   return c ? `<img class="ci ${cls}" src="${c.img}" alt="${esc(name)}" title="${esc(name)}" loading="lazy">` : `<span class="ci txt ${cls}" title="${esc(name)}">${esc(name.slice(0, 2))}</span>`;
 }
 export const splashUrl = (name) => (S.champBy[name]?.id ? `https://ddragon.leagueoflegends.com/cdn/img/champion/splash/${S.champBy[name].id}_0.jpg` : '');
-export const loadingUrl = (name) => (S.champBy[name]?.id ? `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${S.champBy[name].id}_0.jpg` : '');
+// 작은 칸(랭킹 행, 카드, 듀오 등)에는 용량이 1/5 수준인 얼굴 중심 정사각 이미지를 쓴다
+export const tileUrl = (name) => (S.champBy[name]?.id ? `https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/${S.champBy[name].id}_0.jpg` : '');
+export const loadingUrl =(name) => (S.champBy[name]?.id ? `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${S.champBy[name].id}_0.jpg` : '');
 // 선수의 대표 챔피언: 내전 모스트 → 솔랭 모스트 순
 export function sigChamp(s) {
   const own = Object.entries(s.champs).sort((a, b) => b[1].g - a[1].g || b[1].w - a[1].w)[0];
@@ -184,7 +186,7 @@ export async function loadChamps() {
   const set = (o) => { S.ver = o.ver; S.champs = o.list; S.champBy = Object.fromEntries(o.list.map((c) => [c.name, c])); };
   try {
     const cached = JSON.parse(localStorage.getItem(KEY) || 'null');
-    if (cached) set(cached);
+    if (cached) { set(cached); refresh(); } // 저장해 둔 목록을 적용한 뒤 화면을 다시 그려야 첫 화면의 이미지가 비지 않는다
     if (cached && Date.now() - cached.at < 12 * 3600e3) return; // 패치 버전은 반나절마다 다시 확인
     const ver = (await (await fetch('https://ddragon.leagueoflegends.com/api/versions.json')).json())[0];
     const data = (await (await fetch(`https://ddragon.leagueoflegends.com/cdn/${ver}/data/ko_KR/champion.json`)).json()).data;
