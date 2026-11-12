@@ -26,6 +26,8 @@ function localStore(key, onChange) {
   };
   return {
     mode: 'local', data, ready: Promise.resolve(),
+    serverNow: () => Date.now(),
+    syncServerClock: async () => 0,
     async put(col, id, doc) { data[col][id] = { ...doc, id }; save(col); },
     async patch(col, id, part) { data[col][id] = { ...(data[col][id] || { id }), ...part }; save(col); },
     async tx(col, id, fn) {
@@ -41,6 +43,37 @@ async function firebaseStore(key, onChange) {
   const [{ initializeApp }, fs] = await Promise.all([import(FB + 'firebase-app.js'), import(FB + 'firebase-firestore.js')]);
   const db = fs.getFirestore(initializeApp(FIREBASE_CONFIG));
   const ref = (col, id) => fs.doc(db, 'leagues', key, col, id);
+  let clockOffset = 0, clockSyncedAt = 0, clockPromise = null;
+
+  // Firestore serverTimestamp()로 서버 시각을 받아 브라우저 시계 오차를 보정한다.
+  // 일반 기능은 기존 Date.now()를 그대로 사용하고, reveal처럼 동시 시작이 필요한 기능만 serverNow()를 사용한다.
+  const syncServerClock = async (force = false) => {
+    if (!force && clockSyncedAt && Date.now() - clockSyncedAt < 5 * 60e3) return clockOffset;
+    if (clockPromise) return clockPromise;
+    clockPromise = (async () => {
+      const before = Date.now();
+      const clockRef = ref('meta', 'serverClock');
+      await fs.setDoc(clockRef, { at: fs.serverTimestamp() }, { merge: true });
+      const snap = await fs.getDocFromServer(clockRef);
+      const ts = snap.data()?.at;
+      const after = Date.now();
+      if (ts?.toMillis) {
+        // 요청 왕복시간의 중간 시점을 기준으로 서버-클라이언트 시계 오차를 추정한다.
+        clockOffset = ts.toMillis() - ((before + after) / 2);
+        clockSyncedAt = after;
+      }
+      return clockOffset;
+    })().catch((e) => {
+      console.warn('server clock sync failed', e);
+      return clockOffset;
+    }).finally(() => { clockPromise = null; });
+    return clockPromise;
+  };
+
+  const serverNow = () => Date.now() + clockOffset;
+  // 백그라운드에서 한 번 동기화한다. 실패해도 사이트의 기존 기능은 그대로 동작한다.
+  syncServerClock();
+
   const data = { history: {} };
   let pending = WATCHED.length, done;
   const ready = new Promise((r) => (done = r));
@@ -58,6 +91,8 @@ async function firebaseStore(key, onChange) {
   });
   return {
     mode: 'firebase', data, ready,
+    serverNow,
+    syncServerClock,
     put: (col, id, doc) => fs.setDoc(ref(col, id), clean({ ...doc, id })),
     patch: (col, id, part) => fs.setDoc(ref(col, id), clean(part), { merge: true }),
     tx: (col, id, fn) => fs.runTransaction(db, async (t) => {
