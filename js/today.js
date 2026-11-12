@@ -314,50 +314,44 @@ const playReveal = (d, mine = false) => {
 };
 
 export function watchReveal(initial = false) {
-  if (rvDocWatch || !S.store?.watchDoc) return;
+  if (rvDocWatch || !S.store?.watchCollection) return;
   rvDocWatch = true;
 
-  let primed = false;
-  S.store.watchDoc('meta', 'reveal', (doc) => {
-    // 문서가 삭제/없음이면 이벤트가 아니다.
-    if (!doc?.id) return;
+  // reveal은 단일 meta 문서를 덮어쓰지 않고 이벤트마다 별도 문서를 만든다.
+  // 따라서 두 브라우저가 동시에 듣고 있어도 이벤트가 사라지거나 덮어써질 가능성이 없다.
+  S.store.watchCollection('reveals', (snap) => {
+    snap.docChanges().forEach((change) => {
+      if (change.type !== 'added') return;
+      const doc = change.doc?.data ? { ...change.doc.data(), id: change.doc.id } : change.doc;
+      if (!doc?.id || doc.id === rvSeen) return;
 
-    // 최초 현재값은 과거 이벤트일 수 있으므로 기준점으로만 사용한다.
-    // primed 플래그를 별도로 둬서, 로컬에서 방금 발생시킨 이벤트의 id가
-    // 최초 snapshot 때문에 다시 기준점으로 덮어써지는 경쟁도 막는다.
-    if (!primed) {
-      primed = true;
-      rvSeen = doc.id;
-
-      // 다른 브라우저가 공개 직후 접속하거나 리스너가 늦게 붙는 경우에도
-      // 방금 발생한 이벤트(5초 이내)는 놓치지 않는다.
       const at = Number(doc.at) || 0;
       const now = S.store?.serverNow ? S.store.serverNow() : Date.now();
-      if (at && Math.abs(now - at) <= 5000) {
-        console.info('[reveal] received initial recent event', {
-          id: doc.id, at, now, page: S.page, key: S.key
-        });
-        playReveal(doc, false);
+
+      // 최초 연결 시 이미 오래된 reveal을 다시 재생하지 않는다.
+      // 단, 최근 5초 이내 이벤트는 리스너가 늦게 붙은 경우로 보고 재생한다.
+      if (rvSeen === null && at && Math.abs(now - at) > 5000) {
+        rvSeen = doc.id;
+        return;
       }
-      return;
-    }
 
-    if (doc.id === rvSeen) return;
-
-    rvSeen = doc.id;
-    console.info('[reveal] received', {
-      id: doc.id,
-      startAt: Number(doc.startAt) || Number(doc.at) || 0,
-      serverNow: S.store?.serverNow ? S.store.serverNow() : Date.now(),
-      page: S.page,
-      key: S.key
+      rvSeen = doc.id;
+      console.info('[reveal] received', {
+        id: doc.id,
+        at,
+        startAt: Number(doc.startAt) || Number(doc.at) || 0,
+        serverNow: now,
+        page: S.page,
+        key: S.key
+      });
+      playReveal(doc, false);
     });
-    playReveal(doc, false);
   }, (err) => {
-    console.error('[reveal] realtime listener failed', err);
+    console.error('[reveal] realtime collection listener failed', err);
     toast('승률 공개 실시간 연결 실패: ' + (err?.code || err?.message || 'unknown'));
   });
 }
+
 act('tqNo', () => { TQ.no = lineKey(D()); refresh(); });
 act('tqYes', () => {
   const d = D(); if (!isFull(d)) return toast('양 팀 10명을 모두 배치해 주세요');
@@ -379,9 +373,9 @@ act('tqYes', () => {
       toast('승률 공개 연출 시작');
       playReveal(r, true);
 
-      await S.store.put('meta', 'reveal', r);
+      await S.store.put('reveals', r.id, r);
       console.info('[reveal] firestore write complete', {
-        id: r.id, key: S.key, at: r.at, startAt: r.startAt
+        collection: 'reveals', id: r.id, key: S.key, at: r.at, startAt: r.startAt
       });
       sysChat('팀 확정 · 예상 승률 블루 ' + r.pb + '% : 레드 ' + (100 - r.pb) + '%');
       // 다른 브라우저는 meta/reveal 문서 변경을 받아 같은 startAt으로 재생한다.
