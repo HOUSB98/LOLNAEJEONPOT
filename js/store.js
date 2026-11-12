@@ -104,7 +104,15 @@ async function firebaseStore(key, onChange) {
     watchDoc: (col, id, onData, onError) => fs.onSnapshot(ref(col, id), (snap) => {
       onData(snap.exists() ? { ...snap.data(), id: snap.id } : null, snap);
     }, onError),
-    watchCollection: (col, onSnap, onError) => fs.onSnapshot(fs.collection(db, 'leagues', key, col), onSnap, onError),
+    watchCollection: (col, onSnap, onError) => {
+      const src = fs.collection(db, 'leagues', key, col);
+      // reveal 이벤트는 오래된 기록을 전부 내려받을 필요가 없다.
+      // 최신 20건만 실시간으로 구독해 초기 로딩과 장기 데이터 누적에 따른 비용을 줄인다.
+      const q = col === 'reveals'
+        ? fs.query(src, fs.orderBy('at', 'desc'), fs.limit(20))
+        : src;
+      return fs.onSnapshot(q, onSnap, onError);
+    },
     put: (col, id, doc) => fs.setDoc(ref(col, id), clean({ ...doc, id })),
     patch: (col, id, part) => fs.setDoc(ref(col, id), clean(part), { merge: true }),
     tx: (col, id, fn) => fs.runTransaction(db, async (t) => {
