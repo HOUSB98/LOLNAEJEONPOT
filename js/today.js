@@ -297,7 +297,8 @@ export function watchReveal(initial) {
   if (initial || rvSeen === null) { rvSeen = d?.id || ''; return; }
   if (!d || d.id === rvSeen) return;
   rvSeen = d.id;
-  if (Date.now() - d.at < 20000) playReveal(d, false);
+  const now = S.store?.serverNow ? S.store.serverNow() : Date.now();
+  if (now - d.at < 20000) playReveal(d, false);
 }
 act('tqNo', () => { TQ.no = lineKey(D()); refresh(); });
 act('tqYes', () => {
