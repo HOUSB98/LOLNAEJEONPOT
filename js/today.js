@@ -27,7 +27,8 @@ const keep = () => { if (!edit) localStorage.setItem(dkey(), JSON.stringify(draf
 const toLocal = (at) => { const d = new Date(at - new Date().getTimezoneOffset() * 6e4); return d.toISOString().slice(0, 16); };
 export function setDraftTeams(blue, red) {
   D(); draft = { ...blank(), blue: [...blue, ...five()].slice(0, 5), red: [...red, ...five()].slice(0, 5) };
-  localStorage.setItem(dkey(), JSON.stringify(draft));
+  draftUpdatedAt = Date.now(); draft.updatedAt = draftUpdatedAt;
+  localStorage.setItem(dkey(), JSON.stringify(draft)); syncDraft();
 }
 // 리플레이 분석 결과를 입력 화면에 채운다(저장은 사용자가 확인 후 직접)
 export function importDraft(x) {
