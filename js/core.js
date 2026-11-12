@@ -18,7 +18,8 @@ const I = {
   chem: '<path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/>',
   champs: '<path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/>',
   fearless: '<circle cx="12" cy="12" r="9"/><path d="m5.600 5.600 12.800 12.800"/>',
-  auction: '<path d="m14 13-7.500 7.500a2.100 2.100 0 0 1-3-3L11 10M16 16l6-6M8 8l6-6M9 7l8 8M21 11l-8-8"/>',
+  auction: '<circle cx="12" cy="8.500" r="6.500"/><path d="M10.800 15v5.500a1.200 1.200 0 0 0 2.400 0V15M10.600 7l1.700-1.300v5.800M10.600 11.500h3.200"/>',
+  maker: '<path d="m8 7-5 5 5 5M16 7l5 5-5 5M13.500 4l-3 16"/>',
   admin: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.900 4.900 7 7M17 17l2.100 2.100M4.900 19.100 7 17M17 7l2.100-2.100"/>',
   dice: '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1" fill="currentColor"/><circle cx="15" cy="15" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/>',
   chat: '<path d="M21 12a8 8 0 0 1-11.500 7.200L4 20l1-4.500A8 8 0 1 1 21 12z"/>',
@@ -40,6 +41,9 @@ const I = {
   x: '<path d="M6 6l12 12M18 6 6 18"/>',
   star: '<path d="m12 3 2.700 5.800 6.300.8-4.600 4.400 1.200 6.300L12 17.200 6.400 20.300l1.200-6.300L3 9.600l6.300-.8z"/>',
   mega: '<path d="M4 10v4h3l8 5V5L7 10zM18 9a4 4 0 0 1 0 6"/>',
+  code: '<path d="m8 7-5 5 5 5M16 7l5 5-5 5M13.500 4l-3 16"/>',
+  trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/>',
+  kick: '<circle cx="10" cy="8" r="3.500"/><path d="M3.500 20c.5-3.500 3-5.500 6.500-5.500 1.200 0 2.300.2 3.200.7M16 14l5 5M21 14l-5 5"/>',
   replay: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8h18M7 4l2 4M12 4l2 4M17 4l2 4M10 11.500v5l4.500-2.500z"/>',
 };
 export const ic = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.700" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n] || ''}</svg>`;
@@ -67,10 +71,9 @@ export const page = (id, def) => (pages[id] = def);
 export const act = (name, fn) => (acts[name] = fn);
 export const NAV = [
   ['', 'LEAGUE'], ['home', '홈'], ['rank', '랭킹'], ['matches', '경기 기록'], ['players', '선수 카드'],
-  ['', 'ANALYSIS'], ['champs', '챔피언'], ['chem', '케미'], ['fearless', '피어리스'],
-  // 리플레이 분석 화면은 "리플레이를 올리면 경기를 자동으로 찾아 주는" 기능이 생길 때까지 메뉴에서 뺀다.
-  // 다시 켜려면 아래 줄의 '관리' 앞에 ['replay', '리플레이 분석'] 을 넣고 js/replay.js 의 REPLAY_PAGE 를 true 로 바꾼다.
-  ['', 'PLAY'], ['today', '오늘의 내전'], ['auction', '팀 경매'], ['admin', '관리'],
+  ['', 'ANALYSIS'], ['champs', '챔피언'], ['chem', '케미'],
+  ['', 'PLAY'], ['today', '오늘의 내전'], ['auction', '팀 경매'], ['replay', '리플레이 분석', '예정'], ['admin', '관리'],
+  ['', 'CREDITS'], ['maker', '제작자'],
 ];
 export function go(hash) { location.hash = hash; }
 function parseHash() {
@@ -98,7 +101,7 @@ export function render() {
 }
 export function initShell() {
   document.getElementById('brandlogo').innerHTML = logo(false, 40);
-  document.getElementById('nav').innerHTML = NAV.map(([p, t]) => (p ? `<a href="#/${p}" data-p="${p}">${ic(p)}<span>${t}</span></a>` : `<h6>${t}</h6>`)).join('');
+  document.getElementById('nav').innerHTML = NAV.map(([p, t, soon]) => (p ? `<a href="#/${p}" data-p="${p}">${ic(p)}<span>${t}</span>${soon ? `<em>${soon}</em>` : ''}</a>` : `<h6>${t}</h6>`)).join('');
   document.getElementById('mode').innerHTML = S.store.mode === 'local' ? '<span class="tag warn" title="이 브라우저에만 저장됩니다">체험 모드</span>' : '<span class="tag ok"><i class="live"></i>LIVE 동기화</span>';
   const on = (type, attr) => document.addEventListener(type, (e) => {
     const el = e.target.closest?.(`[${attr}]`);

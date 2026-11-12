@@ -51,6 +51,38 @@ export function watchDice(initial) {
   play(d, false);
 }
 
+// 주사위 이펙트: 구르는 동안 주사위 위아래로 불티가 튀고, 멈추는 순간 사방으로 터진다
+function diceFx(stage, dies) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return { stop() {}, boom() {} };
+  const cv = document.createElement('canvas'); cv.className = 'dice-fx'; stage.prepend(cv);
+  const g = cv.getContext('2d'), on = [true, true], TONE = [['120,170,255', '205,225,255'], ['255,120,150', '255,205,215']];
+  let parts = [];
+  const center = (i) => { const s = stage.getBoundingClientRect(), r = dies[i].getBoundingClientRect(); return [r.left - s.left + r.width / 2, r.top - s.top + r.height / 2]; };
+  const add = (x, y, vx, vy, c, r, life) => parts.push({ x, y, vx, vy, c, r, life, max: life });
+  (function loop() {
+    if (!document.body.contains(cv)) return;
+    if (cv.width !== stage.clientWidth || cv.height !== stage.clientHeight) { cv.width = stage.clientWidth; cv.height = stage.clientHeight; }
+    dies.forEach((_, i) => {
+      if (!on[i]) return;
+      const [cx, cy] = center(i);
+      for (let k = 0; k < 6; k++) { const up = Math.random() < 0.5 ? -1 : 1; add(cx + (Math.random() - 0.5) * 200, cy + up * 30, (Math.random() - 0.5) * 6, up * (2 + Math.random() * 8), Math.random() < 0.35 ? '255,232,160' : TONE[i][(Math.random() * 2) | 0], 1 + Math.random() * 2.200, 0.45 + Math.random() * 0.5); }
+    });
+    g.clearRect(0, 0, cv.width, cv.height); g.globalCompositeOperation = 'lighter'; g.lineCap = 'round';
+    parts = parts.filter((p) => p.life > 0);
+    for (const p of parts) {
+      p.vy += 0.14; p.vx *= 0.985; p.x += p.vx; p.y += p.vy; p.life -= 0.017;
+      const al = Math.max(0, p.life / p.max);
+      g.strokeStyle = `rgba(${p.c},${al})`; g.lineWidth = p.r * (0.4 + al);
+      g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x - p.vx * 2.400, p.y - p.vy * 2.400); g.stroke();
+    }
+    requestAnimationFrame(loop);
+  })();
+  return {
+    stop(i) { on[i] = false; },
+    boom(i) { const [cx, cy] = center(i); for (let k = 0; k < 150; k++) { const th = Math.random() * 6.283, v = 4 + Math.random() * 17; add(cx + Math.cos(th) * 60, cy + Math.sin(th) * 20, Math.cos(th) * v, Math.sin(th) * v * 0.8 - 2, Math.random() < 0.4 ? '255,240,190' : TONE[i][(Math.random() * 2) | 0], 1.500 + Math.random() * 3, 0.8 + Math.random() * 0.8); } },
+  };
+}
+
 function play(d, mine) {
   DC.rolling = true;
   const lane = LANES[d.lane], names = d.names, ia = d.ids.indexOf(d.a), ib = d.ids.indexOf(d.b);
@@ -67,9 +99,11 @@ function play(d, mine) {
     return new Promise((res) => setTimeout(() => { root.classList.remove('rolling'); root.classList.add('done'); dr.querySelectorAll('.dface')[face].classList.add('win'); res(); }, ms + 60));
   };
   const dies = el.querySelectorAll('.die');
+  const fx = diceFx(el.querySelector('.dice-stage'), [...dies]);
   const reveal = (i, name, side) => {
     const box = el.querySelector('#dres' + i), rc = dies[i - 1].getBoundingClientRect();
     box.innerHTML = `<span class="${side}">${esc(name)}</span>`; box.classList.add('on');
+    fx.stop(i - 1); fx.boom(i - 1);
     burst(rc.left + rc.width / 2, rc.top + rc.height / 2, 90);
   };
   spin(dies[0], d1, ia, 3400, 7).then(() => reveal(1, names[ia], 'blue'));

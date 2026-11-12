@@ -21,15 +21,16 @@ const W0 = 2100, T_POP = 520, T1 = 1500, T2 = 3700; // 처음 회전 속도(도/
 const FIRE = ['255,244,214', '255,214,120', '255,170,60', '255,110,50', '246,227,168'];
 
 // pb: 블루 예상 승률(0~100 정수), from: 화면의 원래 승률 링(여기서 튀어나온다)
-export function reveal({ pb, from, onDone }) {
+export function reveal({ pb, from, onDone, blue = [], red = [], by = '' }) {
   if (document.querySelector('.rv')) return;
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const ov = document.createElement('div');
   ov.className = 'rv';
-  ov.innerHTML = `<canvas></canvas><div class="rv-row">
-    <div class="rv-side blue"><small>BLUE TEAM</small><b class="mono"><span>?</span><i>%</i></b></div>
+  const names = (a) => (a.length ? `<em>${a.map((n) => String(n).replace(/[&<>"]/g, '')).join(' · ')}</em>` : '');
+  ov.innerHTML = `<canvas></canvas>${by ? `<div class="rv-live"><i class="live"></i>LIVE · ${String(by).replace(/[&<>"]/g, '')} 님이 팀을 확정했습니다</div>` : ''}<div class="rv-row">
+    <div class="rv-side blue"><small>BLUE TEAM</small><b class="mono"><span>?</span><i>%</i></b>${names(blue)}</div>
     <div class="rv-wheel" style="--p:${pb}"><div class="rv-glow"></div><div class="rv-spin"><div class="rv-tire"></div><div class="rv-disc"></div><div class="rv-spokes"></div></div><div class="rv-streak"></div><div class="rv-hub"><small>예상 승률</small><b>VS</b></div><div class="rv-shock"></div></div>
-    <div class="rv-side red"><small>RED TEAM</small><b class="mono"><span>?</span><i>%</i></b></div></div>
+    <div class="rv-side red"><small>RED TEAM</small><b class="mono"><span>?</span><i>%</i></b>${names(red)}</div></div>
     <p class="rv-msg"></p><button class="btn pri rv-close">확인</button><small class="rv-skip">화면을 누르면 바로 결과를 봅니다</small>`;
   document.body.appendChild(ov);
   const wheel = ov.querySelector('.rv-wheel'), spin = ov.querySelector('.rv-spin'), cv = ov.querySelector('canvas'), g = cv.getContext('2d');

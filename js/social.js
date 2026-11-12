@@ -1,5 +1,5 @@
 // 환영 인트로, 닉네임, 접속자 표시, 공용 채팅
-import { S, act, esc, uid, col, settings, toast, modal, closeModal, mh, ic, logo } from './core.js';
+import { S, act, esc, uid, col, settings, toast, modal, closeModal, mh, ic, logo, needAdmin } from './core.js';
 
 const cid = localStorage.getItem('naejeon:cid') || (() => { const v = uid(); localStorage.setItem('naejeon:cid', v); return v; })();
 export const nick = () => localStorage.getItem('naejeon:nick') || '';
@@ -7,16 +7,21 @@ const ONLINE_MS = 5 * 60e3, BEAT_MS = 2 * 60e3;
 const hue = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
 
 // ---------- 접속자 ----------
+// 강퇴: meta/kicks 문서에 { 접속기기id: 해제시각 } 으로 적는다. 가벼운 잠금이라 브라우저 저장소를 지우면 다시 들어올 수 있다.
+const KICK_MS = 10 * 60e3;
+const kickedUntil = (id = cid) => +(S.store.data.meta?.kicks?.[id] || 0);
+const isKicked = (id = cid) => kickedUntil(id) > Date.now();
 function beat(off) {
+  if (isKicked() && !off) return;
   if (!nick()) return;
   S.store.put('presence', cid, { nick: nick(), at: off ? 0 : Date.now() }).catch(() => {});
 }
-const online = () => col('presence').filter((p) => Date.now() - p.at < ONLINE_MS).sort((a, b) => (a.id === cid ? -1 : b.id === cid ? 1 : a.nick.localeCompare(b.nick, 'ko')));
+const online = () => col('presence').filter((p) => Date.now() - p.at < ONLINE_MS && !isKicked(p.id)).sort((a, b) => (a.id === cid ? -1 : b.id === cid ? 1 : a.nick.localeCompare(b.nick, 'ko')));
 export function renderPresence() {
   const el = document.getElementById('presence'); if (!el) return;
   const list = online();
   el.innerHTML = `<div class="prh">${ic('users')}<b>접속 중</b><span class="mono">${list.length}</span></div>
-    <div class="prl">${list.map((p) => `<button class="${p.id === cid ? 'me' : ''}" ${p.id === cid ? 'data-a="nickEdit" title="닉네임 변경"' : 'disabled'}><i style="--h:${hue(p.nick)}"></i>${esc(p.nick)}${p.id === cid ? '<small>나</small>' : ''}</button>`).join('') || '<span class="mut sm">아직 아무도 없어요</span>'}</div>`;
+    <div class="prl">${list.map((p) => `<button class="${p.id === cid ? 'me' : ''}" ${p.id === cid ? 'data-a="nickEdit" title="닉네임 변경"' : `data-cid="${esc(p.id)}" data-nick="${esc(p.nick)}" title="우클릭: 관리자 메뉴"`}><i style="--h:${hue(p.nick)}"></i>${esc(p.nick)}${p.id === cid ? '<small>나</small>' : ''}</button>`).join('') || '<span class="mut sm">아직 아무도 없어요</span>'}</div>`;
   const c = document.getElementById('chat-on'); if (c) c.textContent = list.length;
 }
 function askNick(first) {
@@ -44,8 +49,9 @@ const EMOJI = ['😂', '🔥', '👍', '😭', '🤡', '💀', '🫡', '🙏', '
 const STK = Object.fromEntries(STICKERS.map((s) => [s[0], s]));
 let unread = 0, lastSeenAt = +localStorage.getItem('naejeon:chatseen') || 0, lastSend = 0, tray = false;
 const isOpen = () => document.body.classList.contains('chat-open') || matchMedia('(min-width: 1281px)').matches;
-const msgs = () => col('chat').filter((m) => !m.deleted).sort((a, b) => a.at - b.at);
+const msgs = () => col('chat').filter((m) => !m.deleted && m.at > (+settings().chatClearedAt || 0)).sort((a, b) => a.at - b.at);
 function send(kind, text) {
+  if (isKicked()) return toast('강퇴 상태에서는 채팅을 보낼 수 없습니다');
   if (!nick()) return askNick(true);
   const now = Date.now();
   if (now - lastSend < 600) return;
@@ -60,7 +66,7 @@ export function sysChat(text) {
 }
 function buildChat() {
   document.getElementById('chat').innerHTML = `
-    <header><div class="ch-t"><span class="ch-k"><i class="live"></i>LIVE</span><b>Lobby<i>Chat</i></b><small><span id="chat-on">0</span>명 접속 중</small></div><button class="btn ghost xs chatx" data-a="chatToggle">${ic('x')}</button></header>
+    <header><div class="ch-t"><span class="ch-k"><i class="live"></i>LIVE</span><b>Lobby<i>Chat</i></b><small><span id="chat-on">0</span>명 접속 중</small></div><div class="ch-btns"><button class="btn ghost xs" data-a="chatClear" title="채팅 전체 삭제 (관리자)" aria-label="채팅 전체 삭제">${ic('trash')}</button><button class="btn ghost xs chatx" data-a="chatToggle">${ic('x')}</button></div></header>
     <div id="chatlog"></div>
     <div id="chattray" hidden>
       <div class="stk-grid">${STICKERS.map(([k, t, c]) => `<button class="sticker ${c}" data-a="chatStk" data-k="${k}">${esc(t)}</button>`).join('')}</div>
@@ -142,9 +148,46 @@ function splash() {
 }
 
 export function initSocial() {
-  buildChat(); renderPresence(); renderChat(true); splash();
+  buildChat(); renderPresence(); renderChat(true); splash(); onMeta();
+  // 접속자 우클릭(모바일은 길게 누르기) → 관리자 메뉴
+  document.getElementById('presence').addEventListener('contextmenu', (e) => { const b = e.target.closest('[data-cid]'); if (!b) return; e.preventDefault(); openCtx(e.clientX, e.clientY, b.dataset.cid, b.dataset.nick); });
+  document.addEventListener('click', (e) => { if (!e.target.closest('#ctx')) closeCtx(); });
   beat();
   setInterval(() => { if (document.visibilityState === 'visible') beat(); renderPresence(); }, BEAT_MS);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') beat(); });
   addEventListener('pagehide', () => beat(true));
+}
+
+// ---------- 관리자: 채팅 전체 삭제 · 강퇴 ----------
+// 채팅 전체 삭제는 문서를 지우지 않고 "이 시각 이전 글은 숨김" 기준 시각만 설정에 적는다(모두의 화면에서 한 번에 사라진다).
+act('chatClear', () => needAdmin(async () => {
+  if (!confirm('채팅창의 모든 메시지를 지울까요? 모든 사람의 화면에서 사라집니다.')) return;
+  try { await S.store.patch('meta', 'settings', { chatClearedAt: Date.now() }); toast('채팅을 모두 지웠습니다'); } catch (e) { toast('삭제 실패: ' + (e.code || e.message)); }
+}));
+function closeCtx() { document.getElementById('ctx')?.remove(); }
+function openCtx(x, y, id, name) {
+  closeCtx();
+  const m = document.createElement('div');
+  m.id = 'ctx'; m.innerHTML = `<small>${esc(name)}</small><button data-a="kick" data-id="${esc(id)}" data-nick="${esc(name)}">${ic('kick')}강퇴 (10분)</button>`;
+  document.body.appendChild(m);
+  m.style.left = Math.min(x, innerWidth - m.offsetWidth - 8) + 'px'; m.style.top = Math.min(y, innerHeight - m.offsetHeight - 8) + 'px';
+}
+act('kick', (d) => { closeCtx(); needAdmin(async () => {
+  if (!confirm(`${d.nick} 님을 강퇴할까요? 10분 동안 접속할 수 없습니다.`)) return;
+  try { await S.store.patch('meta', 'kicks', { [d.id]: Date.now() + KICK_MS }); sysChat(`${d.nick} 님이 강퇴되었습니다`); toast('강퇴했습니다'); } catch (e) { toast('강퇴 실패: ' + (e.code || e.message)); }
+}); });
+// 설정·강퇴 목록(meta)이 바뀔 때마다 호출된다
+let kickTimer = 0;
+export function onMeta() {
+  renderChat(); renderPresence();
+  const left = kickedUntil() - Date.now(), el = document.getElementById('kicked');
+  clearTimeout(kickTimer);
+  if (left <= 0) { if (el) { el.remove(); beat(); } return; }
+  if (!el) {
+    const k = document.createElement('div');
+    k.id = 'kicked'; k.innerHTML = `<div>${ic('kick')}<b>강퇴되었습니다</b><p>관리자가 접속을 제한했습니다.<br><span></span></p></div>`;
+    document.body.appendChild(k); beat(true);
+  }
+  document.querySelector('#kicked span').textContent = `약 ${Math.ceil(left / 60e3)}분 뒤에 다시 들어올 수 있습니다.`;
+  kickTimer = setTimeout(onMeta, Math.min(left + 500, 30e3));
 }

@@ -63,11 +63,10 @@ function toRows(meta) {
 const fmtDur = (ms) => { const s = Math.round(ms / 1000); return `${Math.floor(s / 60)}분 ${String(s % 60).padStart(2, '0')}초`; };
 const itemImg = (id) => (id && S.ver ? `<img class="it" src="https://ddragon.leagueoflegends.com/cdn/${S.ver}/img/item/${id}.png" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : '<span class="it"></span>');
 
-// 리플레이 분석 화면 사용 여부. 자동 경기 매칭이 생기기 전까지는 꺼 두고, 경기 기록의 경기별 "리플레이" 버튼만 쓴다.
+// 리플레이 분석 화면 사용 여부. false면 화면은 보이지만 파일을 넣을 수 없다("도입 예정"). 경기 기록의 경기별 "리플레이" 버튼은 계속 쓸 수 있다.
 const REPLAY_PAGE = false;
 page('replay', {
   render() {
-    if (!REPLAY_PAGE) return `<h1>${ic('replay')}리플레이 분석</h1><div class="panel empty">리플레이 분석 화면은 준비 중입니다.<br>지금은 경기 기록에서 각 경기의 <b>리플레이</b> 버튼으로 파일을 넣어 주세요.<br><a class="btn pri" href="#/matches">경기 기록으로 가기</a></div>`;
     const m = R.meta, k = (v) => v.toLocaleString('ko-KR');
     const team = (side) => {
       const rows = R.rows.filter((r) => r.side === side).sort((a, b) => a.lane - b.lane), tot = (f) => rows.reduce((s, r) => s + r[f], 0);
@@ -80,9 +79,10 @@ page('replay', {
         <td class="mono">${k(r.gold)}</td><td class="mono">${k(r.dmg)}</td><td class="mono">${r.vis}</td><td class="l items">${r.items.map(itemImg).join('')}</td></tr>`; }).join('')}
       </tbody></table></div></div>`;
     };
-    return `<div class="h2row"><h1>${ic('replay')}리플레이 분석</h1><span class="tag gold">BETA</span></div>
-    <label class="drop ${R.busy ? 'busy' : ''}" id="rdrop"><input type="file" accept=".rofl" id="rfile" hidden>
-      <div class="dr-ic">${ic('replay')}</div><b>${R.busy ? '분석 중…' : '.rofl 리플레이 파일을 끌어다 놓거나 눌러서 선택'}</b>
+    return `<div class="h2row"><h1>${ic('replay')}리플레이 분석</h1><span class="tag gold">${REPLAY_PAGE ? 'BETA' : '도입 예정'}</span></div>
+    ${REPLAY_PAGE ? '' : `<div class="panel soonbox">${ic('alert')}<div><b>도입 예정인 기능입니다</b><span>리플레이를 올리면 해당 경기를 자동으로 찾아 주는 기능과 함께 열릴 예정입니다. 그때까지는 <a href="#/matches">경기 기록</a>에서 각 경기의 <em>리플레이</em> 버튼으로 파일을 넣어 주세요.</span></div></div>`}
+    <label class="drop ${R.busy ? 'busy' : ''} ${REPLAY_PAGE ? '' : 'off'}" id="rdrop"><input type="file" accept=".rofl" id="rfile" hidden ${REPLAY_PAGE ? '' : 'disabled'}>
+      <div class="dr-ic">${ic('replay')}</div><b>${!REPLAY_PAGE ? '도입 예정 — 지금은 파일을 넣을 수 없습니다' : R.busy ? '분석 중…' : '.rofl 리플레이 파일을 끌어다 놓거나 눌러서 선택'}</b>
       <span>롤 클라이언트 › 프로필 › 전적에서 경기를 눌러 <em>다운로드</em>하면 <code>문서\\League of Legends\\Replays</code> 폴더에 저장됩니다.<br>파일은 서버로 올라가지 않고 이 브라우저 안에서만 읽습니다.</span></label>
     ${R.err ? `<div class="panel errbox">${ic('alert')} ${esc(R.err)}</div>` : ''}
     ${m ? `<div class="stats">
@@ -102,7 +102,7 @@ page('replay', {
   },
   after() {
     const drop = document.getElementById('rdrop'), inp = document.getElementById('rfile');
-    if (!drop) return;
+    if (!drop || !REPLAY_PAGE) return;
     inp.onchange = () => inp.files[0] && load(inp.files[0]);
     drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('over'); };
     drop.ondragleave = () => drop.classList.remove('over');

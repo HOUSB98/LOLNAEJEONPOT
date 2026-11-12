@@ -1,5 +1,5 @@
 // 선수 카드(홀로 카드) / 솔랭 분석 / 케미 분석
-import { S, page, act, esc, pname, go, refresh, fmtDT, wrClass, wrBar, dots, streak, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, ic, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct } from './core.js';
+import { S, page, act, esc, pname, go, refresh, fmtDT, wrClass, wrBar, dots, streak, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, ic, logo, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct } from './core.js';
 import { chem, playerLine } from './stats.js';
 
 const PV = { view: 'card' };
@@ -30,7 +30,9 @@ function holo(s, n) {
   const p = s.p, r = rarity(s, n), sc = LANES.map((l) => [l, +p.scores?.[l] || 0]).sort((a, b) => b[1] - a[1]);
   const weak = sc[4][0], sig = sigChamp(s), line = playerLine(s, S.st).split('. ')[0].replace(/\.$/, '') + '.';
   const move = ([l, v]) => `<div class="hc-move"><span class="en">${LANE_ICON[l].repeat(v >= 15 ? 3 : v >= 9 ? 2 : 1)}</span><div><b>${MOVE[l]}</b><small>${LANE_NAME[l]} 승률 ${s.lanes[l].g ? `${pct(s.lanes[l].w, s.lanes[l].g)}% (${s.lanes[l].g}판)` : '기록 없음'}</small></div><em class="mono">${Math.round(v * 10)}</em></div>`;
-  return `<div class="holo-wrap"><div class="holo ${r[2]}" style="--tc:${LANE_COLOR[s.mainLane]}">
+  return `<div class="holo-wrap ${r[2]}" style="--tc:${LANE_COLOR[s.mainLane]}">
+    <div class="holo-lights"><i class="rays"></i><i class="beam b1"></i><i class="beam b2"></i><i class="beam b3"></i><i class="floor"></i>${Array.from({ length: 16 }, (_, i) => `<u style="--i:${i}"></u>`).join('')}</div>
+    <div class="holo-tilt"><div class="holo ${r[2]}">
     <div class="hc-in">
       <div class="hc-head"><span class="hc-stage">${r[1]}</span><b>${esc(s.name)}</b><span class="hc-hp mono"><small>OVR</small>${s.ovr}</span><span class="hc-type">${LANE_ICON[s.mainLane]}</span></div>
       <div class="hc-art" style="--img:url('${artUrl(sig)}')">${sig ? `<span>SIGNATURE · ${esc(sig)}</span>` : `<i>${LANE_ICON[s.mainLane]}</i>`}</div>
@@ -39,8 +41,9 @@ function holo(s, n) {
       <div class="hc-foot"><div><small>약점</small>${LANE_ICON[weak]}<b class="mono">${sc[4][1]}</b></div><div><small>폼</small><b>${{ '⬆️': '최상', '↗️': '좋음', '➡️': '보통', '↘️': '주춤', '⬇️': '부진', '➖': '—' }[s.cond]}</b></div><div><small>통산 승률</small><b class="mono">${s.g ? s.wr + '%' : '—'}</b></div></div>
       <p class="hc-flavor">${esc(line)}</p>
       <div class="hc-bottom"><span>${r[0]}</span><span>NAEJEONPOT · ${new Date().getFullYear()}</span><span class="mono">${String(s.ovrRank).padStart(3, '0')}/${String(n).padStart(3, '0')}</span></div>
-    </div><div class="hc-shine"></div><div class="hc-glare"></div>
-  </div><small class="mut">카드 위에서 마우스를 움직여 보세요</small></div>`;
+    </div><div class="hc-shine"></div><div class="hc-glare"></div><div class="hc-sweep"></div>
+  </div><div class="holo-back ${r[2]}">${logo(false, 120)}<b>NAEJEON<i>POT</i></b></div></div>
+  <small class="mut">카드 위에서 마우스를 움직여 보세요</small></div>`;
 }
 
 // 리플레이로 쌓인 상세 지표. 여러 라인을 도는 선수가 불리하지 않도록 "맞라인 대비"와 "라인 평균=100 지수"를 함께 보여 준다
@@ -105,19 +108,36 @@ function cardView(id) {
 }
 page('players', {
   render: (id) => (id ? cardView(id) : listView()),
-  after() { // 홀로 카드: 마우스 위치에 따라 기울기와 빛 반사를 바꾼다
-    const w = document.querySelector('.holo-wrap'), h = w?.querySelector('.holo'); if (!h) return;
-    // 카드가 기울면 카드의 화면상 크기도 바뀌므로, 기준 좌표는 기울지 않는 바깥 틀(w)에서 잡는다(안 그러면 떨린다).
-    // 마우스 이벤트마다 그리지 않고 화면 주사율에 맞춰 한 번씩만 갱신한다.
-    if (matchMedia('(hover: none), (prefers-reduced-motion: reduce)').matches) return;
+  after(entering) { // 홀로 카드: 등장할 때 빙글 돌며 정면으로 멈추고, 그 뒤에는 마우스 위치에 따라 기울기와 빛 반사를 바꾼다
+    const w = document.querySelector('.holo-wrap'), h = w?.querySelector('.holo-tilt'); if (!h) return;
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (entering && !reduce) {
+      // 앞·뒷면 전환은 각도를 보고 직접 바꾼다(브라우저의 3D 뒷면 처리에 기대지 않아 카드가 사라지는 일이 없다)
+      const T = 2700, A0 = -900, t0 = performance.now();
+      w.classList.add('intro'); w.classList.remove('lit');
+      (function spin(now) {
+        if (!document.body.contains(h)) return;
+        const u = Math.min(1, (now - t0) / T), e = 1 - (1 - u) ** 4, a = A0 * (1 - e), n = ((a % 360) + 360) % 360;
+        h.classList.toggle('flip', n > 90 && n < 270);
+        h.style.transform = `translateY(${(1 - e) * 46}px) rotateY(${a.toFixed(2)}deg) scale(${(0.55 + 0.45 * e).toFixed(3)})`;
+        h.style.opacity = Math.min(1, u * 5);
+        if (u < 1) return requestAnimationFrame(spin);
+        settle();
+      })(t0);
+      // 탭이 뒤에 있어 화면 갱신이 멈춘 경우에도 카드가 안 보이는 채로 남지 않게, 시간이 지나면 정면 상태로 확정한다
+      const settle = () => { if (!w.classList.contains('intro')) return; h.style.transform = ''; h.style.opacity = ''; h.classList.remove('flip'); w.classList.remove('intro'); w.classList.add('lit'); };
+      setTimeout(settle, T + 400);
+    } else w.classList.add('lit');
+    if (matchMedia('(hover: none)').matches || reduce) return;
+    // 기준 좌표는 기울지 않는 바깥 틀(w)에서 잡고, 화면 주사율에 맞춰 한 번씩만 갱신한다(떨림 방지)
     let raf = 0, px = 0, py = 0;
     const paint = () => {
       raf = 0;
       const r = w.getBoundingClientRect(), x = Math.min(1, Math.max(0, (px - r.left) / r.width)), y = Math.min(1, Math.max(0, (py - r.top) / h.offsetHeight));
       h.style.setProperty('--mx', (x * 100).toFixed(1) + '%'); h.style.setProperty('--my', (y * 100).toFixed(1) + '%');
-      h.style.setProperty('--rx', ((0.5 - y) * 9).toFixed(2) + 'deg'); h.style.setProperty('--ry', ((x - 0.5) * 11).toFixed(2) + 'deg');
+      h.style.setProperty('--rx', ((0.5 - y) * 10).toFixed(2) + 'deg'); h.style.setProperty('--ry', ((x - 0.5) * 12).toFixed(2) + 'deg');
     };
-    h.onpointermove = (e) => { px = e.clientX; py = e.clientY; h.classList.add('live'); if (!raf) raf = requestAnimationFrame(paint); };
+    h.onpointermove = (e) => { if (w.classList.contains('intro')) return; px = e.clientX; py = e.clientY; h.classList.add('live'); if (!raf) raf = requestAnimationFrame(paint); };
     h.onpointerleave = () => { cancelAnimationFrame(raf); raf = 0; h.classList.remove('live'); h.style.setProperty('--rx', '0deg'); h.style.setProperty('--ry', '0deg'); };
   },
 });

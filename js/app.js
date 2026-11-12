@@ -2,18 +2,19 @@
 import { FIREBASE_CONFIG } from './config.js';
 import { createStore } from './store.js';
 import { S, page, act, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, toast, download, csv, needAdmin, history, modal, mh, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
-import { initSocial, renderChat, renderPresence } from './social.js';
-import './today.js';
+import { initSocial, renderChat, renderPresence, onMeta } from './social.js';
+import { watchReveal } from './today.js';
 import { watchDice } from './dice.js';
 import './replay.js';
 import './players.js';
 import './auction.js';
 import './admin.js';
+import './maker.js';
 
 const num = (v, cls = '') => `<td class="num ${cls}">${v}</td>`;
 export function stat(icon, label, value, sub, tone = '') {
   const n = typeof value === 'number';
-  return `<div class="stat ${tone}">${ic(icon, 'wm')}<small>${label}</small><b class="mono" ${n ? `data-count="${value}"` : ''}>${n ? value.toLocaleString() : value}</b><span>${sub || ''}</span></div>`;
+  return `<div class="stat ${tone}"><i class="st-ic">${ic(icon)}</i>${ic(icon, 'wm')}<small>${label}</small><b class="mono" ${n ? `data-count="${value}"` : ''}>${n ? value.toLocaleString() : value}</b><span>${sub || ''}</span></div>`;
 }
 function hofList() {
   const st = S.st, x = st.sum, names = (ids) => (ids.length > 2 ? `${pname(ids[0])} 외 ${ids.length - 1}명` : ids.map(pname).join(' · '));
@@ -56,6 +57,26 @@ function notices() {
   return out;
 }
 const HM = { i: 0, t: 0, lane: 'top' };
+// 공지 회전(맨 아래 공지가 맨 위로)과 배너 문구 타이핑 상태. 화면을 다시 그려도 이어지도록 모듈에 둔다.
+const NT = { off: 0, t: 0 }, TY = { t0: 0, timer: 0 };
+const typed = (s) => [...s].map((c) => `<span class="ch">${c === ' ' ? '&nbsp;' : c}</span>`).join('');
+function typeTick() {
+  const h = document.querySelector('.hero-h'), chs = h ? h.querySelectorAll('.ch') : [];
+  if (S.page !== 'home' || !chs.length) { clearInterval(TY.timer); TY.timer = 0; return; }
+  const n = Math.floor((performance.now() - TY.t0 - 1700) / 95); // 로고가 다 그려진 뒤(약 1.7초)부터 한 글자씩
+  chs.forEach((c, i) => { c.classList.toggle('on', i < n); c.classList.toggle('cur', n > 0 && i === Math.min(n, chs.length) - 1); });
+  if (n > chs.length + 16) { clearInterval(TY.timer); TY.timer = 0; h.classList.add('typed'); }
+}
+function noticeTick() {
+  if (S.page !== 'home') return clearInterval(NT.t);
+  const ol = document.querySelector('.notice ol');
+  if (!ol || ol.children.length < 2 || ol.matches(':hover') || document.visibilityState !== 'visible') return;
+  const last = ol.lastElementChild, h = last.offsetHeight;
+  NT.off = (NT.off + 1) % ol.children.length;
+  ol.prepend(last);
+  [...ol.children].forEach((li) => li.animate([{ transform: `translateY(-${h}px)` }, { transform: 'none' }], { duration: 900, easing: 'cubic-bezier(.3,.7,.15,1)' }));
+  last.animate([{ opacity: 0 }, { opacity: 0, offset: 0.35 }, { opacity: 1 }], { duration: 900 });
+}
 // 홈 배너: 내전에 나온 챔피언(적으면 전체)의 일러스트를 순서를 섞어 차례로 보여 준다
 const HERO = { list: [], i: 0, t: 0, flip: 0 };
 function heroList() {
@@ -115,7 +136,7 @@ page('home', {
     const hl = heroList(), hero = hl.length ? hl[HERO.i % hl.length] : '';
     const date = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')} ${'일월화수목금토'[now.getDay()]}요일`;
     const patch = S.ver ? S.ver.split('.').slice(0, 2).join('.') : '—';
-    const hof = hofList(), top = st.list.filter((s) => s.g >= 3).sort((a, b) => b.ovr - a.ovr).slice(0, 3), nt = notices();
+    const hof = hofList(), top = st.list.filter((s) => s.g >= 3).sort((a, b) => b.ovr - a.ovr).slice(0, 3), nt0 = notices(), nt = nt0.map((_, i) => nt0[(i - (NT.off % nt0.length) + nt0.length) % nt0.length]);
     const last = [...st.matches].slice(-2).reverse();
     HERO.flip = 0;
     return `
@@ -123,7 +144,7 @@ page('home', {
       <div class="hero-bg on" style="--img:url('${artUrl(hero)}')"></div><div class="hero-bg alt"></div>
       <div class="hero-in">
         <div class="hero-logo">${logo(true, 92)}<div><div class="word"><span>NAEJEON</span><i>POT</i></div><p>${esc(settings().leagueName || '친구 내전 리그')} · IN-HOUSE LEAGUE</p></div></div>
-        <h1 class="hero-h">우리들의 협곡,<br><em>모든 기록이 여기에.</em></h1>
+        <h1 class="hero-h" aria-label="우리들의 협곡, 모든 기록이 여기에.">${typed('우리들의 협곡,')}<br><em>${typed('모든 기록이 여기에.')}</em></h1>
         <div class="hero-meta"><span>${ic('cal')}${date}</span><span class="patch">PATCH ${patch}</span><span>${ic('today')}누적 ${x.n}경기</span></div>
         <div class="hero-cta"><a class="btn pri" href="#/today">${ic('today')}오늘의 내전 시작</a><a class="btn" href="#/rank">${ic('rank')}랭킹 보기</a></div>
       </div>
@@ -157,7 +178,10 @@ page('home', {
   },
   after(entering) {
     if (entering) countUp(document.getElementById('main'));
-    clearInterval(HM.t); clearInterval(HERO.t);
+    clearInterval(HM.t); clearInterval(HERO.t); clearInterval(NT.t);
+    NT.t = setInterval(noticeTick, 5000);
+    if (entering) { TY.t0 = performance.now(); clearInterval(TY.timer); TY.timer = setInterval(typeTick, 45); }
+    else if (TY.timer) typeTick(); else document.querySelector('.hero-h')?.classList.add('typed');
     HM.t = setInterval(() => { if (S.page !== 'home') return clearInterval(HM.t); if (!document.querySelector('#car:hover')) carMove(1); }, 4200);
     HERO.t = setInterval(() => { if (S.page !== 'home') return clearInterval(HERO.t); if (document.visibilityState === 'visible') heroNext(); }, 6500);
   },
@@ -174,6 +198,20 @@ act('carSet', (d) => carMove(0, +d.i));
 
 // ---------- 랭킹 ----------
 const LB = { view: 'all', sort: 'ovr', dir: -1, min: 0 };
+// 랭킹에 띄울 대표 챔피언: 주라인에서 가장 많이 쓴 챔피언 → (기록이 없으면) 솔랭 모스트 → 내전 모스트
+function laneSigs() {
+  const cnt = {};
+  S.st.matches.forEach((m) => ['blue', 'red'].forEach((side) => m[side].forEach((id, i) => {
+    const c = m.champs?.[side]?.[i]; if (!c || S.st.P[id]?.mainLane !== LANES[i]) return;
+    ((cnt[id] ||= {})[c] ||= { g: 0, w: 0 }).g++; if (m.winner === side) cnt[id][c].w++;
+  })));
+  return (s) => {
+    const top = Object.entries(cnt[s.id] || {}).sort((a, b) => b[1].g - a[1].g || b[1].w - a[1].w)[0];
+    if (top) return top[0];
+    const most = s.p.solo?.most || '';
+    return S.champs.map((c) => c.name).filter((n) => most.includes(n)).sort((a, b) => most.indexOf(a) - most.indexOf(b))[0] || sigChamp(s);
+  };
+}
 const COLS = {
   all: [
     ['g', '판', (s) => s.g, (s) => `<span class="mono">${s.g}</span>`],
@@ -193,10 +231,11 @@ page('rank', {
   render() {
     const st = S.st, x = st.sum;
     const cols = COLS[LB.view], sortCol = cols.find((c) => c[0] === LB.sort) || cols[0];
+    const sig = laneSigs();
     const rows = st.list.filter((s) => s.g >= LB.min).sort((a, b) => LB.dir * (sortCol[2](a) - sortCol[2](b)) || b.ovr - a.ovr);
     // 상단 TOP 3 카드: 지금 정렬 기준의 1~3위
     const medal = ['CHAMPION', 'RUNNER-UP', 'THIRD'];
-    const spot = rows.slice(0, 3).map((s, i) => `<a class="spot s${i + 1}" href="#/players/${s.id}" style="--img:url('${artUrl(sigChamp(s))}');--d:${i}">
+    const spot = rows.slice(0, 3).map((s, i) => `<a class="spot s${i + 1}" href="#/players/${s.id}" style="--img:url('${artUrl(sig(s))}');--d:${i}">
       <span class="sp-rk mono">${i + 1}</span><small>${medal[i]}</small><b>${esc(s.name)}</b>
       <span class="sp-meta">${LANE_ICON[s.mainLane]}${LANE_NAME[s.mainLane]}<i></i>${s.g ? `${s.wr}% · ${s.g}판` : '출전 없음'}${s.titles[0] ? `<i></i>${s.titles[0].e} ${s.titles[0].n}` : ''}</span>
       <span class="sp-val"><em class="mono">${s.ovr}</em><small>OVR</small></span></a>`).join('');
@@ -212,7 +251,7 @@ page('rank', {
     ${rows.length >= 3 ? `<div class="spots">${spot}</div>` : ''}
     <div class="tw lbw"><table class="tbl lb">
       <thead><tr><th>#</th><th class="l">소환사</th>${cols.map((c) => `<th data-a="lbSort" data-k="${c[0]}" class="s ${sortCol[0] === c[0] ? 'on' : ''}">${c[1]}${sortCol[0] === c[0] ? (LB.dir < 0 ? ' ▾' : ' ▴') : ''}</th>`).join('')}${LB.view === 'all' ? '<th class="l">칭호</th>' : ''}<th class="art"></th></tr></thead>
-      <tbody>${rows.map((s, i) => `<tr class="${i < 3 ? 'top t' + (i + 1) : ''}" data-a="goPlayer" data-id="${s.id}" style="--d:${Math.min(i, 14)}"><td class="rk mono"><span class="rkb r${i + 1}">${i + 1}</span></td><td class="l nm">${esc(s.name)}</td>${cols.map((c) => num(c[3](s))).join('')}${LB.view === 'all' ? `<td class="l chips">${titleChips(s, 1)}</td>` : ''}<td class="art"><u class="rowfx"></u><i data-art="${artUrl(sigChamp(s))}"></i></td></tr>`).join('') || `<tr><td colspan="20" class="empty">조건에 맞는 선수가 없습니다.</td></tr>`}</tbody>
+      <tbody>${rows.map((s, i) => `<tr class="${i < 3 ? 'top t' + (i + 1) : ''}" data-a="goPlayer" data-id="${s.id}" style="--d:${Math.min(i, 14)}"><td class="rk mono"><span class="rkb r${i + 1}">${i + 1}</span></td><td class="l nm">${esc(s.name)}</td>${cols.map((c) => num(c[3](s))).join('')}${LB.view === 'all' ? `<td class="l chips">${titleChips(s, 1)}</td>` : ''}<td class="art"><u class="rowfx"></u><i data-art="${artUrl(sig(s))}" title="${esc(sig(s))}"></i></td></tr>`).join('') || `<tr><td colspan="20" class="empty">조건에 맞는 선수가 없습니다.</td></tr>`}</tbody>
     </table></div>
     <p class="hint">머리글을 누르면 정렬됩니다. 행을 누르면 선수 카드가 열립니다. OVR = 내전 MMR 50% + 상위 3개 라인 점수 50%.</p>`;
   },
@@ -402,9 +441,9 @@ act('flLeft', (d, el) => { FL.left = el.checked; refresh(); });
     S.store = await createStore(S.key, (c, err) => {
       if (c === 'error') return toast('DB 연결 오류: ' + (err?.code || err));
       if (!up) return;
-      if (c === 'chat') renderChat(); else if (c === 'presence') renderPresence(); else { if (c === 'meta') watchDice(); refresh(true); }
+      if (c === 'chat') renderChat(); else if (c === 'presence') renderPresence(); else { if (c === 'meta') { watchDice(); watchReveal(); onMeta(); } refresh(true); }
     });
     await S.store.ready;
   } catch (e) { main.innerHTML = `<div class="panel landing"><h1>연결 실패</h1><p>${esc(e.message || e)}</p><p class="hint">js/config.js 의 Firebase 설정과 Firestore 규칙을 확인하세요.</p></div>`; return; }
-  up = true; watchDice(true); initShell(); initSocial(); loadChamps();
+  up = true; watchDice(true); watchReveal(true); initShell(); initSocial(); loadChamps();
 })();
