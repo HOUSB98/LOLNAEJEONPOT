@@ -172,7 +172,7 @@ export function matchCard(m, tools = true) {
   </div>`;
   return `<div class="mcard">
     <div class="mhd"><b class="mono">#${mi.no}</b><span>${fmtDT(m.at)}</span><span class="mut">예상 블루 ${Math.round(mi.pBlue * 100)}%</span>${mi.upset ? '<span class="tag bad">UPSET</span>' : ''}
-      ${m.stats ? '<span class="tag gold">REPLAY</span>' : ''}<span class="grow"></span><button class="btn xs" data-a="matchDetail" data-id="${m.id}">상세</button>${tools && !m.stats ? `<button class="btn xs gold" data-a="matchReplay" data-id="${m.id}" title="이 경기의 .rofl 파일을 넣으면 상세 기록이 채워집니다">리플레이 넣기</button>` : ''}
+      ${m.stats ? '<span class="tag gold">REPLAY</span>' : ''}<span class="grow"></span><button class="btn xs" data-a="matchDetail" data-id="${m.id}">상세</button>${tools && !m.stats ? `<button class="btn xs gold" data-a="matchReplay" data-id="${m.id}" title="이 경기의 .rofl 파일을 넣으면 상세 기록이 채워집니다">리플레이</button>` : ''}
       ${tools ? `<button class="btn xs" data-a="editMatch" data-id="${m.id}">수정</button><button class="btn xs ghost" data-a="delMatch" data-id="${m.id}">삭제</button>` : ''}</div>
     <div class="vs">${team('blue')}${team('red')}</div></div>`;
 }

@@ -165,9 +165,10 @@ textarea.inp{width:100%;resize:vertical}
 
 /* ---------- 경기 카드 ---------- */
 .day{display:flex;align-items:baseline;gap:10px;border-bottom:1px solid var(--line);padding-bottom:8px;margin-top:26px}.day .mono{font-size:17px;color:var(--gold2)}
-.mlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px}
+.mlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:12px}
 .mcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;transition:.2s}.mcard:hover{border-color:var(--line2);transform:translateY(-2px);box-shadow:0 14px 30px -22px #000}
-.mhd{display:flex;gap:10px;align-items:center;padding:9px 14px;border-bottom:1px solid var(--line);font-size:12px;flex-wrap:wrap;background:rgba(255,255,255,.015)}.mhd b{color:var(--gold)}
+.mhd>*{flex:none;white-space:nowrap}.mhd .mut{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}.mhd .btn.xs{padding:3px 8px;min-height:26px}
+.mhd{display:flex;gap:6px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);font-size:12px;flex-wrap:nowrap;background:rgba(255,255,255,.015)}.mhd b{color:var(--gold)}
 .vs{display:grid;grid-template-columns:1fr 1fr}
 .team{padding:10px 12px}.team.blue{border-right:1px solid var(--line)}.team.lose{opacity:.55}
 .team.blue.win{background:linear-gradient(180deg,rgba(91,140,255,.16),transparent)}.team.red.win{background:linear-gradient(180deg,rgba(240,80,110,.15),transparent)}
