@@ -317,30 +317,59 @@ export function watchReveal(initial = false) {
   if (rvDocWatch || !S.store?.watchCollection) return;
   rvDocWatch = true;
 
-  // reveal은 단일 meta 문서를 덮어쓰지 않고 이벤트마다 별도 문서를 만든다.
-  // 따라서 두 브라우저가 동시에 듣고 있어도 이벤트가 사라지거나 덮어써질 가능성이 없다.
+  // reveal 이벤트는 문서 하나를 덮어쓰지 않고 이벤트마다 별도 문서를 만든다.
+  // 최초 snapshot은 "현재 존재하는 이벤트 목록"이므로 여기서는 기준점을 잡고,
+  // 이후 새로 추가된 문서만 실시간 이벤트로 처리한다.
+  let primed = false;
+
   S.store.watchCollection('reveals', (snap) => {
-    snap.docChanges().forEach((change) => {
+    const changes = typeof snap?.docChanges === 'function'
+      ? snap.docChanges()
+      : (typeof snap?.changes === 'function' ? snap.changes() : []);
+
+    if (!primed) {
+      primed = true;
+
+      // 최초 접속 때 과거 이벤트를 여러 번 재생하지 않는다.
+      // 단, 리스너가 붙는 순간 최근 5초 이내의 가장 최신 이벤트가 있다면
+      // 다른 브라우저가 늦게 들어온 것으로 보고 그 1건만 재생한다.
+      const docs = changes
+        .filter((change) => change.type === 'added')
+        .map((change) => change.doc?.data ? { ...change.doc.data(), id: change.doc.id } : change.doc)
+        .filter((doc) => doc?.id)
+        .sort((a, b) => (Number(b.at) || 0) - (Number(a.at) || 0));
+
+      const latest = docs[0];
+      if (!latest) return;
+
+      const at = Number(latest.at) || 0;
+      const now = S.store?.serverNow ? S.store.serverNow() : Date.now();
+      if (rvSeen !== latest.id && at && Math.abs(now - at) <= 5000) {
+        rvSeen = latest.id;
+        console.info('[reveal] late-join replay', {
+          id: latest.id, at,
+          startAt: Number(latest.startAt) || at,
+          serverNow: now, page: S.page, key: S.key
+        });
+        playReveal(latest, false);
+      } else if (rvSeen === null) {
+        rvSeen = latest.id;
+      }
+      return;
+    }
+
+    // 최초 snapshot 이후에는 실제로 추가된 reveal만 처리한다.
+    changes.forEach((change) => {
       if (change.type !== 'added') return;
       const doc = change.doc?.data ? { ...change.doc.data(), id: change.doc.id } : change.doc;
       if (!doc?.id || doc.id === rvSeen) return;
 
-      const at = Number(doc.at) || 0;
-      const now = S.store?.serverNow ? S.store.serverNow() : Date.now();
-
-      // 최초 연결 시 이미 오래된 reveal을 다시 재생하지 않는다.
-      // 단, 최근 5초 이내 이벤트는 리스너가 늦게 붙은 경우로 보고 재생한다.
-      if (rvSeen === null && at && Math.abs(now - at) > 5000) {
-        rvSeen = doc.id;
-        return;
-      }
-
       rvSeen = doc.id;
       console.info('[reveal] received', {
         id: doc.id,
-        at,
+        at: Number(doc.at) || 0,
         startAt: Number(doc.startAt) || Number(doc.at) || 0,
-        serverNow: now,
+        serverNow: S.store?.serverNow ? S.store.serverNow() : Date.now(),
         page: S.page,
         key: S.key
       });
