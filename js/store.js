@@ -3,7 +3,7 @@
 //   put / patch / tx : 쓰기. 삭제는 없다(문서에 deleted:true 를 표시하는 방식).
 import { FIREBASE_CONFIG } from './config.js';
 
-const WATCHED = ['players', 'matches', 'auctions', 'meta', 'presence', 'chat'];
+const WATCHED = ['players', 'matches', 'auctions', 'meta', 'reveals', 'presence', 'chat'];
 const CHAT_LIMIT = 300; // 채팅은 문서가 계속 쌓이므로 최근 것만 구독한다(기록 자체는 DB에 남는다)
 const clean = (o) => JSON.parse(JSON.stringify(o)); // Firestore는 undefined를 받지 않는다
 const FB ='https://www.gstatic.com/firebasejs/10.12.5/';
@@ -30,6 +30,10 @@ function localStore(key, onChange) {
     syncServerClock: async () => 0,
     watchDoc: (col, id, onData) => {
       onData(data[col]?.[id] || null);
+      return () => {};
+    },
+    watchCollection: (col, onSnap, onError) => {
+      onSnap({ changes: () => Object.values(data[col] || {}).map((d) => ({ type: 'added', doc: d })) });
       return () => {};
     },
     async put(col, id, doc) { data[col][id] = { ...doc, id }; save(col); },
@@ -100,6 +104,7 @@ async function firebaseStore(key, onChange) {
     watchDoc: (col, id, onData, onError) => fs.onSnapshot(ref(col, id), (snap) => {
       onData(snap.exists() ? { ...snap.data(), id: snap.id } : null, snap);
     }, onError),
+    watchCollection: (col, onSnap, onError) => fs.onSnapshot(fs.collection(db, 'leagues', key, col), onSnap, onError),
     put: (col, id, doc) => fs.setDoc(ref(col, id), clean({ ...doc, id })),
     patch: (col, id, part) => fs.setDoc(ref(col, id), clean(part), { merge: true }),
     tx: (col, id, fn) => fs.runTransaction(db, async (t) => {
