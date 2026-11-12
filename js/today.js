@@ -283,6 +283,7 @@ act('tSave', async (d, btn) => {
 // ---------- 팀 확정 → 예상 승률 공개 ----------
 // 누군가 "정했어!"를 누르면 meta/reveal 문서에 적고, 접속한 모든 사람의 화면에서 같은 연출이 재생된다(주사위와 같은 방식).
 let rvSeen = null;
+let rvDocWatch = false;
 const playReveal = (d, mine) => reveal({
   pb: d.pb,
   blue: d.blue,
@@ -293,6 +294,24 @@ const playReveal = (d, mine) => reveal({
   from: S.page === 'today' ? document.querySelector('.arena .ring') : null
 });
 export function watchReveal(initial) {
+  // reveal은 일반 meta 컬렉션 변경 감지와 별도로 문서 자체를 직접 구독한다.
+  // 다른 meta 변경이나 렌더링 타이밍에 의존하지 않아 확정 이벤트를 놓치지 않는다.
+  if (!rvDocWatch && S.store?.watchDoc && S.store?.mode === 'firebase') {
+    rvDocWatch = true;
+    S.store.watchDoc('meta', 'reveal', (doc) => {
+      if (!doc || !doc.id) return;
+      if (rvSeen === null) {
+        rvSeen = doc.id;
+        return;
+      }
+      if (doc.id === rvSeen) return;
+      rvSeen = doc.id;
+      playReveal(doc, false);
+    }, (err) => {
+      console.error('reveal realtime listener failed', err);
+      toast('승률 공개 실시간 연결 실패: ' + (err?.code || err?.message || 'unknown'));
+    });
+  }
   const d = S.store.data.meta?.reveal;
   // 초기 진입 때 이미 존재하던 reveal은 다시 재생하지 않는다.
   // 이후 새 id가 들어오면 시간 지연 여부와 관계없이 반드시 재생한다.
