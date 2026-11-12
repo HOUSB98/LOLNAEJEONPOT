@@ -284,43 +284,57 @@ act('tSave', async (d, btn) => {
 // 누군가 "정했어!"를 누르면 meta/reveal 문서에 적고, 접속한 모든 사람의 화면에서 같은 연출이 재생된다(주사위와 같은 방식).
 let rvSeen = null;
 let rvDocWatch = false;
-const playReveal = (d, mine) => reveal({
-  pb: d.pb,
-  blue: d.blue,
-  red: d.red,
-  by: mine ? '' : d.by,
-  startAt: Number(d.startAt) || Number(d.at) || Date.now(),
-  now: S.store?.serverNow ? S.store.serverNow() : Date.now(),
-  from: S.page === 'today' ? document.querySelector('.arena .ring') : null
-});
-export function watchReveal(initial) {
-  // reveal은 일반 meta 컬렉션 변경 감지와 별도로 문서 자체를 직접 구독한다.
-  // 다른 meta 변경이나 렌더링 타이밍에 의존하지 않아 확정 이벤트를 놓치지 않는다.
-  if (!rvDocWatch && S.store?.watchDoc && S.store?.mode === 'firebase') {
-    rvDocWatch = true;
-    S.store.watchDoc('meta', 'reveal', (doc) => {
-      if (!doc || !doc.id) return;
-      if (rvSeen === null) {
-        rvSeen = doc.id;
-        return;
-      }
-      if (doc.id === rvSeen) return;
+
+/*
+ * reveal은 meta 전체 컬렉션 변경 감지와 분리해서 문서 하나를 직접 구독한다.
+ * 중요: S.store.data.meta를 다시 읽어서 처리하지 않는다.
+ * Firestore의 onSnapshot 문서 리스너가 최초 현재값 1회 + 이후 변경을
+ * 순서대로 전달하므로, 최초값은 기준점으로만 잡고 이후 id가 바뀐 경우에만
+ * 연출을 재생한다. 이렇게 하면 일반 meta snapshot과의 실행 순서 경쟁도 없다.
+ */
+const playReveal = (d, mine = false) => {
+  reveal({
+    pb: Number(d.pb) || 50,
+    blue: d.blue || [],
+    red: d.red || [],
+    by: mine ? '' : (d.by || ''),
+    startAt: Number(d.startAt) || Number(d.at) || Date.now(),
+    now: S.store?.serverNow ? S.store.serverNow() : Date.now(),
+    from: S.page === 'today' ? document.querySelector('.arena .ring') : null
+  });
+};
+
+export function watchReveal(initial = false) {
+  if (rvDocWatch || S.store?.mode !== 'firebase' || !S.store?.watchDoc) return;
+  rvDocWatch = true;
+
+  S.store.watchDoc('meta', 'reveal', (doc) => {
+    // 문서가 삭제/없음이면 이벤트가 아니다.
+    if (!doc?.id) return;
+
+    // onSnapshot의 최초 콜백은 현재 저장된 reveal을 알려주는 기준점이다.
+    // 페이지를 새로 연 사람이 과거 공개 연출을 다시 보는 것은 막는다.
+    if (rvSeen === null) {
       rvSeen = doc.id;
-      playReveal(doc, false);
-    }, (err) => {
-      console.error('reveal realtime listener failed', err);
-      toast('승률 공개 실시간 연결 실패: ' + (err?.code || err?.message || 'unknown'));
+      return;
+    }
+
+    // 같은 이벤트는 meta 컬렉션 watcher가 호출되더라도 한 번만 처리한다.
+    if (doc.id === rvSeen) return;
+
+    rvSeen = doc.id;
+    console.info('[reveal] received', {
+      id: doc.id,
+      startAt: Number(doc.startAt) || Number(doc.at) || 0,
+      serverNow: S.store?.serverNow ? S.store.serverNow() : Date.now(),
+      page: S.page,
+      key: S.key
     });
-  }
-  const d = S.store.data.meta?.reveal;
-  // 초기 진입 때 이미 존재하던 reveal은 다시 재생하지 않는다.
-  // 이후 새 id가 들어오면 시간 지연 여부와 관계없이 반드시 재생한다.
-  // (snapshot 수신이 1.8초보다 늦거나 클라이언트 시계가 크게 어긋나도
-  //  "효과 자체가 안 뜨는" 일이 생기지 않도록 freshness 제한을 두지 않는다.)
-  if (initial || rvSeen === null) { rvSeen = d?.id || ''; return; }
-  if (!d || d.id === rvSeen) return;
-  rvSeen = d.id;
-  playReveal(d, false);
+    playReveal(doc, false);
+  }, (err) => {
+    console.error('[reveal] realtime listener failed', err);
+    toast('승률 공개 실시간 연결 실패: ' + (err?.code || err?.message || 'unknown'));
+  });
 }
 act('tqNo', () => { TQ.no = lineKey(D()); refresh(); });
 act('tqYes', () => {
