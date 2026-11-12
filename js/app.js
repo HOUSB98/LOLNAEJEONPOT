@@ -1,7 +1,7 @@
 // 시작점 + 홈 / 랭킹 / 경기 기록 / 챔피언 / 피어리스 화면
 import { FIREBASE_CONFIG } from './config.js';
 import { createStore } from './store.js';
-import { S, page, act, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, tileUrl, sigChamp, toast, download, csv, needAdmin, history, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
+import { S, page, act, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, tileUrl, sigChamp, toast, download, csv, needAdmin, history, modal, mh, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
 import { initSocial, renderChat, renderPresence } from './social.js';
 import './today.js';
 import { watchDice } from './dice.js';
@@ -172,7 +172,8 @@ export function matchCard(m, tools = true) {
   </div>`;
   return `<div class="mcard">
     <div class="mhd"><b class="mono">#${mi.no}</b><span>${fmtDT(m.at)}</span><span class="mut">예상 블루 ${Math.round(mi.pBlue * 100)}%</span>${mi.upset ? '<span class="tag bad">UPSET</span>' : ''}
-      ${tools ? `<span class="grow"></span><button class="btn xs" data-a="editMatch" data-id="${m.id}">수정</button><button class="btn xs ghost" data-a="delMatch" data-id="${m.id}">삭제</button>` : ''}</div>
+      ${m.stats ? '<span class="tag gold">REPLAY</span>' : ''}<span class="grow"></span><button class="btn xs" data-a="matchDetail" data-id="${m.id}">상세</button>
+      ${tools ? `<button class="btn xs" data-a="editMatch" data-id="${m.id}">수정</button><button class="btn xs ghost" data-a="delMatch" data-id="${m.id}">삭제</button>` : ''}</div>
     <div class="vs">${team('blue')}${team('red')}</div></div>`;
 }
 page('matches', {
@@ -185,6 +186,29 @@ page('matches', {
       return `<h3 class="day"><span class="mono">${fmtDay(d)}</span><small>${ms.length}경기 · 블루 ${bw}승 / 레드 ${ms.length - bw}승</small></h3><div class="mlist">${ms.map((m) => matchCard(m)).join('')}</div>`;
     }).join('')}`;
   },
+});
+// 경기 상세: 리플레이로 입력한 경기는 피해량·골드·CS·시야·아이템까지, 손으로 입력한 경기는 라인업과 KDA만 보여 준다
+act('matchDetail', (d) => {
+  const m = S.store.data.matches[d.id], st = S.st, mi = st.MI[d.id]; if (!m || !mi) return;
+  const has = !!m.stats, min = (m.dur || 0) / 60000, n = (v) => (+v || 0).toLocaleString('ko-KR');
+  const all = [...m.blue, ...m.red].map((id) => m.stats?.[id] || {}), maxD = Math.max(1, ...all.map((x) => +x.dmg || 0)), maxT = Math.max(1, ...all.map((x) => +x.taken || 0));
+  const item = (id) => (id && S.ver ? `<img class="it" src="https://ddragon.leagueoflegends.com/cdn/${S.ver}/img/item/${id}.png" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : '<span class="it"></span>');
+  const team = (side) => {
+    const sum = (k) => m[side].reduce((a, id) => a + (+m.stats?.[id]?.[k] || 0), 0), ks = m[side].reduce((a, id) => a.map((v, j) => v + (+m.kda?.[id]?.[j] || 0)), [0, 0, 0]);
+    return `<div class="rteam ${side} ${m.winner === side ? 'win' : ''}"><div class="rth"><b>${side === 'blue' ? 'BLUE' : 'RED'}</b><em>${m.winner === side ? 'VICTORY' : 'DEFEAT'}</em><span class="mono">${Object.keys(m.kda || {}).length ? ks.join(' / ') : ''}${has ? ` · ${n(sum('gold'))}G · 피해 ${n(sum('dmg'))}` : ''}</span></div>
+    <div class="tw"><table class="tbl rtbl"><thead><tr><th></th><th class="l">선수</th><th>KDA</th>${has ? '<th>CS</th><th>골드</th><th class="l">가한 피해 / 받은 피해</th><th>시야</th><th class="l">아이템</th>' : ''}</tr></thead><tbody>
+    ${m[side].map((id, i) => { const k = m.kda?.[id], x = m.stats?.[id] || {}, ch = m.champs?.[side]?.[i];
+      return `<tr><td>${LANE_ICON[LANES[i]]}</td><td class="l"><span class="rch">${champIcon(ch)}<span><b>${pname(id)}</b><small>${esc(ch || '챔피언 기록 없음')}${x.lvl ? ` · Lv${x.lvl}` : ''}</small></span></span></td>
+        <td class="mono">${k ? `${k.join('/')}<small> ${((k[0] + k[2]) / Math.max(1, k[1])).toFixed(1)}</small>` : '—'}</td>
+        ${has ? `<td class="mono">${n(x.cs)}<small> ${min ? ((+x.cs || 0) / min).toFixed(1) : ''}</small></td><td class="mono">${n(x.gold)}</td>
+        <td class="l"><div class="dbar"><i class="d" style="width:${((+x.dmg || 0) / maxD) * 100}%"></i><span class="mono">${n(x.dmg)}</span></div><div class="dbar"><i class="t" style="width:${((+x.taken || 0) / maxT) * 100}%"></i><span class="mono">${n(x.taken)}</span></div></td>
+        <td class="mono">${n(x.vis)}</td><td class="l items">${(x.items || []).map(item).join('')}</td>` : ''}</tr>`; }).join('')}
+    </tbody></table></div></div>`;
+  };
+  modal(`${mh(`경기 #${mi.no} 상세`)}
+    <div class="sub mdsub"><span class="mono">${fmtDT(m.at)}</span>${min ? `<span class="mono">${Math.floor(min)}분 ${String(Math.round((min % 1) * 60)).padStart(2, '0')}초</span>` : ''}<span>예상 블루 ${Math.round(mi.pBlue * 100)}%</span><span>점수 ${mi.bs} : ${mi.rs}</span>${mi.upset ? '<span class="tag bad">UPSET</span>' : ''}</div>
+    ${team('blue')}${team('red')}
+    ${has ? '' : '<p class="hint">이 경기는 직접 입력한 기록이라 라인업과 KDA만 있습니다. 리플레이 분석으로 입력하면 CS·골드·피해량·시야·아이템까지 저장됩니다.</p>'}`, 'xwide');
 });
 act('editMatch', (d) => go('#/today/edit/' + d.id));
 act('delMatch', (d) => needAdmin(async () => {

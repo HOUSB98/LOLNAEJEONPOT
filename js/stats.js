@@ -37,7 +37,8 @@ export function compute(playerList, matchList, settings) {
       id: p.id, name: p.name, p, g: 0, w: 0, results: [], mmrInit: mmr, mmr, mmrLast: 0,
       lanes: Object.fromEntries(LANES.map((l) => [l, blank()])), side: { blue: blank(), red: blank() },
       champs: {}, days: {}, off: blank(), upsetWins: 0, dogWins: 0, dogGames: 0, favLosses: 0, pSum: 0,
-      lastAt: 0, dawn: 0, kda: [0, 0, 0], kdaG: 0, cur: 0, maxStreak: 0,
+      lastAt: 0, dawn: 0, kda: [0, 0, 0], kdaG: 0, cur: 0, maxStreak: 0, zkw: 0, dx: null,
+      dt: { g: 0, cspm: 0, gpm: 0, dpm: 0, vpm: 0, share: 0, taken: 0, on: 0, gd: 0, csd: 0, ic: 0, ig: 0, id: 0, iv: 0 },
       mainLane: p.mainLane || LANES.reduce((a, l) => ((p.scores?.[l] || 0) > (p.scores?.[a] || 0) ? l : a), 'top'),
     };
   }
@@ -89,7 +90,7 @@ export function compute(playerList, matchList, settings) {
           add(c, win); c.users[id] = (c.users[id] || 0) + 1;
         }
         const k = m.kda?.[id];
-        if (k) { s.kdaG++; k.forEach((v, j) => (s.kda[j] += +v || 0)); }
+        if (k) { s.kdaG++; k.forEach((v, j) => (s.kda[j] += +v || 0)); if (win && !+k[0]) s.zkw++; }
         ids.forEach((o) => { if (o > id) add((together[pk(id, o)] ||= blank()), win); });
         opp.forEach((o, j) => {
           add((versus[id + '>' + o] ||= blank()), win);
@@ -100,6 +101,37 @@ export function compute(playerList, matchList, settings) {
     }
   });
 
+  // 리플레이 상세 지표. 라인마다 CS·피해량 기준이 다르므로 두 가지로 보정한다:
+  //  (1) 같은 경기 맞라인 상대와의 차이  (2) 그 라인의 리그 평균을 100으로 둔 지수(경기별로 계산해 평균)
+  const LA = {}, rows = [];
+  matches.forEach((m) => {
+    const min = (m.dur || 0) / 60000;
+    if (!m.stats || min <= 0) return;
+    for (const side of ['blue', 'red']) {
+      const other = m[side === 'blue' ? 'red' : 'blue'], tdmg = m[side].reduce((a, id) => a + (+m.stats[id]?.dmg || 0), 0);
+      m[side].forEach((id, i) => {
+        const x = m.stats[id], s = P[id]; if (!x || !s) return;
+        const o = m.stats[other[i]], lane = LANES[i];
+        const r = { s, lane, cspm: x.cs / min, gpm: x.gold / min, dpm: x.dmg / min, vpm: x.vis / min, share: tdmg ? x.dmg / tdmg : 0, taken: +x.taken || 0, gd: o ? x.gold - o.gold : null, csd: o ? x.cs - o.cs : null };
+        rows.push(r);
+        const a = (LA[lane] ||= { n: 0, cspm: 0, gpm: 0, dpm: 0, vpm: 0 });
+        a.n++; for (const k of ['cspm', 'gpm', 'dpm', 'vpm']) a[k] += r[k];
+      });
+    }
+  });
+  rows.forEach((r) => {
+    const a = LA[r.lane], d = r.s.dt, ix = (k) => (a[k] > 0 ? r[k] / (a[k] / a.n) : 1);
+    d.g++; for (const k of ['cspm', 'gpm', 'dpm', 'vpm', 'share', 'taken']) d[k] += r[k];
+    if (r.gd !== null) { d.on++; d.gd += r.gd; d.csd += r.csd; }
+    d.ic += ix('cspm'); d.ig += ix('gpm'); d.id += ix('dpm'); d.iv += ix('vpm');
+  });
+  for (const s of Object.values(P)) {
+    const d = s.dt; if (!d.g) continue;
+    s.dx = { g: d.g, cspm: d.cspm / d.g, gpm: d.gpm / d.g, dpm: d.dpm / d.g, vpm: d.vpm / d.g, share: d.share / d.g, taken: d.taken / d.g,
+      gd: d.on ? d.gd / d.on : null, csd: d.on ? d.csd / d.on : null,
+      idx: { cs: Math.round((100 * d.ic) / d.g), gold: Math.round((100 * d.ig) / d.g), dmg: Math.round((100 * d.id) / d.g), vis: Math.round((100 * d.iv) / d.g) } };
+    s.dx.score = Math.round((s.dx.idx.gold + s.dx.idx.dmg + s.dx.idx.vis) / 3); // 라인 보정 종합(골드·피해·시야). CS는 서폿에게 의미가 없어 제외
+  }
   const list = Object.values(P);
   const days = Object.keys(dayCount).sort();
   const lastDay = days[days.length - 1] || null;
@@ -127,7 +159,8 @@ export function compute(playerList, matchList, settings) {
   const q15 = list.filter((s) => s.g >= 15).sort((a, b) => b.wr - a.wr)[0];
   const maxG = Math.max(0, ...list.map((s) => s.g));
   const todayTopW = Math.max(0, ...list.map((s) => s.today.w));
-  const ctx = { q15, maxG, todayTopW, top: byOvr[0], together, versus };
+  const dx3 = list.filter((s) => s.dx && s.dx.g >= 3), topOf = (k) => [...dx3].sort((a, b) => b.dx[k] - a.dx[k])[0];
+  const ctx = { q15, maxG, todayTopW, top: byOvr[0], together, versus, topVis: topOf('vpm'), topTank: topOf('taken'), topScore: [...dx3].sort((a, b) => b.dx.score - a.dx.score)[0] };
   for (const s of list) s.titles = TITLES.filter((t) => { try { return t.test(s, ctx); } catch { return false; } });
 
   const best10 = list.filter((s) => s.g >= 10).sort((a, b) => b.wr - a.wr)[0];
@@ -198,6 +231,18 @@ export const TITLES = [
   { e: '⚖️', n: '음양평형', d: '10판 이상, 승률이 딱 50%', test: (s) => s.g >= 10 && s.w * 2 === s.g },
   { e: '🍚', n: '국밥', d: '모든 라인 점수 8점 이상, 어디 넣어도 든든', test: (s) => all8(s) },
   { e: '🦄', n: '한우물', d: '한 라인 15점 이상, 나머지는 모두 6점 이하', test: (s) => { const v = LANES.map((l) => s.p.scores?.[l] || 0).sort((a, b) => b - a); return v[0] >= 15 && v[1] <= 6; } },
+  // --- 리플레이·KDA 기록 기반 ---
+  { e: '💥', n: '파천신공', d: '리플레이 3판 이상, 팀 피해량의 평균 30% 이상을 혼자 담당', test: (s) => s.dx?.g >= 3 && s.dx.share >= 0.3 },
+  { e: '🌾', n: '곡창지기', d: '리플레이 3판 이상, 분당 CS 7개 이상', test: (s) => s.dx?.g >= 3 && s.dx.cspm >= 7 },
+  { e: '👁️', n: '천리안', d: '리플레이 3판 이상, 분당 시야 점수 리그 1위', test: (s, c) => c.topVis === s },
+  { e: '🧱', n: '철포삼', d: '리플레이 3판 이상, 평균 받은 피해량 리그 1위', test: (s, c) => c.topTank === s },
+  { e: '🎯', n: '기선제압', d: '리플레이 3판 이상, 맞라인 상대보다 평균 골드 1,000 이상 앞섬', test: (s) => s.dx?.g >= 3 && s.dx.gd >= 1000 },
+  { e: '🏯', n: '절대고수', d: '리플레이 3판 이상, 라인 보정 종합 지수 리그 1위 (110 이상)', test: (s, c) => c.topScore === s && s.dx.score >= 110 },
+  { e: '🩸', n: '살수', d: 'KDA 기록 5판 이상, 평균 8킬 이상', test: (s) => s.kdaG >= 5 && s.kda[0] / s.kdaG >= 8 },
+  { e: '🤝', n: '협객', d: 'KDA 기록 5판 이상, 평균 어시스트 10 이상', test: (s) => s.kdaG >= 5 && s.kda[2] / s.kdaG >= 10 },
+  { e: '💀', n: '황천길 단골', d: 'KDA 기록 5판 이상, 평균 7데스 이상', test: (s) => s.kdaG >= 5 && s.kda[1] / s.kdaG >= 7 },
+  { e: '🪶', n: '불사신', d: 'KDA 기록 5판 이상, 평균 2.5데스 이하', test: (s) => s.kdaG >= 5 && s.kda[1] / s.kdaG <= 2.5 },
+  { e: '🕊️', n: '무혈입성', d: '킬 없이 승리한 경기가 있음', test: (s) => s.zkw >= 1 },
   { e: '👻', n: '무영객', d: '명단에는 있는데 아직 한 판도 안 뜀', test: (s) => s.g === 0 },
 ];
 

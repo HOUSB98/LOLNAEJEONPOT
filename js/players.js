@@ -43,6 +43,26 @@ function holo(s, n) {
   </div><small class="mut">카드 위에서 마우스를 움직여 보세요</small></div>`;
 }
 
+// 리플레이로 쌓인 상세 지표. 여러 라인을 도는 선수가 불리하지 않도록 "맞라인 대비"와 "라인 평균=100 지수"를 함께 보여 준다
+function detailPanel(s) {
+  const x = s.dx;
+  if (!x) return `<div class="panel"><div class="ph"><b>상세 지표</b><span class="tag">리플레이 0판</span></div><p class="mut sm">리플레이 분석으로 입력한 경기가 생기면 분당 CS·피해량·시야와 라인 보정 지수가 표시됩니다.</p></div>`;
+  const n = (v, d = 0) => v.toLocaleString('ko-KR', { maximumFractionDigits: d, minimumFractionDigits: d });
+  const sign = (v, d = 0) => (v === null ? '—' : `<span class="${v >= 0 ? 'good' : 'bad'}">${v >= 0 ? '+' : '−'}${n(Math.abs(v), d)}</span>`);
+  const cell = (label, val, sub) => `<div class="dcell"><small>${label}</small><b class="mono">${val}</b><span>${sub || ''}</span></div>`;
+  const gauge = (label, v) => `<div class="ixrow"><span>${label}</span><div class="ixbar"><i class="${v >= 100 ? 'up' : 'dn'}" style="${v >= 100 ? `left:50%;width:${Math.min(50, (v - 100) / 2)}%` : `right:50%;width:${Math.min(50, (100 - v) / 2)}%`}"></i><u></u></div><b class="mono ${v >= 105 ? 'good' : v <= 95 ? 'bad' : ''}">${v}</b></div>`;
+  return `<div class="panel"><div class="ph"><b>상세 지표</b><span class="tag gold">리플레이 ${x.g}판</span><span class="grow"></span><span class="tag ${x.score >= 105 ? 'ok' : x.score <= 95 ? 'bad' : ''}">라인 보정 종합 ${x.score}</span></div>
+    <div class="dgrid">
+      ${cell('분당 CS', n(x.cspm, 1), `맞라인 대비 ${sign(x.csd, 1)}`)}
+      ${cell('분당 골드', n(x.gpm), `맞라인 대비 ${sign(x.gd)}`)}
+      ${cell('분당 피해량', n(x.dpm), `팀 내 비중 ${n(x.share * 100)}%`)}
+      ${cell('분당 시야', n(x.vpm, 2), `평균 받은 피해 ${n(x.taken)}`)}
+    </div>
+    <div class="ph"><b>라인 보정 지수</b><small class="mut">그 경기에서 맡은 라인의 리그 평균을 100으로 환산 · 100보다 크면 평균 이상</small></div>
+    ${gauge('골드', x.idx.gold)}${gauge('피해량', x.idx.dmg)}${gauge('시야', x.idx.vis)}${gauge('CS', x.idx.cs)}
+    <p class="hint">서폿을 맡은 판은 서폿 평균과, 원딜을 맡은 판은 원딜 평균과 비교하므로 여러 라인을 도는 선수도 공정하게 비교됩니다. 표본이 적을 때는 참고용으로만 보세요.</p></div>`;
+}
+
 function cardView(id) {
   const st = S.st, s = st.P[id];
   if (!s) return `<div class="panel empty">선수를 찾을 수 없습니다. <a href="#/players">목록으로</a></div>`;
@@ -73,6 +93,7 @@ function cardView(id) {
         ${row('베스트 듀오', who(c.best, duoF))}${row('상극 듀오', who(c.worst, duoF))}${row('천적', who(c.nemesis, vsF))}${row('밥', who(c.prey, vsF))}
         <div class="ph"><b>맞라인 전적</b></div>${LANES.map((l) => row(`${LANE_ICON[l]} ${LANE_NAME[l]}`, laneOpp(l))).join('')}</div>
     </div>
+    ${detailPanel(s)}
     <div class="panel"><div class="ph"><b>솔랭 분석</b><span class="tag gold">${esc(p.soloTier || '정보 없음')}</span><span class="grow"></span>${opgg(p.riotId) ? `<a class="btn xs" href="${opgg(p.riotId)}" target="_blank" rel="noopener">op.gg</a>` : ''}</div>
       <div class="grid2 tight"><div>${row('전적', esc(o.record || '—'))}${row('최고 티어', esc(o.peak || '—'))}</div><div>${row('주 포지션', esc(o.pos || '—'))}${row('모스트 3', esc(o.most || '—'))}</div></div>
       ${o.comment ? `<p class="quote">${esc(o.comment)}</p>` : ''}</div>
