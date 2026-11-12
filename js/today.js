@@ -328,6 +328,17 @@ export function watchReveal(initial = false) {
     if (!primed) {
       primed = true;
       rvSeen = doc.id;
+
+      // 다른 브라우저가 공개 직후 접속하거나 리스너가 늦게 붙는 경우에도
+      // 방금 발생한 이벤트(5초 이내)는 놓치지 않는다.
+      const at = Number(doc.at) || 0;
+      const now = S.store?.serverNow ? S.store.serverNow() : Date.now();
+      if (at && Math.abs(now - at) <= 5000) {
+        console.info('[reveal] received initial recent event', {
+          id: doc.id, at, now, page: S.page, key: S.key
+        });
+        playReveal(doc, false);
+      }
       return;
     }
 
@@ -369,6 +380,9 @@ act('tqYes', () => {
       playReveal(r, true);
 
       await S.store.put('meta', 'reveal', r);
+      console.info('[reveal] firestore write complete', {
+        id: r.id, key: S.key, at: r.at, startAt: r.startAt
+      });
       sysChat('팀 확정 · 예상 승률 블루 ' + r.pb + '% : 레드 ' + (100 - r.pb) + '%');
       // 다른 브라우저는 meta/reveal 문서 변경을 받아 같은 startAt으로 재생한다.
       refresh();
