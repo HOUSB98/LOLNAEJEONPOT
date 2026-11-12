@@ -1,5 +1,5 @@
 // 리플레이(.rofl) 분석: 파일 안에 들어 있는 경기 결과 JSON(statsJson)을 브라우저에서 직접 읽는다. 파일은 어디에도 올라가지 않는다.
-import { S, page, act, esc, go, refresh, champIcon, toast, ic, LANES, LANE_NAME, LANE_ICON } from './core.js';
+import { S, page, act, esc, go, refresh, champIcon, toast, ic, modal, closeModal, mh, history, LANES, LANE_NAME, LANE_ICON } from './core.js';
 import { importDraft } from './today.js';
 
 const R = { name: '', meta: null, rows: [], winner: '', dur: 0, err: '', busy: false };
@@ -106,6 +106,60 @@ page('replay', {
     drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over'); const f = e.dataTransfer.files[0]; if (f) load(f); };
   },
 });
+// ---------- 기존 경기에 리플레이 붙이기 ----------
+// 경기 기록의 "리플레이 넣기"에서 호출. 라인업·승패는 건드리지 않고 KDA·상세 기록·챔피언만 채운다.
+const AT = { id: '', rows: [], dur: 0, name: '' };
+act('matchReplay', (d) => {
+  const inp = Object.assign(document.createElement('input'), { type: 'file', accept: '.rofl' });
+  inp.onchange = async () => {
+    const f = inp.files[0], m = S.store.data.matches[d.id]; if (!f || !m) return;
+    try {
+      const meta = await parseRofl(f), ids = [...m.blue, ...m.red];
+      AT.id = d.id; AT.name = f.name; AT.dur = n(meta.gameLength);
+      AT.rows = toRows(meta).map((r) => ({ ...r, pid: ids.includes(r.pid) ? r.pid : '' }));
+      // 한 명만 못 찾았으면 남은 한 자리로 확정할 수 있다
+      const left = ids.filter((id) => !AT.rows.some((r) => r.pid === id)), miss = AT.rows.filter((r) => !r.pid);
+      if (left.length === 1 && miss.length === 1) miss[0].pid = left[0];
+      attachView();
+    } catch (e) { toast(e.message || String(e)); }
+  };
+  inp.click();
+});
+function attachView() {
+  const m = S.store.data.matches[AT.id], st = S.st, ids = [...m.blue, ...m.red];
+  const sideOf = (pid) => (m.blue.includes(pid) ? 'blue' : 'red');
+  const used = AT.rows.map((r) => r.pid).filter(Boolean), dup = used.length !== new Set(used).size, miss = AT.rows.some((r) => !r.pid);
+  const wrongWin = AT.rows.filter((r) => r.pid && r.win !== (m.winner === sideOf(r.pid))).length;
+  const split = AT.rows.filter((r) => r.pid).some((r) => AT.rows.some((o) => o.pid && o.side === r.side && sideOf(o.pid) !== sideOf(r.pid)));
+  const warn = [miss && '연결되지 않은 소환사가 있습니다. 직접 골라 주세요.', dup && '같은 선수가 두 번 선택되었습니다.',
+    !miss && !dup && split && '리플레이의 팀 구성이 이 경기의 팀 구성과 다릅니다. 다른 경기의 리플레이일 수 있습니다.',
+    !miss && !dup && !split && wrongWin && '리플레이의 승패가 기록된 승패와 다릅니다. 다른 경기의 리플레이일 수 있습니다.'].filter(Boolean);
+  modal(`${mh(`경기 #${st.MI[AT.id].no}에 리플레이 넣기`)}
+    <p class="mut sm">${esc(AT.name)} · ${fmtDur(AT.dur)} — 라인업과 승패는 그대로 두고 KDA·CS·골드·피해량·시야·아이템·챔피언을 채웁니다.</p>
+    ${warn.map((w) => `<div class="panel errbox">${ic('alert')} ${w}</div>`).join('')}
+    <div class="tw"><table class="tbl rtbl"><thead><tr><th>진영</th><th class="l">챔피언 · 소환사</th><th class="l">이 경기의 선수</th><th>KDA</th><th>CS</th><th>피해량</th></tr></thead><tbody>
+    ${AT.rows.map((r, i) => `<tr><td class="${r.side}"><b>${r.side === 'blue' ? 'BLUE' : 'RED'}</b></td><td class="l"><span class="rch">${champIcon(r.champ)}<span><b>${esc(r.champ)}</b><small>${esc(r.riot)}</small></span></span></td>
+      <td class="l"><select class="inp ${r.pid ? '' : 'warnsel'}" data-c="atPid" data-i="${i}"><option value="">선수 선택</option>${ids.map((id) => `<option value="${id}" ${id === r.pid ? 'selected' : ''}>${esc(st.P[id]?.name || '?')}</option>`).join('')}</select></td>
+      <td class="mono">${r.k}/${r.d}/${r.a}</td><td class="mono">${r.cs}</td><td class="mono">${r.dmg.toLocaleString('ko-KR')}</td></tr>`).join('')}</tbody></table></div>
+    <div class="row"><span class="grow"></span><button class="btn ghost" data-a="close">취소</button><button class="btn pri" data-a="atApply" ${miss || dup ? 'disabled' : ''}>${m.stats ? '기존 상세 기록을 이 리플레이로 교체' : '이 경기에 적용'}</button></div>`, 'xwide');
+}
+act('atPid', (d, el) => { AT.rows[+d.i].pid = el.value; attachView(); });
+act('atApply', async () => {
+  const m = S.store.data.matches[AT.id]; if (!m) return;
+  const kda = { ...(m.kda || {}) }, stats = {}, champs = { blue: [...(m.champs?.blue || ['', '', '', '', ''])], red: [...(m.champs?.red || ['', '', '', '', ''])] };
+  for (const r of AT.rows) {
+    kda[r.pid] = [r.k, r.d, r.a];
+    stats[r.pid] = { cs: r.cs, gold: r.gold, dmg: r.dmg, taken: r.taken, vis: r.vis, wards: r.wards, lvl: r.lvl, multi: r.multi, items: r.items };
+    const side = m.blue.includes(r.pid) ? 'blue' : 'red', i = m[side].indexOf(r.pid);
+    if (S.champBy[r.champ]) champs[side][i] = r.champ;
+  }
+  try {
+    await history('match-replay', m);
+    await S.store.patch('matches', m.id, { kda, stats, champs, dur: AT.dur });
+    closeModal(); toast('리플레이 기록을 적용했습니다');
+  } catch (e) { toast('저장 실패: ' + (e.code || e.message)); }
+});
+
 async function load(file) {
   R.busy = true; R.err = ''; refresh();
   try {

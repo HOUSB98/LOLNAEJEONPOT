@@ -172,7 +172,7 @@ export function matchCard(m, tools = true) {
   </div>`;
   return `<div class="mcard">
     <div class="mhd"><b class="mono">#${mi.no}</b><span>${fmtDT(m.at)}</span><span class="mut">예상 블루 ${Math.round(mi.pBlue * 100)}%</span>${mi.upset ? '<span class="tag bad">UPSET</span>' : ''}
-      ${m.stats ? '<span class="tag gold">REPLAY</span>' : ''}<span class="grow"></span><button class="btn xs" data-a="matchDetail" data-id="${m.id}">상세</button>
+      ${m.stats ? '<span class="tag gold">REPLAY</span>' : ''}<span class="grow"></span><button class="btn xs" data-a="matchDetail" data-id="${m.id}">상세</button>${tools && !m.stats ? `<button class="btn xs gold" data-a="matchReplay" data-id="${m.id}" title="이 경기의 .rofl 파일을 넣으면 상세 기록이 채워집니다">리플레이 넣기</button>` : ''}
       ${tools ? `<button class="btn xs" data-a="editMatch" data-id="${m.id}">수정</button><button class="btn xs ghost" data-a="delMatch" data-id="${m.id}">삭제</button>` : ''}</div>
     <div class="vs">${team('blue')}${team('red')}</div></div>`;
 }
@@ -208,7 +208,7 @@ act('matchDetail', (d) => {
   modal(`${mh(`경기 #${mi.no} 상세`)}
     <div class="sub mdsub"><span class="mono">${fmtDT(m.at)}</span>${min ? `<span class="mono">${Math.floor(min)}분 ${String(Math.round((min % 1) * 60)).padStart(2, '0')}초</span>` : ''}<span>예상 블루 ${Math.round(mi.pBlue * 100)}%</span><span>점수 ${mi.bs} : ${mi.rs}</span>${mi.upset ? '<span class="tag bad">UPSET</span>' : ''}</div>
     ${team('blue')}${team('red')}
-    ${has ? '' : '<p class="hint">이 경기는 직접 입력한 기록이라 라인업과 KDA만 있습니다. 리플레이 분석으로 입력하면 CS·골드·피해량·시야·아이템까지 저장됩니다.</p>'}`, 'xwide');
+    <div class="row"><span class="mut sm grow">${has ? '리플레이 기록이 적용된 경기입니다.' : '직접 입력한 기록이라 라인업과 KDA만 있습니다. 이 경기의 리플레이(.rofl)를 넣으면 CS·골드·피해량·시야·아이템이 채워집니다.'}</span><button class="btn ${has ? '' : 'gold'}" data-a="matchReplay" data-id="${m.id}">${has ? '리플레이 교체' : '리플레이 넣기'}</button></div>`, 'xwide');
 });
 act('editMatch', (d) => go('#/today/edit/' + d.id));
 act('delMatch', (d) => needAdmin(async () => {
