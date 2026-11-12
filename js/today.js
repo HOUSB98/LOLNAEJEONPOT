@@ -293,19 +293,28 @@ let rvDocWatch = false;
  * 연출을 재생한다. 이렇게 하면 일반 meta snapshot과의 실행 순서 경쟁도 없다.
  */
 const playReveal = (d, mine = false) => {
-  reveal({
-    pb: Number(d.pb) || 50,
-    blue: d.blue || [],
-    red: d.red || [],
-    by: mine ? '' : (d.by || ''),
-    startAt: Number(d.startAt) || Number(d.at) || Date.now(),
-    now: S.store?.serverNow ? S.store.serverNow() : Date.now(),
-    from: S.page === 'today' ? document.querySelector('.arena .ring') : null
-  });
+  try {
+    // 연출 함수가 예외를 내더라도 이벤트 수신 자체가 조용히 실패하지 않도록 한다.
+    // startAt은 연출 시작 시각, now는 현재 서버 보정 시각이다.
+    const payload = {
+      pb: Number(d.pb) || 50,
+      blue: Array.isArray(d.blue) ? d.blue : [],
+      red: Array.isArray(d.red) ? d.red : [],
+      by: mine ? '' : (d.by || ''),
+      startAt: Number(d.startAt) || Number(d.at) || Date.now(),
+      now: S.store?.serverNow ? S.store.serverNow() : Date.now(),
+      from: S.page === 'today' ? document.querySelector('.arena .ring') : null
+    };
+    console.info('[reveal] play', payload);
+    reveal(payload);
+  } catch (e) {
+    console.error('[reveal] play failed', e);
+    toast('승률 공개 연출 오류: ' + (e?.message || e));
+  }
 };
 
 export function watchReveal(initial = false) {
-  if (rvDocWatch || S.store?.mode !== 'firebase' || !S.store?.watchDoc) return;
+  if (rvDocWatch || !S.store?.watchDoc) return;
   rvDocWatch = true;
 
   let primed = false;
@@ -355,6 +364,8 @@ act('tqYes', () => {
       // 동시에 rvSeen에 이벤트 id를 먼저 기록해서 자신의 snapshot이 도착해도
       // 같은 연출을 두 번 재생하지 않는다.
       rvSeen = r.id;
+      console.info('[reveal] local trigger', r);
+      toast('승률 공개 연출 시작');
       playReveal(r, true);
 
       await S.store.put('meta', 'reveal', r);
