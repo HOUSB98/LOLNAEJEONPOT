@@ -4,7 +4,8 @@ import { createStore } from './store.js';
 import { S, page, act, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, sigChamp, toast, download, csv, needAdmin, history, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
 import { initSocial, renderChat, renderPresence } from './social.js';
 import './today.js';
-import './dice.js';
+import { watchDice } from './dice.js';
+import './replay.js';
 import './players.js';
 import './auction.js';
 import './admin.js';
@@ -77,7 +78,7 @@ page('home', {
     <div class="stats">
       ${stat('today', '총 경기', x.n, `내전 ${x.days}일`, 'gold')}
       ${stat('users', '참가 소환사', x.active, `등록 ${st.list.length}명`, 'teal')}
-      ${stat('shield', '블루 승률', x.n ? pct(x.blueW, x.n) + '%' : '-', `블루 ${x.blueW} · 레드 ${x.redW}`, 'blue')}
+      ${stat('flame', '현재 최다 연승', x.winStreak?.cur > 1 ? `${x.winStreak.cur}연승` : '-', x.winStreak?.cur > 1 ? `${esc(x.winStreak.name)} · 진행 중` : '2연승부터 집계', 'red')}
       ${stat('target', '예측 적중률', x.hit === null ? '-' : x.hit + '%', `밸런스 지수 ${x.balance ?? '-'}%`, 'purple')}
     </div>
     <div class="home-grid">
@@ -146,7 +147,7 @@ page('rank', {
     </div>
     <div class="tw"><table class="tbl lb">
       <thead><tr><th>#</th><th class="l">소환사</th>${cols.map((c) => `<th data-a="lbSort" data-k="${c[0]}" class="s ${sortCol[0] === c[0] ? 'on' : ''}">${c[1]}${sortCol[0] === c[0] ? (LB.dir < 0 ? ' ▾' : ' ▴') : ''}</th>`).join('')}${LB.view === 'all' ? '<th class="l">칭호</th>' : ''}<th class="art"></th></tr></thead>
-      <tbody>${rows.map((s, i) => `<tr data-a="goPlayer" data-id="${s.id}" style="--d:${Math.min(i, 14)}"><td class="rk r${i + 1} mono">${i + 1}</td><td class="l nm">${esc(s.name)}</td>${cols.map((c) => num(c[3](s))).join('')}${LB.view === 'all' ? `<td class="l chips">${titleChips(s, 1)}</td>` : ''}<td class="art" style="--img:url('${splashUrl(sigChamp(s))}')"></td></tr>`).join('') || `<tr><td colspan="20" class="empty">조건에 맞는 선수가 없습니다.</td></tr>`}</tbody>
+      <tbody>${rows.map((s, i) => `<tr data-a="goPlayer" data-id="${s.id}" style="--d:${Math.min(i, 14)}"><td class="rk r${i + 1} mono">${i + 1}</td><td class="l nm">${esc(s.name)}</td>${cols.map((c) => num(c[3](s))).join('')}${LB.view === 'all' ? `<td class="l chips">${titleChips(s, 1)}</td>` : ''}<td class="art"><i style="--img:url('${splashUrl(sigChamp(s))}')"></i></td></tr>`).join('') || `<tr><td colspan="20" class="empty">조건에 맞는 선수가 없습니다.</td></tr>`}</tbody>
     </table></div>
     <p class="hint">머리글을 누르면 정렬됩니다. 행을 누르면 선수 카드가 열립니다. OVR = 내전 MMR 50% + 상위 3개 라인 점수 50%.</p>`;
   },
@@ -312,9 +313,9 @@ act('flLeft', (d, el) => { FL.left = el.checked; refresh(); });
     S.store = await createStore(S.key, (c, err) => {
       if (c === 'error') return toast('DB 연결 오류: ' + (err?.code || err));
       if (!up) return;
-      if (c === 'chat') renderChat(); else if (c === 'presence') renderPresence(); else refresh(true);
+      if (c === 'chat') renderChat(); else if (c === 'presence') renderPresence(); else { if (c === 'meta') watchDice(); refresh(true); }
     });
     await S.store.ready;
   } catch (e) { main.innerHTML = `<div class="panel landing"><h1>연결 실패</h1><p>${esc(e.message || e)}</p><p class="hint">js/config.js 의 Firebase 설정과 Firestore 규칙을 확인하세요.</p></div>`; return; }
-  up = true; initShell(); initSocial(); loadChamps();
+  up = true; watchDice(true); initShell(); initSocial(); loadChamps();
 })();

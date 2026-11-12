@@ -1,5 +1,5 @@
 // 관리: 내보내기/백업, 선수 관리, 시트 데이터 가져오기, 설정, 삭제 복구, 칭호 도감
-import { S, page, act, esc, uid, col, settings, pname, refresh, fmtDT, toast, download, csv, modal, closeModal, needAdmin, history, LANES, LANE_NAME, LANE_ICON } from './core.js';
+import { S, page, act, esc, uid, col, settings, pname, refresh, fmtDT, toast, download, csv, modal, closeModal, needAdmin, isAdmin, history, ic, LANES, LANE_NAME, LANE_ICON } from './core.js';
 import { TITLES, DEFAULTS, initMmr } from './stats.js';
 import { exportMatches } from './app.js';
 
@@ -7,16 +7,16 @@ page('admin', {
   render() {
     const st = S.st, cfg = { ...DEFAULTS, ...settings() };
     const del = col('matches').filter((m) => m.deleted).sort((a, b) => b.at - a.at);
-    const gone = col('players').filter((p) => p.deleted);
+    const gone = col('players').filter((p) => p.deleted), adm = isAdmin();
     return `<h1>⚙️ 관리</h1>
     <div class="panel"><div class="ph"><b>💾 내보내기 · 백업</b></div>
       <div class="row wrapr"><button class="btn" data-a="exportCsv">⬇ 경기 기록 CSV</button><button class="btn" data-a="exportPlayers">⬇ 선수 CSV</button><button class="btn" data-a="backup">⬇ 전체 백업 (JSON)</button><button class="btn ghost" data-a="restore">⬆ 백업 복원</button></div>
       <p class="hint">${S.store.mode === 'local' ? '⚠️ 지금은 체험 모드라 데이터가 이 브라우저에만 저장됩니다. Firebase를 연결하면 친구들과 실시간으로 공유됩니다(README 참고).' : '데이터는 Firebase에 저장됩니다. Firestore 무료 요금제는 오래 안 써도 일시정지되지 않지만, 가끔 전체 백업을 내려받아 두세요.'}</p></div>
 
     <div class="panel"><div class="ph"><b>🧑‍🤝‍🧑 선수 관리</b><span class="tag">${st.list.length}명</span><span class="grow"></span><button class="btn pri xs" data-a="plEdit" data-id="">＋ 선수 추가</button></div>
-      <p class="hint">점수와 주라인은 칸에서 바로 고치면 즉시 저장됩니다(관리자 PIN 필요). 이름·솔랭 정보는 "상세"에서 수정합니다.</p>
-      <div class="tw"><table class="tbl edit"><thead><tr><th class="l">이름</th>${LANES.map((l) => `<th>${LANE_ICON[l]}${LANE_NAME[l]}</th>`).join('')}<th>평균</th><th>주라인</th><th class="l">솔랭 티어</th><th>시작 MMR</th><th></th></tr></thead>
-      <tbody>${st.list.map((s) => `<tr><td class="l nm">${esc(s.name)}</td>${LANES.map((l) => `<td><input id="sc-${s.id}-${l}" class="inp cell mono" type="number" min="0" max="20" step="0.5" value="${s.p.scores?.[l] ?? 0}" data-c="plScore" data-id="${s.id}" data-l="${l}"></td>`).join('')}<td class="num mono">${s.avg.toFixed(1)}</td><td><select class="inp cell" data-c="plMain" data-id="${s.id}">${LANES.map((l) => `<option value="${l}" ${s.mainLane === l ? 'selected' : ''}>${LANE_NAME[l]}</option>`).join('')}</select></td><td class="l">${esc(s.p.soloTier || '-')}</td><td class="num mono">${s.mmrInit}</td><td><button class="btn xs" data-a="plEdit" data-id="${s.id}">상세</button></td></tr>`).join('') || '<tr><td colspan="10" class="empty">선수가 없습니다.</td></tr>'}</tbody></table></div>
+      <div class="lockbar ${adm ? 'open' : ''}">${adm ? `${ic('shield')}<b>관리자 모드</b><span>점수와 주라인을 칸에서 바로 고치면 즉시 저장됩니다. 이 창을 닫기 전까지 유지됩니다.</span><button class="btn xs" data-a="admLock">잠그기</button>` : `${ic('shield')}<b>잠겨 있음</b><span>관리자 PIN을 한 번 입력하면 모든 선수의 점수를 바로 수정할 수 있습니다.</span><button class="btn gold xs" data-a="admUnlock">관리자 PIN 입력</button>`}</div>
+      <div class="tw"><table class="tbl edit ${adm ? '' : 'locked'}"><thead><tr><th class="l">이름</th>${LANES.map((l) => `<th>${LANE_ICON[l]}${LANE_NAME[l]}</th>`).join('')}<th>평균</th><th>주라인</th><th class="l">솔랭 티어</th><th>시작 MMR</th><th></th></tr></thead>
+      <tbody>${st.list.map((s) => `<tr><td class="l nm">${esc(s.name)}</td>${LANES.map((l) => `<td><input id="sc-${s.id}-${l}" class="inp cell mono" type="number" min="0" max="20" step="0.5" value="${s.p.scores?.[l] ?? 0}" data-c="plScore" data-id="${s.id}" data-l="${l}" ${adm ? '' : 'disabled'}></td>`).join('')}<td class="num mono">${s.avg.toFixed(1)}</td><td><select class="inp cell" data-c="plMain" data-id="${s.id}" ${adm ? '' : 'disabled'}>${LANES.map((l) => `<option value="${l}" ${s.mainLane === l ? 'selected' : ''}>${LANE_NAME[l]}</option>`).join('')}</select></td><td class="l">${esc(s.p.soloTier || '-')}</td><td class="num mono">${s.mmrInit}</td><td><button class="btn xs" data-a="plEdit" data-id="${s.id}">상세</button></td></tr>`).join('') || '<tr><td colspan="10" class="empty">선수가 없습니다.</td></tr>'}</tbody></table></div>
       ${gone.length ? `<p class="sm mut">숨긴 선수: ${gone.map((p) => `${esc(p.name)} <button class="btn xs ghost" data-a="plRestore" data-id="${p.id}">복구</button>`).join(' ')}</p>` : ''}</div>
 
     <div class="panel"><div class="ph"><b>📥 구글 시트 데이터 가져오기</b></div>
@@ -99,15 +99,17 @@ act('plEdit', (d) => needAdmin(() => {
   };
 }));
 // 표에서 바로 수정: 값이 바뀌면 즉시 저장
-act('plScore', (d, el) => {
-  const p = S.store.data.players[d.id]; if (!p) return;
-  const v = Math.max(0, Math.min(20, +el.value || 0));
-  needAdmin(async () => { await S.store.patch('players', d.id, { scores: { ...p.scores, [d.l]: v } }); toast(`${p.name} ${LANE_NAME[d.l]} ${v}점 저장`); });
+act('plScore', async (d, el) => {
+  const p = S.store.data.players[d.id]; if (!p || !isAdmin()) return refresh();
+  const v = Math.max(0, Math.min(20, Math.round((+el.value || 0) * 2) / 2));
+  await S.store.patch('players', d.id, { scores: { ...p.scores, [d.l]: v } }); toast(`${p.name} ${LANE_NAME[d.l]} ${v}점 저장`);
 });
-act('plMain', (d, el) => {
-  const p = S.store.data.players[d.id]; if (!p) return;
-  needAdmin(async () => { await S.store.patch('players', d.id, { mainLane: el.value }); toast(`${p.name} 주라인 ${LANE_NAME[el.value]} 저장`); });
+act('plMain', async (d, el) => {
+  const p = S.store.data.players[d.id]; if (!p || !isAdmin()) return refresh();
+  await S.store.patch('players', d.id, { mainLane: el.value }); toast(`${p.name} 주라인 ${LANE_NAME[el.value]} 저장`);
 });
+act('admUnlock', () => needAdmin(() => { toast('관리자 모드가 켜졌습니다'); refresh(); }));
+act('admLock', () => { S.admin = false; sessionStorage.removeItem('naejeon:admin:' + S.key); toast('잠갔습니다'); refresh(); });
 act('plRestore',(d) => needAdmin(() => S.store.patch('players', d.id, { deleted: false })));
 act('mRestore', (d) => needAdmin(() => S.store.patch('matches', d.id, { deleted: false }).then(() => toast('복구했습니다'))));
 act('pinChange', () => needAdmin(async () => {

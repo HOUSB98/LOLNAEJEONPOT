@@ -107,10 +107,15 @@ page('chem', {
     const cur = st.P[id]?.g ? id : on[0].id, c = chem(st, cur, CM.min);
     const pairs = Object.entries(st.together).filter(([, v]) => v.g >= CM.min).map(([k, v]) => ({ ids: k.split('|'), ...v, wr: pct(v.w, v.g) }));
     const topDuo = [...pairs].sort((a, b) => b.wr - a.wr || b.g - a.g).slice(0, 5), lowDuo = [...pairs].sort((a, b) => a.wr - b.wr || b.g - a.g).slice(0, 5);
-    const rank = (arr, tone) => arr.map((x, i) => `<div class="crow ${tone}"><i class="mono">${i + 1}</i><span>${pname(x.ids[0])} <em>+</em> ${pname(x.ids[1])}</span><span class="wrb"><i style="width:${x.wr}%" class="${x.wr >= 60 ? 'hi' : x.wr >= 45 ? 'mid' : 'lo'}"></i></span><b class="mono">${x.wr}%</b><small class="mono">${x.w}승 ${x.g - x.w}패</small></div>`).join('') || `<p class="mut">${CM.min}판 이상 함께한 조합이 없습니다.</p>`;
+    const face = (pid) => { const ch = sigChamp(st.P[pid]); return ch ? champIcon(ch, 'face') : `<span class="ci face txt">${pname(pid).slice(0, 1)}</span>`; };
+    const lvl = (w) => (w >= 60 ? 'hi' : w >= 45 ? 'mid' : 'lo');
+    const rank = (arr, tone) => arr.map((x, i) => `<div class="duo ${tone}" style="--img:url('${splashUrl(sigChamp(st.P[x.ids[i % 2]]))}');--d:${i}">
+      <i class="drk mono">${i + 1}</i><span class="faces">${face(x.ids[0])}${face(x.ids[1])}</span>
+      <span class="dnm"><b>${pname(x.ids[0])}</b><em>&amp;</em><b>${pname(x.ids[1])}</b><small class="mono">${x.g}판 · ${x.w}승 ${x.g - x.w}패</small></span>
+      <span class="dwr"><b class="mono ${tone}">${x.wr}<small>%</small></b><span class="wrb"><i style="width:${x.wr}%" class="${lvl(x.wr)}"></i></span></span></div>`).join('') || `<p class="mut">${CM.min}판 이상 함께한 조합이 없습니다.</p>`;
     const hi = (cap, t, x, f, tone) => `<div class="ins ${tone}" style="--img:url('${x ? splashUrl(sigChamp(st.P[x.id])) : ''}')"><small>${cap}</small><span>${t}</span><b>${x ? pname(x.id) : '—'}</b><em>${x ? f(x) : `${CM.min}판 이상 기록 없음`}</em></div>`;
     const duoF = (x) => `함께 ${x.g}판 · 승률 ${x.wr}%`, vsF = (x) => `${x.g}번 대결 · ${x.w}승 ${x.g - x.w}패`;
-    const bars = (arr) => [...arr].sort((x, y) => y.wr - x.wr || y.g - x.g).map((x) => `<a class="crow" href="#/chem/${x.id}"><span>${pname(x.id)}</span><span class="wrb"><i style="width:${x.wr}%" class="${x.wr >= 60 ? 'hi' : x.wr >= 45 ? 'mid' : 'lo'}"></i></span><b class="mono">${x.wr}%</b><small class="mono">${x.w}승 ${x.g - x.w}패</small></a>`).join('') || `<p class="mut">${CM.min}판 이상 기록이 없습니다.</p>`;
+    const bars = (arr) => [...arr].sort((x, y) => y.wr - x.wr || y.g - x.g).map((x, i) => `<a class="rel" href="#/chem/${x.id}" style="--d:${i}">${face(x.id)}<span class="rnm"><b>${pname(x.id)}</b><small class="mono">${x.g}판 · ${x.w}승 ${x.g - x.w}패</small></span><span class="wrb"><i style="width:${x.wr}%" class="${lvl(x.wr)}"></i></span><b class="mono ${wrClass(x.wr)}">${x.wr}%</b></a>`).join('') || `<p class="mut">${CM.min}판 이상 기록이 없습니다.</p>`;
     const cell = (a, b) => {
       if (a === b) return '<td class="self">—</td>';
       const v = CM.mode === 'duo' ? st.together[a < b ? a + '|' + b : b + '|' + a] : st.versus[a + '>' + b];
@@ -120,14 +125,15 @@ page('chem', {
     };
     return `<div class="h2row"><h1>${ic('chem')}케미 분석</h1><span class="grow"></span><label class="mini">최소 <input class="inp xs" type="number" min="1" value="${CM.min}" data-c="cmMin"> 판 이상만 집계</label></div>
     <div class="grid2">
-      <div class="panel"><div class="ph"><b>BEST DUO</b><small class="mut">같은 팀일 때 가장 잘 이기는 조합</small></div>${rank(topDuo, 'good')}</div>
-      <div class="panel"><div class="ph"><b>WORST DUO</b><small class="mut">같은 팀일 때 가장 고전하는 조합</small></div>${rank(lowDuo, 'bad')}</div>
+      <div class="cbox good"><div class="cbh"><small>SYNERGY · TOP 5</small><h2>${ic('chem')}최강의 듀오</h2><span>같은 팀일 때 가장 잘 이기는 조합</span></div>${rank(topDuo, 'good')}</div>
+      <div class="cbox bad"><div class="cbh"><small>ANTI-SYNERGY · TOP 5</small><h2>${ic('alert')}상극의 듀오</h2><span>같은 팀일 때 가장 고전하는 조합</span></div>${rank(lowDuo, 'bad')}</div>
     </div>
-    <div class="sec-h"><h2>선수별 관계</h2><span class="mut sm">선수를 누르면 그 선수 기준으로 바뀝니다</span></div>
-    <div class="chipsel">${on.map((s) => `<a class="${s.id === cur ? 'on' : ''}" href="#/chem/${s.id}">${esc(s.name)}</a>`).join('')}</div>
+    <div class="sec-h"><h2>${ic('users')}선수별 관계도</h2><span class="mut sm">선수를 누르면 그 선수 기준으로 바뀝니다</span></div>
+    <div class="pchips">${on.map((s) => `<a class="${s.id === cur ? 'on' : ''}" href="#/chem/${s.id}">${face(s.id)}<span>${esc(s.name)}</span></a>`).join('')}</div>
+    <div class="focus" style="--img:url('${splashUrl(sigChamp(st.P[cur]))}')"><div class="fc-in">${face(cur)}<div><small>FOCUS</small><b>${pname(cur)}</b><span class="mono">${st.P[cur].g}판 · 승률 ${st.P[cur].wr}% · MMR ${Math.round(st.P[cur].mmr)}</span></div></div></div>
     <div class="insg">${hi('BEST PARTNER', '베스트 듀오', c.best, duoF, 'teal')}${hi('WORST PARTNER', '상극 듀오', c.worst, duoF, 'purple')}${hi('NEMESIS', '천적', c.nemesis, vsF, 'red')}${hi('FAVORITE PREY', '밥', c.prey, vsF, 'gold')}</div>
-    <div class="grid2"><div class="panel"><div class="ph"><b>${pname(cur)}와 같은 팀일 때</b><small class="mut">듀오 승률</small></div>${bars(c.duo)}</div>
-      <div class="panel"><div class="ph"><b>${pname(cur)}가 상대했을 때</b><small class="mut">상대 전적</small></div>${bars(c.vs)}</div></div>
+    <div class="grid2"><div class="cbox"><div class="cbh"><small>TEAMMATE</small><h2>${pname(cur)}와 같은 팀일 때</h2><span>듀오 승률 · 높은 순</span></div>${bars(c.duo)}</div>
+      <div class="cbox"><div class="cbh"><small>RIVALRY</small><h2>${pname(cur)}가 상대했을 때</h2><span>상대 전적 · 높은 순</span></div>${bars(c.vs)}</div></div>
     <details class="panel"><summary><b>전체 매트릭스 펼치기</b><small class="mut"> 세로 선수 기준 · 큰 숫자는 승률(%), 작은 숫자는 판수</small></summary>
       <div class="row"><div class="seg"><button class="${CM.mode === 'duo' ? 'on' : ''}" data-a="cmMode" data-v="duo">같은 팀(듀오)</button><button class="${CM.mode === 'vs' ? 'on' : ''}" data-a="cmMode" data-v="vs">상대 전적</button></div></div>
       <div class="tw"><table class="tbl mx"><thead><tr><th class="l">선수</th>${on.map((s) => `<th>${esc(s.name)}</th>`).join('')}</tr></thead>

@@ -1,5 +1,5 @@
 // 오늘의 내전: 라인업 보드(점수·예상승률·해설) + 경기 결과 입력/수정
-import { S, page, act, esc, uid, pname, go, refresh, champIcon, toast, pickChamp, pickPlayer, history, ic, dots, burst, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
+import { S, page, act, esc, uid, pname, go, refresh, champIcon, splashUrl, toast, pickChamp, pickPlayer, history, ic, dots, burst, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
 import { evalLineup, commentary, bestDuo } from './stats.js';
 import { seriesUsed, matchCard } from './app.js';
 import { sysChat } from './social.js';
@@ -22,6 +22,11 @@ const keep = () => { if (!edit) localStorage.setItem(dkey(), JSON.stringify(draf
 const toLocal = (at) => { const d = new Date(at - new Date().getTimezoneOffset() * 6e4); return d.toISOString().slice(0, 16); };
 export function setDraftTeams(blue, red) {
   D(); draft = { ...blank(), blue: [...blue, ...five()].slice(0, 5), red: [...red, ...five()].slice(0, 5) };
+  localStorage.setItem(dkey(), JSON.stringify(draft));
+}
+// 리플레이 분석 결과를 입력 화면에 채운다(저장은 사용자가 확인 후 직접)
+export function importDraft(x) {
+  D(); draft = { ...blank(), ...x, more: true };
   localStorage.setItem(dkey(), JSON.stringify(draft));
 }
 // 주사위 결과 반영: 해당 라인의 블루/레드 자리에 두 사람을 넣는다
@@ -48,10 +53,11 @@ page('today', {
     const filled = [...d.blue, ...d.red].filter(Boolean).length;
     const slot = (side, i) => {
       const id = d[side][i], l = LANES[i], s = st.P[id];
-      const champ = `<button class="sl-champ" data-a="tChamp" data-s="${side}" data-i="${i}" title="챔피언 선택 (선택 사항)">${d.champs[side][i] ? champIcon(d.champs[side][i]) : `<span class="ci plus">${ic('plus')}</span>`}</button>`;
-      if (!s) return `<div class="slot ${side} emp">${champ}<button class="sl-body" data-a="tSlot" data-s="${side}" data-i="${i}"><span>${ic('plus')}${LANE_NAME[l]} 선수 선택</span></button></div>`;
+      const ch = d.champs[side][i], art = ch && splashUrl(ch) ? ` art" style="--img:url('${splashUrl(ch)}')` : '';
+      const champ = `<button class="sl-champ" data-a="tChamp" data-s="${side}" data-i="${i}" title="챔피언 선택 (선택 사항)">${ch ? champIcon(ch) : `<span class="ci plus">${ic('plus')}</span>`}</button>`;
+      if (!s) return `<div class="slot ${side} emp${art}">${champ}<button class="sl-body" data-a="tSlot" data-s="${side}" data-i="${i}"><span>${ic('plus')}${LANE_NAME[l]} 선수 선택</span></button></div>`;
       const ln = s.lanes[l], off = s.mainLane !== l;
-      return `<div class="slot ${side}">${champ}<button class="sl-body" data-a="tSlot" data-s="${side}" data-i="${i}">
+      return `<div class="slot ${side}${art}">${champ}<button class="sl-body" data-a="tSlot" data-s="${side}" data-i="${i}">
         <span class="sl-top"><b>${esc(s.name)}</b>${off ? `<i class="off" title="주라인은 ${LANE_NAME[s.mainLane]}">${LANE_ICON[s.mainLane]}오프</i>` : '<i class="main">주라인</i>'}</span>
         <span class="sl-meta"><span>${LANE_NAME[l]} ${ln.g ? `${pct(ln.w, ln.g)}% · ${ln.g}판` : '기록 없음'}</span><span class="mono">MMR ${Math.round(s.mmr)}</span>${dots(s.recent)}</span>
       </button><span class="sl-score mono">${(+s.p.scores?.[l] || 0).toFixed(1)}</span></div>`;
@@ -135,6 +141,7 @@ act('tSave', async (d, btn) => {
     id, at, seq: old?.seq || 0, seriesId: seriesFor(dr) || id, blue: [...dr.blue], red: [...dr.red], winner: dr.winner,
     champs: { blue: [...dr.champs.blue], red: [...dr.champs.red] }, bans: { blue: dr.bans.blue.filter(Boolean), red: dr.bans.red.filter(Boolean) }, kda,
     snap: sameLine && old.snap ? old.snap : { bs: ev.bs, rs: ev.rs, pBlue: +ev.pBlue.toFixed(4) },
+    ...(dr.stats || old?.stats ? { stats: dr.stats || old.stats } : {}), ...(dr.dur || old?.dur ? { dur: dr.dur || old.dur } : {}), // 리플레이에서 읽은 상세 기록
   };
   btn.disabled = true;
   try {

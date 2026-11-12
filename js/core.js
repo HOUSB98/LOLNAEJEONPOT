@@ -40,6 +40,7 @@ const I = {
   x: '<path d="M6 6l12 12M18 6 6 18"/>',
   star: '<path d="m12 3 2.700 5.800 6.300.8-4.600 4.400 1.200 6.300L12 17.200 6.400 20.300l1.200-6.300L3 9.600l6.300-.8z"/>',
   mega: '<path d="M4 10v4h3l8 5V5L7 10zM18 9a4 4 0 0 1 0 6"/>',
+  replay: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8h18M7 4l2 4M12 4l2 4M17 4l2 4M10 11.500v5l4.500-2.500z"/>',
 };
 export const ic = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.700" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n] || ''}</svg>`;
 const L = {
@@ -67,7 +68,7 @@ export const act = (name, fn) => (acts[name] = fn);
 export const NAV = [
   ['', 'LEAGUE'], ['home', '홈'], ['rank', '랭킹'], ['matches', '경기 기록'], ['players', '선수 카드'],
   ['', 'ANALYSIS'], ['chem', '케미'], ['champs', '챔피언'], ['fearless', '피어리스'],
-  ['', 'PLAY'], ['today', '오늘의 내전'], ['auction', '팀 경매'], ['admin', '관리'],
+  ['', 'PLAY'], ['today', '오늘의 내전'], ['replay', '리플레이 분석'], ['auction', '팀 경매'], ['admin', '관리'],
 ];
 export function go(hash) { location.hash = hash; }
 function parseHash() {

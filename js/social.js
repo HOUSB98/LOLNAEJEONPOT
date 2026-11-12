@@ -60,7 +60,7 @@ export function sysChat(text) {
 }
 function buildChat() {
   document.getElementById('chat').innerHTML = `
-    <header><div><b>LOBBY CHAT</b><small>공용 채팅 · <span id="chat-on">0</span>명 접속</small></div><button class="btn ghost xs chatx" data-a="chatToggle">${ic('x')}</button></header>
+    <header><div class="ch-t"><span class="ch-k"><i class="live"></i>LIVE</span><b>Lobby<i>Chat</i></b><small><span id="chat-on">0</span>명 접속 중 · 모두가 함께 보는 채팅</small></div><button class="btn ghost xs chatx" data-a="chatToggle">${ic('x')}</button></header>
     <div id="chatlog"></div>
     <div id="chattray" hidden>
       <div class="stk-grid">${STICKERS.map(([k, t, c]) => `<button class="sticker ${c}" data-a="chatStk" data-k="${k}">${esc(t)}</button>`).join('')}</div>
