@@ -294,11 +294,14 @@ const playReveal = (d, mine) => reveal({
 });
 export function watchReveal(initial) {
   const d = S.store.data.meta?.reveal;
+  // 초기 진입 때 이미 존재하던 reveal은 다시 재생하지 않는다.
+  // 이후 새 id가 들어오면 시간 지연 여부와 관계없이 반드시 재생한다.
+  // (snapshot 수신이 1.8초보다 늦거나 클라이언트 시계가 크게 어긋나도
+  //  "효과 자체가 안 뜨는" 일이 생기지 않도록 freshness 제한을 두지 않는다.)
   if (initial || rvSeen === null) { rvSeen = d?.id || ''; return; }
   if (!d || d.id === rvSeen) return;
   rvSeen = d.id;
-  const now = S.store?.serverNow ? S.store.serverNow() : Date.now();
-  if (now - d.at < 20000) playReveal(d, false);
+  playReveal(d, false);
 }
 act('tqNo', () => { TQ.no = lineKey(D()); refresh(); });
 act('tqYes', () => {
@@ -311,7 +314,10 @@ act('tqYes', () => {
       await S.store.syncServerClock?.();
       const now = S.store.serverNow ? S.store.serverNow() : Date.now();
       const r = { id: uid(), at: now, startAt: now + 1800, pb: Math.round(evalLineup(d.blue, d.red, S.st).pBlue * 100), blue: nm(d.blue), red: nm(d.red), by: nick() || '익명' };
-      TQ.done = lineKey(d); rvSeen = r.id;
+      TQ.done = lineKey(d);
+      // 로컬도 Firestore snapshot을 통해 재생한다.
+      // 여기서 rvSeen을 미리 올리면 자기 브라우저가 자신의 snapshot을
+      // "이미 본 이벤트"로 오인해 이펙트를 건너뛰게 된다.
       await S.store.put('meta', 'reveal', r);
       sysChat('팀 확정 · 예상 승률 블루 ' + r.pb + '% : 레드 ' + (100 - r.pb) + '%');
       // 모든 접속자는 Firestore의 같은 reveal 이벤트를 받아 같은 서버 시각(startAt)에 연출을 시작한다.
