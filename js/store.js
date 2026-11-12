@@ -28,6 +28,10 @@ function localStore(key, onChange) {
     mode: 'local', data, ready: Promise.resolve(),
     serverNow: () => Date.now(),
     syncServerClock: async () => 0,
+    watchDoc: (col, id, onData) => {
+      onData(data[col]?.[id] || null);
+      return () => {};
+    },
     async put(col, id, doc) { data[col][id] = { ...doc, id }; save(col); },
     async patch(col, id, part) { data[col][id] = { ...(data[col][id] || { id }), ...part }; save(col); },
     async tx(col, id, fn) {
@@ -93,6 +97,9 @@ async function firebaseStore(key, onChange) {
     mode: 'firebase', data, ready,
     serverNow,
     syncServerClock,
+    watchDoc: (col, id, onData, onError) => fs.onSnapshot(ref(col, id), (snap) => {
+      onData(snap.exists() ? { ...snap.data(), id: snap.id } : null, snap);
+    }, onError),
     put: (col, id, doc) => fs.setDoc(ref(col, id), clean({ ...doc, id })),
     patch: (col, id, part) => fs.setDoc(ref(col, id), clean(part), { merge: true }),
     tx: (col, id, fn) => fs.runTransaction(db, async (t) => {
