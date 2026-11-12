@@ -64,7 +64,7 @@ async function firebaseStore(key, onChange) {
       const s = await t.get(ref(col, id));
       const next = fn(s.exists() ? { ...s.data(), id } : null);
       if (next) t.set(ref(col, id), clean({ ...next, id }));
-      return !!next;
+      return next ? { ...next, id } : null;
     }),
   };
 }
