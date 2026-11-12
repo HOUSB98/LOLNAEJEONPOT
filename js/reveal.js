@@ -21,7 +21,7 @@ const W0 = 2100, T_POP = 520, T1 = 1500, T2 = 3700; // 처음 회전 속도(도/
 const FIRE = ['255,244,214', '255,214,120', '255,170,60', '255,110,50', '246,227,168'];
 
 // pb: 블루 예상 승률(0~100 정수), from: 화면의 원래 승률 링(여기서 튀어나온다)
-export function reveal({ pb, from, onDone, blue = [], red = [], by = '' }) {
+export function reveal({ pb, from, onDone, blue = [], red = [], by = '', startAt = Date.now() }) {
   if (document.querySelector('.rv')) return;
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const ov = document.createElement('div');
@@ -41,7 +41,10 @@ export function reveal({ pb, from, onDone, blue = [], red = [], by = '' }) {
     wheel.animate([{ transform: `translate(${a.left + a.width / 2 - b.left - b.width / 2}px,${a.top + a.height / 2 - b.top - b.height / 2}px) scale(${a.width / b.width})` }, { transform: 'none' }], { duration: T_POP, easing: 'cubic-bezier(.2,1.5,.3,1)' });
   }
   const total = (W0 * T1) / 1000 + (W0 * T2) / 3000, a0 = -(total % 360); // 끝났을 때 정확히 제자리(블루가 왼쪽)로 멈추도록 시작 각도를 맞춘다
-  let t0 = performance.now() + T_POP * 0.7, raf = 0, done = false, closed = false, parts = [];
+  // startAt은 모든 브라우저가 공유하는 wall-clock 시각이다.
+  // Firestore snapshot 수신 시점이 서로 조금 달라도, 같은 시각에 애니메이션이 시작되도록 대기한다.
+  const startDelay = Math.max(0, startAt - Date.now());
+  let t0 = performance.now() + startDelay + T_POP * 0.7, raf = 0, done = false, closed = false, parts = [];
   if (reduce) t0 -= T1 + T2 + T_POP;
   const spark = (x, y, vx, vy, c, r, life) => parts.push({ x, y, vx, vy, c, r, life, max: life });
   function frame(now) {
