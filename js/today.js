@@ -9,6 +9,7 @@ const five = () => ['', '', '', '', ''];
 const blank = () => ({ blue: five(), red: five(), winner: '', champs: { blue: five(), red: five() }, bans: { blue: five(), red: five() }, kda: {}, newSeries: false, at: '', more: false });
 const remoteDraft = () => S.store?.data?.meta?.todayDraft || null;
 let draftUpdatedAt = 0;
+let draftBase = null;
 
 function draftState(d) {
   return JSON.stringify({
@@ -18,19 +19,56 @@ function draftState(d) {
   });
 }
 
-function syncDraft() {
+const cloneDraft = (d) => JSON.parse(JSON.stringify(d));
+
+function mergeDraftChanges(base, local, remote) {
+  const next = cloneDraft(remote || blank());
+  const arr = (key, side) => {
+    const b = base?.[key]?.[side] || five();
+    const l = local?.[key]?.[side] || five();
+    const r = remote?.[key]?.[side] || five();
+    next[key] ||= {};
+    next[key][side] = r.map((v, i) => (l[i] !== b[i] ? l[i] : v));
+  };
+  ['blue', 'red'].forEach((side) => {
+    const b = base?.[side] || five(), l = local?.[side] || five(), r = remote?.[side] || five();
+    next[side] = r.map((v, i) => (l[i] !== b[i] ? l[i] : v));
+    arr('champs', side);
+    arr('bans', side);
+  });
+
+  const scalars = ['winner', 'newSeries', 'at', 'more'];
+  scalars.forEach((k) => {
+    const b = base?.[k], l = local?.[k], r = remote?.[k];
+    if (l !== b) next[k] = l;
+    else next[k] = r;
+  });
+
+  next.kda = { ...(remote?.kda || {}) };
+  const keys = new Set([...Object.keys(base?.kda || {}), ...Object.keys(local?.kda || {}), ...Object.keys(remote?.kda || {})]);
+  keys.forEach((k) => {
+    if ((local?.kda || {})[k] !== (base?.kda || {})[k]) next.kda[k] = (local?.kda || {})[k] || '';
+  });
+  next.updatedAt = Date.now();
+  return next;
+}
+
+async function syncDraft() {
   if (edit || S.store?.mode !== 'firebase' || !draft) return;
-  draftUpdatedAt = Date.now();
-  draft.updatedAt = draftUpdatedAt;
-  S.store.put('meta', 'todayDraft', {
-    blue: [...draft.blue], red: [...draft.red],
-    winner: draft.winner || '',
-    champs: { blue: [...draft.champs.blue], red: [...draft.champs.red] },
-    bans: { blue: [...draft.bans.blue], red: [...draft.bans.red] },
-    kda: { ...(draft.kda || {}) },
-    newSeries: !!draft.newSeries, at: draft.at || '', more: !!draft.more,
-    updatedAt: draftUpdatedAt
-  }).catch((e) => toast('팀 동기화 실패: ' + (e.code || e.message)));
+  const local = cloneDraft(draft);
+  const base = cloneDraft(draftBase || remoteDraft() || blank());
+  try {
+    const merged = await S.store.tx('meta', 'todayDraft', (remote) => mergeDraftChanges(base, local, remote || blank()));
+    if (merged) {
+      draft = merged;
+      draftUpdatedAt = Number(merged.updatedAt) || Date.now();
+      draftBase = cloneDraft(merged);
+      localStorage.setItem(dkey(), JSON.stringify(draft));
+      refresh();
+    }
+  } catch (e) {
+    toast('팀 동기화 실패: ' + (e.code || e.message));
+  }
 }
 
 function applyRemoteDraft() {
@@ -56,7 +94,10 @@ function applyRemoteDraft() {
   if (!draft || draftState(remote) !== draftState(draft)) {
     draft = remote;
     draftUpdatedAt = Number(r.updatedAt) || Date.now();
+    draftBase = cloneDraft(remote);
     localStorage.setItem(dkey(), JSON.stringify(draft));
+  } else if (!draftBase) {
+    draftBase = cloneDraft(remote);
   }
 }
 const dkey = () => 'naejeon:draft:' + S.key;
