@@ -148,12 +148,26 @@ export function lazyArt(root = document) {
   artIO ||= new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { artIO.unobserve(e.target); show(e.target); } }), { rootMargin: '300px' });
   els.forEach((el) => artIO.observe(el));
 }
-// 선수의 대표 챔피언: 내전 모스트 → 솔랭 모스트 순
+// 선수의 대표 챔피언(랭킹·선수 카드·케미 등 모든 화면 공통):
+// 주라인에서 가장 많이 쓴 챔피언 → (기록이 없으면) 솔랭 모스트 → 내전 모스트
+const sigCache = new WeakMap();
 export function sigChamp(s) {
-  const own = Object.entries(s.champs).sort((a, b) => b[1].g - a[1].g || b[1].w - a[1].w)[0];
-  if (own) return own[0];
+  const st = S.st; let cnt = sigCache.get(st);
+  if (!cnt) {
+    cnt = {};
+    st.matches.forEach((m) => ['blue', 'red'].forEach((side) => m[side].forEach((id, i) => {
+      const c = m.champs?.[side]?.[i]; if (!c || st.P[id]?.mainLane !== LANES[i]) return;
+      ((cnt[id] ||= {})[c] ||= { g: 0, w: 0 }).g++; if (m.winner === side) cnt[id][c].w++;
+    })));
+    sigCache.set(st, cnt);
+  }
+  const top = Object.entries(cnt[s.id] || {}).sort((a, b) => b[1].g - a[1].g || b[1].w - a[1].w)[0];
+  if (top) return top[0];
   const most = s.p.solo?.most || '';
-  return S.champs.map((c) => c.name).filter((n) => most.includes(n)).sort((a, b) => most.indexOf(a) - most.indexOf(b))[0] || '';
+  const solo = S.champs.map((c) => c.name).filter((n) => most.includes(n)).sort((a, b) => most.indexOf(a) - most.indexOf(b))[0];
+  if (solo) return solo;
+  const own = Object.entries(s.champs).sort((a, b) => b[1].g - a[1].g || b[1].w - a[1].w)[0];
+  return own ? own[0] : '';
 }
 export function toast(msg) {
   const t = document.getElementById('toast');

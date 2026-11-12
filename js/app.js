@@ -198,20 +198,6 @@ act('carSet', (d) => carMove(0, +d.i));
 
 // ---------- 랭킹 ----------
 const LB = { view: 'all', sort: 'ovr', dir: -1, min: 5 };
-// 랭킹에 띄울 대표 챔피언: 주라인에서 가장 많이 쓴 챔피언 → (기록이 없으면) 솔랭 모스트 → 내전 모스트
-function laneSigs() {
-  const cnt = {};
-  S.st.matches.forEach((m) => ['blue', 'red'].forEach((side) => m[side].forEach((id, i) => {
-    const c = m.champs?.[side]?.[i]; if (!c || S.st.P[id]?.mainLane !== LANES[i]) return;
-    ((cnt[id] ||= {})[c] ||= { g: 0, w: 0 }).g++; if (m.winner === side) cnt[id][c].w++;
-  })));
-  return (s) => {
-    const top = Object.entries(cnt[s.id] || {}).sort((a, b) => b[1].g - a[1].g || b[1].w - a[1].w)[0];
-    if (top) return top[0];
-    const most = s.p.solo?.most || '';
-    return S.champs.map((c) => c.name).filter((n) => most.includes(n)).sort((a, b) => most.indexOf(a) - most.indexOf(b))[0] || sigChamp(s);
-  };
-}
 const COLS = {
   all: [
     ['g', '판', (s) => s.g, (s) => `<span class="mono">${s.g}</span>`],
@@ -231,7 +217,7 @@ page('rank', {
   render() {
     const st = S.st, x = st.sum;
     const cols = COLS[LB.view], sortCol = cols.find((c) => c[0] === LB.sort) || cols[0];
-    const sig = laneSigs();
+    const sig = sigChamp;
     const rows = st.list.filter((s) => s.g >= LB.min).sort((a, b) => LB.dir * (sortCol[2](a) - sortCol[2](b)) || b.ovr - a.ovr);
     // 상단 TOP 3 카드: 지금 정렬 기준의 1~3위
     const medal = ['CHAMPION', 'RUNNER-UP', 'THIRD'];

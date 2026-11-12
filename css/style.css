@@ -817,3 +817,17 @@ canvas.fx{position:fixed;inset:0;pointer-events:none;z-index:70}
 .cbtn2{width:34px;height:34px;border-radius:10px;border-color:transparent;background:rgba(255,255,255,.04)}
 .cbtn2.go{box-shadow:0 6px 16px -8px rgba(217,164,65,.9)}
 .cempty .ic{color:var(--gold);opacity:.5}
+
+/* ---------- 채팅 말풍선 새 디자인 ---------- */
+.cl{gap:7px;max-width:88%}
+.cb{position:relative;border:1px solid transparent;border-radius:4px 16px 16px 16px;padding:9px 13px;font-size:13.500px;line-height:1.5;color:#e8ecf4;
+  background:linear-gradient(180deg,rgba(24,34,53,.96),rgba(13,20,33,.96)) padding-box,linear-gradient(140deg,rgba(255,255,255,.22),rgba(255,255,255,.04) 40%,rgba(63,208,224,.28)) border-box;
+  box-shadow:0 10px 22px -14px #000,inset 0 1px 0 rgba(255,255,255,.07)}
+.cm.head:not(.me) .cb::before{content:"";position:absolute;left:-1px;top:8px;bottom:8px;width:2px;border-radius:2px;background:linear-gradient(180deg,var(--teal),transparent)}
+.cm.me .cb{color:#fff3c9;font-weight:500;border-radius:16px 4px 16px 16px;
+  background:linear-gradient(160deg,#2b2110,#17120a 60%,#221a0c) padding-box,linear-gradient(140deg,#fff3c9,#d9a441 35%,#6b4a12 65%,#f6e3a8) border-box;
+  box-shadow:0 10px 24px -12px rgba(217,164,65,.75),inset 0 1px 0 rgba(255,243,201,.18),inset 0 0 22px -10px rgba(217,164,65,.6);text-shadow:0 0 12px rgba(217,164,65,.35)}
+.cm:not(.head) .cb{border-radius:16px}.cm.me:not(.head) .cb{border-radius:16px}
+.cm{transition:transform .2s}.cm:hover .cb{filter:brightness(1.12)}
+.cb.emo{box-shadow:none;background:none!important;text-shadow:none}.cb.emo::before{display:none}
+.cl small{color:#6b7a94;letter-spacing:.04em}
