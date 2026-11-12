@@ -283,7 +283,15 @@ act('tSave', async (d, btn) => {
 // ---------- 팀 확정 → 예상 승률 공개 ----------
 // 누군가 "정했어!"를 누르면 meta/reveal 문서에 적고, 접속한 모든 사람의 화면에서 같은 연출이 재생된다(주사위와 같은 방식).
 let rvSeen = null;
-const playReveal = (d, mine) => reveal({ pb: d.pb, blue: d.blue, red: d.red, by: mine ? '' : d.by, startAt: Number(d.startAt) || Number(d.at) || Date.now(), from: S.page === 'today' ? document.querySelector('.arena .ring') : null });
+const playReveal = (d, mine) => reveal({
+  pb: d.pb,
+  blue: d.blue,
+  red: d.red,
+  by: mine ? '' : d.by,
+  startAt: Number(d.startAt) || Number(d.at) || Date.now(),
+  now: S.store?.serverNow ? S.store.serverNow() : Date.now(),
+  from: S.page === 'today' ? document.querySelector('.arena .ring') : null
+});
 export function watchReveal(initial) {
   const d = S.store.data.meta?.reveal;
   if (initial || rvSeen === null) { rvSeen = d?.id || ''; return; }
@@ -295,11 +303,21 @@ act('tqNo', () => { TQ.no = lineKey(D()); refresh(); });
 act('tqYes', () => {
   const d = D(); if (!isFull(d)) return toast('양 팀 10명을 모두 배치해 주세요');
   const nm = (ids) => ids.map((id) => S.st.P[id]?.name || '?');
-  const r = { id: uid(), at: Date.now(), startAt: Date.now() + 1800, pb: Math.round(evalLineup(d.blue, d.red, S.st).pBlue * 100), blue: nm(d.blue), red: nm(d.red), by: nick() || '익명' };
-  TQ.done = lineKey(d); rvSeen = r.id;
-  S.store.put('meta', 'reveal', r).catch((e) => toast('중계 전송 실패: ' + (e.code || e.message)));
-  sysChat(`팀 확정 · 예상 승률 블루 ${r.pb}% : 레드 ${100 - r.pb}%`);
-  // 모든 접속자는 Firestore의 같은 reveal 이벤트를 받아 같은 시각(startAt)에 연출을 시작한다.
-  // 로컬에서도 여기서 바로 재생하지 않고 snapshot을 통해 재생하므로 한 사람만 먼저 시작하지 않는다.
-  refresh();
+  const send = async () => {
+    try {
+      // 서버 시각을 기준으로 1.8초 뒤를 시작점으로 잡는다.
+      // 로컬 시계가 틀려 있어도 모든 브라우저가 같은 wall-clock을 기준으로 계산한다.
+      await S.store.syncServerClock?.();
+      const now = S.store.serverNow ? S.store.serverNow() : Date.now();
+      const r = { id: uid(), at: now, startAt: now + 1800, pb: Math.round(evalLineup(d.blue, d.red, S.st).pBlue * 100), blue: nm(d.blue), red: nm(d.red), by: nick() || '익명' };
+      TQ.done = lineKey(d); rvSeen = r.id;
+      await S.store.put('meta', 'reveal', r);
+      sysChat('팀 확정 · 예상 승률 블루 ' + r.pb + '% : 레드 ' + (100 - r.pb) + '%');
+      // 모든 접속자는 Firestore의 같은 reveal 이벤트를 받아 같은 서버 시각(startAt)에 연출을 시작한다.
+      refresh();
+    } catch (e) {
+      toast('중계 전송 실패: ' + (e.code || e.message));
+    }
+  };
+  send();
 });
