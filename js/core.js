@@ -1,5 +1,5 @@
 // 공통: 상태, 라우터, 이벤트 위임, 아이콘·로고, 모달, 챔피언/선수 선택창, 관리자 PIN, 이펙트
-import { compute, LANES, LANE_NAME, pct } from './stats.js';
+import { compute, LANES, LANE_NAME, LANE_COLOR, pct } from './stats.js';
 
 export const S = { store: null, key: 'local', st: null, dirty: true, page: 'home', arg: [], admin: false, champs: [], champBy: {}, ver: '' };
 export const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -319,10 +319,18 @@ act('cp', (d) => { closeModal(); pickCb?.(d.n); });
 let pickPCb = null;
 export function pickPlayer({ title, exclude = [], lane, onPick, allowClear }) {
   pickPCb = onPick;
-  const list = S.st.list.filter((s) => !exclude.includes(s.id)).sort((a, b) => (lane ? (b.p.scores?.[lane] || 0) - (a.p.scores?.[lane] || 0) : a.name.localeCompare(b.name, 'ko')));
+  const groups = Object.fromEntries(LANES.map((l) => [l, []]));
+  S.st.list.filter((s) => !exclude.includes(s.id)).forEach((s) => (groups[s.mainLane] || (groups[s.mainLane] = [])).push(s));
+  const laneOrder = lane && LANES.includes(lane) ? [lane, ...LANES.filter((l) => l !== lane)] : LANES;
+  const playerButton = (s) => `<button class="pp" data-a="pp" data-id="${s.id}"><b>${esc(s.name)}</b><small>${LANE_ICON[s.mainLane]} ${LANE_NAME[s.mainLane]} 주라인${lane ? ` · ${LANE_NAME[lane]} ${s.p.scores?.[lane] ?? 0}점` : ` · 평균 ${s.avg.toFixed(1)}점`}</small></button>`;
+  const grouped = laneOrder.map((l) => {
+    const players = groups[l].sort((a, b) => (lane ? (b.p.scores?.[lane] || 0) - (a.p.scores?.[lane] || 0) : b.avg - a.avg) || a.name.localeCompare(b.name, 'ko'));
+    if (!players.length) return '';
+    return `<section class="ppgroup ${lane === l ? 'focus' : ''}" style="--lc:${LANE_COLOR[l]}"><header><span>${LANE_ICON[l]}</span><b>${LANE_NAME[l]} 주라인</b>${lane === l ? '<small>배정할 라인</small>' : ''}<em>${players.length}명</em></header><div class="ppgroup-grid">${players.map(playerButton).join('')}</div></section>`;
+  }).join('');
   modal(`${mh(title)}
     ${allowClear ? '<button class="btn block" data-a="pp" data-id="">자리 비우기</button>' : ''}
-    <div class="pplist">${list.map((s) => `<button class="pp" data-a="pp" data-id="${s.id}"><b>${esc(s.name)}</b><small>${LANE_ICON[s.mainLane]} ${lane ? `${LANE_NAME[lane]} ${s.p.scores?.[lane] ?? 0}점` : `평균 ${s.avg.toFixed(1)}`}</small></button>`).join('') || '<p class="mut">선택할 선수가 없습니다.</p>'}</div>`, 'tall');
+    <div class="pplist">${grouped || '<p class="mut">선택할 선수가 없습니다.</p>'}</div>`, 'tall');
 }
 act('pp', (d) => { closeModal(); pickPCb?.(d.id); });
 
