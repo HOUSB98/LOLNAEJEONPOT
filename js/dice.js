@@ -44,14 +44,25 @@ act('dcRoll', async () => {
   play(d, true);
 });
 
-// meta 문서가 바뀔 때마다 호출된다. 처음 접속했을 때의 기존 결과는 다시 재생하지 않는다.
+// 다른 사람이 굴린 주사위 받기. 두 경로로 듣고(어느 쪽이 먼저 와도 id로 한 번만 재생):
+//  ① meta/dice 문서를 직접 구독(가장 빠르고, 다른 화면 갱신 로직과 무관)  ② meta 전체가 바뀔 때 호출되는 watchDice()
+// "새 결과"인지는 시계가 아니라 문서 id가 바뀌었는지로 판단한다(PC마다 시계가 달라도 놓치지 않는다).
+let docWatch = false;
+function onDice(d) {
+  if (seen === null) { seen = d?.id || ''; return; } // 접속했을 때 이미 있던 결과는 기준점으로만 삼는다
+  if (!d || !d.id || d.id === seen) return;
+  seen = d.id;
+  if (DC.rolling) return;
+  try { play(d, false); } catch (e) { DC.rolling = false; console.error('[dice]', e); }
+}
 export function watchDice(initial) {
   const d = S.store.data.meta?.dice;
-  if (initial || seen === null) { seen = d?.id || ''; return; }
-  if (!d || d.id === seen) return;
-  seen = d.id;
-  if (S.store.serverNow() - d.at > 12000 || DC.rolling) return; // 한참 지난 결과(뒤늦게 접속)는 재생하지 않는다
-  play(d, false);
+  if (initial) { if (seen === null) seen = d?.id || ''; }
+  else onDice(d);
+  if (!docWatch && S.store.mode === 'firebase') {
+    docWatch = true;
+    S.store.watchDoc('meta', 'dice', (doc) => onDice(doc), (e) => console.error('[dice] listener', e));
+  }
 }
 
 // 주사위 이펙트: 구르는 동안 주사위 위아래로 불티가 튀고, 멈추는 순간 사방으로 터진다
@@ -110,7 +121,8 @@ function play(d, mine) {
     burst(rc.left + rc.width / 2, rc.top + rc.height / 2, 90);
   };
   // 모두 같은 시각(startAt)에 굴리기 시작한다. 늦게 받은 사람은 늦은 만큼 회전 시간을 줄여 같은 순간에 멈춘다.
-  const late = Math.max(0, S.store.serverNow() - (d.startAt || d.at)), wait = Math.max(0, (d.startAt || d.at) - S.store.serverNow());
+  const off = (+d.startAt || +d.at || 0) - S.store.serverNow(); // 시계 보정이 안 된 기기에서 값이 터무니없으면 바로 시작한다
+  const wait = off > 0 && off < 4000 ? off : 0, late = off < 0 && off > -8000 ? -off : 0;
   const go = () => { if (!document.body.contains(el)) { DC.rolling = false; return; }
   spin(dies[0], d1, ia, Math.max(900, 3400 - late), 7).then(() => reveal(1, names[ia], 'blue'));
   spin(dies[1], d2, ib, Math.max(1400, 4600 - late), 9).then(() => {

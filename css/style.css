@@ -1067,3 +1067,7 @@ body.chat-closed #chatfab{display:grid;animation:fabin .55s .15s cubic-bezier(.2
 .skp img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;background:#070b13}
 .skp span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .skp:hover{border-color:#4a5e80;transform:translateY(-2px)}.skp.on{border-color:var(--gold);box-shadow:0 0 18px -6px var(--gold);color:var(--gold2)}
+
+/* 범례의 OP 표시: 반짝임(::after)이 배지 밖 큰 영역 기준으로 잡혀 화면 가로 폭을 계속 늘렸다 줄였다 하던 문제(가로 스크롤바가 깜빡이며 채팅창·접속자 칸이 위아래로 움직임) */
+.tlegend .mk{position:relative}
+#main{overflow-x:clip}
