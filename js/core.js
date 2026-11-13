@@ -303,7 +303,7 @@ export function pickChamp({ title, used = {}, current = '', onPick }) {
   const el = modal(`${mh(esc(title))}
     <div class="row"><input id="cpq" class="inp grow" placeholder="챔피언 검색 (초성 가능: ㅇㄹ)" data-i="cpq" autocomplete="off">
     <button class="btn" data-a="cp" data-n="">비우기</button></div>
-    ${S.champs.length ? `<div class="cpgrid">${grid}</div>` : `<p class="mut">챔피언 목록을 불러오지 못했습니다. 이름을 직접 입력하고 Enter를 누르세요.</p>`}`, 'tall');
+    ${S.champs.length ? `<div class="cpgrid" id="cpgrid">${grid}</div><p class="cp-empty mut" id="cp-empty" hidden>검색 결과가 없습니다.</p>` : `<p class="mut">챔피언 목록을 불러오지 못했습니다. 이름을 직접 입력하고 Enter를 누르세요.</p>`}`, 'tall cp-picker');
   const q = el.querySelector('#cpq');
   q.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
@@ -314,7 +314,11 @@ export function pickChamp({ title, used = {}, current = '', onPick }) {
 }
 act('cpq', (d, el) => {
   const q = el.value.replace(/\s/g, '');
-  document.querySelectorAll('.cp').forEach((b) => (b.hidden = !!q && !b.dataset.k.includes(q)));
+  const buttons = document.querySelectorAll('#cpgrid .cp');
+  let visible = 0;
+  buttons.forEach((b) => { b.hidden = !!q && !b.dataset.k.includes(q); if (!b.hidden) visible++; });
+  const empty = document.getElementById('cp-empty');
+  if (empty) empty.hidden = visible > 0;
 });
 act('cp', (d) => { closeModal(); pickCb?.(d.n); });
 
