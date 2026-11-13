@@ -1,5 +1,5 @@
 // 관리: 내보내기/백업, 선수 관리, 시트 데이터 가져오기, 설정, 삭제 복구, 칭호 도감
-import { S, page, act, esc, uid, col, settings, pname, refresh, fmtDT, toast, download, csv, modal, closeModal, needAdmin, isAdmin, history, ic, LANES, LANE_NAME, LANE_ICON } from './core.js';
+import { S, page, act, esc, uid, col, settings, pname, refresh, fmtDT, toast, download, csv, modal, closeModal, mh, sha, needAdmin, isAdmin, history, ic, LANES, LANE_NAME, LANE_ICON } from './core.js';
 import { TITLES, DEFAULTS, initMmr } from './stats.js';
 import { exportMatches } from './app.js';
 
@@ -112,9 +112,27 @@ act('admUnlock', () => needAdmin(() => { toast('관리자 모드가 켜졌습니
 act('admLock', () => { S.admin = false; sessionStorage.removeItem('naejeon:admin:' + S.key); toast('잠갔습니다'); refresh(); });
 act('plRestore',(d) => needAdmin(() => S.store.patch('players', d.id, { deleted: false })));
 act('mRestore', (d) => needAdmin(() => S.store.patch('matches', d.id, { deleted: false }).then(() => toast('복구했습니다'))));
-act('pinChange', () => needAdmin(async () => {
-  if (!confirm('관리자 PIN을 초기화할까요? 초기화 후 다음 관리자 작업 때 새 PIN을 정하게 됩니다.')) return;
-  await S.store.patch('meta', 'settings', { pinHash: '' }); S.admin = false; sessionStorage.removeItem('naejeon:admin:' + S.key); toast('초기화했습니다');
+// 관리자 PIN 변경: 현재 PIN을 확인한 뒤(needAdmin) 새 PIN을 두 번 입력받아 바로 바꾼다. 바꾼 사람의 브라우저는 관리자 상태가 유지된다.
+act('pinChange', () => needAdmin(() => {
+  const el = modal(`${mh('관리자 PIN 변경')}
+    <p class="mut">새 PIN을 두 번 입력해 주세요. (4자리 이상) 바꾼 뒤에는 다른 기기에서 새 PIN으로 다시 확인해야 합니다.</p>
+    <form id="pinc" class="col"><input class="inp" id="pin1" type="password" inputmode="numeric" autocomplete="off" placeholder="새 PIN">
+      <input class="inp" id="pin2" type="password" inputmode="numeric" autocomplete="off" placeholder="새 PIN 다시 입력">
+      <div class="row"><span class="grow"></span><button type="button" class="btn ghost" data-a="close">취소</button><button class="btn pri">변경</button></div></form>`);
+  el.querySelector('#pin1').focus();
+  el.querySelector('#pinc').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const a = el.querySelector('#pin1').value.trim(), b = el.querySelector('#pin2').value.trim();
+    if (a.length < 4) return toast('4자리 이상 입력하세요');
+    if (a !== b) return toast('두 번 입력한 PIN이 서로 다릅니다');
+    try {
+      const h = await sha(a);
+      if (h === settings().pinHash) return toast('지금 쓰는 PIN과 같습니다');
+      await S.store.patch('meta', 'settings', { pinHash: h });
+      S.admin = true; sessionStorage.setItem('naejeon:admin:' + S.key, h);
+      closeModal(); toast('관리자 PIN을 변경했습니다');
+    } catch (err) { toast('변경 실패: ' + (err.code || err.message)); }
+  });
 }));
 
 act('seed', () => needAdmin(async () => {

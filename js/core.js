@@ -327,7 +327,7 @@ export function pickPlayer({ title, exclude = [], lane, onPick, allowClear }) {
 act('pp', (d) => { closeModal(); pickPCb?.(d.id); });
 
 // ---------- 관리자 PIN (가벼운 잠금: 실수·장난 방지용) ----------
-async function sha(text) {
+export async function sha(text) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('naejeon:' + text));
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }

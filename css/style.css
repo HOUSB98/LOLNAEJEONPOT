@@ -1071,3 +1071,5 @@ body.chat-closed #chatfab{display:grid;animation:fabin .55s .15s cubic-bezier(.2
 /* 범례의 OP 표시: 반짝임(::after)이 배지 밖 큰 영역 기준으로 잡혀 화면 가로 폭을 계속 늘렸다 줄였다 하던 문제(가로 스크롤바가 깜빡이며 채팅창·접속자 칸이 위아래로 움직임) */
 .tlegend .mk{position:relative}
 #main{overflow-x:clip}
+
+form.col{display:flex;flex-direction:column;gap:10px}
