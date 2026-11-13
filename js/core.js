@@ -1,5 +1,5 @@
 // 공통: 상태, 라우터, 이벤트 위임, 아이콘·로고, 모달, 챔피언/선수 선택창, 관리자 PIN, 이펙트
-import { compute, LANES, LANE_NAME, LANE_COLOR, pct } from './stats.js';
+import { compute, LANES, LANE_NAME, pct } from './stats.js';
 
 export const S = { store: null, key: 'local', st: null, dirty: true, page: 'home', arg: [], admin: false, champs: [], champBy: {}, ver: '' };
 export const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
