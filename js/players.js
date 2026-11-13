@@ -1,5 +1,5 @@
 // 선수 카드(홀로 카드) / 솔랭 분석 / 케미 분석
-import { S, page, act, esc, pname, go, refresh, fmtDT, wrClass, wrBar, dots, streak, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, skinList, skinBad, baseChamp, modal, closeModal, mh, toast, ic, logo, countUp, burst, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct } from './core.js';
+import { S, page, act, esc, pname, go, refresh, fmtDT, wrClass, wrBar, dots, streak, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, skinList, skinBad, baseChamp, needAdmin, isAdmin, modal, closeModal, mh, toast, ic, logo, countUp, burst, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct } from './core.js';
 import { chem, playerLine, duoRank, CHEM_RULE } from './stats.js';
 
 const PV = { view: 'card', dl: 'all' };
@@ -51,7 +51,7 @@ function holo(s, n) {
   <div class="gdeck" aria-hidden="true"><i class="gd-halo"></i><i class="gd-beam"></i><i class="gd-core"></i>${Array.from({ length: 14 }, (_, i) => `<u style="--i:${i}"></u>`).join('')}
     <div class="gd-con"><span class="jc l"><i class="stick"></i><i class="dpad"></i></span><span class="scr"><i class="scr-card"></i><i class="scr-scan"></i></span><span class="jc r"><i class="btns"></i><i class="stick"></i></span></div>
     <i class="gd-ring r1"></i><i class="gd-ring r2"></i><i class="gd-shadow"></i></div>
-  <small class="mut">카드 위에서 마우스를 움직여 보세요 · <button class="lnk" data-a="pcReplay">다시 소환</button>${sig ? ` · <button class="lnk" data-a="skinPick" data-id="${s.id}">스킨 변경</button>` : ''}</small></div>`;
+  <small class="mut">카드 위에서 마우스를 움직여 보세요 · <button class="lnk" data-a="pcReplay">다시 소환</button>${sig ? ` · <button class="lnk" data-a="skinPick" data-id="${s.id}" title="관리자 PIN 필요">스킨 변경</button>` : ''}</small></div>`;
 }
 
 // 리플레이로 쌓인 상세 지표. 여러 라인을 도는 선수가 불리하지 않도록 "맞라인 대비"와 "라인 평균=100 지수"를 함께 보여 준다
@@ -185,7 +185,8 @@ page('players', {
 });
 act('pvView', (d) => { PV.view = d.v; refresh(); });
 // 선수 카드 스킨 고르기: 대표 챔피언의 스킨 목록에서 하나를 골라 선수 문서에 저장한다(모든 사람 화면에 반영)
-act('skinPick', (d) => {
+// 관리자 PIN을 확인한 뒤에만 열린다
+act('skinPick', (d) => needAdmin(() => {
   const s = S.st.P[d.id]; if (!s) return;
   const cur = sigChamp(s), base = baseChamp(cur), list = skinList(base), c = S.champBy[base];
   if (!c) return;
@@ -199,8 +200,9 @@ act('skinPick', (d) => {
     const b = im.closest('.skp'), drop = () => { b.remove(); skinBad(base, +b.dataset.n); };
     if (+b.dataset.n) { im.onerror = drop; if (im.complete && !im.naturalWidth) drop(); }
   });
-});
+}));
 act('skinSet', async (d) => {
+  if (!isAdmin()) return toast('관리자만 스킨을 바꿀 수 있습니다');
   try { await S.store.patch('players', d.id, { skin: { champ: d.c, num: +d.n, name: +d.n ? d.nm : '' } }); closeModal(); toast('스킨을 바꿨습니다'); }
   catch (e) { toast('저장 실패: ' + (e.code || e.message)); }
 });
