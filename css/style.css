@@ -471,7 +471,7 @@ button.sticker:hover{transform:translateY(-2px) scale(1.04);background:color-mix
 .ppgroup{border:1px solid var(--line2);border-radius:12px;padding:10px;background:rgba(255,255,255,.015)}
 .ppgroup>header{display:flex;align-items:center;gap:7px;margin:0 0 8px;color:var(--muted);font-size:12px}
 .ppgroup>header>span{color:var(--lc);font-size:15px}.ppgroup>header>b{color:var(--text);font-size:13px}.ppgroup>header>small{color:var(--lc);font-size:10px}.ppgroup>header>em{margin-left:auto;color:var(--muted);font:600 10px var(--mono);font-style:normal}
-.ppgroup.focus{border-color:color-mix(in srgb,var(--lc) 55%,var(--line2));background:color-mix(in srgb,var(--lc) 5%,transparent)}
+.ppgroup.is-focus{border-color:color-mix(in srgb,var(--lc) 55%,var(--line2));background:color-mix(in srgb,var(--lc) 5%,transparent)}
 .ppgroup-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px}
 .pp{background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:10px;color:var(--text);font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;text-align:left;transition:.14s}
 .pp:hover,.cp:not(.used):not(div):hover{border-color:var(--gold);transform:translateY(-2px)}
