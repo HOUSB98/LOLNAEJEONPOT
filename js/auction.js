@@ -122,11 +122,13 @@ function roomView(id, token) {
         <p class="hint">${bt.members.length >= r.cfg.size - 1 ? '팀이 가득 찼습니다.' : c.team === bidTeam ? '현재 최고 입찰 팀입니다.' : `${esc(bt.name)} 잔여 ${bt.points}P`}</p></div>` : '<p class="mut">👀 관전 중 — 팀장 링크로 들어오면 입찰할 수 있습니다.</p>'}
       ${me.host ? `<div class="row"><button class="btn" data-a="auPause" data-id="${r.id}">${r.status === 'paused' ? '▶ 재개' : '⏸ 일시정지'}</button></div>` : ''}</div>`;
   }
-  const queue = r.cfg.hide ? [...r.pool].sort((a, b) => nm(a).localeCompare(nm(b), 'ko')) : r.pool;
+  const queue = r.pool, hideUpcoming = r.cfg.hide && r.status !== 'done';
+  const queueView = hideUpcoming ? `<span class="chip mut">매물 이름 비공개 · ${queue.length}명</span>` : queue.map((p) => `<span class="chip">${pname(p)}</span>`).join('') || '<span class="chip mut">없음</span>';
+  const unsoldView = hideUpcoming ? `<span class="chip mut">유찰 선수 이름 비공개 · ${r.unsold.length}명</span>` : r.unsold.map((p) => `<span class="chip mut">${pname(p)}</span>`).join('');
   return `<div class="h2row"><a class="btn xs" href="#/auction">← 목록</a><h1>🔨 ${esc(r.name)}</h1><span class="grow"></span>${me.host ? `<span class="tag ok">진행자</span><button class="btn xs ghost" data-a="auDel" data-id="${r.id}">방 삭제</button>` : ''}</div>
   <div class="agrid"><div>${stage}
-    <div class="panel"><div class="ph"><b>대기 매물 ${r.pool.length}</b><small class="mut">${r.cfg.hide ? '순서 비공개' : '경매 순서대로'}</small></div><div class="chips">${queue.map((p) => `<span class="chip">${pname(p)}</span>`).join('') || '<span class="mut">없음</span>'}</div>
-      ${r.unsold.length ? `<div class="ph"><b>유찰 ${r.unsold.length}</b></div><div class="chips">${r.unsold.map((p) => `<span class="chip mut">${pname(p)}</span>`).join('')}</div>` : ''}</div>
+    <div class="panel"><div class="ph"><b>대기 매물 ${r.pool.length}</b><small class="mut">${hideUpcoming ? '다음 매물 비공개' : '경매 순서 공개'}</small></div><div class="chips">${queueView}</div>
+      ${r.unsold.length ? `<div class="ph"><b>유찰 ${r.unsold.length}</b></div><div class="chips">${unsoldView}</div>` : ''}</div>
     <div class="panel"><div class="ph"><b>💬 채팅 · 기록</b></div>
       <div class="chat" id="au-chat">${[...(r.log || []).map((x) => ({ ...x, sys: 1 })), ...(r.chat || [])].sort((a, b) => a.t - b.t).slice(-60).map((x) => (x.sys ? `<div class="sys">${esc(x.s)}</div>` : `<div><b>${esc(x.w)}</b> ${esc(x.s)}</div>`)).join('') || '<div class="sys">아직 기록이 없습니다.</div>'}</div>
       <form class="row" id="au-chatf" data-id="${r.id}"><input id="auChat" class="inp grow" maxlength="100" placeholder="메시지 입력" value="${esc(AU.chat)}" data-i="auChatI" autocomplete="off"><button class="btn">전송</button></form></div>
