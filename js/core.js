@@ -326,7 +326,7 @@ export function pickPlayer({ title, exclude = [], lane, onPick, allowClear }) {
   const grouped = laneOrder.map((l) => {
     const players = groups[l].sort((a, b) => (lane ? (b.p.scores?.[lane] || 0) - (a.p.scores?.[lane] || 0) : b.avg - a.avg) || a.name.localeCompare(b.name, 'ko'));
     if (!players.length) return '';
-    return `<section class="ppgroup ${lane === l ? 'focus' : ''}" style="--lc:${LANE_COLOR[l]}"><header><span>${LANE_ICON[l]}</span><b>${LANE_NAME[l]} 주라인</b>${lane === l ? '<small>배정할 라인</small>' : ''}<em>${players.length}명</em></header><div class="ppgroup-grid">${players.map(playerButton).join('')}</div></section>`;
+    return `<section class="ppgroup ${lane === l ? 'is-focus' : ''}" style="--lc:${LANE_COLOR[l]}"><header><span>${LANE_ICON[l]}</span><b>${LANE_NAME[l]} 주라인</b>${lane === l ? '<small>배정할 라인</small>' : ''}<em>${players.length}명</em></header><div class="ppgroup-grid">${players.map(playerButton).join('')}</div></section>`;
   }).join('');
   modal(`${mh(title)}
     ${allowClear ? '<button class="btn block" data-a="pp" data-id="">자리 비우기</button>' : ''}
