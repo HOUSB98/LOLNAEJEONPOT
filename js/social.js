@@ -75,14 +75,20 @@ let unread = 0, lastSeenAt = +localStorage.getItem('naejeon:chatseen') || 0, las
 const isOpen = () => !document.body.classList.contains('chat-closed');
 const msgs = () => col('chat').filter((m) => !m.deleted && m.at > (+settings().chatClearedAt || 0)).sort((a, b) => a.at - b.at || a.id.localeCompare(b.id));
 function send(kind, text) {
-  if (isKicked()) return toast('강퇴 상태에서는 채팅을 보낼 수 없습니다');
-  if (!nick()) return askNick(true);
+  if (isKicked()) { toast('강퇴 상태에서는 채팅을 보낼 수 없습니다'); return false; }
+  if (!nick()) { askNick(true); return false; }
   // 기기 시계 차이로 메시지 순서가 뒤섞이지 않게 서버 시각을 기준으로 하고,
   // 같은 기기에서 연속 전송해도 타임스탬프가 겹치지 않게 한다.
   const now = Math.max(S.store.serverNow?.() ?? Date.now(), lastChatAt + 1);
   lastChatAt = now;
   const id = now.toString(36) + Math.random().toString(36).slice(2, 6);
   S.store.put('chat', id, { at: now, cid, nick: nick(), k: kind, t: String(text).slice(0, 200) }).catch((e) => toast('전송 실패: ' + (e.code || e.message)));
+  return true;
+}
+export function sendLobbyChat(text) {
+  if (!send('m', text)) return false;
+  if (!isOpen()) document.getElementById('chatfab')?.click();
+  return true;
 }
 // 다른 화면에서 쓰는 알림 메시지 (경기 저장, 주사위 결과 등)
 export function sysChat(text) {
@@ -123,7 +129,8 @@ export function renderChat(force) {
     if (m.k === 'sys') { html += `<div class="csys">${esc(m.t)}<small>${tm}</small></div>`; prevWho = ''; continue; }
     const me = m.cid === cid, who = m.cid + m.nick, head = who !== prevWho;
     prevWho = who;
-    const body = m.k === 's' && STK[m.t] ? `<span class="sticker big ${STK[m.t][2]}">${esc(STK[m.t][1])}</span>` : m.k === 'r' ? `<span class="croll">${ic('dice')}<b>${esc(m.t)}</b><small>1~100</small></span>` : `<span class="cb ${/^\p{Extended_Pictographic}{1,3}$/u.test(m.t) ? 'emo' : ''}">${esc(m.t)}</span>`;
+    const linkedText = esc(m.t).replace(/https?:\/\/[^\s<]+/g, (url) => `<a class="chatlink" href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
+    const body = m.k === 's' && STK[m.t] ? `<span class="sticker big ${STK[m.t][2]}">${esc(STK[m.t][1])}</span>` : m.k === 'r' ? `<span class="croll">${ic('dice')}<b>${esc(m.t)}</b><small>1~100</small></span>` : `<span class="cb ${/^\p{Extended_Pictographic}{1,3}$/u.test(m.t) ? 'emo' : ''}">${linkedText}</span>`;
     html += `<div class="cm ${me ? 'me' : ''} ${head ? 'head' : ''}">${head && !me ? `<b class="cn" style="--h:${hue(m.nick)}">${esc(m.nick)}</b>` : ''}<div class="cl">${body}<small>${tm}</small>${me ? `<button class="cdel" data-a="chatDel" data-id="${m.id}" title="내 메시지 지우기" aria-label="메시지 지우기">${ic('x')}</button>` : ''}</div></div>`;
   }
   log.innerHTML = html || `<div class="cempty">${ic('chat')}<p>첫 메시지를 남겨 보세요.<br>스티커와 주사위도 있어요.</p></div>`;
