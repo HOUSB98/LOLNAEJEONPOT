@@ -112,20 +112,23 @@ act('admUnlock', () => needAdmin(() => { toast('관리자 모드가 켜졌습니
 act('admLock', () => { S.admin = false; sessionStorage.removeItem('naejeon:admin:' + S.key); toast('잠갔습니다'); refresh(); });
 act('plRestore',(d) => needAdmin(() => S.store.patch('players', d.id, { deleted: false })));
 act('mRestore', (d) => needAdmin(() => S.store.patch('matches', d.id, { deleted: false }).then(() => toast('복구했습니다'))));
-// 관리자 PIN 변경: 현재 PIN을 확인한 뒤(needAdmin) 새 PIN을 두 번 입력받아 바로 바꾼다. 바꾼 사람의 브라우저는 관리자 상태가 유지된다.
-act('pinChange', () => needAdmin(() => {
+// 관리자 PIN 변경: 이미 관리자 상태여도 현재 PIN을 다시 적어야 하고, 새 PIN은 두 번 입력받는다. 바꾼 사람의 브라우저는 관리자 상태가 유지된다.
+act('pinChange', () => {
+  const has = !!settings().pinHash;
   const el = modal(`${mh('관리자 PIN 변경')}
-    <p class="mut">새 PIN을 두 번 입력해 주세요. (4자리 이상) 바꾼 뒤에는 다른 기기에서 새 PIN으로 다시 확인해야 합니다.</p>
-    <form id="pinc" class="col"><input class="inp" id="pin1" type="password" inputmode="numeric" autocomplete="off" placeholder="새 PIN">
+    <p class="mut">${has ? '현재 PIN을 입력한 뒤 새 PIN을 두 번 입력해 주세요.' : '아직 관리자 PIN이 없습니다. 새 PIN을 두 번 입력해 주세요.'} (4자리 이상) 바꾼 뒤에는 다른 기기에서 새 PIN으로 다시 확인해야 합니다.</p>
+    <form id="pinc" class="col">${has ? '<input class="inp" id="pin0" type="password" inputmode="numeric" autocomplete="off" placeholder="현재 PIN">' : ''}
+      <input class="inp" id="pin1" type="password" inputmode="numeric" autocomplete="off" placeholder="새 PIN">
       <input class="inp" id="pin2" type="password" inputmode="numeric" autocomplete="off" placeholder="새 PIN 다시 입력">
       <div class="row"><span class="grow"></span><button type="button" class="btn ghost" data-a="close">취소</button><button class="btn pri">변경</button></div></form>`);
-  el.querySelector('#pin1').focus();
+  el.querySelector(has ? '#pin0' : '#pin1').focus();
   el.querySelector('#pinc').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const a = el.querySelector('#pin1').value.trim(), b = el.querySelector('#pin2').value.trim();
-    if (a.length < 4) return toast('4자리 이상 입력하세요');
-    if (a !== b) return toast('두 번 입력한 PIN이 서로 다릅니다');
+    const cur = has ? el.querySelector('#pin0').value.trim() : '', a = el.querySelector('#pin1').value.trim(), b = el.querySelector('#pin2').value.trim();
     try {
+      if (has && (!cur || (await sha(cur)) !== settings().pinHash)) return toast('현재 PIN이 맞지 않습니다');
+      if (a.length < 4) return toast('새 PIN은 4자리 이상 입력하세요');
+      if (a !== b) return toast('두 번 입력한 새 PIN이 서로 다릅니다');
       const h = await sha(a);
       if (h === settings().pinHash) return toast('지금 쓰는 PIN과 같습니다');
       await S.store.patch('meta', 'settings', { pinHash: h });
@@ -133,7 +136,7 @@ act('pinChange', () => needAdmin(() => {
       closeModal(); toast('관리자 PIN을 변경했습니다');
     } catch (err) { toast('변경 실패: ' + (err.code || err.message)); }
   });
-}));
+});
 
 act('seed', () => needAdmin(async () => {
   if (!confirm('구글 시트 데이터를 가져올까요? (선수 27명, 경기 17판)')) return;
