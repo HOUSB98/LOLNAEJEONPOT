@@ -38,8 +38,8 @@ act('dcRoll', async () => {
   DC.rolling = true;
   await S.store.syncServerClock?.(); // 각자 PC 시계가 달라도 같은 순간에 구르도록 서버 시각으로 시작 시점을 정한다
   const now = S.store.serverNow();
-  const d = { id: Date.now().toString(36) + rnd(1e6).toString(36), at: now, startAt: now + 1500, lane: DC.lane, ids, names: ids.map((x) => S.st.P[x].name), a, b, by: nick() || '익명' };
-  seen = d.id;
+  const d = { rid: Date.now().toString(36) + rnd(1e6).toString(36), at: now, startAt: now + 1500, lane: DC.lane, ids, names: ids.map((x) => S.st.P[x].name), a, b, by: nick() || '익명' };
+  seen = rollKey(d);
   S.store.put('meta', 'dice', d).catch((e) => toast('중계 전송 실패: ' + (e.code || e.message)));
   play(d, true);
 });
@@ -47,17 +47,20 @@ act('dcRoll', async () => {
 // 다른 사람이 굴린 주사위 받기. 두 경로로 듣고(어느 쪽이 먼저 와도 id로 한 번만 재생):
 //  ① meta/dice 문서를 직접 구독(가장 빠르고, 다른 화면 갱신 로직과 무관)  ② meta 전체가 바뀔 때 호출되는 watchDice()
 // "새 결과"인지는 시계가 아니라 문서 id가 바뀌었는지로 판단한다(PC마다 시계가 달라도 놓치지 않는다).
+// 주의: 저장할 때 문서의 id 필드는 항상 문서 이름('dice')으로 덮어써지므로, 굴림마다 달라지는 값은 rid에 둔다.
+// (예전에는 id로 비교해서 값이 늘 'dice'였고, 그래서 다른 사람 화면에서는 새 굴림으로 인식되지 않았다)
+const rollKey = (d) => (d ? String(d.rid || d.at || '') : '');
 let docWatch = false;
 function onDice(d) {
-  if (seen === null) { seen = d?.id || ''; return; } // 접속했을 때 이미 있던 결과는 기준점으로만 삼는다
-  if (!d || !d.id || d.id === seen) return;
-  seen = d.id;
+  if (seen === null) { seen = rollKey(d); return; } // 접속했을 때 이미 있던 결과는 기준점으로만 삼는다
+  if (!d || !rollKey(d) || rollKey(d) === seen) return;
+  seen = rollKey(d);
   if (DC.rolling) return;
   try { play(d, false); } catch (e) { DC.rolling = false; console.error('[dice]', e); }
 }
 export function watchDice(initial) {
   const d = S.store.data.meta?.dice;
-  if (initial) { if (seen === null) seen = d?.id || ''; }
+  if (initial) { if (seen === null) seen = rollKey(d); }
   else onDice(d);
   if (!docWatch && S.store.mode === 'firebase') {
     docWatch = true;
