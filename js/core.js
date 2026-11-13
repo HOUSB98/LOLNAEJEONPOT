@@ -211,8 +211,11 @@ export function lazyArt(root = document) {
 }
 // 선수의 대표 챔피언(랭킹·선수 카드·케미 등 모든 화면 공통):
 // 주라인에서 가장 많이 쓴 챔피언 → (기록이 없으면) 솔랭 모스트 → 내전 모스트
+const SIG_CHAMP_PREF = { 승정: '진' };
 const sigCache = new WeakMap();
 export function sigChamp(s) {
+  const preferred = SIG_CHAMP_PREF[s.name];
+  if (preferred && S.champBy[preferred]) return skinFor(s, preferred);
   const st = S.st; let cnt = sigCache.get(st);
   if (!cnt) {
     cnt = {};
