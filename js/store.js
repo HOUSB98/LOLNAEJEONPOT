@@ -5,7 +5,7 @@ import { FIREBASE_CONFIG } from './config.js';
 
 // reveals(승률 공개 이벤트)는 계속 쌓이는 기록이라 전체를 구독하지 않고 watchCollection으로 최근 것만 따로 듣는다.
 const WATCHED = ['players', 'matches', 'auctions', 'meta', 'presence', 'chat'];
-const CHAT_LIMIT = 300; // 채팅은 문서가 계속 쌓이므로 최근 것만 구독한다(기록 자체는 DB에 남는다)
+const CHAT_LIMIT = 30; // 채팅은 문서가 계속 쌓이므로 최근 30개만 구독한다(기록 자체는 DB에 남는다)
 const clean = (o) => JSON.parse(JSON.stringify(o)); // Firestore는 undefined를 받지 않는다
 const FB ='https://www.gstatic.com/firebasejs/10.12.5/';
 

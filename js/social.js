@@ -3,8 +3,8 @@ import { S, act, esc, uid, col, settings, toast, modal, closeModal, mh, ic, logo
 
 const cid = localStorage.getItem('naejeon:cid') || (() => { const v = uid(); localStorage.setItem('naejeon:cid', v); return v; })();
 export const nick = () => localStorage.getItem('naejeon:nick') || '';
-// 40초마다 생존 신호를 보내고, 100초 동안 신호가 없으면 나간 것으로 본다. 탭을 닫으면 그 즉시 나감 표시(at:0)를 보낸다.
-const ONLINE_MS = 100e3, BEAT_MS = 40e3;
+// 10분마다 생존 신호를 보내고, 12분 동안 신호가 없으면 나간 것으로 본다. 탭을 닫으면 그 즉시 나감 표시(at:0)를 보낸다.
+const ONLINE_MS = 12 * 60e3, BEAT_MS = 10 * 60e3;
 const hue = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
 
 // ---------- 접속자 ----------
