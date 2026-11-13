@@ -35,7 +35,10 @@ function drum(names, cls) {
 act('dcRoll', async () => {
   if (DC.rolling || DC.sel.length < 2) return;
   const ids = [...DC.sel], a = ids[rnd(ids.length)], rest = ids.filter((x) => x !== a), b = rest[rnd(rest.length)];
-  const d = { id: Date.now().toString(36) + rnd(1e6).toString(36), at: Date.now(), lane: DC.lane, ids, names: ids.map((x) => S.st.P[x].name), a, b, by: nick() || '익명' };
+  DC.rolling = true;
+  await S.store.syncServerClock?.(); // 각자 PC 시계가 달라도 같은 순간에 구르도록 서버 시각으로 시작 시점을 정한다
+  const now = S.store.serverNow();
+  const d = { id: Date.now().toString(36) + rnd(1e6).toString(36), at: now, startAt: now + 1500, lane: DC.lane, ids, names: ids.map((x) => S.st.P[x].name), a, b, by: nick() || '익명' };
   seen = d.id;
   S.store.put('meta', 'dice', d).catch((e) => toast('중계 전송 실패: ' + (e.code || e.message)));
   play(d, true);
@@ -47,7 +50,7 @@ export function watchDice(initial) {
   if (initial || seen === null) { seen = d?.id || ''; return; }
   if (!d || d.id === seen) return;
   seen = d.id;
-  if (Date.now() - d.at > 30000 || DC.rolling) return;
+  if (S.store.serverNow() - d.at > 12000 || DC.rolling) return; // 한참 지난 결과(뒤늦게 접속)는 재생하지 않는다
   play(d, false);
 }
 
@@ -106,16 +109,21 @@ function play(d, mine) {
     fx.stop(i - 1); fx.boom(i - 1);
     burst(rc.left + rc.width / 2, rc.top + rc.height / 2, 90);
   };
-  spin(dies[0], d1, ia, 3400, 7).then(() => reveal(1, names[ia], 'blue'));
-  spin(dies[1], d2, ib, 4600, 9).then(() => {
+  // 모두 같은 시각(startAt)에 굴리기 시작한다. 늦게 받은 사람은 늦은 만큼 회전 시간을 줄여 같은 순간에 멈춘다.
+  const late = Math.max(0, S.store.serverNow() - (d.startAt || d.at)), wait = Math.max(0, (d.startAt || d.at) - S.store.serverNow());
+  const go = () => { if (!document.body.contains(el)) { DC.rolling = false; return; }
+  spin(dies[0], d1, ia, Math.max(900, 3400 - late), 7).then(() => reveal(1, names[ia], 'blue'));
+  spin(dies[1], d2, ib, Math.max(1400, 4600 - late), 9).then(() => {
     reveal(2, names[ib], 'red');
     setTimeout(() => {
-      if (S.st.P[d.a] && S.st.P[d.b]) assignLane(d.lane, d.a, d.b);
+      if (mine && S.st.P[d.a] && S.st.P[d.b]) assignLane(d.lane, d.a, d.b); // 배치는 굴린 사람만 저장하고, 나머지는 라인업 동기화로 받는다
       if (mine) sysChat(`주사위 · ${LANE_NAME[lane]} 추첨 (${names.join(', ')}) → 블루 ${names[ia]}, 레드 ${names[ib]}`);
       burst(innerWidth / 2, innerHeight / 2, 180);
       el.querySelector('.dice-stage').classList.add('fin');
-      el.querySelector('#dfoot').innerHTML = `<p class="dwin">${LANE_ICON[lane]}<b>${esc(names[ia])}</b> <i>&amp;</i> <b>${esc(names[ib])}</b> — ${LANE_NAME[lane]} 확정!</p><div class="row center">${mine ? '<button class="btn" data-a="tDice">다른 라인 추첨</button>' : ''}<button class="btn pri" data-a="close">라인업 확인</button></div><small class="mut">오늘의 내전 라인업에 배치했습니다. 진영은 라인업에서 바꿀 수 있습니다.</small>`;
+      el.querySelector('#dfoot').innerHTML = `<p class="dwin">${LANE_ICON[lane]}<b>${esc(names[ia])}</b> <i>&amp;</i> <b>${esc(names[ib])}</b> — ${LANE_NAME[lane]} 확정!</p><div class="row center">${mine ? '<button class="btn" data-a="tDice">다른 라인 추첨</button>' : ''}<button class="btn pri" data-a="close">라인업 확인</button></div><small class="mut">오늘의 내전 라인업에 배치됩니다. 진영은 라인업에서 바꿀 수 있습니다.</small>`;
       DC.rolling = false;
     }, 700);
   });
+  };
+  if (wait > 30) setTimeout(go, wait); else go();
 }

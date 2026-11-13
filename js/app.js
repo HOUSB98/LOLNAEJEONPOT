@@ -366,6 +366,7 @@ page('champs', {
     // 선수별 시그니처(가장 많이 쓴 챔피언). 2판 이상인 선수가 있으면 그 선수들만, 없으면 전원
     let sigs = st.list.map((x) => { const e = Object.entries(x.champs).sort((a, b) => b[1].g - a[1].g || b[1].w - a[1].w)[0]; return e ? { s: x, n: e[0], ...e[1] } : null; }).filter(Boolean).sort((a, b) => b.g - a.g || b.w - a.w);
     if (sigs.some((x) => x.g >= 2)) sigs = sigs.filter((x) => x.g >= 2);
+    sigs = sigs.slice(0, 12);
     CH.si %= Math.max(1, sigs.length);
     const ins = (cap, title, name, sub, tone, cls = '') => `<div class="ins ${tone} ${cls}" style="--img:url('${tileUrl(name)}')"><small>${cap}</small><span>${title}</span><b>${esc(name || '—')}</b><em>${sub}</em></div>`;
     const topN = picked.slice(0, 7), topMax = topN[0].g;

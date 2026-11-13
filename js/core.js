@@ -139,30 +139,47 @@ const cimg = (kind) => (name) => (imgId(name) ? `https://ddragon.leagueoflegends
 export const splashUrl = cimg('splash');
 export const tileUrl = cimg('tiles');
 export const artUrl = cimg('centered');
-// 선수별 스킨 지정: 그 선수의 대표 챔피언이 champ일 때 초상화·일러스트를 해당 스킨으로 바꾼다.
-// 스킨 번호는 패치 데이터에서 이름(kw)으로 찾고, 못 찾으면 num을 쓴다. 다른 선수도 여기에 한 줄 추가하면 된다.
+// ---------- 선수 카드 스킨 ----------
+// 선수의 대표 챔피언은 스킨 일러스트로 보여 준다(얼굴 중심 이미지라 누구인지 알아볼 수 있다).
+//   1) 선수 문서의 skin{champ,num,name} (선수 카드의 "스킨 변경"에서 고른 것, num 0 = 기본 일러스트)
+//   2) SKIN_PREF에 적어 둔 지정 스킨   3) 그 챔피언의 스킨 중 선수마다 정해지는 하나(자동)
+// 스킨 목록은 패치 데이터에서 챔피언별로 한 번만 받아 브라우저에 저장한다. 받기 전에는 기본 일러스트가 보인다.
 const SKIN_PREF = [{ player: '혜나', champ: '유미', kw: ['불꽃놀이', '폭죽'], num: 70 }];
-const skinStore = (() => { try { return JSON.parse(localStorage.getItem('naejeon:skins')) || {}; } catch { return {}; } })();
-const skinKey = (p) => p.champ + '|' + p.kw[0];
-function applySkins() {
-  for (const p of SKIN_PREF) {
-    const c = S.champBy[p.champ]; if (!c) continue;
-    const info = skinStore[skinKey(p)] || { num: p.num, name: `${p.kw[0]} ${p.champ}` };
-    p.alias = info.name;
-    S.champBy[info.name] = { id: c.id, name: info.name, skin: info.num, img: `https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/${IMG_ID[c.id] || c.id}_${info.num}.jpg` };
-  }
+const skinDB = (() => { try { return JSON.parse(localStorage.getItem('naejeon:skins2')) || {}; } catch { return {}; } })();
+const skinWait = new Set(); let skinTimer = 0;
+export const baseChamp = (name) => S.champBy[name]?.base || name;
+export function skinList(name) {
+  const c = S.champBy[name]; if (!c || c.base || !S.ver) return null;
+  if (skinDB.ver !== S.ver) { skinDB.ver = S.ver; skinDB.by = {}; }
+  if (skinDB.by[c.id]) return skinDB.by[c.id];
+  if (skinWait.has(c.id)) return null;
+  skinWait.add(c.id);
+  fetch(`https://ddragon.leagueoflegends.com/cdn/${S.ver}/data/ko_KR/champion/${c.id}.json`).then((r) => r.json()).then((d) => {
+    skinDB.by[c.id] = d.data[c.id].skins.filter((x) => x.num > 0).map((x) => [x.num, x.name]);
+    try { localStorage.setItem('naejeon:skins2', JSON.stringify(skinDB)); } catch {}
+    clearTimeout(skinTimer); skinTimer = setTimeout(() => refresh(), 200); // 여러 챔피언이 한꺼번에 도착해도 화면은 한 번만 다시 그린다
+  }).catch(() => {});
+  return null;
 }
-async function loadSkins() {
-  for (const p of SKIN_PREF) {
-    const c = S.champBy[p.champ]; if (!c || skinStore[skinKey(p)]?.ver === S.ver) continue;
-    try {
-      const d = (await (await fetch(`https://ddragon.leagueoflegends.com/cdn/${S.ver}/data/ko_KR/champion/${c.id}.json`)).json()).data[c.id];
-      const sk = d.skins.find((x) => p.kw.some((k) => x.name.includes(k)));
-      if (sk) { skinStore[skinKey(p)] = { num: sk.num, name: sk.name, ver: S.ver }; localStorage.setItem('naejeon:skins', JSON.stringify(skinStore)); applySkins(); refresh(); }
-    } catch (e) { console.warn('스킨 정보를 불러오지 못했습니다', e); }
-  }
+function skinAlias(name, num, sname) {
+  const c = S.champBy[name]; if (!c || !num) return name;
+  const key = sname || `${name} 스킨 ${num}`;
+  S.champBy[key] ||= { id: c.id, name: key, base: name, skin: num, img: `https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/${IMG_ID[c.id] || c.id}_${num}.jpg` };
+  return key;
 }
-const skinFor = (s, name) => { const p = SKIN_PREF.find((x) => x.alias && x.champ === name && s.name.includes(x.player)); return p ? p.alias : name; };
+function skinFor(s, name) {
+  if (!S.champBy[name]) return name;
+  const own = s.p.skin;
+  if (own && own.champ === name) return skinAlias(name, +own.num || 0, own.name);
+  const pref = SKIN_PREF.find((x) => x.champ === name && s.name.includes(x.player)), list = skinList(name);
+  if (!list) return pref ? skinAlias(name, pref.num, `${pref.kw[0]} ${name}`) : name;
+  const hit = pref && list.find((x) => pref.kw.some((k) => x[1].includes(k)));
+  if (hit) return skinAlias(name, hit[0], hit[1]);
+  if (!list.length) return name;
+  let h = 0; for (const ch of s.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const pick = list[h % list.length];
+  return skinAlias(name, pick[0], pick[1]);
+}
 // 화면에 보일 때만 배경 이미지를 받는다: <i data-art="주소"> → 보이면 style="--img:url(주소)"
 let artIO = null;
 export function lazyArt(root = document) {
@@ -245,7 +262,7 @@ const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
 const cho = (s) => [...s].map((c) => { const n = c.charCodeAt(0) - 0xac00; return n >= 0 && n < 11172 ? CHO[Math.floor(n / 588)] : c; }).join('');
 export async function loadChamps() {
   const KEY = 'naejeon:champs2';
-  const set = (o) => { S.ver = o.ver; S.champs = o.list; S.champBy = Object.fromEntries(o.list.map((c) => [c.name, c])); applySkins(); loadSkins(); };
+  const set = (o) => { S.ver = o.ver; S.champs = o.list; S.champBy = Object.fromEntries(o.list.map((c) => [c.name, c])); };
   try {
     const cached = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (cached) { set(cached); refresh(); } // 저장해 둔 목록을 적용한 뒤 화면을 다시 그려야 첫 화면의 이미지가 비지 않는다

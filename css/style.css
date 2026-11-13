@@ -1044,3 +1044,26 @@ body.chat-closed #chatfab{display:grid;animation:fabin .55s .15s cubic-bezier(.2
 @keyframes fabscan{0%,100%{transform:scaleX(.25);opacity:.5}50%{transform:scaleX(1);opacity:1}}
 #chatfab em{position:absolute;left:0;right:0;bottom:7px;text-align:center;font:700 8px var(--mono);letter-spacing:.26em;font-style:normal;color:#9aa6ba;padding-left:.26em}
 #chatbadge{top:-6px;right:-6px;box-shadow:0 0 0 2px #070a11,0 0 12px var(--red)}
+
+/* --- 5차 보완: 성능 · 배치 --- */
+/* 홈의 작은 티어 표에서 숫자가 밀리던 문제(기존 .tiers.mini .trow span 규칙이 숫자에도 걸림) */
+.tiers .trow>b>span{display:block;width:100%;text-align:center;gap:0;transform:none!important}
+.tiers.mini .trow>b{padding:4px 0}
+/* 챔피언 분석: 큰 카드가 마우스 아래에서 들썩이지 않게 하고, 계속 도는 그림자 애니메이션을 정적인 효과로 바꾼다 */
+.chtop>.stat:hover,.chtop .toprank:hover{transform:none}
+.sigrot .ins:hover{transform:none}
+.tc.op .ci{animation:none;box-shadow:0 0 0 1px rgba(255,246,210,.7),0 0 14px rgba(242,207,122,.6)}
+.trow>b::after{display:none}.trow.t1>b::after{display:block;will-change:transform}
+.ks.ovr{animation:rise .6s cubic-bezier(.2,.8,.2,1) both;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 0 24px -8px rgba(217,164,65,.7),0 20px 34px -26px var(--c)}
+.tiers,.chtop{contain:layout style}
+#main>.tw{content-visibility:auto;contain-intrinsic-size:auto 900px}
+.mk.op::after,.trk-r s,.dprog i{will-change:transform}
+/* 랭킹: 등장할 때 행을 움직이지 않고 서서히 나타나게만 한다(행이 움직이는 동안 오른쪽 챔피언 그림 기준점이 바뀌어 밀려 보였다) */
+#main.enter .tbl.lb tbody tr{animation-name:fadein}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+/* 스킨 선택 */
+.skgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;overflow-y:auto;padding:2px}
+.skp{position:relative;display:flex;flex-direction:column;gap:6px;padding:6px 6px 8px;border-radius:12px;border:1px solid var(--line2);background:var(--panel2);color:var(--text);font:inherit;font-size:12px;cursor:pointer;transition:.15s}
+.skp img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;background:#070b13}
+.skp span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.skp:hover{border-color:#4a5e80;transform:translateY(-2px)}.skp.on{border-color:var(--gold);box-shadow:0 0 18px -6px var(--gold);color:var(--gold2)}
