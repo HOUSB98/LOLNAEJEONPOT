@@ -4,6 +4,7 @@ import { dayKey } from './stats.js';
 import { setDraftTeams } from './today.js';
 
 const AU = { name: '', role: {}, points: 1000, unit: 10, sec: 20, ext: 8, hcap: {}, hide: true, chat: '', amt: '', as: 0 };
+const LOT_START_DELAY_MS = 15_000;
 const tok = () => uid() + uid();
 const hostKey = (id) => `naejeon:auhost:${S.key}:${id}`;
 const room = (id) => S.store.data.auctions?.[id];
@@ -25,7 +26,7 @@ function nextItem(r, now) {
     r.unsold = left;
     return finish(r);
   }
-  r.cur = { pid: r.pool.shift(), bid: 0, team: -1, startsAt: now + 3000, endsAt: now + 3000 + r.cfg.sec * 1000 };
+  r.cur = { pid: r.pool.shift(), bid: 0, team: -1, startsAt: now + LOT_START_DELAY_MS, endsAt: now + LOT_START_DELAY_MS + r.cfg.sec * 1000 };
   return r;
 }
 function settle(r, now) {
@@ -34,7 +35,7 @@ function settle(r, now) {
   else { r.unsold.push(c.pid); say(r, `💨 ${nm(c.pid)} 유찰`); }
   return nextItem(r, now);
 }
-const tx = (id, fn) => S.store.tx('auctions', id, (r) => (r ? fn(JSON.parse(JSON.stringify(r)), Date.now()) : null)).catch((e) => { toast('오류: ' + (e.code || e.message)); return false; });
+const tx = (id, fn) => S.store.tx('auctions', id, (r) => (r && !r.deleted ? fn(JSON.parse(JSON.stringify(r)), Date.now()) : null)).catch((e) => { toast('오류: ' + (e.code || e.message)); return false; });
 
 function myRole(r, token) {
   const t = token || localStorage.getItem(hostKey(r.id));
@@ -86,7 +87,7 @@ function lobbyList() {
 
 function roomView(id, token) {
   const r = room(id), st = S.st;
-  if (!r) return `<div class="panel empty">경매 방을 찾을 수 없습니다. <a href="#/auction">목록으로</a></div>`;
+  if (!r || r.deleted || r.status === 'deleted') return `<div class="panel empty">이 경매 방은 삭제되어 더 이상 참여할 수 없습니다. <a href="#/auction">경매 목록으로</a></div>`;
   const me = myRole(r, token), c = r.cur, base = location.origin + location.pathname + location.search + '#/auction/' + r.id;
   const bidTeam = me.host ? Math.min(AU.as, r.teams.length - 1) : me.team;
   const info = (pid) => { const s = st.P[pid]; return s ? `<div class="item"><div class="ov big"><b>${s.ovr}</b><small>OVR</small></div><div><h1>${esc(s.name)}</h1><div class="mut">${LANE_ICON[s.mainLane]} ${LANE_NAME[s.mainLane]} · ${esc(s.p.soloTier || '티어 정보 없음')} · ${s.g ? `내전 ${s.wr}% (${s.g}판)` : '내전 기록 없음'}</div>
@@ -136,7 +137,8 @@ let timer = 0;
 function tick() {
   if (S.page !== 'auction' || !S.arg[0]) { clearInterval(timer); timer = 0; return; }
   const r = room(S.arg[0]), el = document.getElementById('au-timer');
-  if (!r || !r.cur || !el) return;
+  if (!r || r.deleted || r.status === 'deleted') { clearInterval(timer); timer = 0; return; }
+  if (!r.cur || !el) return;
   const now = Date.now(), c = r.cur;
   if (r.status === 'paused') { el.textContent = `⏸ ${Math.ceil((c.left || 0) / 1000)}초`; return; }
   if (now < c.startsAt) { el.textContent = `곧 시작 ${Math.ceil((c.startsAt - now) / 1000)}`; el.className = 'timer'; return; }
@@ -231,4 +233,8 @@ act('auToDraft', (d) => {
   setDraftTeams(ids(r.teams[0]), ids(r.teams[1]));
   toast('라인업을 채웠습니다'); go('#/today');
 });
-act('auDel', (d) => { if (confirm('이 경매 방을 목록에서 지울까요?')) S.store.patch('auctions', d.id, { deleted: true }).then(() => go('#/auction')); });
+act('auDel', (d) => {
+  if (!confirm('이 경매 방을 삭제할까요? 진행 중인 경매는 모든 참가자에게 즉시 종료됩니다.')) return;
+  tx(d.id, (r) => { r.deleted = true; r.status = 'deleted'; r.cur = null; say(r, '⛔ 경매 방이 삭제되어 진행이 종료되었습니다.'); return r; })
+    .then((ok) => { if (ok) go('#/auction'); else toast('경매 방을 삭제하지 못했습니다'); });
+});
