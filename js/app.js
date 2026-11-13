@@ -129,7 +129,6 @@ function tierRows(list, { all = false, pctOn = false } = {}) {
 }
 const today = () => { const d = new Date(); return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`; };
 const laneSeg = (cur, a, withAll) => `<div class="seg full lseg">${withAll ? `<button class="${cur === 'all' ? 'on' : ''}" data-a="${a}" data-l="all"><span>전체</span></button>` : ''}${LANES.map((l) => `<button class="${cur === l ? 'on' : ''}" data-a="${a}" data-l="${l}" title="${LANE_NAME[l]}">${LANE_ICON[l]}<span>${LANE_NAME[l]}</span></button>`).join('')}</div>`;
-const tierLegend = '<span class="tlegend"><span><i class="mk op"><u>OP</u></i>성능 검증 · 라인별 최대 3</span><span><i class="mk bee">' + BEE + '</i>쓰기 좋은 꿀픽 · 최대 5</span></span>';
 function laneTierPanel() {
   const list = laneTierList(HM.lane);
   return `<section class="panel ltier"><div class="sec-h"><h2>${ic('champs')}챔피언 티어</h2><span class="mut sm">${LANE_NAME[HM.lane]} · ${list.length}종</span><span class="grow"></span><a class="mut sm" href="#/champs">전체 보기 →</a></div>
@@ -370,7 +369,10 @@ page('champs', {
     CH.si %= Math.max(1, sigs.length);
     const ins = (cap, title, name, sub, tone, cls = '') => `<div class="ins ${tone} ${cls}" style="--img:url('${tileUrl(name)}')"><small>${cap}</small><span>${title}</span><b>${esc(name || '—')}</b><em>${sub}</em></div>`;
     const topN = picked.slice(0, 7), topMax = topN[0].g;
-    const tl = CH.lane === 'all' ? picked : laneTierList(CH.lane);
+    // "전체" 탭에서도 표시를 유지한다: 어느 한 라인에서라도 OP/꿀벌이면 붙인다(둘 다면 OP 우선)
+    const marks = {};
+    if (CH.lane === 'all') LANES.forEach((l) => laneTierList(l).forEach((c) => { if (c.mark && marks[c.name] !== 'op') marks[c.name] = c.mark; }));
+    const tl = CH.lane === 'all' ? picked.map((c) => ({ ...c, mark: marks[c.name] })) : laneTierList(CH.lane);
     return `<div class="h2row"><h1>${ic('champs')}챔피언 분석</h1><span class="tag">${picked.length}종 · ${totalPicks}픽 · 다양성 ${Math.round((picked.length / totalPicks) * 100)}%</span><span class="grow"></span><input id="chq" class="inp" placeholder="챔피언 검색" value="${esc(CH.q)}" data-i="chQ"></div>
     <div class="chtop">
       <div class="stat gold toprank"><small>MOST PICKED · 선택 순위 TOP ${topN.length}</small><div class="trk">${topN.map((c, i) => `<div class="trk-r r${i + 1}" style="--d:${i}"><i class="mono">${i + 1}</i>${champIcon(c.name, 'sm')}<span>${esc(c.name)}</span><u><s style="width:${(c.g / topMax) * 100}%"></s></u><b class="mono">${c.g}<small>픽</small></b><em class="mono ${wrClass(pct(c.w, c.g))}">${pct(c.w, c.g)}%</em></div>`).join('')}</div></div>
@@ -381,7 +383,7 @@ page('champs', {
       ${stat('users', '최다 챔피언 폭', wide?.champKinds ? esc(wide.name) : '-', wide?.champKinds ? `${wide.champKinds}종 사용` : '', 'blue')}
       <div class="sigrot" id="sigrot">${sigs.map((x, i) => ins('SIGNATURE PICK', `${esc(x.s.name)}의 시그니처`, x.n, `${x.g}판 · 승률 ${pct(x.w, x.g)}%`, 'blue', i === CH.si ? 'on' : '')).join('') || ins('SIGNATURE PICK', '시그니처', '', '기록 없음', 'blue', 'on')}${sigs.length > 1 ? `<div class="sigdots">${sigs.slice(0, 12).map((_, i) => `<i class="${i === CH.si ? 'on' : ''}"></i>`).join('')}</div>` : ''}</div>
     </div>
-    <div class="sec-h"><h2>티어 리스트</h2><span class="mut sm">보정 승률(표본 반영) + 선택 빈도 기준 · 내전 데이터 한정</span><span class="grow"></span>${tierLegend}<span class="asof mono">기준 ${today()}</span></div>
+    <div class="sec-h"><h2>티어 리스트</h2><span class="mut sm">보정 승률(표본 반영) + 선택 빈도 기준 · 내전 데이터 한정</span><span class="grow"></span><span class="asof mono">기준 ${today()}</span></div>
     ${laneSeg(CH.lane, 'chLane', true)}
     <div class="tiers">${tierRows(tl, { all: true, pctOn: true })}</div>
     <div class="sec-h"><h2>전체 통계</h2></div>
