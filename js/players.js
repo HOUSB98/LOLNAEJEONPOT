@@ -1,5 +1,5 @@
 // 선수 카드(홀로 카드) / 솔랭 분석 / 케미 분석
-import { S, page, act, esc, pname, go, refresh, fmtDT, wrClass, wrBar, dots, streak, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, skinList, baseChamp, modal, closeModal, mh, toast, ic, logo, countUp, burst, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct } from './core.js';
+import { S, page, act, esc, pname, go, refresh, fmtDT, wrClass, wrBar, dots, streak, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, skinList, skinBad, baseChamp, modal, closeModal, mh, toast, ic, logo, countUp, burst, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct } from './core.js';
 import { chem, playerLine, duoRank, CHEM_RULE } from './stats.js';
 
 const PV = { view: 'card', dl: 'all' };
@@ -194,7 +194,11 @@ act('skinPick', (d) => {
   const curNum = S.champBy[cur]?.skin || 0;
   modal(`${mh(`${esc(s.name)} · ${esc(base)} 스킨 선택`)}
     <p class="mut sm">선수 카드·랭킹·케미 등 이 선수의 대표 일러스트가 고른 스킨으로 바뀝니다. 대표 챔피언이 바뀌면 그 챔피언의 스킨이 자동으로 정해집니다.</p>
-    <div class="skgrid">${[[0, '기본'], ...list].map(([n, nm]) => `<button class="skp ${n === curNum ? 'on' : ''}" data-a="skinSet" data-id="${s.id}" data-n="${n}" data-c="${esc(base)}" data-nm="${esc(nm)}"><img src="${url(n)}" alt="" loading="lazy"><span>${esc(nm)}</span></button>`).join('')}</div>`, 'tall');
+    <div class="skgrid">${[[0, '기본'], ...list].map(([n, nm]) => `<button class="skp ${n === curNum ? 'on' : ''}" data-a="skinSet" data-id="${s.id}" data-n="${n}" data-c="${esc(base)}" data-nm="${esc(nm)}"><img src="${url(n)}" alt=""><span>${esc(nm)}</span></button>`).join('')}</div>`, 'tall').querySelectorAll('.skp img').forEach((im) => {
+    // 일러스트가 없는(아직 쓸 수 없는) 스킨은 선택지에서 빼고, 다음부터도 나오지 않게 기록한다
+    const b = im.closest('.skp'), drop = () => { b.remove(); skinBad(base, +b.dataset.n); };
+    if (+b.dataset.n) { im.onerror = drop; if (im.complete && !im.naturalWidth) drop(); }
+  });
 });
 act('skinSet', async (d) => {
   try { await S.store.patch('players', d.id, { skin: { champ: d.c, num: +d.n, name: +d.n ? d.nm : '' } }); closeModal(); toast('스킨을 바꿨습니다'); }

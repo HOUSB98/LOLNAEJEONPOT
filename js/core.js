@@ -150,8 +150,8 @@ const skinWait = new Set(); let skinTimer = 0;
 export const baseChamp = (name) => S.champBy[name]?.base || name;
 export function skinList(name) {
   const c = S.champBy[name]; if (!c || c.base || !S.ver) return null;
-  if (skinDB.ver !== S.ver) { skinDB.ver = S.ver; skinDB.by = {}; }
-  if (skinDB.by[c.id]) return skinDB.by[c.id];
+  if (skinDB.ver !== S.ver) { skinDB.ver = S.ver; skinDB.by = {}; skinDB.bad = {}; }
+  if (skinDB.by[c.id]) { const bad = skinDB.bad?.[c.id]; return bad ? skinDB.by[c.id].filter((x) => !bad.includes(x[0])) : skinDB.by[c.id]; }
   if (skinWait.has(c.id)) return null;
   skinWait.add(c.id);
   fetch(`https://ddragon.leagueoflegends.com/cdn/${S.ver}/data/ko_KR/champion/${c.id}.json`).then((r) => r.json()).then((d) => {
@@ -161,8 +161,27 @@ export function skinList(name) {
   }).catch(() => {});
   return null;
 }
+// 일러스트가 아직 제공되지 않는 스킨(이미지 서버에 파일이 없음)은 "쓸 수 없는 스킨"으로 기록해 선택지와 자동 지정에서 뺀다.
+// 실제로 화면에 쓰려는 스킨만 한 번씩 확인한다(전체를 미리 받아 보지 않는다).
+const skinChecked = new Set();
+const skinUrl = (c, kind, num) => `https://ddragon.leagueoflegends.com/cdn/img/champion/${kind}/${IMG_ID[c.id] || c.id}_${num}.jpg`;
+export function skinBad(name, num) {
+  const c = S.champBy[baseChamp(name)]; if (!c || !num || !navigator.onLine) return; // 인터넷이 끊겨서 실패한 경우는 기록하지 않는다
+  const list = ((skinDB.bad ||= {})[c.id] ||= []);
+  if (list.includes(num)) return;
+  list.push(num);
+  try { localStorage.setItem('naejeon:skins2', JSON.stringify(skinDB)); } catch {}
+  clearTimeout(skinTimer); skinTimer = setTimeout(() => refresh(), 200);
+}
+function skinProbe(name, num) {
+  const c = S.champBy[name], k = c && c.id + '_' + num; if (!c || !num || skinChecked.has(k)) return;
+  skinChecked.add(k);
+  for (const kind of ['tiles', 'centered']) { const im = new Image(); im.onerror = () => skinBad(name, num); im.src = skinUrl(c, kind, num); }
+}
+const isBad = (name, num) => !!skinDB.bad?.[S.champBy[name]?.id]?.includes(num);
 function skinAlias(name, num, sname) {
   const c = S.champBy[name]; if (!c || !num) return name;
+  skinProbe(name, num);
   const key = sname || `${name} 스킨 ${num}`;
   S.champBy[key] ||= { id: c.id, name: key, base: name, skin: num, img: `https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/${IMG_ID[c.id] || c.id}_${num}.jpg` };
   return key;
@@ -170,9 +189,9 @@ function skinAlias(name, num, sname) {
 function skinFor(s, name) {
   if (!S.champBy[name]) return name;
   const own = s.p.skin;
-  if (own && own.champ === name) return skinAlias(name, +own.num || 0, own.name);
+  if (own && own.champ === name && !isBad(name, +own.num)) return skinAlias(name, +own.num || 0, own.name);
   const pref = SKIN_PREF.find((x) => x.champ === name && s.name.includes(x.player)), list = skinList(name);
-  if (!list) return pref ? skinAlias(name, pref.num, `${pref.kw[0]} ${name}`) : name;
+  if (!list) return pref && !isBad(name, pref.num) ? skinAlias(name, pref.num, `${pref.kw[0]} ${name}`) : name;
   const hit = pref && list.find((x) => pref.kw.some((k) => x[1].includes(k)));
   if (hit) return skinAlias(name, hit[0], hit[1]);
   if (!list.length) return name;
