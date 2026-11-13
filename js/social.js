@@ -71,21 +71,23 @@ const STICKERS = [
 ];
 const EMOJI = ['😂', '🔥', '👍', '😭', '🤡', '💀', '🫡', '🙏', '👀', '🎉', '😎', '🥲'];
 const STK = Object.fromEntries(STICKERS.map((s) => [s[0], s]));
-let unread = 0, lastSeenAt = +localStorage.getItem('naejeon:chatseen') || 0, lastSend = 0, tray = false;
+let unread = 0, lastSeenAt = +localStorage.getItem('naejeon:chatseen') || 0, lastChatAt = 0, tray = false;
 const isOpen = () => !document.body.classList.contains('chat-closed');
-const msgs = () => col('chat').filter((m) => !m.deleted && m.at > (+settings().chatClearedAt || 0)).sort((a, b) => a.at - b.at);
+const msgs = () => col('chat').filter((m) => !m.deleted && m.at > (+settings().chatClearedAt || 0)).sort((a, b) => a.at - b.at || a.id.localeCompare(b.id));
 function send(kind, text) {
   if (isKicked()) return toast('강퇴 상태에서는 채팅을 보낼 수 없습니다');
   if (!nick()) return askNick(true);
-  const now = Date.now();
-  if (now - lastSend < 600) return;
-  lastSend = now;
+  // 기기 시계 차이로 메시지 순서가 뒤섞이지 않게 서버 시각을 기준으로 하고,
+  // 같은 기기에서 연속 전송해도 타임스탬프가 겹치지 않게 한다.
+  const now = Math.max(S.store.serverNow?.() ?? Date.now(), lastChatAt + 1);
+  lastChatAt = now;
   const id = now.toString(36) + Math.random().toString(36).slice(2, 6);
   S.store.put('chat', id, { at: now, cid, nick: nick(), k: kind, t: String(text).slice(0, 200) }).catch((e) => toast('전송 실패: ' + (e.code || e.message)));
 }
 // 다른 화면에서 쓰는 알림 메시지 (경기 저장, 주사위 결과 등)
 export function sysChat(text) {
-  const now = Date.now();
+  const now = Math.max(S.store.serverNow?.() ?? Date.now(), lastChatAt + 1);
+  lastChatAt = now;
   S.store.put('chat', now.toString(36) + Math.random().toString(36).slice(2, 6), { at: now, cid, nick: nick() || '익명', k: 'sys', t: String(text).slice(0, 200) }).catch(() => {});
 }
 function buildChat() {
@@ -207,7 +209,7 @@ export function initSocial() {
 // 채팅 전체 삭제는 문서를 지우지 않고 "이 시각 이전 글은 숨김" 기준 시각만 설정에 적는다(모두의 화면에서 한 번에 사라진다).
 act('chatClear', () => needAdmin(async () => {
   if (!confirm('채팅창의 모든 메시지를 지울까요? 모든 사람의 화면에서 사라집니다.')) return;
-  try { await S.store.patch('meta', 'settings', { chatClearedAt: Date.now() }); toast('채팅을 모두 지웠습니다'); } catch (e) { toast('삭제 실패: ' + (e.code || e.message)); }
+  try { await S.store.patch('meta', 'settings', { chatClearedAt: S.store.serverNow?.() ?? Date.now() }); toast('채팅을 모두 지웠습니다'); } catch (e) { toast('삭제 실패: ' + (e.code || e.message)); }
 }));
 function closeCtx() { document.getElementById('ctx')?.remove(); }
 function openCtx(x, y, id, name) {
