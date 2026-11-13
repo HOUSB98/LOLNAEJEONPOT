@@ -90,12 +90,7 @@ page('replay', {
         <td class="mono">${k(r.gold)}</td><td class="mono">${k(r.dmg)}</td><td class="mono">${r.vis}</td><td class="l items">${r.items.map(itemImg).join('')}</td></tr>`; }).join('')}
       </tbody></table></div></div>`;
     };
-    const st = S.st, rp = st.matches.filter((x) => x.stats), rdays = [...new Set(rp.map((x) => st.MI[x.id].day))].reverse();
-    const arch = `<div class="sec-h"><h2>${ic('cal')}리플레이 기록 보관함</h2><span class="tag gold">${rp.length}경기</span><span class="mut sm">날짜별 · 경기를 누르면 상세 기록이 열립니다</span></div>
-      ${rdays.map((dy) => `<div class="rpday"><h3 class="day"><span class="mono">${dy.replace(/-/g, '.')}</span><small>${rp.filter((x) => st.MI[x.id].day === dy).length}경기</small></h3><div class="rpl">${rp.filter((x) => st.MI[x.id].day === dy).reverse().map((x) => { const mi = st.MI[x.id], mn = (x.dur || 0) / 60000;
-        return `<button class="rpi ${x.winner}" data-a="matchDetail" data-id="${x.id}"><b class="mono">#${mi.no}</b><span class="rpc">${(x.champs?.blue || []).map((c) => champIcon(c, 'sm')).join('')}<i>VS</i>${(x.champs?.red || []).map((c) => champIcon(c, 'sm')).join('')}</span><em class="${x.winner}">${x.winner === 'blue' ? 'BLUE' : 'RED'} WIN</em><small class="mono">${mn ? Math.floor(mn) + '분' : ''}</small></button>`; }).join('')}</div></div>`).join('') || '<div class="panel empty">아직 리플레이를 넣은 경기가 없습니다. 경기 기록에서 각 경기의 <em>리플레이</em> 버튼으로 파일을 넣어 주세요.</div>'}`;
     return `<div class="h2row"><h1>${ic('replay')}리플레이 분석</h1><span class="tag gold">${REPLAY_PAGE ? 'BETA' : '도입 예정'}</span></div>
-    ${arch}
     ${REPLAY_PAGE ? '' : `<div class="panel soonbox">${ic('alert')}<div><b>도입 예정인 기능입니다</b><span>리플레이를 올리면 해당 경기를 자동으로 찾아 주는 기능과 함께 열릴 예정입니다. 그때까지는 <a href="#/matches">경기 기록</a>에서 각 경기의 <em>리플레이</em> 버튼으로 파일을 넣어 주세요.</span></div></div>`}
     <label class="drop ${R.busy ? 'busy' : ''} ${REPLAY_PAGE ? '' : 'off'}" id="rdrop"><input type="file" accept=".rofl" id="rfile" hidden ${REPLAY_PAGE ? '' : 'disabled'}>
       <div class="dr-ic">${ic('replay')}</div><b>${!REPLAY_PAGE ? '도입 예정 — 지금은 파일을 넣을 수 없습니다' : R.busy ? '분석 중…' : '.rofl 리플레이 파일을 끌어다 놓거나 눌러서 선택'}</b>

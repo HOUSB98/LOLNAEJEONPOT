@@ -993,12 +993,6 @@ canvas.fx{position:fixed;inset:0;pointer-events:none;z-index:70}
 .au-sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.au-sum div{border:1px solid var(--line);border-radius:10px;padding:8px;text-align:center;background:rgba(0,0,0,.2)}.au-sum small{display:block;color:var(--mut);font-size:10px;letter-spacing:.1em}.au-sum b{font-size:22px;color:var(--gold2)}
 p.bad{color:var(--red)}
 @media (max-width:1100px){.ausel{grid-template-columns:1fr}.au-caps{position:static}}@media (max-width:860px){.au-lane{grid-template-columns:1fr}.au-ll{padding:0}}
-/* --- 리플레이 보관함 --- */
-.rpl{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px}
-.rpi{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--text);font:inherit;cursor:pointer;transition:.15s;text-align:left}
-.rpi:hover{border-color:var(--gold);transform:translateY(-2px);box-shadow:0 14px 26px -20px var(--gold)}
-.rpc{display:flex;align-items:center;gap:2px;flex:1;min-width:0}.rpc i{font:700 9px var(--mono);color:var(--mut);margin:0 5px;font-style:normal}
-.rpi em{font:700 10px var(--mono);font-style:normal;white-space:nowrap}.rpi em.blue{color:var(--blue)}.rpi em.red{color:var(--red)}.rpi small{color:var(--mut)}
 /* --- 접속자 수 · 입장 알림 --- */
 .pcount{margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:3px 9px 3px 8px;border-radius:8px;border:1px solid rgba(63,208,224,.38);background:linear-gradient(180deg,rgba(63,208,224,.16),rgba(63,208,224,.03));box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 0 18px -6px var(--teal)}
 .pcount i{width:6px;height:6px;border-radius:50%;background:var(--teal);color:rgba(63,208,224,.7);animation:pulse 2s infinite}
