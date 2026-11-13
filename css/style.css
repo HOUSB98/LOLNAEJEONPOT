@@ -1072,3 +1072,5 @@ body.chat-closed #chatfab{display:grid;animation:fabin .55s .15s cubic-bezier(.2
 #main{overflow-x:clip}
 
 form.col{display:flex;flex-direction:column;gap:10px}
+
+.cb a.chatlink{color:var(--gold2);text-decoration:underline;text-underline-offset:2px;word-break:break-all}.cm.me .cb a.chatlink{color:inherit}
