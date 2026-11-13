@@ -216,7 +216,7 @@ act('carGo', (d) => carMove(+d.d));
 act('carSet', (d) => carMove(0, +d.i));
 
 // ---------- 랭킹 ----------
-const LB = { view: 'all', sort: 'ovr', dir: -1, min: 5 };
+const LB = { view: 'all', sort: 'ovr', dir: -1, min: 0 };
 const COLS = {
   all: [
     ['g', '판', (s) => s.g, (s) => `<span class="mono">${s.g}</span>`],
