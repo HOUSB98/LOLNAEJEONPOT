@@ -2,6 +2,7 @@
 import { S, page, act, esc, uid, col, pname, go, refresh, toast, needAdmin, ic, champIcon, sigChamp, LANES, LANE_NAME, LANE_ICON, LANE_COLOR } from './core.js';
 import { dayKey } from './stats.js';
 import { setDraftTeams } from './today.js';
+import { sendLobbyChat } from './social.js';
 
 const AU = { name: '', role: {}, points: 1000, unit: 10, sec: 20, ext: 8, hcap: {}, hide: true, chat: '', amt: '', as: 0 };
 const LOT_START_DELAY_MS = 15_000;
@@ -100,8 +101,8 @@ function roomView(id, token) {
   let stage = '';
   if (r.status === 'lobby') {
     stage = `<div class="panel stage"><h2>대기 중</h2><p class="mut">팀장에게 각자의 링크를 보내고, 모두 들어오면 시작하세요.</p>
-      ${me.host ? `<div class="links"><div class="kv"><span>👀 관전 링크</span><button class="btn xs" data-a="auCopy" data-u="${esc(base)}">복사</button></div>
-        ${r.teams.map((t) => `<div class="kv"><span>👑 ${pname(t.captain)} 팀장 링크</span><button class="btn xs" data-a="auCopy" data-u="${esc(base + '/' + t.token)}">복사</button></div>`).join('')}</div>
+      ${me.host ? `<div class="links"><div class="kv"><span>👀 관전 링크</span><span class="grow"></span><button class="btn xs" data-a="auCopy" data-u="${esc(base)}">복사</button><button class="btn xs" data-a="auSendLink" data-u="${esc(base)}" data-label="관전 링크">채팅 전송</button></div>
+        ${r.teams.map((t) => `<div class="kv"><span>👑 ${pname(t.captain)} 팀장 링크</span><span class="grow"></span><button class="btn xs" data-a="auCopy" data-u="${esc(base + '/' + t.token)}">복사</button><button class="btn xs" data-a="auSendLink" data-u="${esc(base + '/' + t.token)}" data-label="${esc(nm(t.captain) + ' 팀장 링크')}">채팅 전송</button></div>`).join('')}</div>
         <button class="btn pri block big" data-a="auStart" data-id="${r.id}">▶ 경매 시작</button>` : `<p>${me.team >= 0 ? `👑 <b>${esc(r.teams[me.team].name)}</b> 팀장으로 접속했습니다. 진행자가 시작하면 입찰할 수 있습니다.` : '👀 관전 중입니다.'}</p>`}</div>`;
   } else if (r.status === 'done') {
     stage = `<div class="panel stage"><h2>🏁 경매 완료</h2>${r.unsold.length ? `<p class="mut">예비: ${r.unsold.map(pname).join(', ')}</p>` : ''}
@@ -187,6 +188,7 @@ act('auChatI', (d, el) => { AU.chat = el.value; });
 act('auAmt', (d, el) => { AU.amt = el.value; });
 act('auAs', (d, el) => { AU.as = +el.value; refresh(); });
 act('auCopy', async (d) => { try { await navigator.clipboard.writeText(d.u); toast('링크를 복사했습니다'); } catch { prompt('이 링크를 복사하세요', d.u); } });
+act('auSendLink', (d) => { if (d.u && sendLobbyChat(`🔗 ${d.label || '경매 링크'}: ${d.u}`)) toast('공용 채팅에 링크를 보냈습니다'); });
 act('auCreate', async () => {
   const caps = Object.keys(AU.role).filter((k) => AU.role[k] === 2), parts = Object.keys(AU.role).filter((k) => AU.role[k] === 1);
   if (caps.length < 2) return toast('팀장을 2명 이상 지정해 주세요 (이름 옆 왕관 누르기)');
