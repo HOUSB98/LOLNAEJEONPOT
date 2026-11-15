@@ -4,7 +4,7 @@ import { dayKey } from './stats.js';
 import { setDraftTeams } from './today.js';
 import { sendLobbyChat } from './social.js';
 
-const AU = { name: '', role: {}, points: 1000, unit: 10, sec: 20, ext: 8, hcap: {}, hide: true, chat: '', amt: '', as: 0 };
+const AU = { name: '', role: {}, points: 1000, unit: 10, sec: 20, ext: 8, hcap: {}, hide: true, chat: '', amt: '', as: 0, mode: 'live', batchDraft: {} };
 const LOT_START_DELAY_MS = 15_000;
 const tok = () => uid() + uid();
 const hostKey = (id) => `naejeon:auhost:${S.key}:${id}`;
@@ -36,6 +36,72 @@ function settle(r, now) {
   else { r.unsold.push(c.pid); say(r, `💨 ${nm(c.pid)} 유찰`); }
   return nextItem(r, now);
 }
+const batch = (r) => r.batch || (r.batch = { phase: 'initial', initial: {}, final: {}, ties: [] });
+const isSubmitted = (r, phase, ti) => !!batch(r)[phase][ti];
+const allSubmitted = (r, phase) => r.teams.every((_, i) => (phase === 'final' && !batch(r).ties.some((x) => x.teams.includes(i))) || isSubmitted(r, phase, i));
+function award(r, pid, ti, price, note = '') {
+  const t = r.teams[ti];
+  if (!t || t.members.length >= r.cfg.size - 1 || price > t.points) return false;
+  t.points -= price;
+  t.members.push({ pid, price });
+  say(r, `✅ ${nm(pid)} → ${t.name} · ${price}P 낙찰${note}`);
+  return true;
+}
+function topOpenBids(r, pid, bids, eligible = null) {
+  const ranked = Object.entries(bids || {}).map(([i, v]) => ({ ti: +i, value: +v || 0 }))
+    .filter((x) => x.value > 0 && (!eligible || eligible.includes(x.ti)) && r.teams[x.ti]?.members.length < r.cfg.size - 1 && x.value <= r.teams[x.ti].points)
+    .sort((a, b) => b.value - a.value);
+  if (!ranked.length) return { best: 0, teams: [], ranked };
+  const best = ranked[0].value;
+  return { best, teams: ranked.filter((x) => x.value === best).map((x) => x.ti), ranked };
+}
+function resolveBatch(r, phase) {
+  const b = batch(r), sheet = b[phase], pending = [...(phase === 'initial' ? r.pool : b.ties.map((x) => x.pid))];
+  const tied = [];
+  while (pending.length) {
+    const proposals = pending.map((pid) => {
+      const eligible = phase === 'final' ? b.ties.find((x) => x.pid === pid)?.teams : null;
+      return { pid, ...topOpenBids(r, pid, Object.fromEntries(r.teams.map((_, i) => [i, sheet[i]?.bids?.[pid] || 0])), eligible) };
+    });
+    const unique = proposals.filter((x) => x.best && x.teams.length === 1).sort((a, b) => b.best - a.best);
+    if (!unique.length) break;
+    const win = unique[0];
+    if (award(r, win.pid, win.teams[0], win.best)) pending.splice(pending.indexOf(win.pid), 1);
+    else break;
+  }
+  const tiedPlayerCount = pending.filter((pid) => {
+    const eligible = phase === 'final' ? b.ties.find((x) => x.pid === pid)?.teams : null;
+    const result = topOpenBids(r, pid, Object.fromEntries(r.teams.map((_, i) => [i, sheet[i]?.bids?.[pid] || 0])), eligible);
+    return result.best && result.teams.length > 1;
+  }).length;
+  for (const pid of pending) {
+    const eligible = phase === 'final' ? b.ties.find((x) => x.pid === pid)?.teams : null;
+    const result = topOpenBids(r, pid, Object.fromEntries(r.teams.map((_, i) => [i, sheet[i]?.bids?.[pid] || 0])), eligible);
+    if (!result.best) { r.unsold.push(pid); say(r, `💨 ${nm(pid)} 유찰`); continue; }
+    if (result.teams.length === 1) {
+      award(r, pid, result.teams[0], result.best);
+      continue;
+    }
+    const richest = [...result.teams].sort((a, b) => r.teams[b].points - r.teams[a].points);
+    if (phase === 'final' || (tiedPlayerCount === 1 && r.teams[richest[0]].points !== r.teams[richest[1]].points)) {
+      if (richest.length === 1 || r.teams[richest[0]].points > r.teams[richest[1]].points) {
+        award(r, pid, richest[0], result.best, ' · 잔여 포인트 우선');
+      } else { r.unsold.push(pid); say(r, `🤝 ${nm(pid)} 최종 동점 · 미배정`); }
+      continue;
+    }
+    tied.push({ pid, teams: result.teams, price: result.best });
+  }
+  if (phase === 'initial' && tied.length) {
+    b.ties = tied; b.phase = 'final'; b.final = {};
+    say(r, `⚖️ 동점 매물 ${tied.length}명 · 마지막 동시 입찰을 시작합니다.`);
+    return r;
+  }
+  b.phase = 'done'; r.pool = [];
+  if (phase === 'final') say(r, '🏁 마지막 동점 입찰 결과를 공개했습니다.');
+  r.status = 'done'; r.cur = null;
+  say(r, '🏁 경매가 끝났습니다.');
+  return r;
+}
 const tx = async (id, fn) => {
   try {
     await S.store.syncServerClock?.();
@@ -63,11 +129,12 @@ function lobbyList() {
   const st = S.st, rooms = col('auctions').filter((r) => !r.deleted).sort((a, b) => b.createdAt - a.createdAt);
   const caps = Object.keys(AU.role).filter((k) => AU.role[k] === 2), parts = Object.keys(AU.role).filter((k) => AU.role[k] === 1);
   return `<h1>🔨 팀 경매</h1>
-  <p class="hint">팀장이 한정된 포인트로 팀원을 한 명씩 입찰해 팀을 짭니다. 방을 만들면 팀장별 링크가 나오고, 모든 참가자가 같은 화면을 실시간으로 봅니다.</p>
+  <p class="hint">팀장별 포인트로 팀을 구성합니다. 실시간 경매 또는 매물별 일괄 입찰을 선택할 수 있고, 참가자는 같은 방의 진행 상황을 함께 봅니다.</p>
   ${rooms.length ? `<div class="panel"><div class="ph"><b>경매 방</b></div>${rooms.map((r) => `<a class="kv link" href="#/auction/${r.id}"><span>${esc(r.name)} <small class="mut">${new Date(r.createdAt).toLocaleDateString('ko')}</small></span><b>${{ lobby: '대기 중', running: '🔴 진행 중', paused: '일시정지', done: '완료' }[r.status]} · ${r.teams.length}팀</b></a>`).join('')}</div>` : ''}
   <h2>새 경매 만들기</h2>
   <div class="panel">
     <label class="fld"><span>방 이름</span><input id="auName" class="inp" value="${esc(AU.name)}" placeholder="예: 11월 2주차 내전" data-i="auF" data-k="name"></label>
+    <div class="fld"><span>경매 방식</span><div class="row"><label class="mini"><input type="radio" name="auMode" value="live" data-c="auMode" ${AU.mode === 'live' ? 'checked' : ''}> 실시간 경매</label><label class="mini"><input type="radio" name="auMode" value="batch" data-c="auMode" ${AU.mode === 'batch' ? 'checked' : ''}> 일괄 입찰</label></div><small class="mut">일괄 입찰은 팀장이 모든 매물의 가격을 제출한 뒤 한 번에 공개합니다.</small></div>
     <div class="ausel">
       <div class="au-pool">
         <div class="ph"><b>참가자</b><span class="tag ok">${parts.length + caps.length}명 선택</span><small class="mut">이름을 누르면 참가 ↔ 제외 · 왕관을 누르면 팀장</small><span class="grow"></span><button class="btn xs" data-a="auRecent">최근 내전 참가자</button><button class="btn xs" data-a="auAll">전원</button><button class="btn xs ghost" data-a="auNone">해제</button></div>
@@ -84,11 +151,42 @@ function lobbyList() {
     <div class="fgrid">
       <label class="fld"><span>시작 포인트</span><input id="auP" class="inp" type="number" value="${AU.points}" data-i="auF" data-k="points"></label>
       <label class="fld"><span>입찰 단위</span><input id="auU" class="inp" type="number" value="${AU.unit}" data-i="auF" data-k="unit"></label>
-      <label class="fld"><span>경매 시간(초)</span><input id="auS" class="inp" type="number" value="${AU.sec}" data-i="auF" data-k="sec"></label>
-      <label class="fld"><span>입찰 시 최소 남은 시간(초)</span><input id="auE" class="inp" type="number" value="${AU.ext}" data-i="auF" data-k="ext"></label>
+      ${AU.mode === 'live' ? `<label class="fld"><span>경매 시간(초)</span><input id="auS" class="inp" type="number" value="${AU.sec}" data-i="auF" data-k="sec"></label>
+      <label class="fld"><span>입찰 시 최소 남은 시간(초)</span><input id="auE" class="inp" type="number" value="${AU.ext}" data-i="auF" data-k="ext"></label>` : ''}
     </div>
-    <label class="mini"><input type="checkbox" data-c="auHide" ${AU.hide ? 'checked' : ''}> 경매 순서 비공개 (무작위)</label>
+    ${AU.mode === 'live' ? '<label class="mini"><input type="checkbox" data-c="auHide" ' + (AU.hide ? 'checked' : '') + '> 경매 순서 비공개 (무작위)</label>' : '<p class="hint">팀장은 매물별 입찰가 합계가 보유 포인트를 넘지 않도록 제출합니다. 낙찰된 금액만 차감됩니다.</p>'}
     <button class="btn pri block big" data-a="auCreate">경매 방 만들기</button>
+  </div>`;
+}
+
+function batchStage(r, me) {
+  const b = batch(r), phase = b.phase, isFinal = phase === 'final';
+  const subs = isFinal ? b.final : b.initial;
+  const teamIndex = me.host ? Math.min(AU.as, r.teams.length - 1) : me.team;
+  const team = r.teams[teamIndex], submitted = teamIndex >= 0 && !!subs[teamIndex];
+  const players = isFinal ? b.ties : r.pool.map((pid) => ({ pid, teams: r.teams.map((_, i) => i) }));
+  const eligible = (x) => !isFinal || x.teams.includes(teamIndex);
+  const draftKey = `${r.id}:${phase}:${teamIndex}`;
+  const draft = AU.batchDraft[draftKey] || {};
+  const rows = players.map((x) => {
+    const pid = x.pid, s = S.st.P[pid];
+    const detail = isFinal ? `1차 동점 ${x.price}P · ${x.teams.map((i) => esc(r.teams[i].name)).join(' / ')}` : s ? `${LANE_ICON[s.mainLane]} ${LANE_NAME[s.mainLane]} · OVR ${s.ovr}` : '매물';
+    return `<label class="sealed-row"><span><b>${esc(nm(pid))}</b><small>${detail}</small></span>${submitted ? '<b class="tag ok">제출 완료</b>' : `<input class="inp mono" type="number" min="0" step="${r.cfg.unit}" value="${draft[pid] ?? ''}" placeholder="0P" data-i="auBatchBid" data-id="${pid}" ${!eligible(x) || teamIndex < 0 ? 'disabled' : ''}>`}</label>`;
+  }).join('');
+  const requiredTeams = r.teams.map((_, i) => i).filter((i) => !isFinal || b.ties.some((x) => x.teams.includes(i)));
+  const submittedCount = requiredTeams.filter((i) => subs[i]).length;
+  const points = team?.points || 0;
+  const total = Object.values(draft).reduce((sum, v) => sum + (+v || 0), 0);
+  const status = r.teams.map((t, i) => `<span class="chip ${subs[i] ? 'ok' : ''}">${esc(t.name)} · ${isFinal && !requiredTeams.includes(i) ? '대상 아님' : subs[i] ? '제출 완료' : '대기 중'}</span>`).join('');
+  return `<div class="panel stage sealed-stage">
+    <div class="sub"><span class="tag">${isFinal ? '마지막 동점 입찰' : '일괄 입찰'}</span><span class="grow"></span><span class="tag">${submittedCount}/${requiredTeams.length}팀 제출</span></div>
+    <h2>${isFinal ? '⚖️ 동점 매물 마지막 입찰' : '📋 매물별 입찰가 입력'}</h2>
+    <p class="mut">${isFinal ? '각 매물에서 1차 입찰이 동점이었던 팀만 다시 입찰할 수 있습니다. 이번 입찰은 딱 한 번이며, 다시 동점이면 남은 포인트가 많은 팀이 우선합니다.' : '모든 매물에 원하는 금액을 입력하세요. 0은 입찰하지 않음입니다. 제출 후에는 수정할 수 없으며, 모든 팀 제출 후 결과를 공개합니다.'}</p>
+    ${teamIndex >= 0 && me.host ? `<label class="fld"><span>대리 입력 팀</span><select class="inp" data-c="auAs">${r.teams.map((t, i) => `<option value="${i}" ${i === teamIndex ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>` : ''}
+    ${teamIndex >= 0 ? `<div class="sealed-meta"><span>${esc(team.name)}</span><b>잔여 ${points}P</b><b id="au-batch-total" data-points="${points}" class="${total > points ? 'bad' : ''}">입찰 합계 ${total}P</b></div>` : '<p class="hint">팀장 링크로 접속하면 입찰할 수 있습니다.</p>'}
+    <div class="sealed-list">${rows || '<p class="mut">입찰할 매물이 없습니다.</p>'}</div>
+    ${teamIndex >= 0 ? (submitted ? '<div class="tag ok">이 팀은 제출을 완료했습니다. 입찰 공개를 기다리는 중입니다.</div>' : `<button class="btn pri block" data-a="auBatchSubmit" data-id="${r.id}" data-phase="${phase}" ${total > points || !players.some(eligible) ? 'disabled' : ''}>${isFinal ? '마지막 입찰 제출' : '입찰 제출 · 제출 후 수정 불가'}</button>`) : ''}
+    <div class="chips">${status}</div>
   </div>`;
 }
 
@@ -113,6 +211,8 @@ function roomView(id, token) {
   } else if (r.status === 'done') {
     stage = `<div class="panel stage"><h2>🏁 경매 완료</h2>${r.unsold.length ? `<p class="mut">예비: ${r.unsold.map(pname).join(', ')}</p>` : ''}
       ${r.teams.length === 2 ? `<button class="btn pri block big" data-a="auToDraft" data-id="${r.id}">⚔️ 이 팀으로 오늘의 내전 라인업 채우기</button><p class="hint">첫 번째 팀이 블루, 두 번째 팀이 레드로 들어가고 라인은 점수 기준으로 자동 배치됩니다(이후 수정 가능).</p>` : ''}</div>`;
+  } else if (r.cfg.mode === 'batch' && r.status === 'running') {
+    stage = batchStage(r, me);
   } else if (c) {
     const lead = c.team >= 0 ? r.teams[c.team] : null, bt = r.teams[bidTeam];
     const can = bidTeam >= 0 && r.status === 'running' && bt.members.length < r.cfg.size - 1 && c.team !== bidTeam;
@@ -190,6 +290,7 @@ page('auction', {
 act('auF', (d, el) => { AU[d.k] = d.k === 'name' ? el.value : Math.max(0, +el.value || 0); });
 act('auHc', (d, el) => { AU.hcap[d.id] = +el.value || 0; });
 act('auHide', (d, el) => { AU.hide = el.checked; });
+act('auMode', (d, el) => { AU.mode = el.value; refresh(); });
 // r=1: 이름(참가 ↔ 제외, 팀장이면 일반 참가자로) · r=2: 왕관(팀장 ↔ 참가자)
 act('auRole', (d) => { const cur = AU.role[d.id] || 0; AU.role[d.id] = d.r === '2' ? (cur === 2 ? 1 : 2) : cur === 1 ? 0 : 1; refresh(); });
 act('auAll', () => { S.st.list.forEach((s) => { AU.role[s.id] ||= 1; }); refresh(); });
@@ -209,21 +310,26 @@ act('auCreate', async () => {
   const caps = Object.keys(AU.role).filter((k) => AU.role[k] === 2), parts = Object.keys(AU.role).filter((k) => AU.role[k] === 1);
   if (caps.length < 2) return toast('팀장을 2명 이상 지정해 주세요 (이름 옆 왕관 누르기)');
   if (!parts.length) return toast('경매에 나올 참가자를 선택해 주세요');
-  if (AU.unit < 1 || AU.sec < 5) return toast('입찰 단위는 1 이상, 경매 시간은 5초 이상이어야 합니다');
+  if (!Number.isInteger(AU.unit) || AU.unit < 1 || (AU.mode === 'live' && AU.sec < 5)) return toast('입찰 단위는 1 이상의 정수여야 하며, 실시간 경매 시간은 5초 이상이어야 합니다');
   for (let i = parts.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [parts[i], parts[j]] = [parts[j], parts[i]]; }
   const id = uid(), host = tok();
   const r = {
     id, name: AU.name.trim() || `${dayKey(Date.now()).slice(5)} 경매`, createdAt: Date.now(), status: 'lobby', host,
-    cfg: { points: AU.points, unit: AU.unit, sec: AU.sec, ext: AU.ext, size: 5, hide: AU.hide },
+    cfg: { points: AU.points, unit: AU.unit, sec: AU.sec, ext: AU.ext, size: 5, hide: AU.hide, mode: AU.mode },
     teams: caps.map((pid) => ({ name: nm(pid) + ' 팀', captain: pid, token: tok(), points: Math.max(0, AU.points - (AU.hcap[pid] || 0)), members: [] })),
     pool: parts, unsold: [], round: 1, cur: null, log: [], chat: [],
   };
   await S.store.put('auctions', id, r);
   localStorage.setItem(hostKey(id), host);
-  AU.role = {}; AU.name = '';
+  AU.role = {}; AU.name = ''; AU.mode = 'live'; AU.as = 0; AU.batchDraft = {};
   go(`#/auction/${id}/${host}`);
 });
-act('auStart', (d) => tx(d.id, (r, now) => { if (r.status !== 'lobby') return null; r.status = 'running'; say(r, '▶ 경매를 시작합니다!'); return nextItem(r, now); }));
+act('auStart', (d) => tx(d.id, (r, now) => {
+  if (r.status !== 'lobby') return null;
+  r.status = 'running'; say(r, '▶ 경매를 시작합니다!');
+  if (r.cfg.mode === 'batch') { r.batch = { phase: 'initial', initial: {}, final: {}, ties: [] }; return r; }
+  return nextItem(r, now);
+}));
 act('auPause', (d) => tx(d.id, (r, now) => {
   if (!r.cur) return null;
   if (r.status === 'running') { r.status = 'paused'; r.cur.left = Math.max(1000, r.cur.endsAt - now); }
@@ -246,6 +352,53 @@ act('auBid', async (d) => {
     return r;
   });
   if (ok) { AU.amt = ''; } else toast('입찰이 반영되지 않았습니다 (시간 종료 또는 더 높은 입찰)');
+});
+act('auBatchBid', (d, el) => {
+  const r = room(S.arg[0]); if (!r || r.cfg.mode !== 'batch') return;
+  const me = myRole(r, S.arg[1]), ti = me.host ? Math.min(AU.as, r.teams.length - 1) : me.team;
+  if (ti < 0) return;
+  const phase = batch(r).phase, key = `${r.id}:${phase}:${ti}`;
+  (AU.batchDraft[key] ||= {})[d.id] = el.value;
+  const total = Object.values(AU.batchDraft[key]).reduce((sum, v) => sum + (+v || 0), 0);
+  const out = document.getElementById('au-batch-total');
+  if (out) { out.textContent = `입찰 합계 ${total}P`; out.classList.toggle('bad', total > r.teams[ti].points); }
+});
+act('auBatchSubmit', async (d) => {
+  const r0 = room(d.id); if (!r0 || r0.cfg.mode !== 'batch') return;
+  const me = myRole(r0, S.arg[1]), ti = me.host ? Math.min(AU.as, r0.teams.length - 1) : me.team;
+  if (ti < 0 || (!me.host && ti < 0)) return toast('팀장 링크로 접속해 주세요');
+  const b0 = batch(r0), phase = d.phase, key = `${r0.id}:${phase}:${ti}`, draft = AU.batchDraft[key] || {};
+  if (b0.phase !== phase) return toast('입찰 단계가 이미 변경되었습니다. 화면을 새로고침해 주세요.');
+  const players = phase === 'final' ? b0.ties : r0.pool.map((pid) => ({ pid, teams: r0.teams.map((_, i) => i) }));
+  const bids = {}, team = r0.teams[ti]; let total = 0;
+  for (const x of players) {
+    if (phase === 'final' && !x.teams.includes(ti)) continue;
+    const raw = draft[x.pid] ?? '';
+    if (raw === '') continue;
+    const v = +raw;
+    if (!Number.isInteger(v) || v < 0 || (v && v % r0.cfg.unit)) return toast(`입찰은 0 또는 ${r0.cfg.unit}P 단위의 정수로 입력하세요`);
+    if (v > 0) { bids[x.pid] = v; total += v; }
+  }
+  if (total > team.points) return toast(`입찰 합계가 잔여 포인트 ${team.points}P를 넘었습니다`);
+  const ok = await tx(d.id, (r, now) => {
+    const b = batch(r), sheet = phase === 'final' ? b.final : b.initial;
+    if (r.status !== 'running' || r.cfg.mode !== 'batch' || b.phase !== phase || sheet[ti]) return null;
+    const livePlayers = phase === 'final' ? b.ties : r.pool.map((pid) => ({ pid, teams: r.teams.map((_, i) => i) }));
+    if (phase === 'final' && !livePlayers.some((x) => x.teams.includes(ti))) return null;
+    if (Object.values(bids).some((v) => !Number.isInteger(v) || v < 1 || v % r.cfg.unit || v > r.teams[ti].points)) return null;
+    if (Object.values(bids).reduce((sum, v) => sum + v, 0) > r.teams[ti].points) return null;
+    sheet[ti] = { bids, at: now };
+    const required = phase === 'final' ? new Set(b.ties.flatMap((x) => x.teams)).size : r.teams.length;
+    say(r, `📨 ${r.teams[ti].name} 입찰 제출 완료 (${Object.keys(sheet).length}/${required})`);
+    if (allSubmitted(r, phase)) resolveBatch(r, phase);
+    return r;
+  });
+  if (ok) {
+    delete AU.batchDraft[key];
+    const updated = room(d.id);
+    toast(updated?.batch?.phase === 'final' && phase === 'initial' ? '1차 결과 공개 · 동점 매물 마지막 입찰을 시작합니다' : updated?.status === 'done' ? '입찰 결과를 공개했습니다' : '입찰을 제출했습니다');
+    refresh();
+  } else toast('입찰 제출에 실패했습니다. 단계와 잔여 포인트를 확인해 주세요.');
 });
 act('auToDraft', (d) => {
   const r = room(d.id); if (!r) return;
