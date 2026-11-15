@@ -36,7 +36,13 @@ function settle(r, now) {
   else { r.unsold.push(c.pid); say(r, `💨 ${nm(c.pid)} 유찰`); }
   return nextItem(r, now);
 }
-const tx = (id, fn) => S.store.tx('auctions', id, (r) => (r && !r.deleted ? fn(JSON.parse(JSON.stringify(r)), Date.now()) : null)).catch((e) => { toast('오류: ' + (e.code || e.message)); return false; });
+const tx = async (id, fn) => {
+  try {
+    await S.store.syncServerClock?.();
+    if (!S.store.serverClockReady?.()) throw new Error('시계 동기화에 실패했습니다. 연결을 확인한 뒤 다시 시도하세요.');
+    return await S.store.tx('auctions', id, (r) => (r && !r.deleted ? fn(JSON.parse(JSON.stringify(r)), S.store.serverNow()) : null));
+  } catch (e) { toast('오류: ' + (e.code || e.message)); return false; }
+};
 
 function myRole(r, token) {
   const t = token || localStorage.getItem(hostKey(r.id));
@@ -137,12 +143,22 @@ function roomView(id, token) {
 }
 
 let timer = 0;
+let clockSyncPending = false, clockRetryAt = 0;
 function tick() {
   if (S.page !== 'auction' || !S.arg[0]) { clearInterval(timer); timer = 0; return; }
   const r = room(S.arg[0]), el = document.getElementById('au-timer');
   if (!r || r.deleted || r.status === 'deleted') { clearInterval(timer); timer = 0; return; }
   if (!r.cur || !el) return;
-  const now = Date.now(), c = r.cur;
+  const c = r.cur;
+  if (!S.store.serverClockReady?.()) {
+    el.textContent = '시계 동기화 중';
+    if (!clockSyncPending && Date.now() >= clockRetryAt) {
+      clockSyncPending = true;
+      Promise.resolve(S.store.syncServerClock?.(true)).finally(() => { clockSyncPending = false; clockRetryAt = Date.now() + 15_000; });
+    }
+    return;
+  }
+  const now = S.store.serverNow();
   if (r.status === 'paused') { el.textContent = `⏸ ${Math.ceil((c.left || 0) / 1000)}초`; return; }
   if (now < c.startsAt) { el.textContent = `곧 시작 ${Math.ceil((c.startsAt - now) / 1000)}`; el.className = 'timer'; return; }
   const left = c.endsAt - now;
