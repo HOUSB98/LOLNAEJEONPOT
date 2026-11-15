@@ -232,7 +232,7 @@ function roomView(id, token) {
   const queue = r.pool, hideUpcoming = r.cfg.hide && r.status !== 'done';
   const queueView = hideUpcoming ? `<span class="chip mut">매물 이름 비공개 · ${queue.length}명</span>` : queue.map((p) => `<span class="chip">${pname(p)}</span>`).join('') || '<span class="chip mut">없음</span>';
   const unsoldView = hideUpcoming ? `<span class="chip mut">유찰 선수 이름 비공개 · ${r.unsold.length}명</span>` : r.unsold.map((p) => `<span class="chip mut">${pname(p)}</span>`).join('');
-  const canDelete = me.host || ['running', 'paused'].includes(r.status);
+  const canDelete = me.host || ['lobby', 'running', 'paused'].includes(r.status);
   return `<div class="h2row"><a class="btn xs" href="#/auction">← 목록</a><h1>🔨 ${esc(r.name)}</h1><span class="grow"></span>${me.host ? '<span class="tag ok">진행자</span>' : ''}${canDelete ? `<button class="btn xs ghost" data-a="auDel" data-id="${r.id}">${me.host ? '방 삭제' : '관리자 삭제'}</button>` : ''}</div>
   <div class="agrid"><div>${stage}
     <div class="panel"><div class="ph"><b>대기 매물 ${r.pool.length}</b><small class="mut">${hideUpcoming ? '다음 매물 비공개' : '경매 순서 공개'}</small></div><div class="chips">${queueView}</div>
