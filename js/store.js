@@ -33,6 +33,7 @@ function localStore(key, onChange) {
   return {
     mode: 'local', data, ready: Promise.resolve(),
     serverNow: () => Date.now(),
+    serverClockReady: () => true,
     syncServerClock: async () => 0,
     watchDoc: (col, id, onData) => {
       onData(data[col]?.[id] || null);
@@ -64,7 +65,7 @@ async function firebaseStore(key, onChange) {
   // Firestore serverTimestamp()로 서버 시각을 받아 브라우저 시계 오차를 보정한다.
   // 일반 기능은 기존 Date.now()를 그대로 사용하고, reveal처럼 동시 시작이 필요한 기능만 serverNow()를 사용한다.
   const syncServerClock = async (force = false) => {
-    if (!force && clockSyncedAt && Date.now() - clockSyncedAt < 5 * 60e3) return clockOffset;
+    if (!force && clockSyncedAt && performance.now() - clockSyncedAt < 5 * 60e3) return clockOffset;
     if (clockPromise) return clockPromise;
     clockPromise = (async () => {
       const before = Date.now();
@@ -76,7 +77,7 @@ async function firebaseStore(key, onChange) {
       if (ts?.toMillis) {
         // 요청 왕복시간의 중간 시점을 기준으로 서버-클라이언트 시계 오차를 추정한다.
         clockOffset = ts.toMillis() - ((before + after) / 2);
-        clockSyncedAt = after;
+        clockSyncedAt = performance.now();
       }
       return clockOffset;
     })().catch((e) => {
@@ -108,6 +109,7 @@ async function firebaseStore(key, onChange) {
   return {
     mode: 'firebase', data, ready,
     serverNow,
+    serverClockReady: () => !!clockSyncedAt && performance.now() - clockSyncedAt < 5 * 60e3,
     syncServerClock,
     watchDoc: (col, id, onData, onError) => fs.onSnapshot(ref(col, id), (snap) => {
       onData(snap.exists() ? { ...snap.data(), id: snap.id } : null, snap);
