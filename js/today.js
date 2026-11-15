@@ -292,6 +292,12 @@ act('tSave', async (d, btn) => {
 // 시작 시각(startAt)은 서버 시각 기준이라 각자 시계가 달라도 같은 순간에 맞춰진다.
 const rvSeen = new Set();
 let rvWatch = false;
+const revealLine = (d) => {
+  if (d.line) return d.line;
+  const ids = new Map(S.st.list.map((s) => [s.name, s.id]));
+  const blue = (d.blue || []).map((n) => ids.get(n) || ''), red = (d.red || []).map((n) => ids.get(n) || '');
+  return blue.length === 5 && red.length === 5 && [...blue, ...red].every(Boolean) ? lineKey({ blue, red }) : '';
+};
 const playReveal = (d, mine = false) => {
   try {
     reveal({
@@ -308,11 +314,26 @@ export function watchReveal() {
   S.store.watchCollection('reveals', (snap) => {
     const changes = typeof snap?.docChanges === 'function' ? snap.docChanges() : snap.changes();
     const docs = changes.filter((c) => c.type === 'added').map((c) => (c.doc?.data ? { ...c.doc.data(), id: c.doc.id } : c.doc)).filter((d) => d?.id);
-    // 첫 응답은 이미 지나간 이벤트 목록이다: 재생하지 않고 "본 것"으로만 표시한다(새로고침 때 다시 나오지 않게)
-    if (!primed) { primed = true; docs.forEach((d) => rvSeen.add(d.id)); return; }
+    // 이미 있는 이벤트는 재생하지 않되, 현재 팀 구성의 확정 여부는 접속자끼리 공유한다.
+    if (!primed) {
+      primed = true;
+      let hideAsk = false;
+      docs.forEach((d) => {
+        rvSeen.add(d.id);
+        const line = revealLine(d);
+        if (line && line === lineKey(D())) { TQ.done = line; hideAsk = true; }
+      });
+      if (hideAsk && S.page === 'today') refresh();
+      return;
+    }
     for (const d of docs) {
       if (rvSeen.has(d.id)) continue;
       rvSeen.add(d.id);
+      const line = revealLine(d);
+      if (line && line === lineKey(D())) {
+        TQ.done = line;
+        if (S.page === 'today') refresh();
+      }
       if (S.store.serverNow() - (Number(d.at) || 0) < 20000) playReveal(d, false); // 너무 늦게 도착한 이벤트(오프라인 복귀 등)는 건너뛴다
     }
   }, (err) => console.error('[reveal] listener', err));
@@ -325,7 +346,7 @@ act('tqYes', async () => {
   try {
     await S.store.syncServerClock?.();
     const now = S.store.serverNow();
-    const r = { id: uid(), at: now, startAt: now + 1800, pb: Math.round(evalLineup(d.blue, d.red, S.st).pBlue * 100), blue: nm(d.blue), red: nm(d.red), by: nick() || '익명' };
+    const r = { id: uid(), at: now, startAt: now + 1800, line: lineKey(d), pb: Math.round(evalLineup(d.blue, d.red, S.st).pBlue * 100), blue: nm(d.blue), red: nm(d.red), by: nick() || '익명' };
     TQ.done = lineKey(d);
     rvSeen.add(r.id); // 내 화면은 응답을 기다리지 않고 바로 재생하고, 내 이벤트가 돌아와도 두 번 재생하지 않는다
     playReveal(r, true);
