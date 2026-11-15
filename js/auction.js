@@ -1,5 +1,5 @@
 // 팀 경매: 팀장이 한정 포인트로 선수를 한 명씩 입찰. 타이머·입찰은 DB 트랜잭션으로 모든 접속자에게 동기화된다.
-import { S, page, act, esc, uid, col, pname, go, refresh, toast, needAdmin, ic, champIcon, sigChamp, LANES, LANE_NAME, LANE_ICON, LANE_COLOR } from './core.js';
+import { S, page, act, esc, uid, col, pname, go, refresh, toast, needAdmin, isAdmin, ic, champIcon, sigChamp, LANES, LANE_NAME, LANE_ICON, LANE_COLOR } from './core.js';
 import { dayKey } from './stats.js';
 import { setDraftTeams } from './today.js';
 import { sendLobbyChat } from './social.js';
@@ -232,7 +232,8 @@ function roomView(id, token) {
   const queue = r.pool, hideUpcoming = r.cfg.hide && r.status !== 'done';
   const queueView = hideUpcoming ? `<span class="chip mut">매물 이름 비공개 · ${queue.length}명</span>` : queue.map((p) => `<span class="chip">${pname(p)}</span>`).join('') || '<span class="chip mut">없음</span>';
   const unsoldView = hideUpcoming ? `<span class="chip mut">유찰 선수 이름 비공개 · ${r.unsold.length}명</span>` : r.unsold.map((p) => `<span class="chip mut">${pname(p)}</span>`).join('');
-  return `<div class="h2row"><a class="btn xs" href="#/auction">← 목록</a><h1>🔨 ${esc(r.name)}</h1><span class="grow"></span>${me.host ? `<span class="tag ok">진행자</span><button class="btn xs ghost" data-a="auDel" data-id="${r.id}">방 삭제</button>` : ''}</div>
+  const canDelete = me.host || ['running', 'paused'].includes(r.status);
+  return `<div class="h2row"><a class="btn xs" href="#/auction">← 목록</a><h1>🔨 ${esc(r.name)}</h1><span class="grow"></span>${me.host ? '<span class="tag ok">진행자</span>' : ''}${canDelete ? `<button class="btn xs ghost" data-a="auDel" data-id="${r.id}">${me.host ? '방 삭제' : '관리자 삭제'}</button>` : ''}</div>
   <div class="agrid"><div>${stage}
     <div class="panel"><div class="ph"><b>대기 매물 ${r.pool.length}</b><small class="mut">${hideUpcoming ? '다음 매물 비공개' : '경매 순서 공개'}</small></div><div class="chips">${queueView}</div>
       ${r.unsold.length ? `<div class="ph"><b>유찰 ${r.unsold.length}</b></div><div class="chips">${unsoldView}</div>` : ''}</div>
@@ -407,7 +408,17 @@ act('auToDraft', (d) => {
   toast('라인업을 채웠습니다'); go('#/today');
 });
 act('auDel', (d) => {
-  if (!confirm('이 경매 방을 삭제할까요? 진행 중인 경매는 모든 참가자에게 즉시 종료됩니다.')) return;
-  tx(d.id, (r) => { r.deleted = true; r.status = 'deleted'; r.cur = null; say(r, '⛔ 경매 방이 삭제되어 진행이 종료되었습니다.'); return r; })
-    .then((ok) => { if (ok) go('#/auction'); else toast('경매 방을 삭제하지 못했습니다'); });
+  const current = room(d.id); if (!current) return;
+  const me = myRole(current, S.arg[1]);
+  const remove = () => {
+    if (!me.host && !isAdmin()) return toast('관리자 권한이 필요합니다');
+    if (!confirm('이 경매 방을 삭제할까요? 진행 중인 경매는 모든 참가자에게 즉시 종료됩니다.')) return;
+    tx(d.id, (r) => {
+      if (!me.host && !isAdmin()) return null;
+      r.deleted = true; r.status = 'deleted'; r.cur = null;
+      say(r, '⛔ 경매 방이 삭제되어 진행이 종료되었습니다.');
+      return r;
+    }).then((ok) => { if (ok) go('#/auction'); else toast('경매 방을 삭제하지 못했습니다'); });
+  };
+  if (me.host) remove(); else needAdmin(remove);
 });
