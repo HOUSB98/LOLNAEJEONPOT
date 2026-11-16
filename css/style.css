@@ -1341,3 +1341,9 @@ em.m-hide{font-style:normal}
 .rq-teams span .ci{width:20px;height:20px;border-radius:50%}
 .rq-teams span.miss{opacity:.55;font-style:italic}
 @media (max-width:860px){.rq-teams{grid-template-columns:1fr}}
+/* 접속자 얼굴(챔피언 일러스트) */
+i.face.img{background-color:#1a2536!important;background-size:cover!important;background-position:center 18%!important;color:transparent}
+.prl button{padding:3px 10px 3px 3px}
+.prl button i.face{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font:700 11px inherit;font-style:normal;color:#fff;background:hsl(var(--h),55%,42%);box-shadow:0 0 0 2px rgba(79,208,139,.55);animation:none}
+.pav i.face.img{box-shadow:0 0 0 1px rgba(79,208,139,.6)}
+.pr-sheet i.face.img{box-shadow:0 0 0 2px rgba(79,208,139,.6),0 4px 10px -4px #000}
