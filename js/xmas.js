@@ -272,6 +272,7 @@ function apply() {
   const on = xmasOn();
   document.body.classList.toggle('xmas', on);
   if (on) place(); else clear();
+  dispatchEvent(new Event('xmaschange')); // 접속자 얼굴(산타·루돌프)을 바로 바꾼다
   document.querySelectorAll('[data-a="xmasToggle"]').forEach((b) => { b.classList.toggle('on', on); const u = b.querySelector('u'); if (u) u.textContent = on ? 'ON' : 'OFF'; });
 }
 export const xmasBtn = () => (inSeason() ? `<button class="btn ghost xs xmas-btn ${xmasOn() ? 'on' : ''}" data-a="xmasToggle" title="눈·갈랜드·트리 같은 시즌 장식 켜기/끄기">❄ 시즌 장식 <u>${xmasOn() ? 'ON' : 'OFF'}</u></button>` : '');
@@ -291,4 +292,14 @@ export function initXmas() {
     if (!inSeason()) return apply();
     place();
   }, 60e3);
+}
+
+// ---------- 접속자 얼굴: 시즌 동안 산타 / 루돌프 ----------
+// 닉네임마다 정해진 쪽(산타 또는 루돌프)이 항상 같게 나온다. 그라데이션 id 충돌을 피하려고 단색 도형만 쓴다.
+const SANTA = `<svg viewBox="0 0 32 32" class="xf"><path d="M6 15c1-8 7-12 14-11 4 1 7 4 7 8l-1 3z" fill="#d6283b"/><path d="M20 4c4 1 7 4 7 8" fill="none" stroke="#a5172a" stroke-width="1.4"/><circle cx="27.5" cy="13.5" r="2.6" fill="#fff"/><ellipse cx="16" cy="20" rx="8.6" ry="7.4" fill="#f6c8a8"/><path d="M6.5 21c0 6 4 9.5 9.5 9.5s9.5-3.5 9.5-9.5c-2 2.4-5 3-9.5 3s-7.5-.6-9.5-3z" fill="#fff"/><path d="M11.6 24.4c1.6-1.4 3-1.2 4.4-.2 1.4-1 2.8-1.2 4.4.2-1.6.6-3 .3-4.4-.3-1.4.6-2.8.9-4.4.3z" fill="#eef3f8"/><rect x="4.6" y="13.4" width="22.8" height="4.6" rx="2.3" fill="#fff"/><ellipse cx="12.6" cy="20.6" rx="1.2" ry="1.5" fill="#2a1a14"/><ellipse cx="19.4" cy="20.6" rx="1.2" ry="1.5" fill="#2a1a14"/><circle cx="13" cy="20.1" r=".45" fill="#fff"/><circle cx="19.8" cy="20.1" r=".45" fill="#fff"/><circle cx="10.4" cy="23" r="1.5" fill="#f0909a" opacity=".7"/><circle cx="21.6" cy="23" r="1.5" fill="#f0909a" opacity=".7"/><circle cx="16" cy="22.6" r="1.6" fill="#ec9a86"/></svg>`;
+const RUDOLPH = `<svg viewBox="0 0 32 32" class="xf"><path d="M9 11C6 8 5 5 6 2M7 6 4 5M7.6 8.4 5 9M23 11c3-3 4-6 3-9M25 6l3-1M24.4 8.4 27 9" fill="none" stroke="#c99a5b" stroke-width="1.8" stroke-linecap="round"/><ellipse cx="6.4" cy="15" rx="3.6" ry="2" fill="#9a5f33" transform="rotate(-25 6.4 15)"/><ellipse cx="25.6" cy="15" rx="3.6" ry="2" fill="#9a5f33" transform="rotate(25 25.6 15)"/><path d="M16 8c6 0 9 4 9 9.5S21.5 30 16 30 7 23 7 17.5 10 8 16 8z" fill="#a8693a"/><ellipse cx="16" cy="24.6" rx="5.4" ry="4.4" fill="#e3b98c"/><ellipse cx="12.6" cy="17.2" rx="1.9" ry="2.4" fill="#fff"/><ellipse cx="19.4" cy="17.2" rx="1.9" ry="2.4" fill="#fff"/><ellipse cx="12.9" cy="17.7" rx="1.2" ry="1.6" fill="#24150d"/><ellipse cx="19.1" cy="17.7" rx="1.2" ry="1.6" fill="#24150d"/><circle cx="13.3" cy="17.1" r=".45" fill="#fff"/><circle cx="19.5" cy="17.1" r=".45" fill="#fff"/><circle cx="16" cy="22.2" r="3.4" fill="#ff3b4a" opacity=".35" class="xf-glow"/><circle cx="16" cy="22.2" r="2.5" fill="#e8202f"/><circle cx="15.2" cy="21.4" r=".8" fill="#ffb3b9"/><path d="M14 26.4q2 1.4 4 0" fill="none" stroke="#7a4524" stroke-width=".9" stroke-linecap="round"/></svg>`;
+export function xmasFace(nick, title = '') {
+  let h = 0; for (const c of String(nick)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const santa = h % 2 === 0;
+  return `<i class="face xface ${santa ? 'santa' : 'rudolph'}" title="${title || (santa ? '산타' : '루돌프')}">${santa ? SANTA : RUDOLPH}</i>`;
 }

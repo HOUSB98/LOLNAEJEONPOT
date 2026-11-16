@@ -1,6 +1,6 @@
 // 환영 인트로, 닉네임, 접속자 표시, 공용 채팅
 import { S, act, esc, uid, col, settings, toast, modal, closeModal, mh, ic, logo, needAdmin, LANE_ICON, LANE_COLOR, LANE_NAME } from './core.js';
-import { splashScene } from './xmas.js';
+import { splashScene, xmasOn, xmasFace } from './xmas.js';
 import { nySplash } from './newyear.js';
 
 const cid = localStorage.getItem('naejeon:cid') || (() => { const v = uid(); localStorage.setItem('naejeon:cid', v); return v; })();
@@ -14,7 +14,7 @@ function playerOf(nick) {
   const k = squash(nick), list = S.st?.list || [];
   return list.find((s) => squash(s.name) === k) || list.find((s) => squash(String(s.p.riotId || '').split('#')[0]) === k) || list.find((s) => s.name.length >= 2 && k.includes(squash(s.name)));
 }
-const face = (nick) => { const l = playerOf(nick)?.mainLane, c = LANE_COLOR[l]; return `<i class="face" style="--lc:${c || `hsl(${hue(nick)} 45% 62%)`}" title="${l ? LANE_NAME[l] : ''}">${c ? LANE_ICON[l] : ic('user')}</i>`; };
+const face = (nick) => { const l = playerOf(nick)?.mainLane, c = LANE_COLOR[l]; if (xmasOn()) return xmasFace(nick, l ? LANE_NAME[l] : ''); return `<i class="face" style="--lc:${c || `hsl(${hue(nick)} 45% 62%)`}" title="${l ? LANE_NAME[l] : ''}">${c ? LANE_ICON[l] : ic('user')}</i>`; };
 
 // ---------- 접속자 ----------
 // 강퇴: meta/kicks 문서에 { 접속기기id: 해제시각 } 으로 적는다. 가벼운 잠금이라 브라우저 저장소를 지우면 다시 들어올 수 있다.
@@ -49,7 +49,7 @@ export function renderPresence() {
   }
   const bump = prevOn && prevOn.size !== now.size;
   prevOn = now;
-  const sig = list.map((p) => p.id + ':' + p.nick).join('|') + (S.st?.list?.length ? '#p' : '');
+  const sig = list.map((p) => p.id + ':' + p.nick).join('|') + (S.st?.list?.length ? '#p' : '') + (xmasOn() ? '#x' : '');
   if (sig === prSig && el.firstChild) return; // 목록이 그대로면 다시 그리지 않는다
   prSig = sig;
   const cnt = String(list.length).padStart(2, '0');
@@ -222,6 +222,7 @@ export function initSocial() {
   document.addEventListener('click', (e) => { if (!e.target.closest('#ctx')) closeCtx(); });
   beat();
   setInterval(beat, BEAT_MS);
+  addEventListener('xmaschange', renderPresence);
   setInterval(renderPresence, 10e3); // 신호가 끊긴 사람을 목록에서 내린다
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') beat(); });
   addEventListener('pagehide', () => beat(true));

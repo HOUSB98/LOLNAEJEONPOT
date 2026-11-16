@@ -1489,3 +1489,10 @@ body.newyear #chatlog{background:transparent}
 body.newyear .btn.pri{box-shadow:0 0 0 1px rgba(255,236,190,.35),0 8px 24px -10px rgba(255,143,176,.5)}
 body.lite .ny-scene *,body.lite #nysky *,body.lite #nyglint *,body.lite .nyspark{animation:none!important}
 @media (max-width:860px){.ny-hills{height:24vh}.nk-sun{width:260px;height:260px}}
+/* 시즌 접속자 얼굴: 산타 / 루돌프 */
+i.face.xface{overflow:hidden;background:radial-gradient(circle at 50% 35%,#24385e,#0d1628)!important;box-shadow:0 0 0 1.5px rgba(246,214,140,.75),0 0 8px -2px rgba(246,214,140,.6)!important}
+i.face.xface.rudolph{background:radial-gradient(circle at 50% 35%,#2e4a3a,#0e1a16)!important}
+i.face.xface svg.xf{width:100%;height:100%}
+i.face.xface .xf-glow{animation:xfGlow 1.8s ease-in-out infinite;transform-origin:16px 22.2px}
+@keyframes xfGlow{50%{opacity:.75;transform:scale(1.35)}}
+body.lite i.face.xface .xf-glow,body.idle i.face.xface .xf-glow{animation:none}
