@@ -130,10 +130,11 @@ function tabbar() {
   el.innerHTML = TABS.map((p) => `<a href="#/${p}" data-p="${p}" class="${p === 'today' ? 'tb-main' : ''}"><i>${ic(p)}</i><span>${short[p] || nm[p]}</span></a>`).join('') + `<button data-p="more" data-a="tabMore"><i>${MORE_IC}</i><span>더보기</span></button>`;
   document.body.appendChild(el);
 }
+export const moreHooks = []; // 더보기 창 아래쪽 버튼을 다른 모듈이 덧붙일 때 쓴다
 act('tabMore', () => {
   let grp = '';
   const body = NAV.map(([p, t]) => (p ? `<a class="mm-it ${p === S.page ? 'on' : ''}" href="#/${p}" data-a="close">${ic(p)}<span>${t}</span></a>` : `${grp ? '</div>' : ''}<h6>${(grp = t)}</h6><div class="mm-g">`)).join('') + '</div>';
-  modal(`${mh('메뉴')}<div class="mm">${body}</div><div class="row mm-foot">${liteBtn()}<button class="btn" data-a="copyLink">초대 링크 복사</button></div>`, 'more-sheet');
+  modal(`${mh('메뉴')}<div class="mm">${body}</div><div class="row mm-foot">${liteBtn()}${moreHooks.map((f) => f()).join('')}<button class="btn" data-a="copyLink">초대 링크 복사</button></div>`, 'more-sheet');
 });
 // ---------- 가벼운 모드 (PC방·저사양·게임과 같이 켜 둘 때) ----------
 // 장식용 반복 애니메이션·흐림 효과·배경 캔버스를 끈다. 저장된 선택이 없으면 기기 사양과 처음 몇 초의 프레임으로 자동 결정한다.
@@ -323,7 +324,7 @@ export function burst(x = innerWidth / 2, y = innerHeight / 2, n = 140) {
   if (calm()) return;
   const c = document.createElement('canvas');
   c.className = 'fx'; c.width = innerWidth; c.height = innerHeight; document.body.appendChild(c);
-  const g = c.getContext('2d'), colors = ['#f6e3a8', '#d9a441', '#3fd0e0', '#ffffff', '#5b8cff', '#ff6b81'];
+  const g = c.getContext('2d'), colors = document.body.classList.contains('xmas') ? ['#ffffff', '#e2463c', '#2fa35f', '#f2cf7a', '#dfe9ff', '#ffffff'] : ['#f6e3a8', '#d9a441', '#3fd0e0', '#ffffff', '#5b8cff', '#ff6b81'];
   const ps = Array.from({ length: n }, () => { const a = Math.random() * Math.PI * 2, v = 4 + Math.random() * 11; return { x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 4, r: 2 + Math.random() * 4, c: colors[(Math.random() * colors.length) | 0], rot: Math.random() * 6, life: 1 }; });
   const t0 = performance.now();
   (function loop(t) {

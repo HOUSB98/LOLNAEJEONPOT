@@ -1376,3 +1376,24 @@ body.lite .lp-name.new,body.lite .ld-c.won,body.lite .lf-n{animation:none!import
   .lp-my{padding:8px 10px;gap:6px}.lp-my>small{display:none}.lp-rk{padding:4px 8px;font-size:12px}
   .lp-grid{gap:8px}.lp-card{gap:6px}.lp-bar{display:none}.lp-sub{font-size:11px}
 }
+/* ---------- 시즌 장식(크리스마스) ---------- */
+#xsnow{position:fixed;inset:0;z-index:6;pointer-events:none}
+#xlights{position:fixed;left:0;right:0;top:0;height:16px;z-index:8;pointer-events:none;display:flex;justify-content:space-between;padding:0 6px;
+  background:radial-gradient(120% 22px at 50% -12px,transparent 60%,rgba(40,50,40,.9) 61%,transparent 66%) 0 0/80px 16px repeat-x}
+#xlights i{width:6px;height:9px;margin-top:5px;border-radius:50% 50% 45% 45%;background:var(--c,#e2463c);box-shadow:0 0 8px 1px var(--c,#e2463c);animation:xbulb 2.4s var(--d,0s) ease-in-out infinite}
+#xlights i:nth-child(4n+2){--c:#2fa35f}#xlights i:nth-child(4n+3){--c:#f2cf7a}#xlights i:nth-child(4n+4){--c:#5b8cff}
+@keyframes xbulb{0%,100%{opacity:1}50%{opacity:.35}}
+#xtree{position:absolute;left:50%;bottom:86px;translate:-50% 0;width:min(78%,260px);aspect-ratio:200/290;z-index:0;pointer-events:none;opacity:.17;filter:saturate(1.1)}
+#xtree svg{width:100%;height:100%}
+#xtree .xt-new{animation:xtnew 2.4s ease-out 2}
+#xtree .xt-star{transform-box:fill-box;transform-origin:center;animation:xtstar 3s ease-in-out infinite}
+@keyframes xtnew{0%,100%{opacity:1}40%{opacity:.2}}
+@keyframes xtstar{50%{opacity:.6}}
+body.xmas #chat>*:not(#xtree){position:relative;z-index:1}
+body.xmas #chatlog{background:transparent}
+.brand{position:relative}
+.xhat{position:absolute;left:-6px;top:-10px;width:30px;height:23px;rotate:-18deg;z-index:2;pointer-events:none;filter:drop-shadow(0 2px 2px rgba(0,0,0,.5))}
+.xmas-btn u{text-decoration:none;font:700 9px var(--mono);margin-left:4px;padding:1px 5px;border-radius:99px;background:#1a2536;color:var(--mut)}
+.xmas-btn.on{border-color:#2fa35f;color:#bfe9cf}.xmas-btn.on u{background:#2fa35f;color:#06210f}
+body.lite #xlights i,body.lite #xtree *{animation:none!important}
+@media (max-width:860px){#side .xmas-btn{display:none}.xhat{left:-4px;top:-8px;width:22px;height:17px}#xlights{height:12px}#xlights i{width:5px;height:7px;margin-top:3px}}

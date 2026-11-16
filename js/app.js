@@ -13,6 +13,7 @@ import './auction.js';
 import './admin.js';
 import './maker.js';
 import { watchPosts } from './talk.js';
+import { initXmas } from './xmas.js';
 
 const num = (v, cls = '') => `<td class="num ${cls}">${v}</td>`;
 export function stat(icon, label, value, sub, tone = '') {
@@ -566,5 +567,5 @@ function onStore(c) {
     });
     await S.store.ready;
   } catch (e) { main.innerHTML = `<div class="panel landing"><h1>연결 실패</h1><p>${esc(e.message || e)}</p><p class="hint">js/config.js 의 Firebase 설정과 Firestore 규칙을 확인하세요.</p></div>`; return; }
-  metaDiff(); up = true; watchDice(true); watchBoard(true); watchPosts(true); watchReveal(true); initShell(); initSocial(); loadChamps();
+  metaDiff(); up = true; watchDice(true); watchBoard(true); watchPosts(true); watchReveal(true); initShell(); initSocial(); initXmas(); loadChamps();
 })();
