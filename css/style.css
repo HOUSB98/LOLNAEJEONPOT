@@ -1501,7 +1501,7 @@ body.lite i.face.xface .xf-glow,body.idle i.face.xface .xf-glow{animation:none}
 #xlights{left:var(--sw);right:var(--cw);height:46px;top:0;z-index:8}
 body.chat-closed #xlights{right:0}
 @media (max-width:1280px){#xlights{right:0}}
-@media (max-width:860px){#xlights{left:0;height:36px;z-index:9}}
+@media (max-width:860px){#xlights{position:absolute;left:0;height:36px;z-index:9}}
 #xlights svg{filter:drop-shadow(0 3px 3px rgba(0,0,0,.5))}
 .xl-b .xl-glow{animation:xglow 2.8s var(--d,0s) ease-in-out infinite;opacity:.5}
 @keyframes xglow{0%,100%{opacity:.6}50%{opacity:.1}}
@@ -1518,7 +1518,7 @@ body.chat-closed #xlights{right:0}
 .xa-town{position:absolute;left:var(--sw);right:var(--cw);bottom:0;width:calc(100% - var(--sw) - var(--cw));height:22vh;opacity:.75}
 body.chat-closed .xa-town{right:0;width:calc(100% - var(--sw))}
 @media (max-width:1280px){.xa-town{width:calc(100% - var(--sw))}}
-@media (max-width:860px){.xa-town{left:0;width:100%;height:14vh}}
+@media (max-width:860px){.xa-town{display:none}}
 .xa-win{animation:xswin 3.4s ease-in-out infinite}.xa-win:nth-of-type(3n){animation-delay:-1.7s}
 /* 패널 위 눈 + 홀리 잎 */
 .xcap{position:absolute;left:6px;right:6px;top:-1px;height:13px;z-index:3;pointer-events:none;border-radius:var(--r) var(--r) 0 0;background:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 140 16%22 preserveAspectRatio=%22none%22%3E%3Cpath d=%22M0 0H140V6C132 9 124 7 117 9C111 11 108 14 104 10C100 7 93 10 85 8C77 6 71 11 63 9C57 7 53 13 48 9C44 6 36 9 27 7C20 6 14 10 8 8C5 7 2 7 0 6Z%22 fill=%22%23c7d6ee%22/%3E%3Cpath d=%22M0 0H140V5C132 8 124 6 117 8C111 10 108 12 104 9C100 6 93 9 85 7C77 5 71 9 63 8C57 6 53 11 48 8C44 5 36 8 27 6C20 5 14 9 8 7C5 6 2 7 0 6Z%22 fill=%22%23fbfdff%22/%3E%3Cpath d=%22M47 9 49 15 51 9ZM103 10 104.5 14.5 106 10ZM20 6.5 21 10 22 6.5Z%22 fill=%22%23e6f0ff%22/%3E%3Cpath d=%22M4 2.5C30 1.5 60 3 90 2S125 1 138 2.5%22 stroke=%22%23fff%22 stroke-width=%221.2%22 fill=%22none%22 opacity=%22.9%22/%3E%3C/svg%3E") 0 0/140px 16px repeat-x;filter:drop-shadow(0 2px 2px rgba(0,0,0,.35));opacity:.92}
