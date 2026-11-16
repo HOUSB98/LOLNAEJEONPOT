@@ -204,7 +204,7 @@ function splash() {
       <p class="sp-league">${esc(name)}</p>
       ${first ? `<form id="spf"><input id="spn" class="inp" maxlength="12" placeholder="닉네임을 입력하세요" autocomplete="off"><button class="btn pri">입장</button></form>` : '<div class="sp-bar"><i></i></div>'}
     </div><small class="sp-skip">${first ? '닉네임은 접속자 목록과 채팅에 표시됩니다' : '화면을 누르면 바로 입장합니다'}</small>`;
-  el.classList.add('on');
+  el.classList.add('on'); el.classList.remove('boot');
   splashScene(el); // 시즌 장식 기간이면 밤하늘·달·산타 썰매 배경
   nySplash(el); // 새해(1/1~1/15)면 불꽃놀이·풍등 배경
   const stop = embers(el.querySelector('canvas'));

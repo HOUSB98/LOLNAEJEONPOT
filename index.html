@@ -10,12 +10,31 @@
 <link rel="preconnect" href="https://ddragon.leagueoflegends.com">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Cinzel:wght@600;800&family=JetBrains+Mono:wght@400;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-<link rel="stylesheet" href="css/style.css?v=champ-picker-fixed-20261113">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+<!-- 글꼴은 화면 그리기를 막지 않도록 비동기로 불러온다(처음 잠깐은 기본 글꼴, 로딩창이 덮고 있다) -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Cinzel:wght@600;800&family=JetBrains+Mono:wght@400;600;700&family=Rajdhani:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" media="print" onload="this.media='all'">
+<!-- 모듈을 한꺼번에 미리 받아 연쇄 다운로드(폭포) 지연을 줄인다 -->
+<link rel="modulepreload" href="js/app.js"><link rel="modulepreload" href="js/core.js"><link rel="modulepreload" href="js/stats.js"><link rel="modulepreload" href="js/store.js"><link rel="modulepreload" href="js/config.js">
+<link rel="modulepreload" href="js/social.js"><link rel="modulepreload" href="js/xmas.js"><link rel="modulepreload" href="js/newyear.js"><link rel="modulepreload" href="js/today.js"><link rel="modulepreload" href="js/board.js">
+<link rel="modulepreload" href="js/dice.js"><link rel="modulepreload" href="js/reveal.js"><link rel="modulepreload" href="js/talk.js"><link rel="modulepreload" href="js/players.js"><link rel="modulepreload" href="js/admin.js">
+<link rel="modulepreload" href="js/auction.js"><link rel="modulepreload" href="js/replay.js"><link rel="modulepreload" href="js/maker.js">
+<link rel="stylesheet" href="css/style.css?v=boot-20261116">
 </head>
 <body>
 <div id="splash"></div>
+<script>
+// 첫 화면부터 로딩창을 바로 덮는다(모듈·DB 연결을 기다리는 동안 홈 화면이 잠깐 보이는 문제 방지).
+(function () { try {
+  var n = localStorage.getItem('naejeon:nick'), qs = location.search;
+  if ((sessionStorage.getItem('naejeon:welcomed') && n) || !(/[?&](k|demo)\b/.test(qs))) return;
+  var e = document.getElementById('splash'), d = new Date(), m = d.getMonth() + 1, md = m * 100 + d.getDate();
+  e.className = 'on boot' + (md >= 1116 && md <= 1226 && localStorage.getItem('naejeon:xmas') !== '0' ? ' xs' : m === 1 && d.getDate() <= 15 && localStorage.getItem('naejeon:newyear') !== '0' ? ' ny' : '');
+  e.innerHTML = '<div class="sp-boot"><b>NAEJEON<i>POT</i></b><span></span></div>';
+} catch (x) {} })();
+</script>
 <aside id="side">
   <a class="brand" href="#/home"><span id="brandlogo"></span><span class="bt"><b>NAEJEON<i>POT</i></b><small id="league">친구 내전 리그</small></span></a>
   <a class="btn gold block" href="#/today">내전 시작</a>

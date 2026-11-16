@@ -1551,3 +1551,10 @@ body.xmas .notice{position:relative}
 body.xmas #presence{background:rgba(8,12,22,.82);position:relative}
 @media (max-width:860px){body.xmas #main{padding-top:40px}}
 @media (max-width:860px){body.xmas #side::before{display:none}}
+/* 첫 화면 즉시 로딩창(모듈·DB 연결 전) */
+#splash.boot .sp-boot{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:18px;animation:spboot .6s ease-out both}
+.sp-boot b{font:800 clamp(30px,6vw,54px)/1 "Cinzel",serif;letter-spacing:.22em;color:#f2f5fb}.sp-boot b i{font-style:normal;color:var(--gold)}
+.sp-boot span{width:160px;height:2px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden;position:relative}
+.sp-boot span::after{content:"";position:absolute;inset:0;width:40%;background:linear-gradient(90deg,transparent,var(--gold2),transparent);animation:spbar 1.1s ease-in-out infinite}
+@keyframes spboot{from{opacity:0}}
+@keyframes spbar{from{transform:translateX(-100%)}to{transform:translateX(260%)}}
