@@ -109,11 +109,20 @@ function play(d, mine) {
       <div class="dice-row"><div class="dcol"><b class="blue">BLUE</b>${d1.html}<div class="dres" id="dres1"></div></div><div class="dvs">VS</div><div class="dcol"><b class="red">RED</b>${d2.html}<div class="dres" id="dres2"></div></div></div>
       <div class="ds-foot" id="dfoot"><span class="mut">주사위가 구르는 중…</span></div></div>`, 'wide dice-modal');
   const spin = (root, dd, idx, ms, turns) => {
+    // 회전은 JS로 직접 돌린다. CSS transition을 쓰면 '애니메이션 줄이기'가 켜진 기기에서
+    // 전환 시간이 0이 되어 굴러가기도 전에 당첨자 칸이 먼저 보였다.
     const dr = root.querySelector('.drum'), face = dd.faces.indexOf(names[idx]);
-    dr.style.transition = `transform ${ms}ms cubic-bezier(.12,.72,.14,1)`;
-    requestAnimationFrame(() => requestAnimationFrame(() => { dr.style.transform = `rotateX(${-(360 * turns + face * dd.th)}deg)`; }));
+    const end = -(360 * turns + face * dd.th), t0 = performance.now();
+    let live = true;
+    const ease = (t) => 1 - Math.pow(1 - t, 4);
+    (function step(now) {
+      if (!live) return;
+      const t = Math.min(1, (now - t0) / ms);
+      dr.style.transform = `rotateX(${end * ease(t)}deg)`;
+      if (t < 1) requestAnimationFrame(step);
+    })(t0);
     root.classList.add('rolling');
-    return new Promise((res) => setTimeout(() => { root.classList.remove('rolling'); root.classList.add('done'); dr.querySelectorAll('.dface')[face].classList.add('win'); res(); }, ms + 60));
+    return new Promise((res) => setTimeout(() => { live = false; dr.style.transform = `rotateX(${end}deg)`; root.classList.remove('rolling'); root.classList.add('done'); dr.querySelectorAll('.dface')[face].classList.add('win'); res(); }, ms + 60));
   };
   const dies = el.querySelectorAll('.die');
   const fx = diceFx(el.querySelector('.dice-stage'), [...dies]);
