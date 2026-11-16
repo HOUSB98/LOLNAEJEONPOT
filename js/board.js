@@ -27,6 +27,9 @@ const view = () => document.querySelector('#modal.on .lp');
 const rnd = (n) => crypto.getRandomValues(new Uint32Array(1))[0] % n;
 const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 export const boardLive = () => live(cur());
+// 지망: picks[선수] = ['top','mid','any'] 처럼 1~3지망 목록(예전 문서의 문자열 한 개도 1지망으로 읽는다)
+const prefs = (d, id) => { const v = d.picks?.[id]; return Array.isArray(v) ? v.filter(Boolean) : v ? [v] : []; };
+const RANK = ['1지망', '2지망', '3지망'];
 
 // ---------- 효과음(파일 없이 Web Audio로, 부드러운 전자음만) ----------
 let AC = null;
@@ -50,35 +53,40 @@ function sfx(kind) {
 
 // ---------- 지원 화면 ----------
 function card(d, o) {
-  const ids = d.ids.filter((id) => d.picks?.[id] === o), n = ids.length, mine = BD.me && d.picks?.[BD.me] === o;
-  const state = o === 'any' ? '' : n > 2 ? `<span class="lp-st hot">${n - 2}명 초과 · 추첨</span>` : n === 2 ? '<span class="lp-st ok">딱 맞음</span>' : `<span class="lp-st low">${2 - n}자리 남음</span>`;
-  return `<button class="lp-card ${mine ? 'mine' : ''} ${o === 'any' ? 'any' : ''}" data-a="bdPick" data-o="${o}" style="--lc:${COLOR[o]}" ${d.status !== 'open' ? 'disabled' : ''}>
-    <span class="lp-ch"><i class="lp-ico">${icon(o)}</i><b>${NAME[o]}</b>${mine ? '<em>내 지원</em>' : ''}</span>
+  const rankN = [0, 1, 2].map((r) => d.ids.filter((id) => prefs(d, id)[r] === o).length), n = rankN[0];
+  const prevN = Object.values(BD.prev).filter((v) => (Array.isArray(v) ? v[0] : v) === o).length;
+  const myRank = BD.me ? prefs(d, BD.me).indexOf(o) : -1;
+  const state = o === 'any' ? '' : n > 2 ? `<span class="lp-st hot">1지망 ${n - 2}명 초과 · 추첨</span>` : n === 2 ? '<span class="lp-st ok">딱 맞음</span>' : `<span class="lp-st low">${2 - n}자리 남음</span>`;
+  return `<button class="lp-card ${myRank >= 0 ? 'mine' : ''} ${o === 'any' ? 'any' : ''}" data-a="bdPick" data-o="${o}" style="--lc:${COLOR[o]}" ${d.status !== 'open' ? 'disabled' : ''}>
+    <span class="lp-ch"><i class="lp-ico">${icon(o)}</i><b>${NAME[o]}</b>${myRank >= 0 ? `<em class="r${myRank + 1}">${RANK[myRank]}</em>` : ''}</span>
     <span class="lp-meta">${o === 'any' ? '빈 자리에 배치' : '모집 2명'}${state}</span>
     <span class="lp-bar"><i style="width:${o === 'any' ? 0 : Math.min(100, n * 50)}%"></i></span>
-    <span class="lp-cnt ${n !== Object.values(BD.prev).filter((x) => x === o).length ? 'bump' : ''}"><b class="mono">${n}</b>명 지원<i class="lp-dots">${Array.from({ length: Math.max(n, o === 'any' ? 0 : 2) }, (_, i) => `<u class="${i < n ? 'on' : ''}"></u>`).join('')}</i></span>
+    <span class="lp-cnt ${n !== prevN ? 'bump' : ''}"><small>1지망</small><b class="mono">${n}</b>명<i class="lp-dots">${Array.from({ length: Math.max(n, o === 'any' ? 0 : 2) }, (_, i) => `<u class="${i < n ? 'on' : ''}"></u>`).join('')}</i></span>
+    <span class="lp-sub">2지망 <b>${rankN[1]}</b> · 3지망 <b>${rankN[2]}</b></span>
   </button>`;
 }
 function openHTML(d) {
-  const picked = d.ids.filter((id) => d.picks?.[id]).length, isMe = d.ids.includes(BD.me);
+  const picked = d.ids.filter((id) => prefs(d, id).length).length, isMe = d.ids.includes(BD.me), mine = isMe ? prefs(d, BD.me) : [];
   return `<div class="lp-h"><div><small><i class="live"></i>LIVE · 모두 같은 화면</small><h2>${ic('users')}라인 지원</h2></div><span class="grow"></span>
       <button class="btn ghost xs" data-a="bdMute" title="효과음">${ic(BD.muted ? 'mute' : 'sound')}</button><button class="btn ghost xs" data-a="bdHide" title="닫기 (라인 지원은 계속 열려 있음)">${ic('x')}</button></div>
-    <ol class="lp-steps"><li class="${isMe ? 'done' : 'on'}">내 이름 선택</li><li class="${isMe ? (d.picks?.[BD.me] ? 'done' : 'on') : ''}">라인 선택</li><li>마감 → 몰린 라인 추첨</li></ol>
+    <ol class="lp-steps"><li class="${isMe ? 'done' : 'on'}">내 이름 선택</li><li class="${isMe ? (mine.length ? 'done' : 'on') : ''}">라인 1~3지망 선택</li><li>마감 → 지망 순서대로 추첨</li></ol>
+    ${isMe ? `<div class="lp-my"><b>${esc(nm(BD.me))}</b>의 지망${[0, 1, 2].map((r) => `<span class="lp-rk ${mine[r] ? 'on' : ''}" style="--lc:${mine[r] ? COLOR[mine[r]] : '#3a4a64'}"><small>${RANK[r]}</small>${mine[r] ? `${icon(mine[r])}${NAME[mine[r]]}` : '—'}</span>`).join('')}<small class="mut">카드를 누른 순서대로 1·2·3지망 · 다시 누르면 빠져요</small></div>` : ''}
     <div class="lp-sec"><div class="lp-sh"><b>참가자</b><small>${isMe ? `<b>${esc(nm(BD.me))}</b>(으)로 지원 중 · 다른 이름을 누르면 대리 지원` : '본인 이름을 눌러 주세요'}</small></div>
-      <div class="lp-roster">${d.ids.map((id) => { const p = d.picks?.[id], mine = id === BD.me; return `<button class="lp-mem ${mine ? 'me' : ''} ${p ? 'ok' : ''}" data-a="bdMe" data-id="${id}" style="--lc:${p && mine ? COLOR[p] : p ? '#4fd08b' : '#5a6a84'}" title="${p ? '지원 완료' : '아직 지원 안 함'}">${p ? `<i>${mine ? icon(p) : '✓'}</i>` : '<i class="dot"></i>'}${esc(nm(id))}</button>`; }).join('')}</div></div>
+      <div class="lp-roster">${d.ids.map((id) => { const p = prefs(d, id)[0], mine = id === BD.me; return `<button class="lp-mem ${mine ? 'me' : ''} ${p ? 'ok' : ''}" data-a="bdMe" data-id="${id}" style="--lc:${p && mine ? COLOR[p] : p ? '#4fd08b' : '#5a6a84'}" title="${p ? '지원 완료' : '아직 지원 안 함'}">${p ? `<i>${mine ? icon(p) : '✓'}</i>` : '<i class="dot"></i>'}${esc(nm(id))}</button>`; }).join('')}</div></div>
     <div class="lp-grid">${OPTS.map((o) => card(d, o)).join('')}</div>
     <div class="lp-foot"><span class="lp-count"><b class="mono">${picked}</b> / <span class="mono">${d.ids.length}</span> 지원 완료${d.by ? ` · 연 사람 ${esc(d.by)}` : ''}<small class="lp-ttl">2시간 동안 아무도 지원하지 않으면 자동으로 닫혀요</small></span><span class="grow"></span>
       <button class="btn ghost" data-a="bdShut">취소하기</button><button class="btn pri" data-a="bdGo" ${picked ? '' : 'disabled'}>${ic('dice')}지원 마감 · 추첨 시작</button></div>`;
 }
 function finalHTML(d) {
-  const fill = new Set((d.steps || []).filter((s) => s.fill).flatMap((s) => s.pick));
+  const rk = d.rankOf || {};
   const drawn = new Set((d.steps || []).filter((s) => s.kind === 'roll' && !s.fill).flatMap((s) => s.pick));
-  const cell = (id, side, i) => (id ? `<span class="lf-n ${side}" style="--i:${i}">${esc(nm(id))}${fill.has(id) ? '<em>배치</em>' : drawn.has(id) ? '<em>추첨</em>' : ''}</span>` : '<span class="lf-n empty">빈 자리</span>');
+  const tag = (id) => (rk[id] ? `<em class="r${rk[id]}">${RANK[rk[id] - 1]}${drawn.has(id) ? '·추첨' : ''}</em>` : '<em>배치</em>');
+  const cell = (id, side, i) => (id ? `<span class="lf-n ${side}" style="--i:${i}">${esc(nm(id))}${tag(id)}</span>` : '<span class="lf-n empty">빈 자리</span>');
   return `<div class="lp-h"><div><small>RESULT</small><h2>${ic('today')}최종 라인업</h2></div><span class="grow"></span><button class="btn ghost xs" data-a="bdClose" title="닫기">${ic('x')}</button></div>
     <div class="lf"><span></span><b class="blue">BLUE</b><b class="red">RED</b>
       ${LANES.map((l, i) => `<span class="lf-l" style="--lc:${COLOR[l]}">${LANE_ICON[l]}${LANE_NAME[l]}</span>${cell(d.result?.[l]?.[0], 'blue', i * 2)}${cell(d.result?.[l]?.[1], 'red', i * 2 + 1)}`).join('')}</div>
     ${d.left?.length ? `<p class="mut center">대기: ${d.left.map((x) => esc(nm(x))).join(', ')}</p>` : ''}
-    <p class="hint center"><em class="lf-tag">추첨</em> 몰린 라인에서 뽑힘 · <em class="lf-tag">배치</em> 상관없음·미지원으로 빈 자리에 들어감 · 진영·자리 교체는 라인업에서 끌어다 놓으면 됩니다</p>
+    <p class="hint center"><em class="lf-tag">N지망</em> 몇 지망으로 들어갔는지 (·추첨: 몰려서 뽑힘) · <em class="lf-tag">배치</em> 상관없음·지망 실패·미지원으로 빈 자리에 들어감 · 진영·자리 교체는 라인업에서 끌어다 놓으면 됩니다</p>
     <div class="lp-foot center"><button class="btn pri" data-a="bdLineup">${ic('today')}라인업 확인</button><button class="btn ghost" data-a="bdClose">닫기</button></div>`;
 }
 function draw() {
@@ -133,8 +141,15 @@ act('bdPick', async (x) => {
   try {
     await S.store.tx('meta', 'board', (r) => {
       if (!r || r.rid !== rid || r.status !== 'open') return null;
-      const picks = { ...(r.picks || {}) };
-      if (picks[me] === x.o) delete picks[me]; else picks[me] = x.o;
+      const picks = { ...(r.picks || {}) }, curP = prefs(r, me);
+      let next;
+      if (curP.includes(x.o)) next = curP.filter((v) => v !== x.o); // 다시 누르면 빠진다
+      else {
+        const lanes = curP.filter((v) => v !== 'any'), any = curP.includes('any') || x.o === 'any';
+        next = [...(x.o === 'any' ? lanes : [...lanes, x.o]), ...(any ? ['any'] : [])]; // '상관없음'은 항상 마지막
+        if (next.length > 3) { toast('3지망까지 고를 수 있어요. 하나를 빼고 다시 골라 주세요'); return null; }
+      }
+      if (next.length) picks[me] = next; else delete picks[me];
       return { ...r, picks, upd: S.store.serverNow() };
     });
   } catch (e) { toast('지원 실패: ' + (e.code || e.message)); }
@@ -148,34 +163,39 @@ act('bdShut', async () => {
 });
 act('bdLineup', () => { closeModal(); location.hash = '#/today'; });
 
-// ---------- 추첨 계획 ----------
-// 1) 지원자가 2명 이상인 라인: 2명이면 바로 확정, 3명 이상이면 추첨으로 2명. 떨어진 사람은 용병으로.
-// 2) 모자란 라인: 용병(상관없음 + 추첨 탈락 + 미지원자) 중에서 추첨으로 채운다.
+// ---------- 추첨 계획: 지망 단계별 추첨 ----------
+// 1라운드: 모두 1지망으로. 남은 자리 이하면 바로 확정, 넘치면 무작위로 남은 자리만큼 뽑는다.
+// 2·3라운드: 아직 자리가 없는 사람만 2지망 → 3지망으로 넘어가 남은 자리 안에서 같은 방식으로 정한다.
+// 라운드마다 라인을 처리하는 순서는 무작위. 끝까지 남은 사람(상관없음·지망 실패·미지원)은 빈 자리에 무작위 배치.
 // 블루·레드는 무작위. 이후 교체는 라인업에서 직접 한다.
 function plan(d) {
-  const by = Object.fromEntries(OPTS.map((o) => [o, []]));
-  d.ids.forEach((id) => by[d.picks?.[id] || 'any'].push(id));
-  const slots = {}, steps = [];
-  let pool = [...by.any];
-  for (const l of LANES) {
-    const c = by[l];
-    if (c.length >= 2) { const s = shuffle(c); slots[l] = s.slice(0, 2); pool.push(...s.slice(2)); steps.push({ lane: l, kind: c.length === 2 ? 'direct' : 'roll', cands: c, pick: s.slice(0, 2), pre: [] }); }
-    else slots[l] = [...c];
+  const P = Object.fromEntries(d.ids.map((id) => [id, prefs(d, id)]));
+  const slots = Object.fromEntries(LANES.map((l) => [l, []])), steps = [], rankOf = {};
+  let left = [...d.ids];
+  for (let r = 0; r < 3; r++) {
+    for (const l of shuffle(LANES)) {
+      const free = 2 - slots[l].length; if (free <= 0) continue;
+      const c = left.filter((id) => P[id][r] === l); if (!c.length) continue;
+      const pre = [...slots[l]], got = c.length <= free ? c : shuffle(c).slice(0, free);
+      steps.push({ round: r + 1, lane: l, kind: c.length > free ? 'roll' : 'direct', cands: c, pick: got, pre });
+      got.forEach((id) => { slots[l].push(id); rankOf[id] = r + 1; });
+      left = left.filter((id) => !got.includes(id));
+    }
   }
-  pool = shuffle(pool);
-  for (const l of LANES) {
-    if (by[l].length >= 2) continue;
-    const need = 2 - slots[l].length, cands = [...pool], got = pool.splice(0, need);
-    steps.push({ lane: l, kind: cands.length > need ? 'roll' : 'direct', cands, pick: got, pre: [...slots[l]], fill: true });
+  left = shuffle(left);
+  for (const l of shuffle(LANES)) {
+    const need = 2 - slots[l].length; if (need <= 0 || !left.length) continue;
+    const got = left.splice(0, need);
+    steps.push({ round: 4, lane: l, kind: 'direct', cands: got, pick: got, pre: [...slots[l]], fill: true });
     slots[l].push(...got);
   }
   const result = Object.fromEntries(LANES.map((l) => [l, shuffle(slots[l])]));
-  return { steps, result, left: pool };
+  return { steps, result, left, rankOf };
 }
 act('bdGo', async () => {
   const d = cur(); if (!d || d.status !== 'open') return;
   if (!live(d)) { toast('라인 지원이 만료됐어요. 다시 열어 주세요'); closeModal(); if (S.page === 'today') refresh(); return; }
-  const miss = d.ids.filter((id) => !d.picks?.[id]).length;
+  const miss = d.ids.filter((id) => !prefs(d, id).length).length;
   if (miss && !confirm(`아직 ${miss}명이 지원하지 않았어요. 미지원자는 '상관없음'으로 보고 마감할까요?`)) return;
   await S.store.syncServerClock?.();
   BD.runner = d.rid; // 내 쓰기가 먼저 돌아와 재생이 시작돼도 내가 라인업을 반영하도록 미리 표시
@@ -203,10 +223,10 @@ function clearTimers() { BD.timers.forEach(clearTimeout); BD.timers = []; }
 function drawHTML(steps) {
   return `<div class="lp-h"><div><small><i class="live"></i>LIVE · 추첨 중</small><h2>${ic('dice')}라인 추첨</h2></div><span class="grow"></span>
       <button class="btn ghost xs" data-a="bdMute" title="효과음">${ic(BD.muted ? 'mute' : 'sound')}</button><button class="btn xs" data-a="bdSkip">건너뛰기 ▸▸</button></div>
-    <p class="lp-cap">2명 넘게 몰린 라인만 추첨합니다 · 모두 같은 장면을 보고 있어요</p>
+    <p class="lp-cap">지망 순서대로, 자리보다 지원자가 많은 라인만 추첨합니다 · 라인 순서는 무작위</p>
     <div class="ld">${steps.map((s) => `<div class="ld-row" data-lane="${s.lane}" style="--lc:${COLOR[s.lane]}">
-      <div class="ld-lane"><i class="lp-ico">${LANE_ICON[s.lane]}</i><b>${LANE_NAME[s.lane]}</b><small>${s.cands.length}명 중 2명</small></div>
-      <div class="ld-cands">${s.cands.map((id) => `<span class="ld-c" data-id="${id}">${esc(nm(id))}</span>`).join('')}</div></div>`).join('')}</div>`;
+      <div class="ld-lane"><i class="lp-ico">${LANE_ICON[s.lane]}</i><b>${LANE_NAME[s.lane]}</b><small>${RANK[(s.round || 1) - 1]} · ${s.cands.length}명 중 ${s.pick.length}명</small></div>
+      <div class="ld-cands">${(s.pre || []).map((id) => `<span class="ld-c won pre" title="앞 라운드에서 확정">${esc(nm(id))}</span>`).join('')}${s.cands.map((id) => `<span class="ld-c" data-id="${id}">${esc(nm(id))}</span>`).join('')}</div></div>`).join('')}</div>`;
 }
 function finish(el, d) {
   clearTimers();
@@ -270,7 +290,7 @@ async function play(d) {
     if (!ln.picks.every((p) => done.has(ln.s.lane + p.id))) {
       await wait(ln.at - now()); if (!alive()) return;
       el.querySelectorAll('.ld-row').forEach((r) => { r.classList.toggle('on', r === row); r.classList.toggle('dim', r !== row && !r.classList.contains('over')); });
-      el.querySelector('.lp-cap').innerHTML = `${LANE_NAME[ln.s.lane]} · ${ln.s.cands.length}명 중 2명을 뽑습니다`;
+      el.querySelector('.lp-cap').innerHTML = `${RANK[(ln.s.round || 1) - 1]} 추첨 · ${LANE_NAME[ln.s.lane]} — ${ln.s.cands.length}명 중 ${ln.s.pick.length}명을 뽑습니다`;
       row.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
       for (const p of ln.picks) {
         if (done.has(ln.s.lane + p.id)) continue;
