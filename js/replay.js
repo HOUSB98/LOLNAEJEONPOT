@@ -243,7 +243,7 @@ function resolve(rows, m, flip) {
     const left = m[recSide].filter((id) => !team.some((r) => r.pid === id));
     for (const r of team.filter((x) => !x.pid)) {
       const byLane = left.find((id) => m[recSide].indexOf(id) === r.lane);
-      r.pid = byLane || left[0] || '';
+      r.pid = byLane || left[0] || ''; r.guessed = !!r.pid;
       left.splice(left.indexOf(r.pid), 1);
     }
   }
@@ -281,8 +281,8 @@ async function loadMany(files) {
     } catch (e) { Q.items.push({ name: f.name, status: 'err', err: e.message || String(e), cands: [], rows: [] }); }
   }
   plan(); R.busy = false; refresh();
-  const ok = Q.items.filter((x) => x.status === 'ok').length;
-  toast(`${files.length}개 읽음 · ${ok}개 자동 연결`);
+  const ok = Q.items.filter((x) => x.pick && x.status !== 'done').length;
+  toast(`${files.length}개 읽음 · ${ok}개 경기를 찾았어요`);
 }
 function queueView() {
   const st = S.st, k = (v) => v.toLocaleString('ko-KR');
@@ -295,7 +295,7 @@ function queueView() {
       const rows = rowsFor(it), m = it.pick && S.store.data.matches[it.pick], c = candOf(it);
       const chip = it.status === 'done' ? '<span class="tag ok">적용 완료</span>' : it.status === 'ok' ? '<span class="tag ok">자동 연결</span>' : it.status === 'ambig' ? `<span class="tag warn">${it.guess || '후보 여러 개 · 확인 필요'}</span>` : '<span class="tag bad">맞는 경기 없음</span>';
       const win = rows.filter((r) => r.win), lose = rows.filter((r) => !r.win);
-      const ppl = (list) => list.map((r) => `<span class="${r.pid ? '' : 'miss'}" title="${esc(r.riot)} · ${esc(r.champ)}">${champIcon(r.champ)}${esc(r.pid ? st.P[r.pid]?.name || '?' : r.riot)}</span>`).join('');
+      const ppl = (list) => list.map((r) => `<span class="${r.pid && !r.guessed ? '' : 'miss'}" title="${esc(r.riot)} · ${esc(r.champ)}${r.guessed ? ' · 닉네임을 못 찾아 남은 자리로 채움' : ''}">${champIcon(r.champ)}${esc(r.pid ? st.P[r.pid]?.name || '?' : r.riot)}</span>`).join('');
       return `<div class="rq-it ${it.status}">
         <div class="rq-h"><b>${esc(it.name)}</b><small class="mut">${fmtDur(it.dur)} · 닉네임 인식 ${it.rows.filter((r) => r.pid).length}/10</small>${chip}<span class="grow"></span><button class="btn ghost xs" data-a="rqDrop" data-i="${i}" title="목록에서 빼기">${ic('x')}</button></div>
         <div class="rq-teams"><div><em class="good">승리</em>${ppl(win)}</div><div><em class="bad">패배</em>${ppl(lose)}</div></div>
