@@ -33,10 +33,27 @@ function hofList() {
 }
 
 // ---------- 홈 ----------
+// 최근 7일 안에 바뀐 라인 점수를 공지 맨 위에 보여 준다(같은 선수·라인은 처음 값 → 마지막 값으로 묶는다)
+function scoreNotice(add) {
+  const items = S.store.data.meta?.scorelog?.items || [], since = Date.now() - 7 * 864e5, by = new Map();
+  for (const x of items) {
+    if (!x || +x.at < since || !S.st.P[x.pid]) continue;
+    const k = x.pid + ':' + x.lane, o = by.get(k);
+    if (o) { o.to = x.to; o.at = x.at; } else by.set(k, { ...x });
+  }
+  const ch = [...by.values()].filter((x) => x.from !== x.to).sort((a, b) => b.at - a.at);
+  if (!ch.length) return;
+  const one = (x) => `${esc(pname(x.pid))} ${LANE_NAME[x.lane]} ${x.from}→${x.to}${x.to > x.from ? '▲' : '▼'}`;
+  const ppl = new Set(ch.map((x) => x.pid)).size, last = new Date(ch[0].at);
+  const when = `${last.getMonth() + 1}/${last.getDate()}`;
+  add('UPDATE', 'gold', ch.length === 1 ? `라인 점수 변경 — ${one(ch[0])}` : `라인 점수 변경 — ${ppl}명 · ${ch.length}건`,
+    `${ch.length > 1 ? `${ch.slice(0, 6).map(one).join(', ')}${ch.length > 6 ? ` 외 ${ch.length - 6}건` : ''}. ` : ''}${when}에 바뀌었고, 예상 승률과 팀 밸런스에 바로 반영됩니다.`);
+}
 function notices() {
   const st = S.st, x = st.sum, out = [], P = st.P;
   const add = (tag, tone, title, body) => out.push({ tag, tone, title, body });
   if (settings().notice) add('공지', 'gold', esc(settings().notice.split('\n')[0]), esc(settings().notice.split('\n').slice(1).join(' ')));
+  scoreNotice(add);
   if (!x.n) { add('안내', 'blue', '첫 경기를 기록해 보세요', '오늘의 내전에서 라인업을 짜고 결과를 저장하면 통계가 자동으로 쌓입니다.'); return out; }
   const ws = x.winStreak, ls = x.loseStreak;
   if (ws?.cur >= 3) add('HOT', 'red', `${esc(ws.name)}, 파죽의 ${ws.cur}연승`, `막을 자가 없습니다. 현재 승률 ${ws.wr}% · MMR ${Math.round(ws.mmr)}. 다음 내전에서 이 기세를 꺾을 팀이 나올까요?`);
@@ -518,6 +535,7 @@ function onStore(c) {
     if (ch.board) watchBoard();
     if (ch.settings || ch.kicks) onMeta();
     if (ch.settings) refresh(true); else if (ch.todayDraft && S.page === 'today') refresh();
+    if (ch.scorelog && S.page === 'home') refresh();
     return;
   }
   if (c === 'posts') { watchPosts(); if (S.page === 'talk') refresh(); return; }

@@ -89,7 +89,9 @@ act('plEdit', (d) => needAdmin(() => {
     const f = new FormData(e.target), g = (k) => String(f.get(k) || '').trim(), id = p.id || 'p_' + uid();
     if (!p.id && col('players').some((x) => !x.deleted && x.name === g('name'))) return toast('같은 이름의 선수가 이미 있습니다');
     if (p.id) await history('player-edit', p);
-    await S.store.put('players', id, { ...p, id, name: g('name'), scores: Object.fromEntries(LANES.map((l) => [l, Math.max(0, Math.min(20, +f.get('s_' + l) || 0))])), mainLane: g('mainLane'), soloTier: g('soloTier'), riotId: g('riotId'), mmrInit: +g('mmrInit') || 0, solo: { ...o, record: g('record'), peak: g('peak'), pos: g('pos'), most: g('most'), comment: g('comment') }, deleted: false });
+    const scores = Object.fromEntries(LANES.map((l) => [l, Math.max(0, Math.min(20, +f.get('s_' + l) || 0))]));
+    if (p.id) await logScores(LANES.filter((l) => (+p.scores?.[l] || 0) !== scores[l]).map((l) => ({ pid: id, name: g('name'), lane: l, from: +p.scores?.[l] || 0, to: scores[l] })));
+    await S.store.put('players', id, { ...p, id, name: g('name'), scores, mainLane: g('mainLane'), soloTier: g('soloTier'), riotId: g('riotId'), mmrInit: +g('mmrInit') || 0, solo: { ...o, record: g('record'), peak: g('peak'), pos: g('pos'), most: g('most'), comment: g('comment') }, deleted: false });
     closeModal(); toast('저장했습니다');
   };
   const hide = el.querySelector('#plHide');
@@ -98,11 +100,19 @@ act('plEdit', (d) => needAdmin(() => {
     await S.store.patch('players', p.id, { deleted: true }); closeModal(); toast('숨겼습니다');
   };
 }));
+// 라인 점수 변경 기록(홈 공지에 쓴다): meta/scorelog.items 에 최근 80건만 남긴다
+async function logScores(list) {
+  if (!list.length) return;
+  const at = S.store.serverNow?.() || Date.now();
+  try { await S.store.tx('meta', 'scorelog', (r) => ({ items: [...(r?.items || []), ...list.map((x) => ({ ...x, at }))].slice(-80) })); } catch (e) { console.warn('[scorelog]', e); }
+}
 // 표에서 바로 수정: 값이 바뀌면 즉시 저장
 act('plScore', async (d, el) => {
   const p = S.store.data.players[d.id]; if (!p || !isAdmin()) return refresh();
   const v = Math.max(0, Math.min(20, Math.round((+el.value || 0) * 2) / 2));
+  const from = +p.scores?.[d.l] || 0;
   await S.store.patch('players', d.id, { scores: { ...p.scores, [d.l]: v } }); toast(`${p.name} ${LANE_NAME[d.l]} ${v}점 저장`);
+  if (from !== v) logScores([{ pid: d.id, name: p.name, lane: d.l, from, to: v }]);
 });
 act('plMain', async (d, el) => {
   const p = S.store.data.players[d.id]; if (!p || !isAdmin()) return refresh();
