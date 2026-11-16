@@ -1299,3 +1299,4 @@ i.face svg{width:58%;height:58%}i.face .lic{color:var(--lc)}
   .ld-c{padding:9px 13px;font-size:14px}
 }
 body.lite .lp-name.new,body.lite .ld-c.won,body.lite .lf-n{animation:none!important}
+.lp-ttl{display:block;font-size:11px;color:var(--mut);margin-top:2px}

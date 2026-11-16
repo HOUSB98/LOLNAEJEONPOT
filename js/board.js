@@ -13,7 +13,16 @@ const icon = (o) => (o === 'any' ? ANY_ICON : LANE_ICON[o]);
 const BD = { me: localStorage.getItem('naejeon:bdme:' + S.key) || '', sel: [], playing: '', timers: [], muted: localStorage.getItem('naejeon:bdmute') === '1', prev: {} };
 const cur = () => { const d = S.store?.data?.meta?.board; return d && d.rid ? d : null; };
 const nm = (id) => S.st.P[id]?.name || '?';
-const live = (d) => d && (d.status === 'open' || d.status === 'play') && S.store.serverNow() - (+d.at || 0) < 6 * 3600e3;
+// 진행 중 판단: 지원 중이면 마지막 움직임(열기·지원)부터 2시간, 추첨 중이면 시작부터 10분이 지나면 끝난 것으로 본다.
+// 시간이 지나면 버튼의 '진행 중' 표시가 꺼지고, 다음에 누르면 새로 열 수 있다.
+const OPEN_TTL = 2 * 3600e3, PLAY_TTL = 10 * 60e3;
+const live = (d) => {
+  if (!d) return false;
+  const t = S.store.serverNow();
+  if (d.status === 'open') return t - (+d.upd || +d.at || 0) < OPEN_TTL;
+  if (d.status === 'play') return t - (+d.startAt || +d.at || 0) < PLAY_TTL;
+  return false;
+};
 const view = () => document.querySelector('#modal.on .lp');
 const rnd = (n) => crypto.getRandomValues(new Uint32Array(1))[0] % n;
 const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -58,7 +67,7 @@ function openHTML(d) {
     <div class="lp-sec"><div class="lp-sh"><b>참가자</b><small>${isMe ? `<b>${esc(nm(BD.me))}</b>(으)로 지원 중 · 다른 이름을 누르면 대리 지원` : '본인 이름을 눌러 주세요'}</small></div>
       <div class="lp-roster">${d.ids.map((id) => { const p = d.picks?.[id]; return `<button class="lp-mem ${id === BD.me ? 'me' : ''} ${p ? 'ok' : ''}" data-a="bdMe" data-id="${id}" style="--lc:${p ? COLOR[p] : '#5a6a84'}">${p ? `<i>${icon(p)}</i>` : '<i class="dot"></i>'}${esc(nm(id))}</button>`; }).join('')}</div></div>
     <div class="lp-grid">${OPTS.map((o) => card(d, o)).join('')}</div>
-    <div class="lp-foot"><span class="lp-count"><b class="mono">${picked}</b> / <span class="mono">${d.ids.length}</span> 지원 완료${d.by ? ` · 연 사람 ${esc(d.by)}` : ''}</span><span class="grow"></span>
+    <div class="lp-foot"><span class="lp-count"><b class="mono">${picked}</b> / <span class="mono">${d.ids.length}</span> 지원 완료${d.by ? ` · 연 사람 ${esc(d.by)}` : ''}<small class="lp-ttl">2시간 동안 아무도 지원하지 않으면 자동으로 닫혀요</small></span><span class="grow"></span>
       <button class="btn ghost" data-a="bdShut">취소하기</button><button class="btn pri" data-a="bdGo" ${picked ? '' : 'disabled'}>${ic('dice')}지원 마감 · 추첨 시작</button></div>`;
 }
 function finalHTML(d) {
@@ -117,6 +126,7 @@ act('bdOpen', async () => {
 act('bdMe', (x) => { BD.me = x.id; localStorage.setItem('naejeon:bdme:' + S.key, x.id); draw(); });
 act('bdPick', async (x) => {
   const d = cur(); if (!d || d.status !== 'open') return;
+  if (!live(d)) { toast('2시간 동안 움직임이 없어 라인 지원이 닫혔어요. 다시 열어 주세요'); closeModal(); if (S.page === 'today') refresh(); return; }
   if (!d.ids.includes(BD.me)) { toast('위쪽 참가자 목록에서 본인 이름을 먼저 눌러 주세요'); view()?.querySelector('.lp-roster')?.classList.add('nudge'); setTimeout(() => view()?.querySelector('.lp-roster')?.classList.remove('nudge'), 900); return; }
   const me = BD.me, rid = d.rid;
   sfx('pick');
@@ -125,7 +135,7 @@ act('bdPick', async (x) => {
       if (!r || r.rid !== rid || r.status !== 'open') return null;
       const picks = { ...(r.picks || {}) };
       if (picks[me] === x.o) delete picks[me]; else picks[me] = x.o;
-      return { ...r, picks };
+      return { ...r, picks, upd: S.store.serverNow() };
     });
   } catch (e) { toast('지원 실패: ' + (e.code || e.message)); }
 });
@@ -164,6 +174,7 @@ function plan(d) {
 }
 act('bdGo', async () => {
   const d = cur(); if (!d || d.status !== 'open') return;
+  if (!live(d)) { toast('라인 지원이 만료됐어요. 다시 열어 주세요'); closeModal(); if (S.page === 'today') refresh(); return; }
   const miss = d.ids.filter((id) => !d.picks?.[id]).length;
   if (miss && !confirm(`아직 ${miss}명이 지원하지 않았어요. 미지원자는 '상관없음'으로 보고 마감할까요?`)) return;
   await S.store.syncServerClock?.();
@@ -310,3 +321,6 @@ export function watchBoard(initial) {
     S.store.watchDoc('meta', 'board', (doc) => onBoard(doc && doc.rid ? doc : null), (e) => console.error('[board] listener', e));
   }
 }
+// 열어 둔 화면에서도 시간이 지나 만료되면 '라인 지원 중' 버튼 표시를 끈다(1분마다 확인)
+let liveWas = null;
+setInterval(() => { if (!S.store) return; const l = boardLive(); if (liveWas !== null && l !== liveWas && S.page === 'today') refresh(); liveWas = l; }, 60e3);
