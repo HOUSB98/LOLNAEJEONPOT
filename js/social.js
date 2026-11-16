@@ -1,6 +1,7 @@
 // 환영 인트로, 닉네임, 접속자 표시, 공용 채팅
 import { S, act, esc, uid, col, settings, toast, modal, closeModal, mh, ic, logo, needAdmin, LANE_ICON, LANE_COLOR, LANE_NAME } from './core.js';
 import { splashScene } from './xmas.js';
+import { nySplash } from './newyear.js';
 
 const cid = localStorage.getItem('naejeon:cid') || (() => { const v = uid(); localStorage.setItem('naejeon:cid', v); return v; })();
 export const nick = () => localStorage.getItem('naejeon:nick') || '';
@@ -205,12 +206,13 @@ function splash() {
     </div><small class="sp-skip">${first ? '닉네임은 접속자 목록과 채팅에 표시됩니다' : '화면을 누르면 바로 입장합니다'}</small>`;
   el.classList.add('on');
   splashScene(el); // 시즌 장식 기간이면 밤하늘·달·산타 썰매 배경
+  nySplash(el); // 새해(1/1~1/15)면 불꽃놀이·풍등 배경
   const stop = embers(el.querySelector('canvas'));
   const close = () => { if (el.dataset.done) return; el.dataset.done = 1; sessionStorage.setItem('naejeon:welcomed', '1'); el.classList.add('out'); setTimeout(() => { stop(); el.remove(); }, 900); };
   if (first) {
     setTimeout(() => el.querySelector('#spn')?.focus(), 1900);
     el.querySelector('#spf').onsubmit = (e) => { e.preventDefault(); if (setNick(el.querySelector('#spn').value)) close(); };
-  } else { setTimeout(close, el.classList.contains('xs') ? 5600 : 3600); el.addEventListener('click', close); } // 시즌 장식 땐 썰매가 지나갈 만큼 조금 더 보여 준다
+  } else { setTimeout(close, el.classList.contains('xs') || el.classList.contains('ny') ? 5600 : 3600); el.addEventListener('click', close); } // 시즌 장식 땐 썰매가 지나갈 만큼 조금 더 보여 준다
 }
 
 export function initSocial() {

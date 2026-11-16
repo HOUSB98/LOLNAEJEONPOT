@@ -1457,3 +1457,35 @@ body.lite #xsky *,body.lite .xt-magic *{animation:none!important}
 @keyframes xtspin{to{transform:rotate(360deg)}}
 @keyframes xtsway{50%{transform:rotate(6deg);opacity:.2}}
 body.lite #xtree .xt-dot{display:none}
+/* ---------- 시즌 장식(새해: 불꽃놀이·풍등) ---------- */
+#splash.ny{background:linear-gradient(180deg,#070a26 0%,#181650 45%,#3b2468 72%,#7a3a5e 100%)}
+#splash.ny .sp-rays,#splash.ny>canvas{display:none}
+.ny-scene{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.ny-scene canvas{position:absolute;inset:0;width:100%;height:100%}
+.ny-dawn{position:absolute;left:0;right:0;bottom:0;height:45%;background:radial-gradient(70% 70% at 50% 100%,rgba(255,170,110,.55),rgba(255,120,120,.18) 45%,transparent 75%);animation:nydawn 6s ease-in-out infinite}
+@keyframes nydawn{50%{opacity:.75}}
+.ny-lan,.nk-lan{position:absolute;inset:0;overflow:hidden}
+.ny-l,.nk-l{position:absolute;bottom:-70px;width:calc(46px * var(--s));animation:nyrise var(--d) linear var(--dl) infinite;filter:drop-shadow(0 0 12px rgba(255,190,90,.75)) drop-shadow(0 0 26px rgba(255,150,60,.35))}
+.ny-l svg,.nk-l svg{display:block;width:100%;animation:nysway 3.6s ease-in-out infinite alternate}
+@keyframes nyrise{0%{transform:translateY(0);opacity:0}8%{opacity:1}85%{opacity:.9}100%{transform:translateY(-118vh);opacity:0}}
+@keyframes nysway{from{transform:translateX(calc(var(--sw) * -1)) rotate(-4deg)}to{transform:translateX(var(--sw)) rotate(4deg)}}
+.ny-hills{position:absolute;left:0;right:0;bottom:0;width:100%;height:30vh}
+.ny-win{animation:xswin 3s ease-in-out infinite}
+#splash.ny .sp-box{z-index:2;text-shadow:0 2px 12px rgba(7,10,38,.9)}#splash.ny .sp-skip{z-index:2;color:#d9c8f0}
+/* 채팅창 */
+#nysky{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;background:linear-gradient(180deg,rgba(14,16,60,.75),rgba(40,26,92,.55) 60%,rgba(120,52,80,.35))}
+#nysky b{position:absolute;width:2px;height:2px;border-radius:50%;background:#fff;box-shadow:0 0 6px #fff;animation:xktw 3.2s var(--d) ease-in-out infinite}
+.nk-sun{position:absolute;left:50%;bottom:-120px;translate:-50% 0;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(255,214,140,.55) 0,rgba(255,150,110,.25) 35%,transparent 68%);animation:nydawn 6s ease-in-out infinite}
+.nk-l{--s:.5}.nk-lan .nk-l{width:calc(40px * var(--s));opacity:.85}
+#nysky canvas{position:absolute;inset:0;width:100%;height:100%}
+body.newyear #chat>*:not(#nysky){position:relative;z-index:1}
+body.newyear #chatlog{background:transparent}
+/* 사이트 전체 */
+#nyfw{position:fixed;inset:0;z-index:6;pointer-events:none}
+#nyglint{position:fixed;inset:0;z-index:5;pointer-events:none}
+#nyglint i{position:absolute;width:9px;height:9px;opacity:0;background:radial-gradient(circle,#fff 0,#ffe28c 30%,transparent 65%);clip-path:polygon(50% 0,60% 40%,100% 50%,60% 60%,50% 100%,40% 60%,0 50%,40% 40%);animation:xtmag 5s var(--d) ease-in-out infinite}
+.nyspark{position:absolute;left:-8px;top:-10px;width:22px;height:22px;z-index:2;pointer-events:none;animation:nyspin 6s linear infinite;filter:drop-shadow(0 0 4px rgba(255,214,120,.8))}
+@keyframes nyspin{to{transform:rotate(360deg)}}
+body.newyear .btn.pri{box-shadow:0 0 0 1px rgba(255,236,190,.35),0 8px 24px -10px rgba(255,143,176,.5)}
+body.lite .ny-scene *,body.lite #nysky *,body.lite #nyglint *,body.lite .nyspark{animation:none!important}
+@media (max-width:860px){.ny-hills{height:24vh}.nk-sun{width:260px;height:260px}}

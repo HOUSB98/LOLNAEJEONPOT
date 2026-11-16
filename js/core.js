@@ -324,7 +324,7 @@ export function burst(x = innerWidth / 2, y = innerHeight / 2, n = 140) {
   if (calm()) return;
   const c = document.createElement('canvas');
   c.className = 'fx'; c.width = innerWidth; c.height = innerHeight; document.body.appendChild(c);
-  const g = c.getContext('2d'), colors = document.body.classList.contains('xmas') ? ['#ffffff', '#e2463c', '#2fa35f', '#f2cf7a', '#dfe9ff', '#ffffff'] : ['#f6e3a8', '#d9a441', '#3fd0e0', '#ffffff', '#5b8cff', '#ff6b81'];
+  const g = c.getContext('2d'), colors = document.body.classList.contains('xmas') ? ['#ffffff', '#e2463c', '#2fa35f', '#f2cf7a', '#dfe9ff', '#ffffff'] : document.body.classList.contains('newyear') ? ['#ffd36a', '#fff3c4', '#ff8fb0', '#f7c9a6', '#c8a8ff', '#ffffff'] : ['#f6e3a8', '#d9a441', '#3fd0e0', '#ffffff', '#5b8cff', '#ff6b81'];
   const ps = Array.from({ length: n }, () => { const a = Math.random() * Math.PI * 2, v = 4 + Math.random() * 11; return { x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 4, r: 2 + Math.random() * 4, c: colors[(Math.random() * colors.length) | 0], rot: Math.random() * 6, life: 1 }; });
   const t0 = performance.now();
   (function loop(t) {
