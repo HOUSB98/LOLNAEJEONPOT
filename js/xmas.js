@@ -143,15 +143,118 @@ function snowCanvas(cv, opts = {}) {
   return () => { cancelAnimationFrame(raf); removeEventListener('resize', fit); };
 }
 
-// ---------- 갈랜드(늘어진 전선 + 유리 전구) ----------
-const BULB = ['#ff5a4e', '#ffd36a', '#4fd08b', '#7fb2ff', '#ff9ad5'];
+// ---------- 갈랜드: 동화풍 전나무 가랜드 + 벨벳 리본 + 매달린 장식 공 ----------
+const BULB = ['#ffe9a8', '#ffd36a', '#fff6d8', '#ffc56b'];
+const BALL = ['xgB1', 'xgB2', 'xgB3', 'xgB4'];
 function garland() {
   let el = document.getElementById('xlights');
   if (!el) { el = document.createElement('div'); el.id = 'xlights'; document.body.appendChild(el); }
-  const seg = innerWidth < 600 ? 46 : 64, n = Math.ceil(innerWidth / seg) + 1;
-  el.innerHTML = `<svg width="${n * seg}" height="22" viewBox="0 0 ${n * seg} 22" aria-hidden="true"><defs><radialGradient id="xlG" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".4" stop-color="#fff" stop-opacity=".1"/></radialGradient></defs>
-    <path d="${Array.from({ length: n }, (_, i) => `${i ? '' : 'M0 2 '}Q${i * seg + seg / 2} 12 ${(i + 1) * seg} 2`).join(' ')}" stroke="#1d2a1f" stroke-width="2.200" fill="none"/>
-    ${Array.from({ length: n }, (_, i) => { const x = i * seg + seg / 2, c = BULB[i % BULB.length]; return `<g class="xl-b" style="--c:${c};--d:${((i * 0.53) % 2.6).toFixed(2)}s"><rect x="${x - 2}" y="6" width="4" height="3" rx="1" fill="#c9a24a"/><ellipse cx="${x}" cy="13.500" rx="7" ry="7.500" fill="${c}" opacity=".35" class="xl-glow"/><ellipse cx="${x}" cy="13" rx="3.200" ry="4.500" fill="${c}"/><ellipse cx="${x}" cy="13" rx="3.200" ry="4.500" fill="url(#xlG)"/></g>`; }).join('')}</svg>`;
+  const W = innerWidth, small = innerWidth < 860, seg = small ? 84 : 128, n = Math.ceil(W / seg) + 1, H = small ? 36 : 46, k = small ? 0.72 : 1;
+  const top = 3 * k, sag = 20 * k;
+  const swag = Array.from({ length: n }, (_, i) => `${i ? '' : `M0 ${top} `}Q${i * seg + seg / 2} ${top + sag * 2} ${(i + 1) * seg} ${top}`).join(' ');
+  const at = (i, t) => { const x0 = i * seg, x1 = x0 + seg, cx = x0 + seg / 2, cy = top + sag * 2; return [(1 - t) ** 2 * x0 + 2 * (1 - t) * t * cx + t * t * x1, (1 - t) ** 2 * top + 2 * (1 - t) * t * cy + t * t * top]; };
+  const lights = [], balls = [], bows = [];
+  for (let i = 0; i < n; i++) {
+    [0.2, 0.38, 0.62, 0.8].forEach((t, j) => { const [x, y] = at(i, t); lights.push(`<g class="xl-b" style="--d:${(((i * 4 + j) * 0.61) % 2.8).toFixed(2)}s"><circle cx="${x.toFixed(1)}" cy="${(y + 1.5 * k).toFixed(1)}" r="${5 * k}" fill="${BULB[(i + j) % 4]}" class="xl-glow"/><circle cx="${x.toFixed(1)}" cy="${(y + 1.5 * k).toFixed(1)}" r="${1.6 * k}" fill="#fffdf0"/></g>`); });
+    const [mx, my] = at(i, 0.5), len = (i % 2 ? 6 : 11) * k, g = BALL[i % 4], r = (i % 2 ? 5.2 : 6.4) * k, by = my + len + r;
+    balls.push(`<g class="xg-sw" style="transform-origin:${mx.toFixed(1)}px ${my.toFixed(1)}px;--d:${((i * 0.7) % 3).toFixed(2)}s"><path d="M${mx} ${my}V${by - r}" stroke="#e9c46a" stroke-width=".8"/><rect x="${mx - 2 * k}" y="${by - r - 2.4 * k}" width="${4 * k}" height="${3 * k}" rx=".8" fill="url(#xgGold)"/><circle cx="${mx}" cy="${by}" r="${r}" fill="url(#${g})"/><path d="M${mx - r} ${by}q${r} ${r * 0.55} ${r * 2} 0" stroke="#fff3c4" stroke-opacity=".6" stroke-width=".7" fill="none"/><ellipse cx="${mx - r * 0.35}" cy="${by - r * 0.4}" rx="${r * 0.32}" ry="${r * 0.2}" fill="#fff" opacity=".85" transform="rotate(-30 ${mx - r * 0.35} ${by - r * 0.4})"/></g>`);
+    const x = i * seg, s2 = k;
+    bows.push(`<g transform="translate(${x} ${top + 3 * k}) scale(${s2})"><path d="M-2 2 -7 17 -3.5 15.5 -2 19 1 4zM2 2 7 17 3.5 15.5 2 19-1 4z" fill="url(#xgRed)" stroke="#f3cf73" stroke-width=".7"/><path d="M0 1C-4-7-15-6-13 1c1 4 8 3 13 0zM0 1C4-7 15-6 13 1c-1 4-8 3-13 0z" fill="url(#xgRed)" stroke="#f3cf73" stroke-width=".9"/><path d="M-10-1c3-2 6-1 8 1M10-1c-3-2-6-1-8 1" stroke="#ff9a9a" stroke-opacity=".5" stroke-width="1" fill="none"/><ellipse cx="0" cy="1" rx="3.2" ry="3" fill="url(#xgRed)" stroke="#f3cf73" stroke-width=".9"/></g>`);
+  }
+  hang();
+  el.innerHTML = `<svg width="${n * seg}" height="${H}" viewBox="0 0 ${n * seg} ${H}" aria-hidden="true"><defs>
+      <linearGradient id="xgGold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff2c2"/><stop offset=".45" stop-color="#e6b74e"/><stop offset="1" stop-color="#a8761c"/></linearGradient>
+      <radialGradient id="xgRed" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="#ff6a6a"/><stop offset=".55" stop-color="#c4142b"/><stop offset="1" stop-color="#6e0815"/></radialGradient>
+      <radialGradient id="xgB1" cx=".35" cy=".3" r=".85"><stop offset="0" stop-color="#ff8f8f"/><stop offset=".5" stop-color="#d11d34"/><stop offset="1" stop-color="#5e0612"/></radialGradient>
+      <radialGradient id="xgB2" cx=".35" cy=".3" r=".85"><stop offset="0" stop-color="#fff4c9"/><stop offset=".5" stop-color="#e2ad3c"/><stop offset="1" stop-color="#7a520f"/></radialGradient>
+      <radialGradient id="xgB3" cx=".35" cy=".3" r=".85"><stop offset="0" stop-color="#bcd6ff"/><stop offset=".5" stop-color="#2f62d6"/><stop offset="1" stop-color="#0f2263"/></radialGradient>
+      <radialGradient id="xgB4" cx=".35" cy=".3" r=".85"><stop offset="0" stop-color="#e7c9ff"/><stop offset=".5" stop-color="#8a45d6"/><stop offset="1" stop-color="#3a1468"/></radialGradient>
+    </defs>
+    <g class="xg-sws">${balls.join('')}</g>
+    <path d="${swag}" stroke="#03130a" stroke-opacity=".55" stroke-width="${14 * k}" fill="none" stroke-linecap="round" transform="translate(0 ${2 * k})"/>
+    <path d="${swag}" stroke="#0c3d24" stroke-width="${13 * k}" fill="none" stroke-linecap="round"/>
+    <path d="${swag}" stroke="#16603a" stroke-width="${10 * k}" fill="none" stroke-linecap="round" stroke-dasharray="0.1 ${5.5 * k}"/>
+    <path d="${swag}" stroke="#2b8a4e" stroke-width="${6.5 * k}" fill="none" stroke-linecap="round" stroke-dasharray="0.1 ${7 * k}" stroke-dashoffset="3" transform="translate(0 ${-2 * k})"/>
+    <path d="${swag}" stroke="#eaf5ff" stroke-opacity=".75" stroke-width="${3.4 * k}" fill="none" stroke-linecap="round" stroke-dasharray="0.1 ${11 * k}" stroke-dashoffset="5" transform="translate(0 ${-4.5 * k})"/>
+    <path d="${swag}" stroke="url(#xgGold)" stroke-width="${2.6 * k}" fill="none" stroke-dasharray="${9 * k} ${7 * k}" transform="translate(0 ${1 * k})"/>
+    ${lights.join('')}${bows.join('')}</svg>`;
+}
+
+// 모바일에서는 위쪽 헤더(로고·접속자)를 가리지 않도록 헤더 아래쪽 끝에 매단다
+let hangObs = null;
+function hang() {
+  const el = document.getElementById('xlights'), side = document.getElementById('side'); if (!el || !side) return;
+  el.style.top = innerWidth <= 860 ? Math.round(side.getBoundingClientRect().height) - 2 + 'px' : '';
+  if (!hangObs && window.ResizeObserver) { hangObs = new ResizeObserver(() => hang()); hangObs.observe(side); }
+}
+
+// ---------- 배경: 오로라 밤하늘 + 멀리 보이는 눈 덮인 동화 마을 ----------
+function aura() {
+  if (document.getElementById('xaura')) return;
+  const el = document.createElement('div'); el.id = 'xaura'; el.setAttribute('aria-hidden', 'true');
+  const stars = Array.from({ length: 46 }, (_, i) => `<b style="left:${(i * 47.3) % 100}%;top:${(i * 29.7) % 58}%;--d:${((i * 0.43) % 4).toFixed(2)}s;--s:${1 + (i % 3) * 0.7}px"></b>`).join('');
+  const win = (x, y) => `<rect class="xa-win" x="${x}" y="${y}" width="3" height="4" rx="1.4" fill="#ffd27a"/>`;
+  const pine = (x, y, h) => `<path d="M${x} ${y - h}l${h * 0.28} ${h * 0.42}h${-h * 0.1}l${h * 0.24} ${h * 0.34}h${-h * 0.12}l${h * 0.24} ${h * 0.24}h${-h * 1.28}l${h * 0.24} ${-h * 0.24}h${-h * 0.12}l${h * 0.24} ${-h * 0.34}h${-h * 0.1}z" fill="#0d1a33"/><path d="M${x} ${y - h}l${h * 0.16} ${h * 0.24}q${-h * 0.16} ${h * 0.06} ${-h * 0.32} 0z" fill="#e9f2ff" opacity=".85"/>`;
+  const castle = `<g transform="translate(700 92)"><path d="M0 60V22h10V8l6-14 6 14v14h12V-6l8-20 8 20v28h12V8l6-14 6 14v14h10v38z" fill="#121f3e"/><path d="M10 8l6-14 6 14zM34-6l8-20 8 20zM62 8l6-14 6 14z" fill="#d9e6ff" opacity=".9"/><path d="M42-26v-12l9 4-9 4" fill="#e9c46a"/>${win(14, 30)}${win(39, 10)}${win(45, 10)}${win(40, 32)}${win(66, 30)}<path d="M36 60v-12a6 6 0 0 1 12 0v12z" fill="#ffd27a" opacity=".85"/></g>`;
+  const house = (x, y) => `<g transform="translate(${x} ${y})"><path d="M0 18V7l9-7 9 7v11z" fill="#13213f"/><path d="M-2 8 9-1l11 9-2 1-9-7-9 7z" fill="#eef5ff"/>${win(4, 10)}${win(11, 10)}</g>`;
+  el.innerHTML = `<i class="xa-au a"></i><i class="xa-au b"></i><i class="xa-au c"></i>${stars}
+    <svg class="xa-town" viewBox="0 0 1200 170" preserveAspectRatio="xMidYMax slice"><defs><linearGradient id="xaSnow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfdcf5"/><stop offset="1" stop-color="#5f6f9c"/></linearGradient><linearGradient id="xaFar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a3a6e"/><stop offset="1" stop-color="#121c3a"/></linearGradient></defs>
+      <path d="M0 120C140 80 260 96 380 104S640 70 760 88s300 10 440-12V170H0z" fill="url(#xaFar)"/>${castle}
+      ${house(250, 92)}${house(285, 98)}${house(930, 86)}${house(965, 92)}
+      ${[60, 120, 170, 450, 500, 560, 860, 1050, 1110, 1160].map((x, i) => pine(x, 128 - (i % 3) * 4, 26 + (i % 4) * 6)).join('')}
+      <path d="M0 150C200 120 400 140 600 132s420-20 600 6V170H0z" fill="url(#xaSnow)" opacity=".9"/>
+      <path d="M0 150C200 120 400 140 600 132s420-20 600 6" stroke="#fff" stroke-opacity=".6" stroke-width="2" fill="none"/></svg>`;
+  document.body.prepend(el);
+}
+
+// ---------- 패널 장식: 눈 쌓인 윗면 + 홀리 잎 + 히어로 반짝임 ----------
+// 화면이 다시 그려지면 새로 생긴 패널에만 장식을 붙인다(이미 붙은 곳은 건너뜀).
+const HOLLY = `<svg viewBox="0 0 44 30" aria-hidden="true"><defs><linearGradient id="xhL" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3fa45f"/><stop offset="1" stop-color="#0d4a27"/></linearGradient><radialGradient id="xhB" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#ff9a9a"/><stop offset=".5" stop-color="#d4142c"/><stop offset="1" stop-color="#6a0612"/></radialGradient></defs><path d="M22 16C17 9 9 7 2 9l3 2-2 3 4 0-1 4 4-2 1 4 3-3 2 3 2-4 3 2z" fill="url(#xhL)" stroke="#0a3a1e" stroke-width=".6"/><path d="M22 16c5-7 13-9 20-7l-3 2 2 3h-4l1 4-4-2-1 4-3-3-2 3-2-4-3 2z" fill="url(#xhL)" stroke="#0a3a1e" stroke-width=".6"/><path d="M21 15 6 11M23 15l15-4" stroke="#9fe0b0" stroke-opacity=".5" stroke-width=".7"/><circle cx="18.5" cy="17.5" r="3.6" fill="url(#xhB)"/><circle cx="25.5" cy="17.5" r="3.6" fill="url(#xhB)"/><circle cx="22" cy="22.5" r="3.6" fill="url(#xhB)"/><circle cx="17.4" cy="16.4" r="1" fill="#fff" opacity=".8"/><circle cx="24.4" cy="16.4" r="1" fill="#fff" opacity=".8"/><circle cx="20.9" cy="21.4" r="1" fill="#fff" opacity=".8"/></svg>`;
+let decoObs = null, decoRaf = 0;
+function decorate() {
+  decoRaf = 0;
+  const main = document.getElementById('main'); if (!main || !xmasOn()) return;
+  main.querySelectorAll('.panel, .stat, .hero, .notice').forEach((p) => {
+    if (p.querySelector(':scope > .xcap') || p.closest('#modal') || p.offsetWidth < 120) return;
+    p.insertAdjacentHTML('beforeend', '<i class="xcap" aria-hidden="true"></i>');
+    if (p.classList.contains('hero')) p.insertAdjacentHTML('beforeend', `<i class="xholly r" aria-hidden="true">${HOLLY}</i><div class="xhero-sp" aria-hidden="true">${Array.from({ length: 9 }, (_, i) => `<i style="left:${4 + ((i * 37) % 52)}%;top:${10 + ((i * 53) % 70)}%;--d:${((i * 0.47) % 3).toFixed(2)}s"></i>`).join('')}</div>`);
+    else if (p.querySelector(':scope > .sec-h')) p.insertAdjacentHTML('beforeend', `<i class="xholly" aria-hidden="true">${HOLLY}</i>`);
+  });
+}
+function deco(on) {
+  if (!on) { decoObs?.disconnect(); decoObs = null; document.querySelectorAll('.xcap, .xholly, .xhero-sp').forEach((e) => e.remove()); return; }
+  decorate();
+  if (decoObs) return;
+  const main = document.getElementById('main'); if (!main) return;
+  decoObs = new MutationObserver(() => { if (!decoRaf) decoRaf = requestAnimationFrame(decorate); });
+  decoObs.observe(main, { childList: true, subtree: true });
+}
+
+// ---------- 마우스를 따라 흩날리는 요정 가루(마우스가 있는 PC에서만) ----------
+let dustOff = null;
+function pixie() {
+  if (dustOff || !matchMedia('(pointer: fine)').matches) return;
+  const cv = document.createElement('canvas'); cv.id = 'xdust'; document.body.appendChild(cv);
+  const g = cv.getContext('2d'); let ps = [], raf = 0, lx = 0, ly = 0;
+  const fit = () => { cv.width = innerWidth; cv.height = innerHeight; }; fit();
+  const star = (x, y, r) => { g.beginPath(); g.moveTo(x, y - r * 2); g.quadraticCurveTo(x, y, x + r * 2, y); g.quadraticCurveTo(x, y, x, y + r * 2); g.quadraticCurveTo(x, y, x - r * 2, y); g.quadraticCurveTo(x, y, x, y - r * 2); g.fill(); };
+  const loop = () => {
+    g.clearRect(0, 0, cv.width, cv.height);
+    ps = ps.filter((p) => (p.l -= 0.022) > 0);
+    g.globalCompositeOperation = 'lighter';
+    for (const p of ps) { p.x += p.vx; p.y += p.vy; p.vy += 0.03; g.globalAlpha = p.l * (0.6 + 0.4 * Math.sin(p.l * 20)); g.fillStyle = p.c; g.shadowColor = p.c; g.shadowBlur = 8; p.st ? star(p.x, p.y, p.r * p.l) : (g.beginPath(), g.arc(p.x, p.y, p.r * 0.6, 0, 6.283), g.fill()); }
+    g.globalAlpha = 1; g.shadowBlur = 0;
+    raf = ps.length ? requestAnimationFrame(loop) : 0;
+  };
+  const move = (e) => {
+    const b = document.body.classList; if (b.contains('lite') || e.pointerType !== 'mouse') return;
+    const d = Math.hypot(e.clientX - lx, e.clientY - ly); if (d < 6) return; lx = e.clientX; ly = e.clientY;
+    for (let i = 0; i < Math.min(3, 1 + d / 18); i++) ps.push({ x: e.clientX + (Math.random() - 0.5) * 6, y: e.clientY + (Math.random() - 0.5) * 6, vx: (Math.random() - 0.5) * 0.8, vy: Math.random() * 0.4, l: 1, r: 1.5 + Math.random() * 2.2, st: Math.random() < 0.45, c: Math.random() < 0.7 ? '#ffe08a' : Math.random() < 0.5 ? '#ffffff' : '#bfe1ff' });
+    if (ps.length > 140) ps.splice(0, ps.length - 140);
+    if (!raf) raf = requestAnimationFrame(loop);
+  };
+  addEventListener('pointermove', move, { passive: true }); addEventListener('resize', fit);
+  dustOff = () => { removeEventListener('pointermove', move); removeEventListener('resize', fit); cancelAnimationFrame(raf); cv.remove(); dustOff = null; };
 }
 
 // ---------- 시작(로딩) 화면: 동화풍 밤하늘 ----------
@@ -258,13 +361,15 @@ function place() {
     chat.querySelector('#xsky').after(t);
   }
   if (!document.getElementById('xlights')) garland();
+  aura(); deco(true); pixie();
   if (!document.getElementById('xfrost')) { const f = document.createElement('div'); f.id = 'xfrost'; document.body.appendChild(f); }
   const brand = document.querySelector('#side .brand');
   if (brand && !brand.querySelector('.xhat')) brand.insertAdjacentHTML('afterbegin', `<svg class="xhat" viewBox="0 0 44 34" aria-hidden="true"><defs><linearGradient id="xhR" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff5b4f"/><stop offset="1" stop-color="#9e1414"/></linearGradient></defs><path d="M5 26C10 12 18 4 30 4c5 0 8 3 9 9-7-3-12 1-14 7l-4 8z" fill="url(#xhR)"/><path d="M12 20c4-6 9-10 15-11" stroke="#fff" stroke-opacity=".25" stroke-width="2" fill="none"/><rect x="2" y="22" width="28" height="9" rx="4.500" fill="#fbfbfb"/><rect x="2" y="22" width="28" height="3" rx="1.500" fill="#fff"/><circle cx="39" cy="13" r="4.500" fill="#fff"/></svg>`);
   if (!snowStop) { const cv = document.createElement('canvas'); cv.id = 'xsnow'; document.body.appendChild(cv); const stop = snowCanvas(cv, { glint: 18 }); snowStop = () => { stop(); cv.remove(); snowStop = null; }; }
 }
 function clear() {
-  ['xtree', 'xsky', 'xlights', 'xfrost', 'xflyby'].forEach((id) => document.getElementById(id)?.remove());
+  ['xtree', 'xsky', 'xlights', 'xfrost', 'xflyby', 'xaura'].forEach((id) => document.getElementById(id)?.remove());
+  deco(false); dustOff?.();
   document.querySelector('#side .xhat')?.remove();
   snowStop?.();
 }

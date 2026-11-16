@@ -1496,3 +1496,58 @@ i.face.xface svg.xf{width:100%;height:100%}
 i.face.xface .xf-glow{animation:xfGlow 1.8s ease-in-out infinite;transform-origin:16px 22.2px}
 @keyframes xfGlow{50%{opacity:.75;transform:scale(1.35)}}
 body.lite i.face.xface .xf-glow,body.idle i.face.xface .xf-glow{animation:none}
+
+/* ================= 크리스마스 2차: 동화풍 고급 장식(로딩·채팅 제외 영역) ================= */
+#xlights{left:var(--sw);right:var(--cw);height:46px;top:0;z-index:8}
+body.chat-closed #xlights{right:0}
+@media (max-width:1280px){#xlights{right:0}}
+@media (max-width:860px){#xlights{left:0;height:36px;z-index:9}}
+#xlights svg{filter:drop-shadow(0 3px 3px rgba(0,0,0,.5))}
+.xl-b .xl-glow{animation:xglow 2.8s var(--d,0s) ease-in-out infinite;opacity:.5}
+@keyframes xglow{0%,100%{opacity:.6}50%{opacity:.1}}
+.xg-sw{animation:xgsw 3.6s var(--d,0s) ease-in-out infinite}
+@keyframes xgsw{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+/* 오로라 밤하늘 + 멀리 보이는 눈 덮인 동화 마을 */
+#xaura{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;background:radial-gradient(1200px 520px at 50% -10%,rgba(60,70,160,.28),transparent 70%),linear-gradient(180deg,#070b1d,#05070d 60%)}
+.xa-au{position:absolute;width:70vw;height:46vh;border-radius:50%;filter:blur(60px);opacity:.22;mix-blend-mode:screen;animation:xaau 22s ease-in-out infinite alternate}
+.xa-au.a{left:5vw;top:-14vh;background:radial-gradient(closest-side,#3fd0b0,transparent)}
+.xa-au.b{left:35vw;top:-8vh;background:radial-gradient(closest-side,#8a5cf0,transparent);animation-duration:28s;animation-delay:-9s}
+.xa-au.c{left:55vw;top:-18vh;background:radial-gradient(closest-side,#f0b45c,transparent);opacity:.12;animation-duration:34s}
+@keyframes xaau{0%{transform:translate(0,0) scale(1,.8) rotate(-4deg)}100%{transform:translate(6vw,4vh) scale(1.15,1) rotate(5deg)}}
+#xaura>b{position:absolute;width:var(--s);height:var(--s);border-radius:50%;background:#fff;box-shadow:0 0 6px #fff;opacity:.7;animation:xktw 3.6s var(--d) ease-in-out infinite}
+.xa-town{position:absolute;left:var(--sw);right:var(--cw);bottom:0;width:calc(100% - var(--sw) - var(--cw));height:22vh;opacity:.75}
+body.chat-closed .xa-town{right:0;width:calc(100% - var(--sw))}
+@media (max-width:1280px){.xa-town{width:calc(100% - var(--sw))}}
+@media (max-width:860px){.xa-town{left:0;width:100%;height:14vh}}
+.xa-win{animation:xswin 3.4s ease-in-out infinite}.xa-win:nth-of-type(3n){animation-delay:-1.7s}
+/* 패널 위 눈 + 홀리 잎 */
+.xcap{position:absolute;left:6px;right:6px;top:-1px;height:13px;z-index:3;pointer-events:none;border-radius:var(--r) var(--r) 0 0;background:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 140 16%22 preserveAspectRatio=%22none%22%3E%3Cpath d=%22M0 0H140V6C132 9 124 7 117 9C111 11 108 14 104 10C100 7 93 10 85 8C77 6 71 11 63 9C57 7 53 13 48 9C44 6 36 9 27 7C20 6 14 10 8 8C5 7 2 7 0 6Z%22 fill=%22%23c7d6ee%22/%3E%3Cpath d=%22M0 0H140V5C132 8 124 6 117 8C111 10 108 12 104 9C100 6 93 9 85 7C77 5 71 9 63 8C57 6 53 11 48 8C44 5 36 8 27 6C20 5 14 9 8 7C5 6 2 7 0 6Z%22 fill=%22%23fbfdff%22/%3E%3Cpath d=%22M47 9 49 15 51 9ZM103 10 104.5 14.5 106 10ZM20 6.5 21 10 22 6.5Z%22 fill=%22%23e6f0ff%22/%3E%3Cpath d=%22M4 2.5C30 1.5 60 3 90 2S125 1 138 2.5%22 stroke=%22%23fff%22 stroke-width=%221.2%22 fill=%22none%22 opacity=%22.9%22/%3E%3C/svg%3E") 0 0/140px 16px repeat-x;filter:drop-shadow(0 2px 2px rgba(0,0,0,.35));opacity:.92}
+.stat>.xcap{left:0;right:0;top:0;border-radius:14px 14px 0 0}
+.hero>.xcap{z-index:2;left:0;right:0;top:0;border-radius:16px 16px 0 0;height:15px;background-size:170px 19px}
+.xholly{position:absolute;left:-9px;top:-11px;width:40px;height:28px;z-index:4;pointer-events:none;rotate:-14deg;filter:drop-shadow(0 3px 3px rgba(0,0,0,.5))}
+.xholly svg{width:100%;height:100%;display:block}
+.xholly.r{left:auto;right:16px;top:6px;width:64px;height:44px;rotate:10deg}
+.panel:has(>.xholly){overflow:visible}
+.xhero-sp{position:absolute;inset:0;z-index:1;pointer-events:none}
+.xhero-sp i{position:absolute;width:12px;height:12px;opacity:0;background:radial-gradient(circle,#fff 0,#ffe28c 35%,transparent 65%);clip-path:polygon(50% 0,58% 42%,100% 50%,58% 58%,50% 100%,42% 58%,0 50%,42% 42%);animation:xtmag 3.4s var(--d) ease-in-out infinite}
+/* 금빛 버튼이 주기적으로 반짝 */
+body.xmas .btn.pri::after,body.xmas .btn.gold::after{animation:xshine 4.5s 1s ease-in-out infinite}
+@keyframes xshine{0%,70%{transform:translateX(-120%)}100%{transform:translateX(120%)}}
+body.xmas .btn.pri{background-image:linear-gradient(180deg,#ffe7a6,#e1aa3e 55%,#b8801f);box-shadow:0 0 0 1px rgba(255,240,200,.5),0 0 18px -4px rgba(255,210,120,.55),0 8px 24px -10px rgba(214,50,43,.55)}
+/* 사이드 메뉴: 선택된 메뉴에 금빛 별 장식, 아래쪽엔 눈 덮인 언덕 */
+body.xmas #nav a.on::after{content:"";position:absolute;right:12px;top:50%;width:12px;height:12px;translate:0 -50%;background:radial-gradient(circle,#fff 0,#ffe28c 35%,#d9a441 60%);clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);animation:xtstar 2.6s ease-in-out infinite;filter:drop-shadow(0 0 4px #ffd36a)}
+body.xmas #nav a{position:relative}
+body.xmas #side{isolation:isolate}
+body.xmas #side::before{content:"";position:absolute;left:0;right:0;bottom:0;height:120px;z-index:-1;pointer-events:none;opacity:.55;background:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 240 90%22 preserveAspectRatio=%22none%22%3E%3Cpath d=%22M0 52C30 40 55 46 80 50S130 38 160 44S215 52 240 46V90H0Z%22 fill=%22%231a2a4d%22/%3E%3Cpath d=%22M30 50l9-22 9 22zM34 40l5-14 5 14zM190 46l10-26 10 26zM195 34l5-14 5 14zM120 46l7-16 7 16z%22 fill=%22%230f1c38%22/%3E%3Cpath d=%22M0 66C40 54 80 62 120 60S200 52 240 62V90H0Z%22 fill=%22%23dbe6f7%22 opacity=%22.55%22/%3E%3Cpath d=%22M0 66C40 54 80 62 120 60S200 52 240 62%22 stroke=%22%23fff%22 stroke-opacity=%22.7%22 stroke-width=%221.5%22 fill=%22none%22/%3E%3C/svg%3E") bottom/100% 100% no-repeat}
+/* 모바일 하단 탭바 위 눈 */
+body.xmas #tabbar::before{content:"";position:absolute;left:0;right:0;top:-7px;height:12px;pointer-events:none;background:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 140 16%22 preserveAspectRatio=%22none%22%3E%3Cpath d=%22M0 0H140V6C132 9 124 7 117 9C111 11 108 14 104 10C100 7 93 10 85 8C77 6 71 11 63 9C57 7 53 13 48 9C44 6 36 9 27 7C20 6 14 10 8 8C5 7 2 7 0 6Z%22 fill=%22%23c7d6ee%22/%3E%3Cpath d=%22M0 0H140V5C132 8 124 6 117 8C111 10 108 12 104 9C100 6 93 9 85 7C77 5 71 9 63 8C57 6 53 11 48 8C44 5 36 8 27 6C20 5 14 9 8 7C5 6 2 7 0 6Z%22 fill=%22%23fbfdff%22/%3E%3Cpath d=%22M47 9 49 15 51 9ZM103 10 104.5 14.5 106 10ZM20 6.5 21 10 22 6.5Z%22 fill=%22%23e6f0ff%22/%3E%3Cpath d=%22M4 2.5C30 1.5 60 3 90 2S125 1 138 2.5%22 stroke=%22%23fff%22 stroke-width=%221.2%22 fill=%22none%22 opacity=%22.9%22/%3E%3C/svg%3E") 0 0/120px 14px repeat-x;filter:drop-shadow(0 -1px 2px rgba(0,0,0,.4))}
+/* 마우스 요정 가루 */
+#xdust{position:fixed;inset:0;z-index:12;pointer-events:none}
+body.lite #xaura *,body.lite .xhero-sp *,body.lite .xg-sw,body.lite #nav a.on::after,body.lite .btn::after{animation:none!important}
+body.lite .xa-au,body.idle .xa-au{display:none}
+body.idle #xaura *,body.idle .xg-sw,body.idle .xhero-sp *{animation-play-state:paused!important}
+@media (min-width:861px){body.xmas #main{padding-top:54px}}
+body.xmas .notice{position:relative}
+body.xmas #presence{background:rgba(8,12,22,.82);position:relative}
+@media (max-width:860px){body.xmas #main{padding-top:40px}}
+@media (max-width:860px){body.xmas #side::before{display:none}}
