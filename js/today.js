@@ -180,7 +180,7 @@ page('today', {
       const id = d[side][i], l = LANES[i], s = st.P[id];
       const ch = d.champs[side][i], art = ch && artUrl(ch) ? ` art" style="--img:url('${artUrl(ch)}')` : '';
       const champ = `<button class="sl-champ" data-a="tChamp" data-s="${side}" data-i="${i}" title="챔피언 선택 (선택 사항)">${ch ? champIcon(ch) : `<span class="ci plus">${ic('plus')}</span>`}</button>`;
-      if (!s) return `<div class="slot ${side} emp${art}" data-ds="${side}" data-di="${i}">${champ}<button class="sl-body" data-a="tSlot" data-s="${side}" data-i="${i}"><span>${ic('plus')}${LANE_NAME[l]} 선수 선택</span></button></div>`;
+      if (!s) return `<div class="slot ${side} emp${art}" data-ds="${side}" data-di="${i}">${champ}<button class="sl-body" data-a="tSlot" data-s="${side}" data-i="${i}"><span>${ic('plus')}${LANE_NAME[l]}<em class="m-hide"> 선수 선택</em></span></button></div>`;
       const ln = s.lanes[l], off = s.mainLane !== l;
       return `<div class="slot ${side}${art}" data-ds="${side}" data-di="${i}">${champ}<button class="sl-body" data-a="tSlot" data-s="${side}" data-i="${i}">
         <span class="sl-top"><b>${esc(s.name)}</b>${off ? `<i class="off" title="주라인은 ${LANE_NAME[s.mainLane]}">${LANE_ICON[s.mainLane]}오프</i>` : '<i class="main">주라인</i>'}</span>

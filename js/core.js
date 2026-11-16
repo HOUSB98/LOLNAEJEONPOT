@@ -91,6 +91,7 @@ export function render() {
   const main = document.getElementById('main');
   const f = document.activeElement, fid = f && main.contains(f) ? f.id : '', sel = fid && f.selectionStart;
   document.querySelectorAll('#nav a').forEach((a) => a.classList.toggle('on', a.dataset.p === S.page));
+  document.querySelectorAll('#tabbar [data-p]').forEach((a) => a.classList.toggle('on', a.dataset.p === S.page || (a.dataset.p === 'more' && !TABS.includes(S.page))));
   document.getElementById('league').textContent = settings().leagueName || '친구 내전 리그';
   const route = S.page + '/' + S.arg.join('/'), entering = route !== lastRoute;
   lastRoute = route;
@@ -100,8 +101,24 @@ export function render() {
   pages[S.page].after?.(entering);
   if (fid) { const el = document.getElementById(fid); if (el) { el.focus(); try { el.setSelectionRange(sel, sel); } catch {} } }
 }
+// 모바일 하단 탭바: 자주 쓰는 4개 + 더보기(나머지 메뉴를 아래에서 올라오는 창으로)
+const TABS = ['home', 'rank', 'today', 'matches'];
+const MORE_IC = '<svg class="ic" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
+function tabbar() {
+  const nm = Object.fromEntries(NAV.filter((n) => n[0]).map(([p, t]) => [p, t]));
+  const short = { matches: '기록', today: '내전' };
+  const el = document.createElement('nav'); el.id = 'tabbar';
+  el.innerHTML = TABS.map((p) => `<a href="#/${p}" data-p="${p}" class="${p === 'today' ? 'tb-main' : ''}"><i>${ic(p)}</i><span>${short[p] || nm[p]}</span></a>`).join('') + `<button data-p="more" data-a="tabMore"><i>${MORE_IC}</i><span>더보기</span></button>`;
+  document.body.appendChild(el);
+}
+act('tabMore', () => {
+  let grp = '';
+  const body = NAV.map(([p, t]) => (p ? `<a class="mm-it ${p === S.page ? 'on' : ''}" href="#/${p}" data-a="close">${ic(p)}<span>${t}</span></a>` : `${grp ? '</div>' : ''}<h6>${(grp = t)}</h6><div class="mm-g">`)).join('') + '</div>';
+  modal(`${mh('메뉴')}<div class="mm">${body}</div><button class="btn block" data-a="copyLink">초대 링크 복사</button>`, 'more-sheet');
+});
 export function initShell() {
   document.getElementById('brandlogo').innerHTML = logo(false, 40);
+  tabbar();
   document.getElementById('nav').innerHTML = NAV.map(([p, t, soon]) => (p ? `<a href="#/${p}" data-p="${p}">${ic(p)}<span>${t}</span>${soon ? `<em>${soon}</em>` : ''}</a>` : `<h6>${t}</h6>`)).join('');
   document.getElementById('mode').innerHTML = S.store.mode === 'local' ? '<span class="tag warn" title="이 브라우저에만 저장됩니다">체험 모드</span>' : '<span class="tag ok"><i class="live"></i>LIVE 동기화</span>';
   const on = (type, attr) => document.addEventListener(type, (e) => {

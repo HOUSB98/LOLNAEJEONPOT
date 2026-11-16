@@ -522,7 +522,7 @@ canvas.fx{position:fixed;inset:0;pointer-events:none;z-index:70}
   #main{margin-right:0}
   #chat{box-shadow:-30px 0 60px -20px #000;width:min(var(--cw),100vw)}
 }
-@media (max-width:1100px){.home-grid,.pdetail{grid-template-columns:1fr}.holo-wrap{position:static;max-width:370px;margin:0 auto}}
+@media (max-width:1100px){.home-grid,.pdetail{grid-template-columns:minmax(0,1fr)}.holo-wrap{position:static;max-width:370px;margin:0 auto}}
 @media (max-width:860px){
   #side{position:sticky;top:0;inset:auto;width:auto;flex-direction:row;flex-wrap:wrap;align-items:center;padding:8px 10px 0;gap:6px;border-right:0;border-bottom:1px solid var(--line)}
   .brand{padding:0;flex:1;min-width:0}.brand .logo{width:30px;height:30px}
@@ -1227,3 +1227,55 @@ body.dragging,body.dragging *{user-select:none;-webkit-user-select:none;cursor:g
   .gb-board{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.gb-paper{min-height:220px;padding:20px 6px 10px}.gb-title{font-size:19px}.gb-flavor{display:none}
   .gb-head{padding:4px 70px 10px 10px;text-align:left}.gb-head h2{margin-left:0;padding:6px 22px}.gb-bang{font-size:40px}
 }
+
+/* ================= 모바일 최적화 (2026-11-16) ================= */
+#tabbar{display:none}
+button,a,.slot{-webkit-tap-highlight-color:transparent}
+@media (max-width:860px){
+  :root{--tb:62px;--safe:env(safe-area-inset-bottom,0px)}
+  /* 위쪽은 로고·접속자만 남긴 얇은 헤더, 메뉴는 아래 탭바로 */
+  #side{padding:6px 10px;padding-top:max(6px,env(safe-area-inset-top));background:rgba(7,11,19,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9}
+  #nav{display:none}.brand small{display:none}.brand .bt b{font-size:15px}
+  #main{padding:14px 12px calc(var(--tb) + var(--safe) + 28px)}
+  #tabbar{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:10;height:calc(var(--tb) + var(--safe));padding-bottom:var(--safe);
+    background:linear-gradient(180deg,rgba(10,15,26,.94),rgba(5,8,14,.98));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid #2a2415;box-shadow:0 -10px 30px -12px #000}
+  #tabbar a,#tabbar button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;background:none;color:#8592a8;font:600 11px inherit;text-decoration:none;cursor:pointer;position:relative}
+  #tabbar i{display:grid;place-items:center;width:40px;height:28px;border-radius:99px;transition:background .2s,transform .2s}
+  #tabbar .ic{width:21px;height:21px}
+  #tabbar .on{color:var(--gold2)}#tabbar .on i{background:rgba(217,164,65,.16);transform:translateY(-1px)}
+  #tabbar .on::before{content:"";position:absolute;top:0;left:30%;right:30%;height:2px;border-radius:0 0 3px 3px;background:var(--gold);box-shadow:0 0 10px var(--gold)}
+  #tabbar .tb-main i{width:46px;height:46px;margin-top:-22px;border-radius:50%;background:linear-gradient(180deg,#f1cf7c,#c08a2b);color:#1a1204;box-shadow:0 8px 20px -6px rgba(217,164,65,.8),0 0 0 4px #070b13}
+  #tabbar .tb-main.on i{background:linear-gradient(180deg,#fff0c4,#d9a441)}#tabbar .tb-main .ic{width:24px;height:24px}
+  body:not(.chat-closed) #tabbar{display:none}
+  body.bare #tabbar{display:none}body.bare #main{padding-bottom:30px}
+  #chatfab{bottom:calc(var(--tb) + var(--safe) + 14px)!important;right:12px!important;width:52px!important;height:52px!important;border-radius:16px!important}
+  #chatfab em{display:none}#chatfab .cf-core{transform:none}
+  #toast{bottom:calc(var(--tb) + var(--safe) + 16px)}
+  #joinfeed{bottom:calc(var(--tb) + var(--safe) + 76px)}
+  #chat{width:100vw;padding-bottom:var(--safe)}
+  /* iOS는 16px보다 작은 입력창에 포커스하면 화면을 확대한다 */
+  input.inp,select.inp,textarea.inp,#chatinp,input[type=text],input[type=number],input[type=search],textarea,select{font-size:16px}
+  .sheet{max-height:92vh;padding-bottom:calc(18px + var(--safe))}
+  .m-hide{display:none}em.m-hide{font-style:normal}
+  /* 오늘의 내전: 빈 칸은 라인 이름만, 챔피언 버튼은 선수가 있을 때만 */
+  .slot.emp .sl-champ{display:none}.slot.emp .sl-body{font-size:13px;white-space:nowrap}
+  .h2row{gap:6px}.h2row .btn{padding:8px 11px;font-size:13px}
+  /* 더보기 메뉴 */
+  .sheet.more-sheet .mm h6{margin:12px 2px 6px;font:700 10px var(--mono);letter-spacing:.24em;color:var(--mut)}
+  .mm-g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .mm-it{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 6px;border-radius:12px;border:1px solid var(--line2);background:var(--panel2);color:var(--text);font-size:13px;font-weight:600;text-decoration:none}
+  .mm-it .ic{width:22px;height:22px;color:var(--gold2)}.mm-it.on{border-color:var(--gold);background:rgba(217,164,65,.12)}
+  .sheet.more-sheet .btn.block{margin-top:14px}
+  #chat{z-index:11}
+  /* 라인업 칸: 좁은 화면에서는 챔피언 · 이름 · 점수만 */
+  .slot{flex-wrap:nowrap;gap:6px;min-height:52px;padding:6px 7px}
+  .slot .sl-top i,.slot .sl-meta{display:none}
+  .sl-champ .ci{width:30px;height:30px}.sl-top b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .sl-body{min-width:0}.sl-score{font-size:15px;flex:none}
+}
+@media (max-width:640px){
+  /* 길드 게시판: 명부(내 이름 고르기)를 위로, 마감 버튼은 아래에 붙여 둔다 */
+  .gb{display:flex;flex-direction:column}.gb-head small{letter-spacing:.2em}.gb-head{order:-2}.gb-roll{order:-1;margin-top:4px}
+  .gb-foot{position:sticky;bottom:-12px;margin:0 -10px -12px;padding:10px 12px calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(180deg,rgba(42,25,11,.55),rgba(42,25,11,.97) 35%);z-index:4!important}
+}
+@media (hover:none){.spot:hover,.pod:hover,.slot:hover{transform:none}.gb-paper:not(.locked):hover{transform:rotate(var(--t))}}
