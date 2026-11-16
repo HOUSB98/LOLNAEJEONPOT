@@ -112,11 +112,7 @@ export function render() {
   document.getElementById('league').textContent = settings().leagueName || '친구 내전 리그';
   const route = S.page + '/' + S.arg.join('/'), entering = route !== lastRoute;
   lastRoute = route;
-  const html = pages[S.page].render(...S.arg);
-  // 다른 페이지로 들어올 때만 통째로 그리고, 같은 페이지에서 데이터만 바뀌면 달라진 부분만 고친다
-  // (진행 중인 애니메이션·마우스 올림·입력 중인 칸·열린 메뉴가 끊기지 않게)
-  if (entering || !main.firstChild) main.innerHTML = html;
-  else { const t = document.createElement('template'); t.innerHTML = html; morphKids(main, t.content); }
+  main.innerHTML = pages[S.page].render(...S.arg);
   if (entering) { main.classList.remove('enter'); void main.offsetWidth; main.classList.add('enter'); clearTimeout(render.t); render.t = setTimeout(() => main.classList.remove('enter'), 900); }
   lazyArt(main);
   pages[S.page].after?.(entering);
@@ -165,34 +161,6 @@ function initPerf() {
 }
 act('liteToggle', () => { const on = !document.body.classList.contains('lite'); setLite(on); toast(on ? '가벼운 모드: 장식 효과를 줄였어요' : '가벼운 모드를 껐어요'); });
 const liteBtn = () => `<button class="btn ghost xs lite-btn ${document.body.classList.contains('lite') ? 'on' : ''}" data-a="liteToggle" title="장식 효과를 줄여 PC방·저사양 PC·게임과 함께 켜 둘 때 가볍게">${ic('bolt')}가벼운 모드 <u>${document.body.classList.contains('lite') ? 'ON' : 'OFF'}</u></button>`;
-// ---------- 부분 갱신(간단한 DOM 비교) ----------
-// 같은 자리의 같은 태그는 그대로 두고 속성·글자만 맞춘다. 캔버스와 스크립트가 붙인 상태(열린 메뉴·드래그 표시)는 건드리지 않는다.
-const KEEP_CLASS = ['open', 'dg-src', 'dg-over'];
-function morphKids(from, to) {
-  const next = [...to.childNodes];
-  next.forEach((nb, i) => { const na = from.childNodes[i]; if (!na) from.appendChild(nb); else morphNode(na, nb); });
-  while (from.childNodes.length > next.length) from.lastChild.remove();
-}
-function morphNode(a, b) {
-  if (a.nodeType !== b.nodeType || a.nodeName !== b.nodeName) return a.replaceWith(b);
-  if (a.nodeType !== 1) { if (a.nodeValue !== b.nodeValue) a.nodeValue = b.nodeValue; return; }
-  if (a.nodeName === 'CANVAS') return;
-  // 지연 로딩이 끝난 그림(data-art → --img)은 같은 그림이면 다시 비우지 않는다
-  if (b.hasAttribute('data-art') && !a.hasAttribute('data-art') && a.style.getPropertyValue('--img').includes(b.getAttribute('data-art'))) {
-    b.removeAttribute('data-art'); b.style.setProperty('--img', a.style.getPropertyValue('--img'));
-  }
-  for (const at of [...a.attributes]) if (!b.hasAttribute(at.name) && !(at.name === 'open' && a.nodeName === 'DETAILS')) a.removeAttribute(at.name);
-  for (const at of [...b.attributes]) {
-    let v = at.value;
-    if (at.name === 'class') { const keep = KEEP_CLASS.filter((c) => a.classList.contains(c) && !b.classList.contains(c)); if (keep.length) v = (v + ' ' + keep.join(' ')).trim(); }
-    if (a.getAttribute(at.name) !== v) a.setAttribute(at.name, v);
-  }
-  morphKids(a, b);
-  if (a.nodeName === 'INPUT' || a.nodeName === 'TEXTAREA' || a.nodeName === 'SELECT') {
-    if (a !== document.activeElement && a.value !== b.value) a.value = b.value; // 입력 중인 칸은 건드리지 않는다
-    if (a.type === 'checkbox' || a.type === 'radio') a.checked = b.checked;
-  }
-}
 export function initShell() {
   document.getElementById('brandlogo').innerHTML = logo(false, 40);
   initPerf();
