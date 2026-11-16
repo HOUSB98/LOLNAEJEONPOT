@@ -201,14 +201,12 @@ act('bdGo', async () => {
   if (miss && !confirm(`아직 ${miss}명이 지원하지 않았어요. 미지원자는 '상관없음'으로 보고 마감할까요?`)) return;
   await S.store.syncServerClock?.();
   BD.runner = d.rid; // 내 쓰기가 먼저 돌아와 재생이 시작돼도 내가 라인업을 반영하도록 미리 표시
-  toast('결투 준비 중…');
-  const hunter = await pickHunter().catch(() => null);
   let mine = null;
   try {
     mine = await S.store.tx('meta', 'board', (r) => {
       if (!r || r.rid !== d.rid || r.status !== 'open') return null;
       const p = plan(r);
-      return { ...r, status: 'play', startAt: S.store.serverNow() + 1800, ...p, hunter, runner: nick() || '익명' };
+      return { ...r, status: 'play', startAt: S.store.serverNow() + 1800, ...p, runner: nick() || '익명' };
     });
   } catch (e) { return toast('추첨 시작 실패: ' + (e.code || e.message)); }
   if (!mine) return;
@@ -251,30 +249,8 @@ const COWBOY = `<svg class="cbsvg" viewBox="0 0 140 240" aria-hidden="true">
     <circle class="cb-flash" cx="138" cy="83" r="10" fill="#ffd36a" stroke="none"/>
   </g>
 </svg>`;
-// 하이 눈 스킨 사냥꾼: 추첨을 시작한 사람이 하나를 골라 문서에 적고, 모두 같은 일러스트를 본다. 못 불러오면 실루엣 카우보이.
-const HUNTERS = ['Lucian', 'Yasuo', 'Thresh', 'Jhin', 'Senna', 'Ashe', 'Graves', 'Irelia', 'Kayn', 'Darius', 'Viego', 'Sett', 'TwistedFate', 'MissFortune'];
-async function pickHunter() {
-  if (!S.ver) return null;
-  const get = (id) => Promise.race([fetch(`https://ddragon.leagueoflegends.com/cdn/${S.ver}/data/ko_KR/champion/${id}.json`).then((r) => r.json()), new Promise((_, no) => setTimeout(() => no(new Error('timeout')), 2500))]);
-  for (const id of shuffle(HUNTERS).slice(0, 5)) {
-    try {
-      const sk = (await get(id)).data[id].skins.filter((x) => /하이\s*눈|high\s*noon/i.test(x.name));
-      if (sk.length) { const k = sk[rnd(sk.length)]; return { id, num: k.num, name: k.name }; }
-    } catch {}
-  }
-  return null;
-}
-const artOf = (h, kind) => `https://ddragon.leagueoflegends.com/cdn/img/champion/${kind}/${h.id}_${h.num}.jpg`;
-function loadHunter(sc, h) {
-  const art = sc.querySelector('.sd-hart'), tryKind = (kinds) => {
-    if (!kinds.length) return sc.classList.remove('hmode'); // 일러스트를 못 받으면 실루엣으로
-    const im = new Image(); im.onload = () => { art.style.backgroundImage = `url('${im.src}')`; };
-    im.onerror = () => tryKind(kinds.slice(1)); im.src = artOf(h, kinds[0]);
-  };
-  tryKind(['centered', 'splash']);
-}
-function sceneHTML(steps, h) {
-  return `<div class="sd ${h ? 'hmode' : ''}">
+function sceneHTML(steps) {
+  return `<div class="sd">
     <div class="sd-sky"><i class="sd-sun"></i><i class="sd-mesa a"></i><i class="sd-mesa b"></i><i class="sd-mesa c"></i></div><div class="sd-ground"></div><i class="sd-weed"></i>
     <div class="sd-top"><button class="sd-btn" data-a="bdMute" title="효과음">${ic(BD.muted ? 'mute' : 'sound')}</button><button class="sd-skip" data-a="bdSkip">건너뛰기 ▸▸</button></div>
     <div class="sd-title"><small>HIGH NOON · LIVE</small><b>운명의 결투</b><span>몰린 라인만 추첨합니다 · 모두 같은 장면을 보고 있어요</span></div>
@@ -283,8 +259,7 @@ function sceneHTML(steps, h) {
         <div class="sd-posters">${s.cands.map((id) => `<div class="sd-poster" data-id="${id}"><small>WANTED</small><b>${esc(nm(id))}</b><em>${LANE_NAME[s.lane]}</em></div>`).join('')}</div></div>`).join('')}
     </div>
     <div class="sd-reticle"><i></i></div>
-    <div class="sd-cb">${COWBOY}</div>
-    ${h ? `<div class="sd-hunter"><div class="sd-hart"></div><b class="sd-hname">${esc(h.name)}</b></div>` : ''}
+    <div class="sd-cb">${COWBOY}<div class="cb-art"></div></div>
     <div class="sd-cap"></div>
   </div>`;
 }
@@ -318,9 +293,19 @@ function aim(sc, x, y) {
   sc.querySelector('.cb-arm').style.transform = `rotate(${ang}deg)`;
   return { ...p, ang };
 }
-function gun(sc, x, y) { // 총구 위치: 일러스트 모드면 사냥꾼 그림의 오른쪽, 실루엣이면 팔을 돌려서 계산
+// 직접 만든 카우보이 그림(img/cowboy.jpg, 왼쪽을 겨누는 그림을 좌우 반전해서 쓴다). 파일이 없으면 실루엣 카우보이.
+// 배경을 지운 PNG(img/cowboy.png)가 있으면 그대로, 없으면 JPG(img/cowboy.jpg)를 가장자리를 흐려서 쓴다.
+const COWBOY_ART = ['img/cowboy.png', 'img/cowboy.jpg'], ART_MUZZLE = [0.9, 0.37]; // 반전된 그림 안에서 총구 위치(가로·세로 비율)
+function loadArt(sc, i = 0) {
+  if (i >= COWBOY_ART.length) return;
+  const im = new Image(), src = COWBOY_ART[i];
+  im.onload = () => { sc.querySelector('.cb-art').style.backgroundImage = `url('${src}')`; sc.classList.add('artmode'); sc.classList.toggle('artcut', src.endsWith('.png')); };
+  im.onerror = () => loadArt(sc, i + 1);
+  im.src = src;
+}
+function gun(sc, x, y) { // 총구 위치: 그림이면 그림 속 총구, 실루엣이면 팔을 돌려서 계산
   const a = sc.getBoundingClientRect();
-  if (sc.classList.contains('hmode')) { const r = sc.querySelector('.sd-hunter').getBoundingClientRect(); return { mx: r.left - a.left + r.width * 0.8, my: r.top - a.top + r.height * 0.42 }; }
+  if (sc.classList.contains('artmode')) { const r = sc.querySelector('.cb-art').getBoundingClientRect(); return { mx: r.left - a.left + r.width * ART_MUZZLE[0], my: r.top - a.top + r.height * ART_MUZZLE[1] }; }
   const p = aim(sc, x, y), rad = (p.ang * Math.PI) / 180;
   return { mx: p.x + Math.cos(rad) * p.len, my: p.y + Math.sin(rad) * p.len };
 }
@@ -356,7 +341,7 @@ async function duel(sc, d, s, id, late, alive) {
     const w = order.map((_, k) => 1 + Math.pow(k / hops, 2.4) * 7), sum = w.reduce((a, b) => a + b, 0), budget = HOP - late;
     for (let k = 0; k < order.length; k++) {
       if (!alive()) return;
-      const [x, y] = moveReticle(sc, order[k]); if (!sc.classList.contains('hmode')) aim(sc, x, y);
+      const [x, y] = moveReticle(sc, order[k]); if (!sc.classList.contains('artmode')) aim(sc, x, y);
       if (k % 2 === 0) sfx('heart');
       await wait((w[k] / sum) * budget);
     }
@@ -370,7 +355,7 @@ async function duel(sc, d, s, id, late, alive) {
   // 발사: 총구 섬광 → 총알 궤적 → 명중
   const { mx, my } = gun(sc, x, y), dist = Math.hypot(x - mx, y - my);
   sfx('bang');
-  const who = sc.querySelector(sc.classList.contains('hmode') ? '.sd-hunter' : '.sd-cb'); who.classList.remove('fire'); void who.offsetWidth; who.classList.add('fire');
+  const who = sc.querySelector('.sd-cb'); who.classList.remove('fire'); void who.offsetWidth; who.classList.add('fire');
   const mz = document.createElement('i'); mz.className = 'sd-muzzle'; mz.style.cssText = `left:${mx}px;top:${my}px`; sc.appendChild(mz); setTimeout(() => mz.remove(), 500);
   const tr = document.createElement('i'); tr.className = 'sd-tracer'; tr.style.cssText = `left:${mx}px;top:${my}px;width:${dist}px;transform:rotate(${Math.atan2(y - my, x - mx)}rad)`; sc.appendChild(tr); setTimeout(() => tr.remove(), 900);
   const fl = document.createElement('div'); fl.className = 'gb-flash sd-flash'; document.body.appendChild(fl); setTimeout(() => fl.remove(), 500);
@@ -380,10 +365,10 @@ async function duel(sc, d, s, id, late, alive) {
   caption(sc, `<b>${esc(nm(id))}</b> ${LANE_NAME[s.lane]} 확정!`);
 }
 function walkIn(sc, ms) {
-  const hm = sc.classList.contains('hmode'), who = sc.querySelector(hm ? '.sd-hunter' : '.sd-cb');
-  who.style.transition = `left ${ms}ms ${hm ? 'cubic-bezier(.2,.7,.3,1)' : 'linear'}`; who.classList.add('walking');
+  const who = sc.querySelector('.sd-cb');
+  who.style.transition = `left ${ms}ms linear`; who.classList.add('walking');
   requestAnimationFrame(() => requestAnimationFrame(() => who.classList.add('in')));
-  const a = () => sc.getBoundingClientRect(), feet = () => { const r = who.getBoundingClientRect(); return [r.left - a().left + r.width * (hm ? 0.45 : 0.5), r.bottom - a().top - 6]; };
+  const a = () => sc.getBoundingClientRect(), feet = () => { const r = who.getBoundingClientRect(); return [r.left - a().left + r.width * 0.5, r.bottom - a().top - 6]; };
   for (let t = 300; t < ms - 200; t += 560) BD.timers.push(setTimeout(() => { sfx('step'); const [x, y] = feet(); dust(sc, x, y, 2); }, t));
   BD.timers.push(setTimeout(() => { who.classList.remove('walking'); sfx('spur'); const [x, y] = feet(); dust(sc, x, y, 5); }, ms));
 }
@@ -401,9 +386,9 @@ async function play(d) {
   // 라인업 반영은 건너뛰기와 상관없이 시각표의 끝에 한 번(추첨을 시작한 사람, 없으면 남은 사람)
   BD.finT = setTimeout(() => finishRun(d), Math.max(0, end - now()) + (BD.runner === d.rid ? 0 : 3000));
   if (!steps.length || now() >= end) return showFinal(el, d);
-  el.innerHTML = sceneHTML(steps, d.hunter); el.classList.add('playing');
+  el.innerHTML = sceneHTML(steps); el.classList.add('playing');
   const sc = el.querySelector('.sd');
-  if (d.hunter) loadHunter(sc, d.hunter);
+  loadArt(sc);
   const alive = () => BD.playing === d.rid && !BD.skipped && document.body.contains(sc);
   const done = new Set();
   for (const ln of tl) for (const p of ln.picks) if (p.at + HOP + HOLD + 200 <= now()) { markShot(sc, d, ln.s.lane, p.id, false); done.add(ln.s.lane + p.id); }
@@ -411,10 +396,10 @@ async function play(d) {
   if (now() < start + walk) {
     await wait(start - now());
     if (!alive()) return;
-    caption(sc, d.hunter ? `정오의 햇살 아래… <b>${esc(d.hunter.name)}</b> 등장!` : '정오의 햇살 아래, 현상금 사냥꾼이 나타났다…');
+    caption(sc, '정오의 햇살 아래, 현상금 사냥꾼이 나타났다…');
     walkIn(sc, Math.max(600, start + walk - now()));
     await wait(start + walk - now());
-  } else sc.querySelectorAll('.sd-cb,.sd-hunter').forEach((x) => x.classList.add('in'));
+  } else sc.querySelector('.sd-cb').classList.add('in');
   for (const ln of tl) {
     if (!alive()) return;
     const row = sc.querySelector(`.sd-row[data-lane="${ln.s.lane}"]`);
