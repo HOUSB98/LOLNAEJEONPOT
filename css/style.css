@@ -1320,3 +1320,19 @@ body.lite .lp-name.new,body.lite .ld-c.won,body.lite .lf-n{animation:none!import
 .mf-tg .ic{width:14px;height:14px;transition:transform .2s}.mf-day.open .mf-tg .ic{transform:rotate(180deg)}
 .mf-day + .mlist{margin-top:10px}
 @media (max-width:860px){.mf-chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}.mf-chip,.mf-more{flex:none;padding:8px 12px}}
+/* ---------- 익명 게시판 ---------- */
+.tk-open{display:flex;align-items:center;gap:10px;width:100%;margin:12px 0;padding:14px 16px;border-radius:var(--r);color:var(--mut);font:inherit;font-size:14px;text-align:left;cursor:text;transition:border-color .15s}
+.tk-open:hover{border-color:var(--gold)}.tk-open span{flex:1}.tk-open .ic{width:18px;height:18px}
+.tk-form{display:grid;gap:10px;margin:12px 0;border-color:rgba(217,164,65,.45)}
+.tk-who{display:flex;align-items:center;gap:8px}.tk-who .ic{width:18px;height:18px;color:var(--gold2)}.tk-who small{color:var(--mut);font-size:12px}
+.tk-body{min-height:140px;resize:vertical;line-height:1.6}
+.tk-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tk-pw{display:flex;align-items:center;gap:6px;flex:0 1 260px;padding-left:10px;border:1px solid var(--line2);border-radius:10px;background:#080d17}
+.tk-pw .ic{width:15px;height:15px;color:var(--mut);flex:none}.tk-pw .inp{border:0;background:transparent;box-shadow:none!important;min-width:0}
+.tk-list{display:grid;gap:10px;margin-top:6px}
+.tk-post{display:grid;gap:8px;padding:14px 16px}.tk-post.new{animation:rise .35s ease-out}
+.tk-post header{display:flex;align-items:center;gap:8px}
+.tk-av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#1a2536;box-shadow:0 0 0 1.5px #3a4a64;color:#9aa6ba}.tk-av .ic{width:16px;height:16px}
+.tk-post h3{margin:0;font-size:16px}
+.tk-text{margin:0;white-space:pre-wrap;word-break:break-word;line-height:1.65;color:#d6deeb}
+@media (max-width:640px){.tk-pw{flex:1 1 100%}.tk-row .btn{flex:1}}

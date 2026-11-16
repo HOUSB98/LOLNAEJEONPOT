@@ -12,6 +12,7 @@ import './players.js';
 import './auction.js';
 import './admin.js';
 import './maker.js';
+import './talk.js';
 
 const num = (v, cls = '') => `<td class="num ${cls}">${v}</td>`;
 export function stat(icon, label, value, sub, tone = '') {
@@ -519,6 +520,7 @@ function onStore(c) {
     if (ch.settings) refresh(true); else if (ch.todayDraft && S.page === 'today') refresh();
     return;
   }
+  if (c === 'posts') { if (S.page === 'talk') refresh(); return; }
   if (c === 'players' || c === 'matches') refresh(true);
 }
 (async () => {

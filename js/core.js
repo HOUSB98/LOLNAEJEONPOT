@@ -53,6 +53,7 @@ const I = {
   flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
   sound: '<path d="M4 9v6h4l5 4V5L8 9zM16 9a4 4 0 0 1 0 6M18.500 6.500a8 8 0 0 1 0 11"/>',
   mute: '<path d="M4 9v6h4l5 4V5L8 9zM17 9.500l5 5M22 9.500l-5 5"/>',
+  talk: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12.500h5"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M4.500 21c.8-4.200 3.800-7 7.500-7s6.700 2.800 7.500 7"/>',
   more: '<circle cx="5" cy="12" r="1.300" fill="currentColor"/><circle cx="12" cy="12" r="1.300" fill="currentColor"/><circle cx="19" cy="12" r="1.300" fill="currentColor"/>',
   replay: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8h18M7 4l2 4M12 4l2 4M17 4l2 4M10 11.500v5l4.500-2.500z"/>',
@@ -91,6 +92,7 @@ export const NAV = [
   ['', 'LEAGUE'], ['home', '홈'], ['rank', '랭킹'], ['matches', '경기 기록'], ['players', '선수 카드'],
   ['', 'ANALYSIS'], ['champs', '챔피언'], ['chem', '케미'],
   ['', 'PLAY'], ['today', '오늘의 내전'], ['auction', '팀 경매'], ['replay', '리플레이 분석'], ['admin', '관리'],
+  ['', 'COMMUNITY'], ['talk', '익명 게시판'],
   ['', 'CREDITS'], ['maker', '제작자'],
 ];
 export function go(hash) { location.hash = hash; }
