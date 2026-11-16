@@ -89,7 +89,7 @@ act('tkDel', (d) => {
 act('tkAdminDel', (d) => needAdmin(() => { if (confirm('관리자 권한으로 이 글을 지울까요?')) remove(d.id, 'admin'); }));
 
 // ---------- 새 글 알림 ----------
-// 접속 중인 사람에게 화면 위쪽에 알림 카드를 띄운다(내가 쓴 글, 익명 게시판을 보고 있을 때, 접속 전의 글은 제외).
+// 접속 중인 사람에게 화면 위쪽에 알림 카드를 띄운다(게시판을 보고 있어도 띄운다. 내가 쓴 글, 접속 전의 글은 제외).
 let known = null;
 export function watchPosts(initial) {
   const list = col('posts').filter((p) => !p.deleted && p.body);
@@ -100,7 +100,6 @@ export function watchPosts(initial) {
   fresh.filter((p) => !TK.mine.has(p.id) && now - (+p.at || 0) < 10 * 60e3).slice(-3).forEach(notify);
 }
 function notify(p) {
-  if (S.page === 'talk') return;
   let box = document.getElementById('postfeed');
   if (!box) { box = document.createElement('div'); box.id = 'postfeed'; document.body.appendChild(box); }
   const el = document.createElement('a');
