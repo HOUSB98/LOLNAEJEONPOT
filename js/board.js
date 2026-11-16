@@ -71,8 +71,9 @@ function openHTML(d) {
       <button class="btn ghost xs" data-a="bdMute" title="효과음">${ic(BD.muted ? 'mute' : 'sound')}</button><button class="btn ghost xs" data-a="bdHide" title="닫기 (라인 지원은 계속 열려 있음)">${ic('x')}</button></div>
     <ol class="lp-steps"><li class="${isMe ? 'done' : 'on'}">내 이름 선택</li><li class="${isMe ? (mine.length ? 'done' : 'on') : ''}">라인 1~3지망 선택</li><li>마감 → 지망 순서대로 추첨</li></ol>
     ${isMe ? `<div class="lp-my"><b>${esc(nm(BD.me))}</b>의 지망${[0, 1, 2].map((r) => `<span class="lp-rk ${mine[r] ? 'on' : ''}" style="--lc:${mine[r] ? COLOR[mine[r]] : '#3a4a64'}"><small>${RANK[r]}</small>${mine[r] ? `${icon(mine[r])}${NAME[mine[r]]}` : '—'}</span>`).join('')}<small class="mut">카드를 누른 순서대로 1·2·3지망 · 다시 누르면 빠져요</small></div>` : ''}
-    <div class="lp-sec"><div class="lp-sh"><b>참가자</b><small>${isMe ? `<b>${esc(nm(BD.me))}</b>(으)로 지원 중 · 다른 이름을 누르면 대리 지원` : '본인 이름을 눌러 주세요'}</small></div>
-      <div class="lp-roster">${d.ids.map((id) => { const p = prefs(d, id)[0], mine = id === BD.me; return `<button class="lp-mem ${mine ? 'me' : ''} ${p ? 'ok' : ''}" data-a="bdMe" data-id="${id}" style="--lc:${p && mine ? COLOR[p] : p ? '#4fd08b' : '#5a6a84'}" title="${p ? '지원 완료' : '아직 지원 안 함'}">${p ? `<i>${mine ? icon(p) : '✓'}</i>` : '<i class="dot"></i>'}${esc(nm(id))}</button>`; }).join('')}</div></div>
+    ${isMe && !BD.roster ? `<div class="lp-sec lp-mini"><span>${ic('user')}<b>${esc(nm(BD.me))}</b>(으)로 지원 중</span><button class="btn ghost xs" data-a="bdRoster">다른 이름 · 대리 지원</button></div>`
+      : `<div class="lp-sec"><div class="lp-sh"><b>참가자</b><small>${isMe ? `<b>${esc(nm(BD.me))}</b>(으)로 지원 중 · 다른 이름을 누르면 대리 지원` : '본인 이름을 눌러 주세요'}</small></div>
+      <div class="lp-roster">${d.ids.map((id) => { const p = prefs(d, id)[0], mine = id === BD.me; return `<button class="lp-mem ${mine ? 'me' : ''} ${p ? 'ok' : ''}" data-a="bdMe" data-id="${id}" style="--lc:${p && mine ? COLOR[p] : p ? '#4fd08b' : '#5a6a84'}" title="${p ? '지원 완료' : '아직 지원 안 함'}">${p ? `<i>${mine ? icon(p) : '✓'}</i>` : '<i class="dot"></i>'}${esc(nm(id))}</button>`; }).join('')}</div></div>`}
     <div class="lp-grid">${OPTS.map((o) => card(d, o)).join('')}</div>
     <div class="lp-foot"><span class="lp-count"><b class="mono">${picked}</b> / <span class="mono">${d.ids.length}</span> 지원 완료${d.by ? ` · 연 사람 ${esc(d.by)}` : ''}<small class="lp-ttl">2시간 동안 아무도 지원하지 않으면 자동으로 닫혀요</small></span><span class="grow"></span>
       <button class="btn ghost" data-a="bdShut">취소하기</button><button class="btn pri" data-a="bdGo" ${picked ? '' : 'disabled'}>${ic('dice')}지원 마감 · 추첨 시작</button></div>`;
@@ -131,7 +132,8 @@ act('bdOpen', async () => {
   sysChat(`라인 지원이 열렸습니다 · 참가자 ${d.ids.length}명`);
   sfx('start'); openBoard();
 });
-act('bdMe', (x) => { BD.me = x.id; localStorage.setItem('naejeon:bdme:' + S.key, x.id); draw(); });
+act('bdMe', (x) => { BD.me = x.id; BD.roster = false; localStorage.setItem('naejeon:bdme:' + S.key, x.id); draw(); });
+act('bdRoster', () => { BD.roster = true; draw(); });
 act('bdPick', async (x) => {
   const d = cur(); if (!d || d.status !== 'open') return;
   if (!live(d)) { toast('2시간 동안 움직임이 없어 라인 지원이 닫혔어요. 다시 열어 주세요'); closeModal(); if (S.page === 'today') refresh(); return; }

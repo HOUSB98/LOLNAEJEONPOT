@@ -1368,3 +1368,11 @@ body.lite .lp-name.new,body.lite .ld-c.won,body.lite .lf-n{animation:none!import
 .lp-sub{font-size:12px;color:var(--mut)}.lp-sub b{color:#c9d2e0;font-family:var(--mono)}
 .ld-c.pre{opacity:.8}
 .lf-n em.r1{background:rgba(79,208,139,.22);color:#9fe8be}.lf-n em.r2{background:rgba(201,210,224,.18);color:#dfe5ee}.lf-n em.r3{background:rgba(133,146,168,.25);color:#c0c8d6}
+.lp-mini{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 12px}
+.lp-mini span{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--mut)}.lp-mini b{color:var(--gold2)}.lp-mini .ic{width:16px;height:16px;color:var(--gold2)}
+.lp-mini .btn{margin-left:auto}
+@media (max-width:640px){
+  .lp-steps{display:none}
+  .lp-my{padding:8px 10px;gap:6px}.lp-my>small{display:none}.lp-rk{padding:4px 8px;font-size:12px}
+  .lp-grid{gap:8px}.lp-card{gap:6px}.lp-bar{display:none}.lp-sub{font-size:11px}
+}
