@@ -259,7 +259,7 @@ function sceneHTML(steps) {
         <div class="sd-posters">${s.cands.map((id) => `<div class="sd-poster" data-id="${id}"><small>WANTED</small><b>${esc(nm(id))}</b><em>${LANE_NAME[s.lane]}</em></div>`).join('')}</div></div>`).join('')}
     </div>
     <div class="sd-reticle"><i></i></div>
-    <div class="sd-cb">${COWBOY}<div class="cb-art"></div></div>
+    <div class="sd-cb">${COWBOY}</div>
     <div class="sd-cap"></div>
   </div>`;
 }
@@ -294,18 +294,7 @@ function aim(sc, x, y) {
   return { ...p, ang };
 }
 // 직접 만든 카우보이 그림(img/cowboy.jpg, 왼쪽을 겨누는 그림을 좌우 반전해서 쓴다). 파일이 없으면 실루엣 카우보이.
-// 배경을 지운 PNG(img/cowboy.png)가 있으면 그대로, 없으면 JPG(img/cowboy.jpg)를 가장자리를 흐려서 쓴다.
-const COWBOY_ART = ['img/cowboy.png', 'img/cowboy.jpg'], ART_MUZZLE = [0.9, 0.37]; // 반전된 그림 안에서 총구 위치(가로·세로 비율)
-function loadArt(sc, i = 0) {
-  if (i >= COWBOY_ART.length) return;
-  const im = new Image(), src = COWBOY_ART[i];
-  im.onload = () => { sc.querySelector('.cb-art').style.backgroundImage = `url('${src}')`; sc.classList.add('artmode'); sc.classList.toggle('artcut', src.endsWith('.png')); };
-  im.onerror = () => loadArt(sc, i + 1);
-  im.src = src;
-}
-function gun(sc, x, y) { // 총구 위치: 그림이면 그림 속 총구, 실루엣이면 팔을 돌려서 계산
-  const a = sc.getBoundingClientRect();
-  if (sc.classList.contains('artmode')) { const r = sc.querySelector('.cb-art').getBoundingClientRect(); return { mx: r.left - a.left + r.width * ART_MUZZLE[0], my: r.top - a.top + r.height * ART_MUZZLE[1] }; }
+function gun(sc, x, y) { // 총구 위치: 카우보이 팔을 목표 쪽으로 돌려서 계산
   const p = aim(sc, x, y), rad = (p.ang * Math.PI) / 180;
   return { mx: p.x + Math.cos(rad) * p.len, my: p.y + Math.sin(rad) * p.len };
 }
@@ -341,7 +330,7 @@ async function duel(sc, d, s, id, late, alive) {
     const w = order.map((_, k) => 1 + Math.pow(k / hops, 2.4) * 7), sum = w.reduce((a, b) => a + b, 0), budget = HOP - late;
     for (let k = 0; k < order.length; k++) {
       if (!alive()) return;
-      const [x, y] = moveReticle(sc, order[k]); if (!sc.classList.contains('artmode')) aim(sc, x, y);
+      const [x, y] = moveReticle(sc, order[k]); aim(sc, x, y);
       if (k % 2 === 0) sfx('heart');
       await wait((w[k] / sum) * budget);
     }
@@ -388,7 +377,6 @@ async function play(d) {
   if (!steps.length || now() >= end) return showFinal(el, d);
   el.innerHTML = sceneHTML(steps); el.classList.add('playing');
   const sc = el.querySelector('.sd');
-  loadArt(sc);
   const alive = () => BD.playing === d.rid && !BD.skipped && document.body.contains(sc);
   const done = new Set();
   for (const ln of tl) for (const p of ln.picks) if (p.at + HOP + HOLD + 200 <= now()) { markShot(sc, d, ln.s.lane, p.id, false); done.add(ln.s.lane + p.id); }

@@ -1460,19 +1460,3 @@ body.lite .sd-weed,body.lite .sd-reticle i{animation:none!important}
 body.lite .cb-coat,body.lite .cb-body{animation:none!important}
 @media (max-width:860px){.h2row>.grow{flex-basis:100%;height:0}}
 @keyframes sdbreathe{50%{transform:scale(1.015)}}
-/* 직접 만든 카우보이 그림 */
-.cb-art{display:none;position:absolute;inset:0;background:center/cover no-repeat;transform:scaleX(-1);
-  -webkit-mask:radial-gradient(ellipse 58% 60% at 50% 46%,#000 56%,rgba(0,0,0,.55) 70%,transparent 82%);mask:radial-gradient(ellipse 58% 60% at 50% 46%,#000 56%,rgba(0,0,0,.55) 70%,transparent 82%)}
-.sd.artmode .cbsvg{display:none}.sd.artmode .cb-art{display:block}
-.sd.artmode .sd-cb{aspect-ratio:2/3;height:74%;bottom:0}
-.sd.artmode .sd-cb.in{left:0}
-.sd.artmode .sd-cb::after{display:none}
-.sd.artmode .sd-cb.walking .cb-art{animation:sdartbob .56s ease-in-out infinite}
-.sd.artmode .sd-cb.in:not(.walking) .cb-art{animation:sdartbreathe 3.2s ease-in-out infinite}
-.sd.artmode .sd-cb.fire .cb-art{animation:sdartrecoil .4s cubic-bezier(.2,.8,.3,1)}
-@keyframes sdartbob{50%{transform:scaleX(-1) translateY(-6px)}}
-@keyframes sdartbreathe{50%{transform:scaleX(-1) scale(1.012)}}
-@keyframes sdartrecoil{0%{transform:scaleX(-1);filter:brightness(1.5)}25%{transform:scaleX(-1) translate(14px,4px) rotate(1.5deg)}100%{transform:scaleX(-1)}}
-@media (max-width:640px){.sd.artmode .sd-cb{height:48%}}
-body.lite .cb-art{animation:none!important}
-.sd.artcut .cb-art{-webkit-mask:none;mask:none;filter:drop-shadow(0 12px 10px rgba(0,0,0,.5))}
