@@ -5,7 +5,7 @@ import { S, page, act, esc, uid, col, refresh, toast, modal, closeModal, mh, ic,
 import { sysChat } from './social.js';
 
 const MAX_TITLE = 60, MAX_BODY = 2000, PAGE = 30, COOLDOWN = 20e3;
-const TK = { title: '', body: '', pw: '', open: false, shown: PAGE, busy: false, seen: null };
+const TK = { title: '', body: '', pw: '', open: false, shown: PAGE, busy: false, seen: null, mine: new Set() };
 const lastKey = () => 'naejeon:talklast:' + S.key;
 const hashPw = (id, pw) => sha(`post:${id}:${pw}`);
 function ago(t) {
@@ -59,6 +59,7 @@ act('tkPost', async () => {
   TK.busy = true; refresh();
   try {
     const id = Date.now().toString(36) + uid();
+    TK.mine.add(id); // 내가 쓴 글은 나에게 알리지 않는다
     await S.store.put('posts', id, { at: S.store.serverNow?.() || Date.now(), title, body, pw: await hashPw(id, pw), deleted: false });
     localStorage.setItem(lastKey(), String(Date.now()));
     Object.assign(TK, { title: '', body: '', pw: '', open: false });
@@ -86,3 +87,30 @@ act('tkDel', (d) => {
   };
 });
 act('tkAdminDel', (d) => needAdmin(() => { if (confirm('관리자 권한으로 이 글을 지울까요?')) remove(d.id, 'admin'); }));
+
+// ---------- 새 글 알림 ----------
+// 접속 중인 사람에게 화면 위쪽에 알림 카드를 띄운다(내가 쓴 글, 익명 게시판을 보고 있을 때, 접속 전의 글은 제외).
+let known = null;
+export function watchPosts(initial) {
+  const list = col('posts').filter((p) => !p.deleted && p.body);
+  if (initial || known === null) { known = new Set(list.map((p) => p.id)); return; }
+  const fresh = list.filter((p) => !known.has(p.id));
+  fresh.forEach((p) => known.add(p.id));
+  const now = S.store.serverNow?.() || Date.now();
+  fresh.filter((p) => !TK.mine.has(p.id) && now - (+p.at || 0) < 10 * 60e3).slice(-3).forEach(notify);
+}
+function notify(p) {
+  if (S.page === 'talk') return;
+  let box = document.getElementById('postfeed');
+  if (!box) { box = document.createElement('div'); box.id = 'postfeed'; document.body.appendChild(box); }
+  const el = document.createElement('a');
+  el.className = 'pf'; el.href = '#/talk';
+  const text = (p.title || p.body).replace(/\s+/g, ' ').slice(0, 60);
+  el.innerHTML = `<i class="pf-ic">${ic('talk')}</i><span><b>익명 게시판에 새 글이 올라왔어요</b><small>${esc(text)}${(p.title || p.body).length > 60 ? '…' : ''}</small></span><em>보기</em>`;
+  const bye = () => { el.classList.add('bye'); setTimeout(() => el.remove(), 400); };
+  el.addEventListener('click', bye);
+  box.appendChild(el);
+  while (box.children.length > 3) box.firstElementChild.remove();
+  setTimeout(bye, 9000);
+  try { navigator.vibrate?.(30); } catch {}
+}

@@ -12,7 +12,7 @@ import './players.js';
 import './auction.js';
 import './admin.js';
 import './maker.js';
-import './talk.js';
+import { watchPosts } from './talk.js';
 
 const num = (v, cls = '') => `<td class="num ${cls}">${v}</td>`;
 export function stat(icon, label, value, sub, tone = '') {
@@ -520,7 +520,7 @@ function onStore(c) {
     if (ch.settings) refresh(true); else if (ch.todayDraft && S.page === 'today') refresh();
     return;
   }
-  if (c === 'posts') { if (S.page === 'talk') refresh(); return; }
+  if (c === 'posts') { watchPosts(); if (S.page === 'talk') refresh(); return; }
   if (c === 'players' || c === 'matches') refresh(true);
 }
 (async () => {
@@ -548,5 +548,5 @@ function onStore(c) {
     });
     await S.store.ready;
   } catch (e) { main.innerHTML = `<div class="panel landing"><h1>연결 실패</h1><p>${esc(e.message || e)}</p><p class="hint">js/config.js 의 Firebase 설정과 Firestore 규칙을 확인하세요.</p></div>`; return; }
-  metaDiff(); up = true; watchDice(true); watchBoard(true); watchReveal(true); initShell(); initSocial(); loadChamps();
+  metaDiff(); up = true; watchDice(true); watchBoard(true); watchPosts(true); watchReveal(true); initShell(); initSocial(); loadChamps();
 })();

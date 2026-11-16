@@ -1336,3 +1336,14 @@ body.lite .lp-name.new,body.lite .ld-c.won,body.lite .lf-n{animation:none!import
 .tk-post h3{margin:0;font-size:16px}
 .tk-text{margin:0;white-space:pre-wrap;word-break:break-word;line-height:1.65;color:#d6deeb}
 @media (max-width:640px){.tk-pw{flex:1 1 100%}.tk-row .btn{flex:1}}
+/* 익명 게시판 새 글 알림 */
+#postfeed{position:fixed;top:16px;left:50%;translate:-50% 0;z-index:56;display:grid;gap:8px;width:min(420px,calc(100vw - 24px));pointer-events:none}
+.pf{pointer-events:auto;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;text-decoration:none;color:var(--text);
+  background:linear-gradient(120deg,rgba(17,26,41,.98),rgba(10,15,26,.98));border:1px solid rgba(217,164,65,.55);box-shadow:0 18px 40px -14px #000,0 0 26px -10px var(--gold);animation:pfin .45s cubic-bezier(.2,1.2,.4,1)}
+.pf.bye{animation:pfout .35s ease-in forwards}
+.pf-ic{flex:none;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:rgba(217,164,65,.16);color:var(--gold2)}.pf-ic .ic{width:20px;height:20px}
+.pf span{display:grid;gap:2px;min-width:0;flex:1}.pf b{font-size:14px;color:var(--gold2)}.pf small{color:#c9d2e0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pf em{flex:none;font-style:normal;font-size:12px;font-weight:700;padding:5px 10px;border-radius:99px;background:var(--gold);color:#1a1204}
+@keyframes pfin{from{opacity:0;transform:translateY(-16px) scale(.96)}}
+@keyframes pfout{to{opacity:0;transform:translateY(-12px)}}
+@media (max-width:860px){#postfeed{top:calc(58px + env(safe-area-inset-top,0px))}}
