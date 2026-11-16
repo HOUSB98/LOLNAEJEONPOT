@@ -493,5 +493,5 @@ function onStore(c) {
     });
     await S.store.ready;
   } catch (e) { main.innerHTML = `<div class="panel landing"><h1>연결 실패</h1><p>${esc(e.message || e)}</p><p class="hint">js/config.js 의 Firebase 설정과 Firestore 규칙을 확인하세요.</p></div>`; return; }
-  metaDiff(); up = true; watchDice(true); watchBoard(true); watchReveal(true); initShell(); initSocial(); loadChamps().then(() => renderPresence());
+  metaDiff(); up = true; watchDice(true); watchBoard(true); watchReveal(true); initShell(); initSocial(); loadChamps();
 })();

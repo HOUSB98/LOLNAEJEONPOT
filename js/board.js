@@ -1,4 +1,4 @@
-// 길드 의뢰 게시판: 참가자가 원하는 라인의 의뢰서(탑~서폿·상관없음)를 고르고, 마감하면 몰린 라인은 추첨해 바로 라인업에 넣는다.
+// 라인 지원: 참가자가 원하는 라인(탑~서폿·상관없음)을 고르고, 마감하면 몰린 라인은 추첨해 바로 라인업에 넣는다.
 // meta/board 문서 하나로 모든 접속자가 같은 게시판, 같은 추첨, 같은 총격 연출을 같은 시각에 본다(시작 시각은 서버 시계 기준).
 import { S, act, esc, modal, closeModal, mh, toast, burst, refresh, calm, ic, LANES, LANE_NAME, LANE_ICON, LANE_COLOR } from './core.js';
 import { setDraftTeams, placedIds } from './today.js';
@@ -10,7 +10,6 @@ const QUEST = { top: '고독한 섬의 수문장', jg: '협곡 숲의 사냥꾼'
 const RANK = { top: 'A', jg: 'S', mid: 'S', adc: 'A', sup: 'B', any: '?' };
 const ANY_ICON = '<svg class="lic" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 14.6 8.6 21.5 9.2 16.2 13.700 17.900 20.500 12 16.800 6.100 20.500 7.800 13.700 2.500 9.200 9.400 8.600z"/></svg>';
 const icon = (o) => (o === 'any' ? ANY_ICON : LANE_ICON[o]);
-const INTRO = 2600, T_DIRECT = 3600, T_ROLL = 7200, OUTRO = 1500;
 
 const BD = { me: localStorage.getItem('naejeon:bdme:' + S.key) || '', sel: [], playing: '', timers: [], muted: localStorage.getItem('naejeon:bdmute') === '1', prev: {} };
 const cur = () => { const d = S.store?.data?.meta?.board; return d && d.rid ? d : null; };
@@ -50,6 +49,11 @@ function sfx(kind) {
   else if (kind === 'pin') { tone(2400, 1800, 0.08, 0.12, 'triangle'); noise(0.06, 3, 3000, 0.12); }
   else if (kind === 'horn') { tone(220, 330, 0.5, 0.18, 'sawtooth'); tone(330, 440, 0.7, 0.12, 'triangle'); }
   else if (kind === 'cock') { noise(0.05, 2, 4000, 0.3, 'highpass'); setTimeout(() => sfx('tick'), 90); }
+  else if (kind === 'step') { tone(95, 55, 0.09, 0.35); noise(0.06, 3, 500, 0.25); }
+  else if (kind === 'spur') { tone(3200, 2700, 0.18, 0.06, 'triangle'); setTimeout(() => tone(3400, 2900, 0.2, 0.05, 'triangle'), 110); }
+  else if (kind === 'heart') { tone(70, 45, 0.13, 0.55); setTimeout(() => sfx('heart2'), 170); }
+  else if (kind === 'heart2') tone(60, 40, 0.12, 0.4);
+  else if (kind === 'wind') noise(3.5, 0.6, 420, 0.07);
 }
 
 // ---------- 그리기 ----------
@@ -89,22 +93,22 @@ function inner(d, st = {}) {
   const picked = d.ids.filter((id) => d.picks?.[id]).length, isMe = d.ids.includes(BD.me);
   const roster = d.ids.map((id) => { const p = d.picks?.[id]; return `<button class="gb-mem ${id === BD.me ? 'me' : ''} ${p ? 'ok' : ''}" data-a="bdMe" data-id="${id}" ${d.status !== 'open' ? 'disabled' : ''}><i class="gb-seal">${p ? icon(p) : '…'}</i>${esc(nm(id))}${id === BD.me ? '<small>나</small>' : ''}</button>`; }).join('');
   const foot = d.status === 'open'
-    ? `<div class="gb-foot"><span class="gb-count"><b class="mono">${picked}</b>/<span class="mono">${d.ids.length}</span> 지원 완료</span><span class="grow"></span><button class="btn ghost xs" data-a="bdShut">게시판 철거</button><button class="btn pri" data-a="bdGo" ${picked ? '' : 'disabled'}>${ic('bell')}의뢰 마감 · 추첨 시작</button></div>`
+    ? `<div class="gb-foot"><span class="gb-count"><b class="mono">${picked}</b>/<span class="mono">${d.ids.length}</span> 지원 완료</span><span class="grow"></span><button class="btn ghost xs" data-a="bdShut">취소하기</button><button class="btn pri" data-a="bdGo" ${picked ? '' : 'disabled'}>${ic('bell')}지원 마감 · 추첨 시작</button></div>`
     : d.status === 'done' ? `<div class="gb-foot"><span class="gb-count">편성 완료 · 오늘의 내전 라인업에 반영했습니다${d.left?.length ? ` · 대기: ${d.left.map((x) => esc(nm(x))).join(', ')}` : ''}</span><span class="grow"></span><button class="btn pri" data-a="bdLineup">라인업 확인</button></div>`
       : `<div class="gb-foot"><span class="gb-count gb-livecall">${ic('today')}추첨 진행 중 · 모두 같은 화면을 보고 있습니다</span></div>`;
   return `<div class="gb-dust">${'<i></i>'.repeat(14)}</div><i class="gb-lamp l"></i><i class="gb-lamp r"></i>
-    <header class="gb-head"><button class="gb-x" data-a="bdHide" title="닫기 (게시판은 계속 열려 있음)">${ic('x')}</button><button class="gb-snd" data-a="bdMute" title="효과음">${ic(BD.muted ? 'mute' : 'sound')}</button>
-      <small>ADVENTURERS' GUILD · LIVE</small><h2>모험가 길드 의뢰 게시판</h2>
-      <p>${d.status === 'open' ? `원하는 라인의 의뢰서를 누르세요. 몰린 의뢰는 추첨, 빈 의뢰는 용병으로 채웁니다.${d.by ? ` <span class="gb-by">게시: ${esc(d.by)}</span>` : ''}` : d.status === 'done' ? '모든 원정대가 편성되었습니다!' : '의뢰 마감! 운명의 추첨이 시작됩니다.'}</p></header>
+    <header class="gb-head"><button class="gb-x" data-a="bdHide" title="닫기 (라인 지원은 계속 열려 있음)">${ic('x')}</button><button class="gb-snd" data-a="bdMute" title="효과음">${ic(BD.muted ? 'mute' : 'sound')}</button>
+      <small>LANE APPLY · LIVE</small><h2>라인 지원</h2>
+      <p>${d.status === 'open' ? `원하는 라인을 누르세요. 몰린 라인은 추첨, 빈 라인은 '상관없음' 지원자로 채웁니다.${d.by ? ` <span class="gb-by">게시: ${esc(d.by)}</span>` : ''}` : d.status === 'done' ? '라인이 모두 정해졌습니다!' : '지원 마감! 추첨이 시작됩니다.'}</p></header>
     <div class="gb-board">${OPTS.map((o) => paper(d, o, { done: st.done?.has(o), result: st.result })).join('')}</div>
-    <div class="gb-roll"><div class="gb-rh"><b>길드원 명부</b><small>${d.status === 'open' ? (isMe ? `<b>${esc(nm(BD.me))}</b>(으)로 지원 중 · 다른 이름을 누르면 대리 지원` : '먼저 <b>본인 이름</b>을 눌러 주세요') : '지원 마감'}</small></div><div class="gb-mems">${roster}</div></div>
+    <div class="gb-roll"><div class="gb-rh"><b>참가자 명부</b><small>${d.status === 'open' ? (isMe ? `<b>${esc(nm(BD.me))}</b>(으)로 지원 중 · 다른 이름을 누르면 대리 지원` : '먼저 <b>본인 이름</b>을 눌러 주세요') : '지원 마감'}</small></div><div class="gb-mems">${roster}</div></div>
     ${foot}<div class="gb-stage"></div>`;
 }
 function draw() {
   const el = view(), d = cur();
   if (!el || !d || BD.playing === d.rid) return;
-  const st = d.status === 'done' ? { done: new Set(LANES), result: d.result } : {};
-  el.innerHTML = inner(d, st);
+  if (d.status === 'done') { el.classList.remove('playing'); el.innerHTML = finalHTML(d); return; }
+  el.innerHTML = inner(d, {});
   el.querySelectorAll('.gb-tag.new').forEach(() => sfx('pin'));
   BD.prev = { ...(d.picks || {}) };
 }
@@ -121,11 +125,11 @@ function setup() {
   const st = S.st, last = st.matches[st.matches.length - 1];
   if (!BD.sel.length) { const p = placedIds(); BD.sel = p.length >= 2 ? p : last ? [...last.blue, ...last.red] : []; }
   const list = [...st.list].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
-  const html = `${mh(`${ic('scroll')}길드 의뢰 게시판 열기`)}
-    <p class="mut">오늘 내전에 참가할 길드원을 고르세요. 게시판을 열면 <b class="good">접속한 모든 사람의 화면에 함께 뜹니다.</b> 각자 원하는 라인 의뢰서를 고르고, 마감하면 추첨해서 라인업에 바로 넣습니다.</p>
+  const html = `${mh(`${ic('scroll')}라인 지원 열기`)}
+    <p class="mut">오늘 내전에 참가할 사람을 고르세요. 라인 지원을 열면 <b class="good">접속한 모든 사람의 화면에 함께 뜹니다.</b> 각자 원하는 라인을 고르고, 마감하면 몰린 라인은 추첨해서 라인업에 바로 넣습니다.</p>
     <div class="ph"><b>참가자</b><span class="tag ${BD.sel.length === 10 ? 'ok' : ''}">${BD.sel.length}명</span><span class="grow"></span>${last ? '<button class="btn xs" data-a="bdRecent">최근 내전 참가자</button>' : ''}<button class="btn xs ghost" data-a="bdNone">해제</button></div>
     <div class="chipsel">${list.map((s) => `<button class="${BD.sel.includes(s.id) ? 'on' : ''}" data-a="bdSel" data-id="${s.id}">${esc(s.name)}</button>`).join('')}</div>
-    <button class="btn pri block big" data-a="bdOpen" ${BD.sel.length >= 2 ? '' : 'disabled'}>${BD.sel.length >= 2 ? `${BD.sel.length}명으로 게시판 열기` : '참가자를 2명 이상 고르세요'}</button>`;
+    <button class="btn pri block big" data-a="bdOpen" ${BD.sel.length >= 2 ? '' : 'disabled'}>${BD.sel.length >= 2 ? `${BD.sel.length}명으로 라인 지원 열기` : '참가자를 2명 이상 고르세요'}</button>`;
   const open = document.querySelector('#modal.on .sheet.gb-setup');
   if (open) { const y = open.querySelector('.chipsel')?.scrollTop || 0; open.innerHTML = html; open.querySelector('.chipsel').scrollTop = y; } else modal(html, 'tall gb-setup');
 }
@@ -140,13 +144,13 @@ act('bdOpen', async () => {
   BD.prev = {};
   bseen = d.rid + d.status; // 내 화면은 직접 연다(내 쓰기가 돌아와도 다시 열지 않게)
   try { await S.store.put('meta', 'board', d); } catch (e) { return toast('게시 실패: ' + (e.code || e.message)); }
-  sysChat(`길드 의뢰 게시판이 열렸습니다 · 참가자 ${d.ids.length}명`);
+  sysChat(`라인 지원이 열렸습니다 · 참가자 ${d.ids.length}명`);
   sfx('horn'); openBoard();
 });
 act('bdMe', (x) => { BD.me = x.id; localStorage.setItem('naejeon:bdme:' + S.key, x.id); draw(); });
 act('bdPick', async (x) => {
   const d = cur(); if (!d || d.status !== 'open') return;
-  if (!d.ids.includes(BD.me)) { toast('아래 길드원 명부에서 본인 이름을 먼저 눌러 주세요'); view()?.querySelector('.gb-roll')?.classList.add('nudge'); setTimeout(() => view()?.querySelector('.gb-roll')?.classList.remove('nudge'), 900); return; }
+  if (!d.ids.includes(BD.me)) { toast('참가자 명부에서 본인 이름을 먼저 눌러 주세요'); view()?.querySelector('.gb-roll')?.classList.add('nudge'); setTimeout(() => view()?.querySelector('.gb-roll')?.classList.remove('nudge'), 900); return; }
   const me = BD.me, rid = d.rid;
   sfx('pin');
   try {
@@ -158,10 +162,10 @@ act('bdPick', async (x) => {
     });
   } catch (e) { toast('지원 실패: ' + (e.code || e.message)); }
 });
-act('bdHide', () => { if (BD.playing) return toast('추첨이 끝나면 닫을 수 있어요'); closeModal(); });
-act('bdMute', () => { BD.muted = !BD.muted; localStorage.setItem('naejeon:bdmute', BD.muted ? '1' : '0'); const b = view()?.querySelector('.gb-snd'); if (b) b.innerHTML = ic(BD.muted ? 'mute' : 'sound'); });
+act('bdHide', () => closeModal());
+act('bdMute', () => { BD.muted = !BD.muted; localStorage.setItem('naejeon:bdmute', BD.muted ? '1' : '0'); const b = view()?.querySelector('.gb-snd'); document.querySelectorAll('.gb-snd,.sd-btn[data-a="bdMute"]').forEach((x) => (x.innerHTML = ic(BD.muted ? 'mute' : 'sound'))); });
 act('bdShut', async () => {
-  const d = cur(); if (!d || !confirm('게시판을 철거할까요? 지원 내용이 사라집니다.')) return;
+  const d = cur(); if (!d || !confirm('라인 지원을 취소할까요? 지원 내용이 사라집니다.')) return;
   await S.store.put('meta', 'board', { ...d, status: 'closed' }).catch(() => {});
   closeModal();
 });
@@ -196,6 +200,7 @@ act('bdGo', async () => {
   const miss = d.ids.filter((id) => !d.picks?.[id]).length;
   if (miss && !confirm(`아직 ${miss}명이 지원하지 않았어요. 미지원자는 '상관없음'으로 보고 마감할까요?`)) return;
   await S.store.syncServerClock?.();
+  BD.runner = d.rid; // 내 쓰기가 먼저 돌아와 재생이 시작돼도 내가 라인업을 반영하도록 미리 표시
   let mine = null;
   try {
     mine = await S.store.tx('meta', 'board', (r) => {
@@ -210,47 +215,184 @@ act('bdGo', async () => {
   play(r);
 });
 
-// ---------- 추첨 재생(모든 화면이 같은 시각표를 따른다) ----------
+// ---------- 추첨 재생: 카우보이 결투 (모든 화면이 같은 시각표를 따른다) ----------
+// 몰린 라인(지원자 3명 이상)만 현상금 게시판에 붙는다. 카우보이가 걸어 나와, 라인마다 조준점이 지원자 포스터 사이를
+// 천천히 오가다 뽑힌 사람의 포스터를 쏜다(한 라인 2발). 몰리지 않은 라인·용병 배치는 마지막 '최종 편성'에서만 보여 준다.
+const T_WALK = 4800, T_LANE = 2800, T_PICK = 5600, T_GAP = 1600;
+const HOP = 3200, HOLD = 700; // 한 발: 조준점이 오가는 시간 → 멈춰서 겨누는 시간 → 발사
+const now = () => S.store.serverNow();
 const wait = (ms) => new Promise((res) => BD.timers.push(setTimeout(res, Math.max(0, ms))));
-const durOf = (s) => (s.kind === 'roll' ? T_ROLL : T_DIRECT);
 function clearTimers() { BD.timers.forEach(clearTimeout); BD.timers = []; }
-async function play(d) {
-  if (BD.playing === d.rid && view()?.classList.contains('playing')) return;
+const COWBOY = `<svg class="cbsvg" viewBox="0 0 140 240" aria-hidden="true">
+  <g class="cb-body" fill="#140b05" stroke="#d27a32" stroke-width="1.1" stroke-linejoin="round">
+    <g class="cb-leg l"><path d="M57 148 50 222h11l9-74z"/><path d="M44 221h20v8H40z"/></g>
+    <g class="cb-leg r"><path d="M73 148 80 222h11l-6-74z"/><path d="M78 221h20v8H78z"/></g>
+    <path d="M58 104 52 134" stroke-width="7" stroke="#140b05"/>
+    <path d="M47 82q24-12 48 0l6 70H41z"/>
+    <path d="M47 82q24 18 48 0l3 22q-27 16-54 0z" fill="#3a1d0c"/>
+    <path d="M62 72q9 6 18 0v8q-9 5-18 0z" fill="#9a2b1c" stroke="#d24a32"/>
+    <circle cx="71" cy="60" r="13"/>
+    <path d="M56 44q2-24 15-22 13-2 15 22z"/>
+    <path d="M36 47q35-12 70 0-6 7-35 5-29 2-35-5z"/>
+    <path d="M62 140h18v6H62z" fill="#5a3a1a"/>
+  </g>
+  <g class="cb-arm" fill="#140b05" stroke="#d27a32" stroke-width="1.1" stroke-linejoin="round">
+    <path d="M84 84h30a4 4 0 0 1 0 8H84z"/>
+    <path d="M112 80h22v6h-12v10h-7l-3-9z" fill="#2a2a2e" stroke="#9aa0aa"/>
+    <circle class="cb-flash" cx="138" cy="83" r="10" fill="#ffd36a" stroke="none"/>
+  </g>
+</svg>`;
+function sceneHTML(steps) {
+  return `<div class="sd">
+    <div class="sd-sky"><i class="sd-sun"></i><i class="sd-mesa a"></i><i class="sd-mesa b"></i><i class="sd-mesa c"></i></div><div class="sd-ground"></div><i class="sd-weed"></i>
+    <div class="sd-top"><button class="sd-btn" data-a="bdMute" title="효과음">${ic(BD.muted ? 'mute' : 'sound')}</button><button class="sd-skip" data-a="bdSkip">건너뛰기 ▸▸</button></div>
+    <div class="sd-title"><small>HIGH NOON · LIVE</small><b>운명의 결투</b><span>몰린 라인만 추첨합니다 · 모두 같은 장면을 보고 있어요</span></div>
+    <div class="sd-board"><div class="sd-plank">WANTED · 라인 지원 현상금</div>
+      ${steps.map((s) => `<div class="sd-row" data-lane="${s.lane}"><span class="sd-lane" style="--lc:${LANE_COLOR[s.lane]}">${LANE_ICON[s.lane]}<b>${LANE_NAME[s.lane]}</b><small>${s.cands.length}명 중 2명</small></span>
+        <div class="sd-posters">${s.cands.map((id) => `<div class="sd-poster" data-id="${id}"><small>WANTED</small><b>${esc(nm(id))}</b><em>${LANE_NAME[s.lane]}</em></div>`).join('')}</div></div>`).join('')}
+    </div>
+    <div class="sd-reticle"><i></i></div>
+    <div class="sd-cb">${COWBOY}</div>
+    <div class="sd-cap"></div>
+  </div>`;
+}
+function finalHTML(d) {
+  const fill = new Set((d.steps || []).filter((s) => s.fill).flatMap((s) => s.pick));
+  const cell = (id, side) => (id ? `<span class="sf-n ${side}">${esc(nm(id))}${fill.has(id) ? '<i>용병</i>' : ''}</span>` : '<span class="sf-n empty">빈 자리</span>');
+  return `<div class="sf">
+    <div class="sd-top"><button class="sd-btn" data-a="bdClose" title="닫기">${ic('x')}</button></div>
+    <small>FINAL LINEUP</small><h3>최종 편성</h3>
+    <div class="sf-grid"><span></span><b class="blue">BLUE</b><b class="red">RED</b>
+      ${LANES.map((l) => `<span class="sf-l" style="--lc:${LANE_COLOR[l]}">${LANE_ICON[l]}${LANE_NAME[l]}</span>${cell(d.result?.[l]?.[0], 'blue')}${cell(d.result?.[l]?.[1], 'red')}`).join('')}</div>
+    ${d.left?.length ? `<p class="sf-left">대기: ${d.left.map((x) => esc(nm(x))).join(', ')}</p>` : ''}
+    <div class="row center"><button class="btn pri" data-a="bdLineup">라인업 확인</button><button class="btn ghost" data-a="bdClose">닫기</button></div>
+    <p class="hint center">오늘의 내전 라인업에 반영했습니다. 진영·자리 교체는 라인업에서 끌어다 놓으면 됩니다.</p></div>`;
+}
+function showFinal(el, d) {
   clearTimers();
-  if (!view()) { modal(`<div class="gb lock enter"></div>`, 'guild'); setTimeout(() => view()?.classList.remove('enter'), 1200); }
+  BD.playing = '';
+  if (!el || !document.body.contains(el)) return;
+  el.classList.remove('playing');
+  el.innerHTML = finalHTML(d);
+  sfx('horn'); burst(innerWidth / 2, innerHeight / 3, 160);
+}
+const centerIn = (sc, el) => { const a = sc.getBoundingClientRect(), r = el.getBoundingClientRect(); return [r.left - a.left + r.width / 2, r.top - a.top + r.height / 2]; };
+function pivot(sc) { // 카우보이 어깨(팔 회전축) 위치와 팔 길이(px)
+  const a = sc.getBoundingClientRect(), r = sc.querySelector('.cbsvg').getBoundingClientRect(), k = r.width / 140;
+  return { x: r.left - a.left + 86 * k, y: r.top - a.top + 88 * k, len: 52 * k };
+}
+function aim(sc, x, y) {
+  const p = pivot(sc), ang = Math.max(-85, Math.min(25, (Math.atan2(y - p.y, x - p.x) * 180) / Math.PI));
+  sc.querySelector('.cb-arm').style.transform = `rotate(${ang}deg)`;
+  return { ...p, ang };
+}
+function moveReticle(sc, poster) {
+  const [x, y] = centerIn(sc, poster), r = sc.querySelector('.sd-reticle');
+  r.style.transform = `translate(${x}px,${y}px)`; r.classList.add('on');
+  return [x, y];
+}
+function caption(sc, html) { const c = sc.querySelector('.sd-cap'); c.innerHTML = html; c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop'); }
+function markShot(sc, d, lane, id, fresh) {
+  const po = sc.querySelector(`.sd-row[data-lane="${lane}"] .sd-poster[data-id="${id}"]`);
+  if (!po || po.classList.contains('shot')) return;
+  po.classList.add('shot');
+  po.insertAdjacentHTML('beforeend', `${hole(d.rid + lane + id, fresh ? 'fresh' : '')}<span class="sd-stamp">채용</span>`);
+  if (!fresh) return;
+  const [x, y] = centerIn(sc, po), a = sc.getBoundingClientRect();
+  sparks(a.left + x, a.top + y);
+  for (let i = 0; i < 5; i++) { const sm = document.createElement('i'); sm.className = 'gb-smoke'; sm.style.cssText = `left:${x}px;top:${y}px;--dx:${(Math.random() - 0.5) * 90}px;--dy:${-30 - Math.random() * 70}px;animation-delay:${i * 70}ms`; sc.appendChild(sm); setTimeout(() => sm.remove(), 1700); }
+  sc.classList.remove('shake'); void sc.offsetWidth; sc.classList.add('shake');
+  setTimeout(() => sfx('stamp'), 260);
+}
+async function duel(sc, d, s, id, late, alive) {
+  const row = sc.querySelector(`.sd-row[data-lane="${s.lane}"]`);
+  const pool = [...row.querySelectorAll('.sd-poster:not(.shot)')], target = row.querySelector(`.sd-poster[data-id="${id}"]`);
+  if (!target) return;
+  if (late < HOP) {
+    // 조준점이 포스터 사이를 오가며 점점 느려지다 뽑힌 사람에서 멈춘다(심장 박동 소리)
+    const order = [], n = pool.length, ti = pool.indexOf(target), hops = 2 * n + ((ti - (n ? 0 : 0) + n) % n);
+    for (let k = 0; k <= hops; k++) order.push(pool[k % n]);
+    const w = order.map((_, k) => 1 + Math.pow(k / hops, 2.4) * 7), sum = w.reduce((a, b) => a + b, 0), budget = HOP - late;
+    for (let k = 0; k < order.length; k++) {
+      if (!alive()) return;
+      const [x, y] = moveReticle(sc, order[k]); aim(sc, x, y);
+      if (k % 2 === 0) sfx('heart');
+      await wait((w[k] / sum) * budget);
+    }
+  }
+  if (!alive()) return;
+  const [x, y] = moveReticle(sc, target), p = aim(sc, x, y);
+  sc.querySelector('.sd-reticle').classList.add('lock');
+  sfx('cock');
+  await wait(late > HOP ? 0 : HOLD);
+  if (!alive()) return;
+  // 발사: 총구 섬광 → 총알 궤적 → 명중
+  const rad = (p.ang * Math.PI) / 180, mx = p.x + Math.cos(rad) * p.len, my = p.y + Math.sin(rad) * p.len, dist = Math.hypot(x - mx, y - my);
+  sfx('bang');
+  const cb = sc.querySelector('.sd-cb'); cb.classList.remove('fire'); void cb.offsetWidth; cb.classList.add('fire');
+  const tr = document.createElement('i'); tr.className = 'sd-tracer'; tr.style.cssText = `left:${mx}px;top:${my}px;width:${dist}px;transform:rotate(${Math.atan2(y - my, x - mx)}rad)`; sc.appendChild(tr); setTimeout(() => tr.remove(), 900);
+  const fl = document.createElement('div'); fl.className = 'gb-flash sd-flash'; document.body.appendChild(fl); setTimeout(() => fl.remove(), 500);
+  await wait(170);
+  sc.querySelector('.sd-reticle').classList.remove('on', 'lock');
+  markShot(sc, d, s.lane, id, true);
+  caption(sc, `<b>${esc(nm(id))}</b> ${LANE_NAME[s.lane]} 확정!`);
+}
+function walkIn(sc, ms) {
+  const cb = sc.querySelector('.sd-cb');
+  cb.style.transition = `left ${ms}ms linear`; cb.classList.add('walking');
+  requestAnimationFrame(() => requestAnimationFrame(() => cb.classList.add('in')));
+  for (let t = 300; t < ms - 200; t += 560) BD.timers.push(setTimeout(() => sfx('step'), t));
+  BD.timers.push(setTimeout(() => { cb.classList.remove('walking'); sfx('spur'); }, ms));
+}
+async function play(d) {
+  if (BD.playing === d.rid && view()?.querySelector('.sd')) return;
+  clearTimers(); clearTimeout(BD.finT);
+  if (!view()) modal('<div class="gb lock"></div>', 'guild');
   const el = view();
-  BD.playing = d.rid;
-  const done = new Set();
-  el.innerHTML = inner(d, { done });
-  el.classList.add('playing');
-  const start = +d.startAt || S.store.serverNow();
-  let t = start + INTRO;
-  const sched = d.steps.map((s) => { const x = { s, at: t }; t += durOf(s); return x; });
+  BD.playing = d.rid; BD.d = d; BD.skipped = false;
+  const steps = (d.steps || []).filter((s) => s.kind === 'roll' && !s.fill && s.pick.length);
+  const start = +d.startAt || now(), walk = steps.length ? T_WALK : 0;
+  let t = start + walk;
+  const tl = steps.map((s) => { const ln = { s, at: t, picks: [] }; t += T_LANE; for (const id of s.pick) { ln.picks.push({ id, at: t }); t += T_PICK; } t += T_GAP; return ln; });
   const end = t;
-  const now = () => S.store.serverNow();
-  // 늦게 들어온 사람: 이미 끝난 단계는 결과만 바로 보여준다
-  for (const x of sched) if (x.at + durOf(x.s) <= now()) markDone(el, d, x.s, done);
-  if (now() < start + INTRO) { await wait(start - now()); banner(el, '의뢰 마감!', '운명의 추첨을 시작합니다'); sfx('horn'); await wait(start + INTRO - now()); }
-  for (const x of sched) {
-    if (BD.playing !== d.rid || !document.body.contains(el)) break;
-    if (done.has(x.s.lane)) continue;
-    await wait(x.at - now());
-    await runStep(el, d, x.s, Math.max(0, now() - x.at));
-    markDone(el, d, x.s, done);
+  // 라인업 반영은 건너뛰기와 상관없이 시각표의 끝에 한 번(추첨을 시작한 사람, 없으면 남은 사람)
+  BD.finT = setTimeout(() => finishRun(d), Math.max(0, end - now()) + (BD.runner === d.rid ? 0 : 3000));
+  if (!steps.length || now() >= end) return showFinal(el, d);
+  el.innerHTML = sceneHTML(steps); el.classList.add('playing');
+  const sc = el.querySelector('.sd'), alive = () => BD.playing === d.rid && !BD.skipped && document.body.contains(sc);
+  const done = new Set();
+  for (const ln of tl) for (const p of ln.picks) if (p.at + HOP + HOLD + 200 <= now()) { markShot(sc, d, ln.s.lane, p.id, false); done.add(ln.s.lane + p.id); }
+  sfx('wind');
+  if (now() < start + walk) {
+    await wait(start - now());
+    if (!alive()) return;
+    caption(sc, '정오의 햇살 아래, 현상금 사냥꾼이 나타났다…');
+    walkIn(sc, Math.max(600, start + walk - now()));
+    await wait(start + walk - now());
+  } else sc.querySelector('.sd-cb').classList.add('in');
+  for (const ln of tl) {
+    if (!alive()) return;
+    const row = sc.querySelector(`.sd-row[data-lane="${ln.s.lane}"]`);
+    if (!ln.picks.every((p) => done.has(ln.s.lane + p.id))) {
+      await wait(ln.at - now()); if (!alive()) return;
+      sc.querySelectorAll('.sd-row').forEach((r) => { r.classList.toggle('on', r === row); r.classList.toggle('dim', r !== row && !r.classList.contains('over')); });
+      caption(sc, `${LANE_ICON[ln.s.lane]} <b>${LANE_NAME[ln.s.lane]}</b> · ${ln.s.cands.length}명 중 단 2명`);
+      sfx('horn');
+      for (const p of ln.picks) {
+        if (done.has(ln.s.lane + p.id)) continue;
+        await wait(p.at - now()); if (!alive()) return;
+        await duel(sc, d, ln.s, p.id, Math.max(0, now() - p.at), alive);
+        done.add(ln.s.lane + p.id);
+      }
+    }
+    row.classList.add('over'); row.classList.remove('on');
+    row.querySelectorAll('.sd-poster:not(.shot)').forEach((x) => x.classList.add('out'));
   }
   await wait(end - now());
-  if (BD.playing !== d.rid) return;
-  banner(el, '원정대 편성 완료!', '라인업에 반영했습니다. 교체는 라인업에서 직접 하세요');
-  burst(innerWidth / 2, innerHeight / 2, 220);
-  if (BD.runner === d.rid) finishRun(d);
-  else BD.timers.push(setTimeout(() => finishRun(d), 3000)); // 추첨을 시작한 사람이 나갔으면 남은 사람이 대신 반영한다
-  await wait(OUTRO + 1400);
-  if (BD.playing !== d.rid) return;
-  BD.playing = '';
-  el.classList.remove('playing');
-  if (cur()?.rid === d.rid && cur().status === 'done') draw();
-  else el.innerHTML = inner({ ...d, status: 'done' }, { done: new Set(LANES), result: d.result });
+  if (alive()) showFinal(el, d);
 }
+act('bdSkip', () => { BD.skipped = true; showFinal(view(), BD.d || cur()); });
+act('bdClose', () => closeModal());
 async function finishRun(d) { // 'play'→'done'을 먼저 바꾼 한 사람만 라인업에 반영한다(중복 반영·중복 채팅 방지)
   let ok = false;
   try { ok = await S.store.tx('meta', 'board', (r) => (r && r.rid === d.rid && r.status === 'play' ? { ...r, status: 'done' } : null)); } catch { return; }
@@ -258,82 +400,7 @@ async function finishRun(d) { // 'play'→'done'을 먼저 바꾼 한 사람만 
   const blue = LANES.map((l) => d.result[l]?.[0] || ''), red = LANES.map((l) => d.result[l]?.[1] || '');
   setDraftTeams(blue, red);
   if (S.page === 'today') refresh();
-  sysChat('길드 편성 완료 · ' + LANES.map((l) => `${LANE_NAME[l]} ${d.result[l].map(nm).join('/') || '-'}`).join(' · '));
-}
-function markDone(el, d, s, done) {
-  done.add(s.lane);
-  const p = el.querySelector(`.gb-board .gb-paper[data-lane="${s.lane}"]`);
-  if (!p) return;
-  p.classList.add('shot');
-  p.querySelector('.gb-tags').innerHTML = d.result[s.lane].map((id, i) => `<span class="gb-tag won ${i ? 'red' : 'blue'}"><i>${i ? 'RED' : 'BLUE'}</i>${esc(nm(id))}</span>`).join('') || '<span class="gb-empty">인원 부족</span>';
-  if (!p.querySelector('.hole')) p.insertAdjacentHTML('beforeend', `${hole(d.rid + s.lane)}<span class="gb-stamp">모집 완료</span>`);
-  const any = el.querySelector('.gb-paper[data-lane="any"] .gb-tags');
-  if (any && s.fill) any.innerHTML = anyTags(d, [...done]) || '<span class="gb-empty">아직 지원자 없음</span>';
-}
-function banner(el, title, sub) {
-  const b = document.createElement('div'); b.className = 'gb-banner';
-  b.innerHTML = `<b>${title}</b><span>${sub}</span>`;
-  el.appendChild(b); setTimeout(() => b.remove(), 2600);
-}
-async function runStep(el, d, s, late) {
-  const stage = el.querySelector('.gb-stage'), small = el.querySelector(`.gb-board .gb-paper[data-lane="${s.lane}"]`);
-  el.querySelectorAll('.gb-board .gb-paper').forEach((p) => p.classList.toggle('dim', p !== small));
-  const cands = [...new Set([...s.pre, ...s.cands])];
-  stage.innerHTML = `<div class="gb-big" style="--lc:${LANE_COLOR[s.lane]}">
-      <i class="gb-pin"></i><span class="gb-rank">${RANK[s.lane]}</span><small class="gb-kind">${s.fill ? 'MERCENARY CALL' : 'QUEST DRAW'}</small>
-      <span class="gb-ico">${icon(s.lane)}</span><b class="gb-title">${NAME[s.lane]} 원정대</b>
-      <em class="gb-flavor">${s.fill ? (s.cands.length ? '빈 자리를 채울 용병을 고릅니다' : '지원자가 없어 자리가 비었습니다') : s.kind === 'roll' ? `${s.cands.length}명 중 단 2명만 뽑힙니다` : '지원자 2명, 바로 채용!'}</em>
-      <div class="gb-cands">${cands.map((id) => `<span class="gb-tag ${s.pre.includes(id) ? 'won pre' : ''}" data-id="${id}">${esc(nm(id))}</span>`).join('')}</div>
-      <div class="gb-scope"><i></i></div></div>`;
-  stage.classList.add('on');
-  const big = stage.querySelector('.gb-big'), tagOf = (id) => big.querySelector(`.gb-tag[data-id="${id}"]`);
-  const fast = late > 0;
-  if (s.kind === 'roll' && !fast) {
-    await wait(700);
-    let pool = s.cands.filter((id) => !s.pre.includes(id));
-    for (const win of s.pick) { // 하이라이트가 이름표 사이를 돌다가 점점 느려지며 당첨자에서 멈춘다
-      const order = pool, target = order.indexOf(win), laps = 3 * order.length + target;
-      const gaps = Array.from({ length: laps + 1 }, (_, k) => 1 + Math.pow(k / laps, 3) * 6), sum = gaps.reduce((a, b) => a + b, 0);
-      for (let k = 0; k <= laps; k++) { // 후보 수와 관계없이 한 명당 약 1.5초에 끝나게 간격을 맞춘다
-        big.querySelectorAll('.gb-tag.hl').forEach((x) => x.classList.remove('hl'));
-        tagOf(order[k % order.length])?.classList.add('hl'); sfx('tick');
-        await wait((gaps[k] / sum) * 1500);
-      }
-      const w = tagOf(win); w?.classList.remove('hl'); w?.classList.add('won'); sfx('stamp');
-      pool = pool.filter((id) => id !== win);
-      await wait(320);
-    }
-    big.querySelectorAll('.gb-tag:not(.won)').forEach((x) => x.classList.add('out'));
-  } else {
-    await wait(fast ? 0 : 500);
-    s.pick.forEach((id) => tagOf(id)?.classList.add('won')); if (s.pick.length) sfx('stamp');
-    big.querySelectorAll('.gb-tag:not(.won)').forEach((x) => x.classList.add('out'));
-    await wait(fast ? 0 : 500);
-  }
-  // 조준 → 발사
-  const scope = big.querySelector('.gb-scope'), h = hash(d.rid + s.lane);
-  scope.style.setProperty('--x', `${26 + (h % 48)}%`); scope.style.setProperty('--y', `${15 + ((h >> 8) % 18)}%`);
-  scope.classList.add('aim'); sfx('cock');
-  await wait(fast ? 200 : 750);
-  shoot(el, big, d.rid + s.lane);
-  await wait(fast ? 500 : 1100);
-  stage.classList.add('fly');
-  await wait(450);
-  stage.classList.remove('on', 'fly'); stage.innerHTML = '';
-  el.querySelectorAll('.gb-paper.dim').forEach((p) => p.classList.remove('dim'));
-  if (small) { small.classList.add('hit'); setTimeout(() => small.classList.remove('hit'), 700); }
-}
-function shoot(el, big, seed) {
-  sfx('bang');
-  big.querySelector('.gb-scope')?.classList.add('fire');
-  big.insertAdjacentHTML('beforeend', `${hole(seed, 'fresh')}<span class="gb-stamp big">모집 완료</span>`);
-  big.parentElement.insertAdjacentHTML('beforeend', '<span class="gb-bang">BANG!</span>');
-  const hl = big.querySelector('.hole.fresh');
-  for (let i = 0; i < 6; i++) { const sm = document.createElement('i'); sm.className = 'gb-smoke'; sm.style.cssText = `left:${hl.style.left};top:${hl.style.top};--dx:${(Math.random() - 0.5) * 120}px;--dy:${-40 - Math.random() * 90}px;animation-delay:${i * 60}ms`; big.appendChild(sm); }
-  const flash = document.createElement('div'); flash.className = 'gb-flash'; document.body.appendChild(flash); setTimeout(() => flash.remove(), 500);
-  el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake');
-  big.classList.add('recoil');
-  const r = hl.getBoundingClientRect(); sparks(r.left + r.width / 2, r.top + r.height / 2);
+  sysChat('라인 지원 결과 · ' + LANES.map((l) => `${LANE_NAME[l]} ${d.result[l].map(nm).join('/') || '-'}`).join(' · '));
 }
 function sparks(x, y) {
   if (calm()) return;
@@ -362,7 +429,7 @@ function onBoard(d) {
   if (d.status === 'open') { if (view()) draw(); else { sfx('horn'); openBoard(); } }
   else if (d.status === 'play') { if (BD.playing !== d.rid) play(d); }
   else if (d.status === 'done') { if (view() && BD.playing !== d.rid) draw(); }
-  else if (d.status === 'closed' && view() && !BD.playing) { closeModal(); toast('게시판이 철거되었습니다'); }
+  else if (d.status === 'closed' && view() && !BD.playing) { closeModal(); toast('라인 지원이 취소되었습니다'); }
   if (S.page === 'today') refresh();
 }
 export function watchBoard(initial) {

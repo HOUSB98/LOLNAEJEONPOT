@@ -1,23 +1,18 @@
 // 환영 인트로, 닉네임, 접속자 표시, 공용 채팅
-import { S, act, esc, uid, col, settings, toast, modal, closeModal, mh, ic, logo, needAdmin, sigChamp, tileUrl } from './core.js';
+import { S, act, esc, uid, col, settings, toast, modal, closeModal, mh, ic, logo, needAdmin, LANE_ICON, LANE_COLOR, LANE_NAME } from './core.js';
 
 const cid = localStorage.getItem('naejeon:cid') || (() => { const v = uid(); localStorage.setItem('naejeon:cid', v); return v; })();
 export const nick = () => localStorage.getItem('naejeon:nick') || '';
 // 10분마다 생존 신호를 보내고, 12분 동안 신호가 없으면 나간 것으로 본다. 탭을 닫으면 그 즉시 나감 표시(at:0)를 보낸다.
 const ONLINE_MS = 12 * 60e3, BEAT_MS = 10 * 60e3;
 const hue = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
-// 접속자 얼굴: 닉네임이 선수 이름(또는 롤 닉네임)과 같으면 그 선수의 대표 챔피언, 아니면 닉네임마다 정해지는 챔피언
+// 접속자 아이콘: 닉네임이 선수 이름(또는 롤 닉네임)과 같으면 그 선수의 주 라인 아이콘, 아니면 사람 아이콘
 const squash = (s) => String(s || '').replace(/\s/g, '').toLowerCase();
-function faceChamp(nick) {
-  if (!S.champs?.length) return '';
+function playerOf(nick) {
   const k = squash(nick), list = S.st?.list || [];
-  const pl = list.find((s) => squash(s.name) === k) || list.find((s) => squash(String(s.p.riotId || '').split('#')[0]) === k) || list.find((s) => s.name.length >= 2 && k.includes(squash(s.name)));
-  const c = pl && sigChamp(pl);
-  if (c && S.champBy[c]) return c;
-  let h = 7; for (const ch of nick) h = (h * 131 + ch.charCodeAt(0)) >>> 0;
-  return S.champs[h % S.champs.length].name;
+  return list.find((s) => squash(s.name) === k) || list.find((s) => squash(String(s.p.riotId || '').split('#')[0]) === k) || list.find((s) => s.name.length >= 2 && k.includes(squash(s.name)));
 }
-const face = (nick) => { const c = faceChamp(nick), u = c && tileUrl(c); return `<i class="face ${u ? 'img' : ''}" style="--h:${hue(nick)}${u ? `;background-image:url('${u}')` : ''}" title="${esc(c || '')}">${u ? '' : esc([...nick][0] || '?')}</i>`; };
+const face = (nick) => { const l = playerOf(nick)?.mainLane, c = LANE_COLOR[l]; return `<i class="face" style="--lc:${c || `hsl(${hue(nick)} 45% 62%)`}" title="${l ? LANE_NAME[l] : ''}">${c ? LANE_ICON[l] : ic('user')}</i>`; };
 
 // ---------- 접속자 ----------
 // 강퇴: meta/kicks 문서에 { 접속기기id: 해제시각 } 으로 적는다. 가벼운 잠금이라 브라우저 저장소를 지우면 다시 들어올 수 있다.
@@ -52,7 +47,7 @@ export function renderPresence() {
   }
   const bump = prevOn && prevOn.size !== now.size;
   prevOn = now;
-  const sig = list.map((p) => p.id + ':' + p.nick).join('|') + (S.champs?.length ? '#c' : '');
+  const sig = list.map((p) => p.id + ':' + p.nick).join('|') + (S.st?.list?.length ? '#p' : '');
   if (sig === prSig && el.firstChild) return; // 목록이 그대로면 다시 그리지 않는다
   prSig = sig;
   const cnt = String(list.length).padStart(2, '0');
@@ -77,7 +72,7 @@ act('nickEdit', () => askNick(false));
 act('presList', () => { // 모바일에서는 접속자 목록이 숨겨져 있으니 눌러서 본다
   if (matchMedia('(min-width: 861px)').matches) return;
   const list = online();
-  modal(`${mh(`접속 중 · ${list.length}명`)}<div class="pr-sheet">${list.map((p) => `<button class="${p.id === cid ? 'me' : ''}" ${p.id === cid ? 'data-a="nickEdit"' : ''}>${face(p.nick)}<b>${esc(p.nick)}</b>${p.id === cid ? `<small>나 · 눌러서 닉네임 변경${faceChamp(p.nick) ? ` · ${esc(faceChamp(p.nick))}` : ''}</small>` : `<small>접속 중${faceChamp(p.nick) ? ` · ${esc(faceChamp(p.nick))}` : ''}</small>`}</button>`).join('') || '<p class="mut">아직 아무도 없어요</p>'}</div>`, 'pres-sheet');
+  modal(`${mh(`접속 중 · ${list.length}명`)}<div class="pr-sheet">${list.map((p) => `<button class="${p.id === cid ? 'me' : ''}" ${p.id === cid ? 'data-a="nickEdit"' : ''}>${face(p.nick)}<b>${esc(p.nick)}</b>${p.id === cid ? `<small>나 · 눌러서 닉네임 변경</small>` : `<small>접속 중${playerOf(p.nick) ? ` · ${LANE_NAME[playerOf(p.nick).mainLane] || ''}` : ''}</small>`}</button>`).join('') || '<p class="mut">아직 아무도 없어요</p>'}</div>`, 'pres-sheet');
 });
 
 // ---------- 채팅 ----------
