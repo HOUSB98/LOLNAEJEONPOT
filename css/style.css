@@ -1395,7 +1395,7 @@ i.face svg{width:58%;height:58%}i.face .lic{color:var(--lc)}
   background:linear-gradient(#ff3b2a,#ff3b2a) center/2px 100% no-repeat,linear-gradient(#ff3b2a,#ff3b2a) center/100% 2px no-repeat;transition:transform .5s,border-width .3s;animation:sdbreath 1.6s ease-in-out infinite}
 .sd-reticle.lock i{transform:scale(.62);border-width:3px;animation:none}
 @keyframes sdbreath{50%{transform:scale(1.12)}}
-.sd-cb{position:absolute;z-index:5;left:-30%;bottom:2%;height:58%;aspect-ratio:140/240}
+.sd-cb{position:absolute;z-index:5;left:-24%;bottom:2%;height:58%;aspect-ratio:140/240}
 .sd-cb.in{left:5%}
 .sd-cb .cbsvg{width:100%;height:100%;overflow:visible;filter:drop-shadow(0 10px 6px rgba(0,0,0,.5))}
 .sd-cb.walking .cb-body{animation:sdbob .56s ease-in-out infinite}
@@ -1447,3 +1447,30 @@ body.lite .sd-weed,body.lite .sd-reticle i{animation:none!important}
 
 .gb.playing::before,.gb.playing::after{display:none}
 .gb:has(.sf)::before,.gb:has(.sf)::after{display:none}
+/* 결투: 하이 눈 사냥꾼 일러스트 · 실루엣 보강 · 흙먼지 · 총구 섬광 */
+.sd.hmode .sd-cb{display:none}
+.sd-hunter{position:absolute;z-index:4;left:-62%;bottom:0;width:54%;height:80%;pointer-events:none}
+.sd-hunter.in{left:-5%}
+.sd-hart{position:absolute;inset:0;background:#2a1640 center 22%/cover no-repeat;
+  -webkit-mask:radial-gradient(ellipse 62% 70% at 50% 46%,#000 52%,rgba(0,0,0,.6) 66%,transparent 80%);mask:radial-gradient(ellipse 62% 70% at 50% 46%,#000 52%,rgba(0,0,0,.6) 66%,transparent 80%);
+  filter:sepia(.25) saturate(1.15) contrast(1.05);transform-origin:40% 60%}
+.sd-hunter.walking .sd-hart{animation:sdhbob .56s ease-in-out infinite}
+.sd-hunter.in:not(.walking) .sd-hart{animation:sdbreathe 3.2s ease-in-out infinite}
+.sd-hunter.fire .sd-hart{animation:sdhrecoil .4s cubic-bezier(.2,.8,.3,1)}
+.sd-hname{position:absolute;left:20%;bottom:12%;padding:3px 12px;border-radius:3px;background:rgba(20,10,5,.7);color:#ffd38a;font:400 15px "Black Han Sans",sans-serif;letter-spacing:.04em;border-left:3px solid #e0703a;opacity:0;transition:opacity .6s .4s}
+.sd-hunter.in .sd-hname{opacity:1}
+@keyframes sdhbob{50%{transform:translateY(-6px) rotate(-.6deg)}}
+@keyframes sdbreathe{50%{transform:scale(1.015)}}
+@keyframes sdhrecoil{0%{transform:none;filter:brightness(1.6) sepia(.2)}25%{transform:translate(-14px,4px) rotate(-1.5deg) scale(1.02)}100%{transform:none}}
+.sd-muzzle{position:absolute;z-index:8;width:90px;height:90px;margin:-45px 0 0 -45px;border-radius:50%;pointer-events:none;background:radial-gradient(circle,#fff 0,#ffe79a 20%,rgba(255,150,40,.7) 42%,transparent 70%);animation:sdmz .4s ease-out forwards}
+@keyframes sdmz{0%{transform:scale(.3);opacity:1}35%{transform:scale(1.3);opacity:1}100%{transform:scale(1.7);opacity:0}}
+.sd-dust{position:absolute;z-index:4;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;pointer-events:none;background:radial-gradient(circle,rgba(230,190,140,.7),rgba(190,140,90,.3) 50%,transparent 70%);animation:sddust 1.3s ease-out forwards}
+@keyframes sddust{0%{transform:scale(.4);opacity:.9}100%{transform:translate(var(--dx),-26px) scale(2.6);opacity:0}}
+.sd-cb::after{content:"";position:absolute;left:30%;bottom:-2%;width:140%;height:9%;border-radius:50%;background:radial-gradient(ellipse at 10% 50%,rgba(0,0,0,.45),transparent 70%);transform:skewX(-35deg);transform-origin:left;pointer-events:none;z-index:-1}
+.sd-cb.in:not(.walking) .cb-body{animation:sdbreathe 3s ease-in-out infinite;transform-box:view-box;transform-origin:70px 230px}
+.cb-coat{transform-box:view-box;transform-origin:70px 140px;animation:sdcoat 2.4s ease-in-out infinite}
+.sd-cb.walking .cb-coat{animation-duration:.56s}
+@keyframes sdcoat{50%{transform:skewX(-4deg)}}
+@media (max-width:640px){.sd-hunter{width:86%;height:46%;left:-90%}.sd-hunter.in{left:-14%}.sd-hname{left:18%;bottom:8%;font-size:13px}}
+body.lite .sd-hart,body.lite .cb-coat,body.lite .cb-body{animation:none!important}
+@media (max-width:860px){.h2row>.grow{flex-basis:100%;height:0}}
