@@ -150,15 +150,21 @@ function initPerf() {
   const pref = localStorage.getItem(LITE_KEY);
   if (pref) setLite(pref === '1', false);
   else if ((navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4) setLite(true, false);
-  else setTimeout(() => { // 프레임이 자주 끊기면 자동으로 가볍게
-    let n = 0, slow = 0, last = performance.now();
-    requestAnimationFrame(function f(t) {
-      if (n++ && t - last > 40) slow++;
-      last = t;
-      if (n < 150) return requestAnimationFrame(f);
-      if (slow > 15 && !document.hidden && !localStorage.getItem(LITE_KEY)) { setLite(true, false); toast('화면이 버벅여서 가벼운 모드로 바꿨어요'); }
-    });
-  }, 4000);
+  else { // 프레임이 자주 끊기면 자동으로 가볍게: 접속 4초 뒤 한 번, 그 뒤에도 30초마다 2초씩 확인(롤을 켜서 느려진 경우 등)
+    const check = () => {
+      if (document.body.classList.contains('lite') || localStorage.getItem(LITE_KEY)) return clearInterval(timer);
+      if (document.hidden || !document.hasFocus()) return; // 다른 창(게임)을 보고 있으면 애니메이션이 멈춰 있으니 재지 않는다
+      let n = 0, slow = 0, last = performance.now();
+      requestAnimationFrame(function f(t) {
+        if (n++ && t - last > 40) slow++;
+        last = t;
+        if (n < 120) return requestAnimationFrame(f);
+        if (slow > 18 && !document.hidden && !document.body.classList.contains('lite') && !localStorage.getItem(LITE_KEY)) { setLite(true, false); clearInterval(timer); toast('화면이 버벅여서 가벼운 모드로 바꿨어요'); }
+      });
+    };
+    setTimeout(check, 4000);
+    const timer = setInterval(check, 30e3);
+  }
   const idle = () => document.body.classList.toggle('idle', document.hidden || !document.hasFocus());
   addEventListener('blur', idle); addEventListener('focus', idle); document.addEventListener('visibilitychange', idle);
 }
