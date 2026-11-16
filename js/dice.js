@@ -17,7 +17,7 @@ function setup() {
     <div class="seg full still">${LANES.map((l, i) => `<button class="${i === DC.lane ? 'on' : ''}" data-a="dcLane" data-i="${i}">${LANE_ICON[l]}${LANE_NAME[l]}</button>`).join('')}</div>
     <div class="ph"><b>지원자</b><span class="tag">${DC.sel.length}명</span><span class="grow"></span><small class="mut">흐린 이름은 이미 다른 자리에 배치된 선수</small></div>
     <div class="chipsel dc">${list.map((s) => `<button class="${DC.sel.includes(s.id) ? 'on' : ''} ${placed.includes(s.id) ? 'placed' : ''}" data-a="dcPick" data-id="${s.id}">${esc(s.name)}<small class="mono">${s.p.scores?.[LANES[DC.lane]] ?? 0}</small></button>`).join('')}</div>
-    <button class="btn gold block big" data-a="dcRoll" ${DC.sel.length >= 2 ? '' : 'disabled'}>${ic('dice')}${DC.sel.length >= 2 ? `${DC.sel.length}명으로 주사위 굴리기` : '지원자를 2명 이상 선택하세요'}</button>`;
+    <button class="btn pri block big" data-a="dcRoll" ${DC.sel.length >= 2 ? '' : 'disabled'}>${ic('dice')}${DC.sel.length >= 2 ? `${DC.sel.length}명으로 주사위 굴리기` : '지원자를 2명 이상 선택하세요'}</button>`;
   const open = document.querySelector('#modal.on .sheet.dice-setup');
   if (open) { const y = open.querySelector('.chipsel')?.scrollTop || 0; open.innerHTML = html; open.querySelector('.chipsel').scrollTop = y; } // 다시 그려도 창이 튀지 않게 내용만 바꾼다
   else modal(html, 'tall dice-setup');

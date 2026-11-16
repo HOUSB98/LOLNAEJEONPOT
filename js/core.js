@@ -45,8 +45,24 @@ const I = {
   trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/>',
   kick: '<circle cx="10" cy="8" r="3.500"/><path d="M3.500 20c.5-3.500 3-5.500 6.500-5.500 1.200 0 2.300.2 3.200.7M16 14l5 5M21 14l-5 5"/>',
   fold: '<path d="M8 6l6 6-6 6M19 4v16"/>',
+  scroll: '<path d="M7 4h11a2 2 0 0 1 0 4h-2M7 4a2 2 0 0 0-2 2 2 2 0 0 0 2 2h9v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M9 12h5M9 16h5"/>',
+  bell: '<path d="M6 16v-5a6 6 0 0 1 12 0v5l1.500 2h-15zM10 20.500a2 2 0 0 0 4 0"/>',
+  save: '<path d="M5 4h11l3 3v13H5zM8 4v5h7V4M8 20v-6h8v6"/>',
+  lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  eye: '<path d="M2 12s3.500-7 10-7 10 7 10 7-3.500 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+  sound: '<path d="M4 9v6h4l5 4V5L8 9zM16 9a4 4 0 0 1 0 6M18.500 6.500a8 8 0 0 1 0 11"/>',
+  mute: '<path d="M4 9v6h4l5 4V5L8 9zM17 9.500l5 5M22 9.500l-5 5"/>',
+  more: '<circle cx="5" cy="12" r="1.300" fill="currentColor"/><circle cx="12" cy="12" r="1.300" fill="currentColor"/><circle cx="19" cy="12" r="1.300" fill="currentColor"/>',
   replay: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8h18M7 4l2 4M12 4l2 4M17 4l2 4M10 11.500v5l4.500-2.500z"/>',
 };
+// "⋯" 펼침 메뉴: 자주 안 쓰는 버튼(수정·삭제·비우기 등)을 접어 둔다. 항목은 원래 data-a를 그대로 쓴다.
+export const ddMenu = (items, cls = '') => `<span class="dd ${cls}"><button class="btn ddb ${cls.includes('xs') ? 'xs' : ''}" data-a="dd" aria-label="더보기" title="더보기">${ic('more')}</button><span class="ddm">${items}</span></span>`;
+document.addEventListener('click', (e) => {
+  const t = e.target.closest?.('[data-a="dd"]'), keep = t?.parentElement;
+  document.querySelectorAll('.dd.open').forEach((d) => d !== keep && d.classList.remove('open'));
+  if (t) keep.classList.toggle('open');
+});
 export const ic = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.700" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n] || ''}</svg>`;
 const L = {
   top: '<path d="M3 3h15l-3.500 3.500H6.500v8L3 18z"/><path d="M21 6v15H6l3.500-3.500h8v-8z" opacity=".28"/><rect x="10" y="10" width="4" height="4" opacity=".28"/>',
@@ -143,7 +159,7 @@ function initPerf() {
   addEventListener('blur', idle); addEventListener('focus', idle); document.addEventListener('visibilitychange', idle);
 }
 act('liteToggle', () => { const on = !document.body.classList.contains('lite'); setLite(on); toast(on ? '가벼운 모드: 장식 효과를 줄였어요' : '가벼운 모드를 껐어요'); });
-const liteBtn = () => `<button class="btn ghost xs lite-btn ${document.body.classList.contains('lite') ? 'on' : ''}" data-a="liteToggle" title="장식 효과를 줄여 PC방·저사양 PC·게임과 함께 켜 둘 때 가볍게">⚡ 가벼운 모드 <u>${document.body.classList.contains('lite') ? 'ON' : 'OFF'}</u></button>`;
+const liteBtn = () => `<button class="btn ghost xs lite-btn ${document.body.classList.contains('lite') ? 'on' : ''}" data-a="liteToggle" title="장식 효과를 줄여 PC방·저사양 PC·게임과 함께 켜 둘 때 가볍게">${ic('bolt')}가벼운 모드 <u>${document.body.classList.contains('lite') ? 'ON' : 'OFF'}</u></button>`;
 export function initShell() {
   document.getElementById('brandlogo').innerHTML = logo(false, 40);
   initPerf();

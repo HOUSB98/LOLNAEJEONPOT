@@ -1,7 +1,7 @@
 // 시작점 + 홈 / 랭킹 / 경기 기록 / 챔피언 / 피어리스 화면
 import { FIREBASE_CONFIG } from './config.js';
 import { createStore } from './store.js';
-import { S, page, act, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, toast, download, csv, needAdmin, history, modal, mh, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
+import { S, page, act, ddMenu, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, toast, download, csv, needAdmin, history, modal, mh, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
 import { initSocial, renderChat, renderPresence, onMeta } from './social.js';
 import { watchReveal } from './today.js';
 import { duoRank } from './stats.js';
@@ -283,7 +283,7 @@ export function matchCard(m, tools = true) {
   return `<div class="mcard">
     <div class="mhd"><b class="mono">#${mi.no}</b><span>${fmtDT(m.at)}</span><span class="mut">예상 블루 ${Math.round(mi.pBlue * 100)}%</span>${mi.upset ? '<span class="tag bad">UPSET</span>' : ''}
       ${m.stats ? '<span class="tag gold">REPLAY</span>' : ''}<span class="grow"></span><button class="btn xs" data-a="matchDetail" data-id="${m.id}">상세</button>${tools && !m.stats ? `<button class="btn xs gold" data-a="matchReplay" data-id="${m.id}" title="이 경기의 .rofl 파일을 넣으면 상세 기록이 채워집니다">리플레이</button>` : ''}
-      ${tools ? `<button class="btn xs" data-a="editMatch" data-id="${m.id}">수정</button><button class="btn xs ghost" data-a="delMatch" data-id="${m.id}">삭제</button>` : ''}</div>
+      ${tools ? ddMenu(`<button data-a="editMatch" data-id="${m.id}">${ic('edit')}수정</button><button class="danger" data-a="delMatch" data-id="${m.id}">${ic('trash')}삭제</button>`, 'xs') : ''}</div>
     <div class="vs">${team('blue')}${team('red')}</div></div>`;
 }
 page('matches', {

@@ -1,6 +1,6 @@
 // 길드 의뢰 게시판: 참가자가 원하는 라인의 의뢰서(탑~서폿·상관없음)를 고르고, 마감하면 몰린 라인은 추첨해 바로 라인업에 넣는다.
 // meta/board 문서 하나로 모든 접속자가 같은 게시판, 같은 추첨, 같은 총격 연출을 같은 시각에 본다(시작 시각은 서버 시계 기준).
-import { S, act, esc, modal, closeModal, mh, toast, burst, refresh, calm, LANES, LANE_NAME, LANE_ICON, LANE_COLOR } from './core.js';
+import { S, act, esc, modal, closeModal, mh, toast, burst, refresh, calm, ic, LANES, LANE_NAME, LANE_ICON, LANE_COLOR } from './core.js';
 import { setDraftTeams, placedIds } from './today.js';
 import { sysChat, nick } from './social.js';
 
@@ -89,11 +89,11 @@ function inner(d, st = {}) {
   const picked = d.ids.filter((id) => d.picks?.[id]).length, isMe = d.ids.includes(BD.me);
   const roster = d.ids.map((id) => { const p = d.picks?.[id]; return `<button class="gb-mem ${id === BD.me ? 'me' : ''} ${p ? 'ok' : ''}" data-a="bdMe" data-id="${id}" ${d.status !== 'open' ? 'disabled' : ''}><i class="gb-seal">${p ? icon(p) : '…'}</i>${esc(nm(id))}${id === BD.me ? '<small>나</small>' : ''}</button>`; }).join('');
   const foot = d.status === 'open'
-    ? `<div class="gb-foot"><span class="gb-count"><b class="mono">${picked}</b>/<span class="mono">${d.ids.length}</span> 지원 완료</span><span class="grow"></span><button class="btn ghost xs" data-a="bdShut">게시판 철거</button><button class="btn gold" data-a="bdGo" ${picked ? '' : 'disabled'}>🔔 의뢰 마감 · 추첨 시작</button></div>`
+    ? `<div class="gb-foot"><span class="gb-count"><b class="mono">${picked}</b>/<span class="mono">${d.ids.length}</span> 지원 완료</span><span class="grow"></span><button class="btn ghost xs" data-a="bdShut">게시판 철거</button><button class="btn pri" data-a="bdGo" ${picked ? '' : 'disabled'}>${ic('bell')}의뢰 마감 · 추첨 시작</button></div>`
     : d.status === 'done' ? `<div class="gb-foot"><span class="gb-count">편성 완료 · 오늘의 내전 라인업에 반영했습니다${d.left?.length ? ` · 대기: ${d.left.map((x) => esc(nm(x))).join(', ')}` : ''}</span><span class="grow"></span><button class="btn pri" data-a="bdLineup">라인업 확인</button></div>`
-      : '<div class="gb-foot"><span class="gb-count gb-livecall">⚔️ 추첨 진행 중 · 모두 같은 화면을 보고 있습니다</span></div>';
+      : `<div class="gb-foot"><span class="gb-count gb-livecall">${ic('today')}추첨 진행 중 · 모두 같은 화면을 보고 있습니다</span></div>`;
   return `<div class="gb-dust">${'<i></i>'.repeat(14)}</div><i class="gb-lamp l"></i><i class="gb-lamp r"></i>
-    <header class="gb-head"><button class="gb-x" data-a="bdHide" title="닫기 (게시판은 계속 열려 있음)">✕</button><button class="gb-snd" data-a="bdMute" title="효과음">${BD.muted ? '🔇' : '🔊'}</button>
+    <header class="gb-head"><button class="gb-x" data-a="bdHide" title="닫기 (게시판은 계속 열려 있음)">${ic('x')}</button><button class="gb-snd" data-a="bdMute" title="효과음">${ic(BD.muted ? 'mute' : 'sound')}</button>
       <small>ADVENTURERS' GUILD · LIVE</small><h2>모험가 길드 의뢰 게시판</h2>
       <p>${d.status === 'open' ? `원하는 라인의 의뢰서를 누르세요. 몰린 의뢰는 추첨, 빈 의뢰는 용병으로 채웁니다.${d.by ? ` <span class="gb-by">게시: ${esc(d.by)}</span>` : ''}` : d.status === 'done' ? '모든 원정대가 편성되었습니다!' : '의뢰 마감! 운명의 추첨이 시작됩니다.'}</p></header>
     <div class="gb-board">${OPTS.map((o) => paper(d, o, { done: st.done?.has(o), result: st.result })).join('')}</div>
@@ -121,11 +121,11 @@ function setup() {
   const st = S.st, last = st.matches[st.matches.length - 1];
   if (!BD.sel.length) { const p = placedIds(); BD.sel = p.length >= 2 ? p : last ? [...last.blue, ...last.red] : []; }
   const list = [...st.list].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
-  const html = `${mh('📜 길드 의뢰 게시판 열기')}
+  const html = `${mh(`${ic('scroll')}길드 의뢰 게시판 열기`)}
     <p class="mut">오늘 내전에 참가할 길드원을 고르세요. 게시판을 열면 <b class="good">접속한 모든 사람의 화면에 함께 뜹니다.</b> 각자 원하는 라인 의뢰서를 고르고, 마감하면 추첨해서 라인업에 바로 넣습니다.</p>
     <div class="ph"><b>참가자</b><span class="tag ${BD.sel.length === 10 ? 'ok' : ''}">${BD.sel.length}명</span><span class="grow"></span>${last ? '<button class="btn xs" data-a="bdRecent">최근 내전 참가자</button>' : ''}<button class="btn xs ghost" data-a="bdNone">해제</button></div>
     <div class="chipsel">${list.map((s) => `<button class="${BD.sel.includes(s.id) ? 'on' : ''}" data-a="bdSel" data-id="${s.id}">${esc(s.name)}</button>`).join('')}</div>
-    <button class="btn gold block big" data-a="bdOpen" ${BD.sel.length >= 2 ? '' : 'disabled'}>${BD.sel.length >= 2 ? `${BD.sel.length}명으로 게시판 열기` : '참가자를 2명 이상 고르세요'}</button>`;
+    <button class="btn pri block big" data-a="bdOpen" ${BD.sel.length >= 2 ? '' : 'disabled'}>${BD.sel.length >= 2 ? `${BD.sel.length}명으로 게시판 열기` : '참가자를 2명 이상 고르세요'}</button>`;
   const open = document.querySelector('#modal.on .sheet.gb-setup');
   if (open) { const y = open.querySelector('.chipsel')?.scrollTop || 0; open.innerHTML = html; open.querySelector('.chipsel').scrollTop = y; } else modal(html, 'tall gb-setup');
 }
@@ -140,7 +140,7 @@ act('bdOpen', async () => {
   BD.prev = {};
   bseen = d.rid + d.status; // 내 화면은 직접 연다(내 쓰기가 돌아와도 다시 열지 않게)
   try { await S.store.put('meta', 'board', d); } catch (e) { return toast('게시 실패: ' + (e.code || e.message)); }
-  sysChat(`📜 길드 의뢰 게시판이 열렸습니다 · 참가자 ${d.ids.length}명`);
+  sysChat(`길드 의뢰 게시판이 열렸습니다 · 참가자 ${d.ids.length}명`);
   sfx('horn'); openBoard();
 });
 act('bdMe', (x) => { BD.me = x.id; localStorage.setItem('naejeon:bdme:' + S.key, x.id); draw(); });
@@ -159,7 +159,7 @@ act('bdPick', async (x) => {
   } catch (e) { toast('지원 실패: ' + (e.code || e.message)); }
 });
 act('bdHide', () => { if (BD.playing) return toast('추첨이 끝나면 닫을 수 있어요'); closeModal(); });
-act('bdMute', () => { BD.muted = !BD.muted; localStorage.setItem('naejeon:bdmute', BD.muted ? '1' : '0'); const b = view()?.querySelector('.gb-snd'); if (b) b.textContent = BD.muted ? '🔇' : '🔊'; });
+act('bdMute', () => { BD.muted = !BD.muted; localStorage.setItem('naejeon:bdmute', BD.muted ? '1' : '0'); const b = view()?.querySelector('.gb-snd'); if (b) b.innerHTML = ic(BD.muted ? 'mute' : 'sound'); });
 act('bdShut', async () => {
   const d = cur(); if (!d || !confirm('게시판을 철거할까요? 지원 내용이 사라집니다.')) return;
   await S.store.put('meta', 'board', { ...d, status: 'closed' }).catch(() => {});
@@ -230,7 +230,7 @@ async function play(d) {
   const now = () => S.store.serverNow();
   // 늦게 들어온 사람: 이미 끝난 단계는 결과만 바로 보여준다
   for (const x of sched) if (x.at + durOf(x.s) <= now()) markDone(el, d, x.s, done);
-  if (now() < start + INTRO) { await wait(start - now()); banner(el, '🔔 의뢰 마감!', '운명의 추첨을 시작합니다'); sfx('horn'); await wait(start + INTRO - now()); }
+  if (now() < start + INTRO) { await wait(start - now()); banner(el, '의뢰 마감!', '운명의 추첨을 시작합니다'); sfx('horn'); await wait(start + INTRO - now()); }
   for (const x of sched) {
     if (BD.playing !== d.rid || !document.body.contains(el)) break;
     if (done.has(x.s.lane)) continue;
@@ -240,7 +240,7 @@ async function play(d) {
   }
   await wait(end - now());
   if (BD.playing !== d.rid) return;
-  banner(el, '⚔️ 원정대 편성 완료!', '라인업에 반영했습니다. 교체는 라인업에서 직접 하세요');
+  banner(el, '원정대 편성 완료!', '라인업에 반영했습니다. 교체는 라인업에서 직접 하세요');
   burst(innerWidth / 2, innerHeight / 2, 220);
   if (BD.runner === d.rid) finishRun(d);
   else BD.timers.push(setTimeout(() => finishRun(d), 3000)); // 추첨을 시작한 사람이 나갔으면 남은 사람이 대신 반영한다
@@ -258,7 +258,7 @@ async function finishRun(d) { // 'play'→'done'을 먼저 바꾼 한 사람만 
   const blue = LANES.map((l) => d.result[l]?.[0] || ''), red = LANES.map((l) => d.result[l]?.[1] || '');
   setDraftTeams(blue, red);
   if (S.page === 'today') refresh();
-  sysChat('📜 길드 편성 완료 · ' + LANES.map((l) => `${LANE_NAME[l]} ${d.result[l].map(nm).join('/') || '-'}`).join(' · '));
+  sysChat('길드 편성 완료 · ' + LANES.map((l) => `${LANE_NAME[l]} ${d.result[l].map(nm).join('/') || '-'}`).join(' · '));
 }
 function markDone(el, d, s, done) {
   done.add(s.lane);
