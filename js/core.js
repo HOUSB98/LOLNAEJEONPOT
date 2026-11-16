@@ -114,10 +114,40 @@ function tabbar() {
 act('tabMore', () => {
   let grp = '';
   const body = NAV.map(([p, t]) => (p ? `<a class="mm-it ${p === S.page ? 'on' : ''}" href="#/${p}" data-a="close">${ic(p)}<span>${t}</span></a>` : `${grp ? '</div>' : ''}<h6>${(grp = t)}</h6><div class="mm-g">`)).join('') + '</div>';
-  modal(`${mh('메뉴')}<div class="mm">${body}</div><button class="btn block" data-a="copyLink">초대 링크 복사</button>`, 'more-sheet');
+  modal(`${mh('메뉴')}<div class="mm">${body}</div><div class="row mm-foot">${liteBtn()}<button class="btn" data-a="copyLink">초대 링크 복사</button></div>`, 'more-sheet');
 });
+// ---------- 가벼운 모드 (PC방·저사양·게임과 같이 켜 둘 때) ----------
+// 장식용 반복 애니메이션·흐림 효과·배경 캔버스를 끈다. 저장된 선택이 없으면 기기 사양과 처음 몇 초의 프레임으로 자동 결정한다.
+// 창이 비활성(게임 화면을 보는 중)이면 본문 장식 애니메이션을 멈춘다. 게시판·주사위 같은 중계 연출(#modal)은 계속 돈다.
+const LITE_KEY = 'naejeon:lite';
+export const calm = () => document.body.classList.contains('lite') || matchMedia('(prefers-reduced-motion: reduce)').matches;
+export function setLite(on, save = true) {
+  document.body.classList.toggle('lite', on);
+  if (save) localStorage.setItem(LITE_KEY, on ? '1' : '0');
+  document.querySelectorAll('[data-a="liteToggle"]').forEach((b) => { b.classList.toggle('on', on); b.querySelector('u') && (b.querySelector('u').textContent = on ? 'ON' : 'OFF'); });
+}
+function initPerf() {
+  const pref = localStorage.getItem(LITE_KEY);
+  if (pref) setLite(pref === '1', false);
+  else if ((navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4) setLite(true, false);
+  else setTimeout(() => { // 프레임이 자주 끊기면 자동으로 가볍게
+    let n = 0, slow = 0, last = performance.now();
+    requestAnimationFrame(function f(t) {
+      if (n++ && t - last > 40) slow++;
+      last = t;
+      if (n < 150) return requestAnimationFrame(f);
+      if (slow > 15 && !document.hidden && !localStorage.getItem(LITE_KEY)) { setLite(true, false); toast('화면이 버벅여서 가벼운 모드로 바꿨어요'); }
+    });
+  }, 4000);
+  const idle = () => document.body.classList.toggle('idle', document.hidden || !document.hasFocus());
+  addEventListener('blur', idle); addEventListener('focus', idle); document.addEventListener('visibilitychange', idle);
+}
+act('liteToggle', () => { const on = !document.body.classList.contains('lite'); setLite(on); toast(on ? '가벼운 모드: 장식 효과를 줄였어요' : '가벼운 모드를 껐어요'); });
+const liteBtn = () => `<button class="btn ghost xs lite-btn ${document.body.classList.contains('lite') ? 'on' : ''}" data-a="liteToggle" title="장식 효과를 줄여 PC방·저사양 PC·게임과 함께 켜 둘 때 가볍게">⚡ 가벼운 모드 <u>${document.body.classList.contains('lite') ? 'ON' : 'OFF'}</u></button>`;
 export function initShell() {
   document.getElementById('brandlogo').innerHTML = logo(false, 40);
+  initPerf();
+  document.querySelector('.sidefoot')?.insertAdjacentHTML('beforeend', liteBtn());
   tabbar();
   document.getElementById('nav').innerHTML = NAV.map(([p, t, soon]) => (p ? `<a href="#/${p}" data-p="${p}">${ic(p)}<span>${t}</span>${soon ? `<em>${soon}</em>` : ''}</a>` : `<h6>${t}</h6>`)).join('');
   document.getElementById('mode').innerHTML = S.store.mode === 'local' ? '<span class="tag warn" title="이 브라우저에만 저장됩니다">체험 모드</span>' : '<span class="tag ok"><i class="live"></i>LIVE 동기화</span>';
@@ -271,7 +301,7 @@ export function countUp(root = document) {
 }
 // 축포 이펙트 (화면 전체 캔버스)
 export function burst(x = innerWidth / 2, y = innerHeight / 2, n = 140) {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (calm()) return;
   const c = document.createElement('canvas');
   c.className = 'fx'; c.width = innerWidth; c.height = innerHeight; document.body.appendChild(c);
   const g = c.getContext('2d'), colors = ['#f6e3a8', '#d9a441', '#3fd0e0', '#ffffff', '#5b8cff', '#ff6b81'];

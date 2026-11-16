@@ -1,6 +1,6 @@
 // 길드 의뢰 게시판: 참가자가 원하는 라인의 의뢰서(탑~서폿·상관없음)를 고르고, 마감하면 몰린 라인은 추첨해 바로 라인업에 넣는다.
 // meta/board 문서 하나로 모든 접속자가 같은 게시판, 같은 추첨, 같은 총격 연출을 같은 시각에 본다(시작 시각은 서버 시계 기준).
-import { S, act, esc, modal, closeModal, mh, toast, burst, refresh, LANES, LANE_NAME, LANE_ICON, LANE_COLOR } from './core.js';
+import { S, act, esc, modal, closeModal, mh, toast, burst, refresh, calm, LANES, LANE_NAME, LANE_ICON, LANE_COLOR } from './core.js';
 import { setDraftTeams, placedIds } from './today.js';
 import { sysChat, nick } from './social.js';
 
@@ -336,7 +336,7 @@ function shoot(el, big, seed) {
   const r = hl.getBoundingClientRect(); sparks(r.left + r.width / 2, r.top + r.height / 2);
 }
 function sparks(x, y) {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (calm()) return;
   const c = document.createElement('canvas'); c.className = 'fx'; c.width = innerWidth; c.height = innerHeight; document.body.appendChild(c);
   const g = c.getContext('2d'), col = ['255,236,170', '255,190,90', '255,140,50', '255,255,255'];
   const ps = Array.from({ length: 90 }, () => { const a = Math.random() * 6.283, v = 3 + Math.random() * 16; return { x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 2, l: 1, c: col[(Math.random() * 4) | 0], w: 1 + Math.random() * 2.5 }; });

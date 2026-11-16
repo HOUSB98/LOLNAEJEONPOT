@@ -44,7 +44,7 @@ export function renderPresence() {
   if (sig === prSig && el.firstChild) return; // 목록이 그대로면 다시 그리지 않는다
   prSig = sig;
   const cnt = String(list.length).padStart(2, '0');
-  el.innerHTML = `<div class="prh">${ic('users')}<b>접속 중</b><span class="pcount ${bump ? 'bump' : ''}" title="현재 접속자 ${list.length}명"><i></i><b class="mono">${cnt}</b><small>ONLINE</small></span></div>
+  el.innerHTML = `<div class="prh" data-a="presList" title="접속자 보기">${ic('users')}<b>접속 중</b><span class="pav">${list.slice(0, 3).map((p) => `<i style="--h:${hue(p.nick)}">${esc([...p.nick][0] || '?')}</i>`).join('')}</span><span class="pcount ${bump ? 'bump' : ''}" title="현재 접속자 ${list.length}명"><i></i><b class="mono">${cnt}</b><small>ONLINE</small></span></div>
     <div class="prl">${list.map((p) => `<button class="${p.id === cid ? 'me' : ''}" ${p.id === cid ? 'data-a="nickEdit" title="닉네임 변경"' : `data-cid="${esc(p.id)}" data-nick="${esc(p.nick)}" title="우클릭: 관리자 메뉴"`}><i style="--h:${hue(p.nick)}"></i>${esc(p.nick)}${p.id === cid ? '<small>나</small>' : ''}</button>`).join('') || '<span class="mut sm">아직 아무도 없어요</span>'}</div>`;
   const c = document.getElementById('chat-on'); if (c) c.textContent = list.length;
 }
@@ -62,6 +62,11 @@ function setNick(v) {
   return true;
 }
 act('nickEdit', () => askNick(false));
+act('presList', () => { // 모바일에서는 접속자 목록이 숨겨져 있으니 눌러서 본다
+  if (matchMedia('(min-width: 861px)').matches) return;
+  const list = online();
+  modal(`${mh(`접속 중 · ${list.length}명`)}<div class="pr-sheet">${list.map((p) => `<button class="${p.id === cid ? 'me' : ''}" ${p.id === cid ? 'data-a="nickEdit"' : ''}><i style="--h:${hue(p.nick)}">${esc([...p.nick][0] || '?')}</i><b>${esc(p.nick)}</b>${p.id === cid ? '<small>나 · 눌러서 닉네임 변경</small>' : '<small>접속 중</small>'}</button>`).join('') || '<p class="mut">아직 아무도 없어요</p>'}</div>`, 'pres-sheet');
+});
 
 // ---------- 채팅 ----------
 const STICKERS = [

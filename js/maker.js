@@ -1,5 +1,5 @@
 // 제작자 화면: 코드 편집기처럼 꾸민 크레딧 페이지 (배경에 수식·기호가 흘러내린다)
-import { S, page, esc, ic } from './core.js';
+import { S, page, esc, ic, calm } from './core.js';
 
 const MAKER = '이승근';
 const CODE = `import { 열정, 커피, 밤샘 } from "life";
@@ -70,7 +70,7 @@ const GLYPH = '01∑∫∂√πλθΔ∞≈≠≤≥{}[]()<>=+-*/%&|!?;:#$λσμ
 const TONE = ['246,227,168', '63,208,224', '155,140,255', '255,107,129', '79,208,139', '91,140,255', '240,138,75'];
 const FORM = ['P = 1/(1+10^(-Δ/s))', "R' = R + K(S - E)", 'e^(iπ) + 1 = 0', 'O(n log n)', '∇·E = ρ/ε₀', 'f(x) = Σ aₙxⁿ', 'λx.x', 'det(A - λI) = 0', '∫ e^(-x²) dx = √π', 'softmax(z)ᵢ'];
 function rain(cv) {
-  if (!cv || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!cv || calm()) return;
   const g = cv.getContext('2d'), F = 16;
   let cols = [], floats = [], last = 0;
   const fit = () => {

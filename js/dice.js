@@ -1,6 +1,6 @@
 // 라인 주사위: 지원자 이름이 면마다 적힌 주사위 두 개를 굴려 블루/레드 한 명씩 뽑고 라인에 배치한다.
 // 결과를 meta/dice 문서에 쓰면 접속한 모든 사람의 화면에서 같은 주사위가 같은 결과로 굴러간다(실시간 중계).
-import { S, act, esc, modal, mh, toast, ic, burst, LANES, LANE_NAME, LANE_ICON } from './core.js';
+import { S, act, esc, modal, mh, toast, ic, burst, calm, LANES, LANE_NAME, LANE_ICON } from './core.js';
 import { assignLane, placedIds } from './today.js';
 import { sysChat, nick } from './social.js';
 
@@ -70,7 +70,7 @@ export function watchDice(initial) {
 
 // 주사위 이펙트: 구르는 동안 주사위 위아래로 불티가 튀고, 멈추는 순간 사방으로 터진다
 function diceFx(stage, dies) {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return { stop() {}, boom() {} };
+  if (calm()) return { stop() {}, boom() {} };
   const cv = document.createElement('canvas'); cv.className = 'dice-fx'; stage.prepend(cv);
   const g = cv.getContext('2d'), on = [true, true], TONE = [['120,170,255', '205,225,255'], ['255,120,150', '255,205,215']];
   let parts = [];
