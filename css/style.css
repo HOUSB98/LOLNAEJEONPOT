@@ -1378,22 +1378,72 @@ body.lite .lp-name.new,body.lite .ld-c.won,body.lite .lf-n{animation:none!import
 }
 /* ---------- 시즌 장식(크리스마스) ---------- */
 #xsnow{position:fixed;inset:0;z-index:6;pointer-events:none}
-#xlights{position:fixed;left:0;right:0;top:0;height:16px;z-index:8;pointer-events:none;display:flex;justify-content:space-between;padding:0 6px;
-  background:radial-gradient(120% 22px at 50% -12px,transparent 60%,rgba(40,50,40,.9) 61%,transparent 66%) 0 0/80px 16px repeat-x}
-#xlights i{width:6px;height:9px;margin-top:5px;border-radius:50% 50% 45% 45%;background:var(--c,#e2463c);box-shadow:0 0 8px 1px var(--c,#e2463c);animation:xbulb 2.4s var(--d,0s) ease-in-out infinite}
-#xlights i:nth-child(4n+2){--c:#2fa35f}#xlights i:nth-child(4n+3){--c:#f2cf7a}#xlights i:nth-child(4n+4){--c:#5b8cff}
-@keyframes xbulb{0%,100%{opacity:1}50%{opacity:.35}}
-#xtree{position:absolute;left:50%;bottom:86px;translate:-50% 0;width:min(78%,260px);aspect-ratio:200/290;z-index:0;pointer-events:none;opacity:.17;filter:saturate(1.1)}
-#xtree svg{width:100%;height:100%}
-#xtree .xt-new{animation:xtnew 2.4s ease-out 2}
-#xtree .xt-star{transform-box:fill-box;transform-origin:center;animation:xtstar 3s ease-in-out infinite}
-@keyframes xtnew{0%,100%{opacity:1}40%{opacity:.2}}
-@keyframes xtstar{50%{opacity:.6}}
-body.xmas #chat>*:not(#xtree){position:relative;z-index:1}
+#xlights{position:fixed;left:0;right:0;top:-1px;height:22px;z-index:11;pointer-events:none;overflow:hidden}
+#xlights svg{display:block;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
+.xl-b .xl-glow{animation:xglow 2.6s var(--d,0s) ease-in-out infinite}
+@keyframes xglow{0%,100%{opacity:.55}50%{opacity:.08}}
+#xfrost{position:fixed;inset:0;z-index:5;pointer-events:none;
+  background:radial-gradient(260px 200px at 0 0,rgba(220,235,255,.10),transparent 70%),radial-gradient(260px 200px at 100% 0,rgba(220,235,255,.08),transparent 70%),radial-gradient(420px 220px at 50% 110%,rgba(220,235,255,.06),transparent 70%)}
+#xtree{position:absolute;left:50%;bottom:78px;translate:-50% 0;width:min(86%,290px);aspect-ratio:240/330;z-index:0;pointer-events:none;opacity:.62;
+  -webkit-mask:linear-gradient(180deg,#000 70%,rgba(0,0,0,.55));mask:linear-gradient(180deg,#000 70%,rgba(0,0,0,.55));filter:drop-shadow(0 0 24px rgba(255,200,110,.18))}
+#xtree svg{width:100%;height:100%;overflow:visible}
+#xtree .xt-new{animation:xtnew 2.2s ease-out 2}
+@keyframes xtnew{0%,100%{opacity:1}35%{opacity:.25}}
+#xtree .xt-lights g{animation:xtwink 2.8s calc(var(--i) * .37s) ease-in-out infinite}
+@keyframes xtwink{0%,100%{opacity:1}50%{opacity:.35}}
+#xtree .xt-star{transform-box:fill-box;transform-origin:center;animation:xtstar 3.4s ease-in-out infinite}
+@keyframes xtstar{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.06);opacity:.85}}
+body.xmas #chat>*:not(#xtree):not(#xsky){position:relative;z-index:1}
 body.xmas #chatlog{background:transparent}
+body.xmas #chat::after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(180deg,rgba(5,8,14,.25) 0,rgba(5,8,14,0) 18%,rgba(5,8,14,0) 75%,rgba(5,8,14,.35))}
 .brand{position:relative}
-.xhat{position:absolute;left:-6px;top:-10px;width:30px;height:23px;rotate:-18deg;z-index:2;pointer-events:none;filter:drop-shadow(0 2px 2px rgba(0,0,0,.5))}
+.xhat{position:absolute;left:-7px;top:-12px;width:32px;height:25px;rotate:-16deg;z-index:2;pointer-events:none;filter:drop-shadow(0 2px 2px rgba(0,0,0,.55))}
 .xmas-btn u{text-decoration:none;font:700 9px var(--mono);margin-left:4px;padding:1px 5px;border-radius:99px;background:#1a2536;color:var(--mut)}
 .xmas-btn.on{border-color:#2fa35f;color:#bfe9cf}.xmas-btn.on u{background:#2fa35f;color:#06210f}
-body.lite #xlights i,body.lite #xtree *{animation:none!important}
-@media (max-width:860px){#side .xmas-btn{display:none}.xhat{left:-4px;top:-8px;width:22px;height:17px}#xlights{height:12px}#xlights i{width:5px;height:7px;margin-top:3px}}
+/* 고급스러운 포인트: 금빛 테두리에 붉은·초록 빛을 살짝 */
+body.xmas .btn.pri{box-shadow:0 0 0 1px rgba(255,236,190,.35),0 8px 24px -10px rgba(214,50,43,.55)}
+body.xmas .panel,body.xmas .stat{border-color:color-mix(in srgb,var(--line) 75%,#d9a441)}
+/* 시작 화면: 동화풍 밤하늘 */
+#splash.xs{background:linear-gradient(180deg,#0a1030 0%,#1c1f5a 42%,#3a2d6e 70%,#5e4686 100%)}
+#splash.xs .sp-rays,#splash.xs>canvas{display:none}
+.xs-scene{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.xs-scene canvas{position:absolute;inset:0;width:100%;height:100%}
+.xs-moon{position:absolute;right:9%;top:9%;width:min(26vw,250px);aspect-ratio:1;border-radius:50%;
+  background:radial-gradient(circle at 38% 36%,#fffef4 0,#fff3cf 42%,#f1dca2 70%,#e2c27e 100%);
+  box-shadow:0 0 40px 8px rgba(255,240,190,.55),0 0 120px 40px rgba(255,226,160,.25),0 0 260px 90px rgba(170,160,255,.15);animation:xsmoon 6s ease-in-out infinite}
+.xs-moon i{position:absolute;border-radius:50%;background:radial-gradient(circle at 40% 40%,rgba(196,164,96,.35),rgba(196,164,96,.12) 70%,transparent)}
+.xs-moon i:nth-child(1){width:22%;height:22%;left:56%;top:24%}.xs-moon i:nth-child(2){width:14%;height:14%;left:28%;top:58%}.xs-moon i:nth-child(3){width:9%;height:9%;left:62%;top:64%}.xs-moon i:nth-child(4){width:11%;height:11%;left:34%;top:28%}
+@keyframes xsmoon{50%{box-shadow:0 0 50px 10px rgba(255,240,190,.65),0 0 140px 50px rgba(255,226,160,.3),0 0 280px 100px rgba(170,160,255,.18)}}
+.xs-fly{position:absolute;left:0;top:0;width:min(54vw,520px);animation:xsfly 7.5s cubic-bezier(.35,.05,.55,.95) -1.6s infinite;will-change:transform}
+.xs-sleigh{width:100%;height:auto;overflow:visible;animation:xsbob 1.4s ease-in-out infinite;filter:drop-shadow(0 0 10px rgba(255,240,200,.35))}
+@keyframes xsfly{0%{transform:translate(-60vw,52vh) rotate(-7deg)}55%{transform:translate(52vw,14vh) rotate(-5deg)}100%{transform:translate(118vw,-8vh) rotate(-3deg)}}
+@keyframes xsbob{50%{transform:translateY(-6px)}}
+.xs-rd{animation:xsgallop .5s ease-in-out infinite}.xs-rd.b{animation-delay:-.12s}.xs-rd.c{animation-delay:-.25s}.xs-rd.d{animation-delay:-.37s}
+@keyframes xsgallop{50%{transform:translateY(-3px)}}
+.xs-nose{animation:xsnose 1s ease-in-out infinite}
+@keyframes xsnose{50%{opacity:.45}}
+.xs-hills{position:absolute;left:0;right:0;bottom:0;width:100%;height:34vh}
+.xs-win{animation:xswin 3s ease-in-out infinite}.xs-win:nth-of-type(2n){animation-delay:-1.4s}
+@keyframes xswin{50%{opacity:.6}}
+#splash.xs .sp-box{z-index:2;text-shadow:0 2px 12px rgba(10,16,48,.9)}
+#splash.xs .sp-skip{z-index:2}
+body.lite #xlights *,body.lite #xtree *,body.lite .xs-scene *{animation:none!important}
+@media (max-width:860px){#side .xmas-btn{display:none}.xhat{left:-5px;top:-9px;width:24px;height:19px}#xtree{width:min(70%,260px)}.xs-moon{width:38vw;top:7%;right:6%}.xs-fly{width:86vw}.xs-hills{height:26vh}}
+#splash.xs .sp-skip{color:#2a3a66;text-shadow:none}
+@media (max-width:860px){.xs-moon{width:32vw;top:4%;right:4%}}
+/* 디즈니 느낌: 채팅창 밤하늘 · 트리 마법 반짝임 · 지나가는 썰매 */
+#xsky{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;
+  background:radial-gradient(260px 200px at 80% 20%,rgba(255,236,180,.16),transparent 70%),radial-gradient(420px 380px at 50% 72%,rgba(130,105,240,.24),transparent 70%),linear-gradient(180deg,rgba(24,28,88,.7),rgba(46,32,104,.5) 55%,rgba(8,10,24,.1))}
+.xk-moon{position:absolute;right:14%;top:17%;width:54px;height:54px;border-radius:50%;box-shadow:inset -12px 5px 0 0 #fff3cf;rotate:-20deg;filter:drop-shadow(0 0 12px rgba(255,236,180,.8)) drop-shadow(0 0 30px rgba(255,226,160,.4))}
+#xsky b{position:absolute;width:var(--s);height:var(--s);border-radius:50%;background:#fff;box-shadow:0 0 6px #fff;animation:xktw 3.2s var(--d) ease-in-out infinite}
+@keyframes xktw{0%,100%{opacity:.9}50%{opacity:.2}}
+.xt-magic{position:absolute;inset:0}
+.xt-magic i{position:absolute;width:10px;height:10px;opacity:0;background:radial-gradient(circle,#fff 0,#ffe28c 30%,transparent 65%);clip-path:polygon(50% 0,60% 40%,100% 50%,60% 60%,50% 100%,40% 60%,0 50%,40% 40%);animation:xtmag 3.200s var(--d) ease-in-out infinite}
+@keyframes xtmag{0%,100%{opacity:0;transform:scale(.4) rotate(0)}50%{opacity:1;transform:scale(1.4) rotate(45deg)}}
+#xflyby{position:fixed;left:0;right:0;top:0;height:220px;z-index:7;pointer-events:none;overflow:hidden}
+#xflyby canvas{position:absolute;inset:0;width:100%;height:100%}
+.xf-fly{position:absolute;left:0;top:0;width:min(30vw,280px);animation:xfly 9s linear forwards;opacity:.9}
+.xf-fly .xs-sleigh{filter:drop-shadow(0 0 8px rgba(255,236,190,.5))}
+@keyframes xfly{0%{transform:translate(-40vw,150px) rotate(-6deg)}100%{transform:translate(110vw,20px) rotate(-3deg)}}
+.xf-fly .xs-sleigh g{fill:#f3d68f;color:#f3d68f}.xf-fly .xs-sleigh path[stroke]{stroke:#f3d68f;stroke-opacity:.7}
+body.lite #xsky *,body.lite .xt-magic *{animation:none!important}
