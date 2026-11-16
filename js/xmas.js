@@ -100,6 +100,9 @@ function treeParts() {
   P.push(`<g class="xt-star"><g class="xt-rays">${Array.from({ length: 12 }, (_, i) => `<path d="M120 40 l-3 -46 h6z" fill="url(#xtRay)" transform="rotate(${i * 30} 120 40)"/>`).join('')}</g><circle cx="120" cy="40" r="30" fill="#ffd76a" opacity=".55" filter="url(#xtGlow)"/><path d="M120 8 128.500 30 152 31 134 45 140 68 120 55 100 68 106 45 88 31 111.500 30z" fill="url(#xtStarG)" stroke="#fff8dc" stroke-width="1.600"/><circle cx="114" cy="30" r="3" fill="#fff" opacity=".9"/></g>`);
   return P;
 }
+// 아래쪽이 흐려지는 페이드를 CSS mask 대신 SVG 안에 넣는다
+const TFADE = `<defs><linearGradient id="xtFadeG" x1="0" y1="0" x2="0" y2="1"><stop offset=".7" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity=".55"/></linearGradient><mask id="xtFade" maskUnits="userSpaceOnUse" x="-10" y="-14" width="260" height="352"><rect x="-10" y="-14" width="260" height="352" fill="url(#xtFadeG)"/></mask></defs>`;
+const faded = (inner) => `${TFADE}<g mask="url(#xtFade)">${inner}</g>`;
 const TVB = '-10 -14 260 352', SWIRL = 'M60 300 C150 290 200 260 170 240 C120 210 50 230 78 200 C100 176 170 186 160 156 C150 132 86 150 98 120 C108 96 150 106 142 80 C136 62 118 58 120 40';
 const tpos = (x, y) => `left:${(((x + 10) / 260) * 100).toFixed(2)}%;top:${(((y + 14) / 352) * 100).toFixed(2)}%`;
 function treeHTML() {
@@ -111,15 +114,13 @@ function treeHTML() {
   // 항상 보이는 배경: 은은한 빛무리, 뒤쪽 빛살, 트리를 휘감아 오르는 금빛 마법 소용돌이(정지 그림)
   const aura = `<ellipse cx="120" cy="196" rx="124" ry="150" fill="url(#xtHalo)"/><g opacity=".22" filter="url(#xtBlur)">${Array.from({ length: 11 }, (_, i) => `<path d="M120 180 l-4 -200 h8z" fill="url(#xtRay)" transform="rotate(${-70 + i * 14} 120 180)"/>`).join('')}</g>`;
   const swirl = `<path d="${SWIRL}" fill="none" stroke="#ffe7a3" stroke-width="2.600" stroke-linecap="round" stroke-dasharray="6 18" opacity=".75" filter="url(#xtSoft)"/>`;
-  const base = svgImg(DEFS + aura + parts.slice(0, old).join('') + swirl, TVB, 'xt-img');
-  const fresh = old < n ? svgImg(DEFS + parts.slice(old, n).join(''), TVB, 'xt-img xt-new') : ''; // 오늘 새로 생긴 장식만 깜빡
+  const base = svgImg(faded(DEFS + aura + parts.slice(0, old).join('') + swirl), TVB, 'xt-img');
+  const fresh = old < n ? svgImg(faded(DEFS + parts.slice(old, n).join('')), TVB, 'xt-img xt-new') : ''; // 오늘 새로 생긴 장식만 깜빡
   const pts = Object.entries(parts.lights).filter(([i]) => +i < n).flatMap(([, v]) => v);
   const tw = [0, 1, 2].map((g) => `<div class="xt-tw g${g}">${pts.filter((_, i) => i % 3 === g).map(([x, y, c]) => `<i style="${tpos(x, y)};--c:${c}"></i>`).join('')}</div>`).join('');
   const star = n === parts.length ? `<i class="xt-glow" style="${tpos(120, 40)}"></i>` : '';
-  const dots = Array.from({ length: 7 }, (_, i) => `<i style="--i:${i}"></i>`).join('');
-  return `${base}${fresh}${tw}<div class="xt-tw">${star}</div><div class="xt-orbit" style="--p:path('${SWIRL.replace(/(-?\d+) (-?\d+)/g, (m, a, b) => `${+a + 10} ${+b + 14}`)}')">${dots}</div>`;
+  return `${base}${fresh}${tw}<div class="xt-tw">${star}</div>`;
 }
-function fitOrbit(t) { const o = t.querySelector('.xt-orbit'); if (o) o.style.setProperty('--k', String(t.clientWidth / 260)); }
 
 // ---------- 눈(작은 눈 + 가끔 흐린 큰 눈) ----------
 let snowStop = null;
@@ -144,7 +145,7 @@ function snowCanvas(cv, opts = {}) {
   fit(); addEventListener('resize', fit);
   const loop = (t) => {
     raf = requestAnimationFrame(loop);
-    if (t - last < 33) return; last = t;
+    if (t - last < (opts.step || 33)) return; last = t;
     if (!opts.always && (document.body.classList.contains('lite') || document.body.classList.contains('idle') || document.hidden)) { g.clearRect(0, 0, W, H); return; }
     g.clearRect(0, 0, W, H);
     for (const f of flakes) {
@@ -198,7 +199,7 @@ function garland() {
     <path d="${swag}" stroke="#eaf5ff" stroke-opacity=".75" stroke-width="${3.4 * k}" fill="none" stroke-linecap="round" stroke-dasharray="0.1 ${11 * k}" stroke-dashoffset="5" transform="translate(0 ${-4.5 * k})"/>
     <path d="${swag}" stroke="url(#xgGold)" stroke-width="${2.6 * k}" fill="none" stroke-dasharray="${9 * k} ${7 * k}" transform="translate(0 ${1 * k})"/>
     ${cores.join('')}${bows.join('')}`;
-  el.innerHTML = `<div class="xg-in" style="width:${n * seg}px;height:${H}px">${balls.join('')}${svgImg(art, `0 0 ${n * seg} ${H}`, 'xg-art', `width="${n * seg}" height="${H}"`)}${[0, 1, 2, 3].map((g) => `<div class="xg-lt g${g}">${lights.filter((l) => l[0] === g).map((l) => l[1]).join('')}</div>`).join('')}</div>`;
+  el.innerHTML = `<div class="xg-in" style="width:${n * seg}px;height:${H}px">${balls.join('')}${svgImg(`<filter id="xgSh" x="-5%" y="-20%" width="110%" height="160%"><feDropShadow dx="0" dy="3" stdDeviation="1.5" flood-color="#000" flood-opacity=".5"/></filter><g filter="url(#xgSh)">${art}</g>`, `0 0 ${n * seg} ${H + 6}`, 'xg-art', `width="${n * seg}" height="${H + 6}"`)}${[0, 1, 2, 3].map((g) => `<div class="xg-lt g${g}">${lights.filter((l) => l[0] === g).map((l) => l[1]).join('')}</div>`).join('')}</div>`;
 }
 
 // 모바일에서는 위쪽 헤더(로고·접속자)를 가리지 않도록 헤더 아래쪽 끝에 매단다
@@ -225,7 +226,7 @@ function aura() {
   const pine = (x, y, h) => `<path d="M${x} ${y - h}l${h * 0.28} ${h * 0.42}h${-h * 0.1}l${h * 0.24} ${h * 0.34}h${-h * 0.12}l${h * 0.24} ${h * 0.24}h${-h * 1.28}l${h * 0.24} ${-h * 0.24}h${-h * 0.12}l${h * 0.24} ${-h * 0.34}h${-h * 0.1}z" fill="#0d1a33"/><path d="M${x} ${y - h}l${h * 0.16} ${h * 0.24}q${-h * 0.16} ${h * 0.06} ${-h * 0.32} 0z" fill="#e9f2ff" opacity=".85"/>`;
   const castle = `<g transform="translate(700 92)"><path d="M0 60V22h10V8l6-14 6 14v14h12V-6l8-20 8 20v28h12V8l6-14 6 14v14h10v38z" fill="#121f3e"/><path d="M10 8l6-14 6 14zM34-6l8-20 8 20zM62 8l6-14 6 14z" fill="#d9e6ff" opacity=".9"/><path d="M42-26v-12l9 4-9 4" fill="#e9c46a"/>${win(14, 30)}${win(39, 10)}${win(45, 10)}${win(40, 32)}${win(66, 30)}<path d="M36 60v-12a6 6 0 0 1 12 0v12z" fill="#ffd27a" opacity=".85"/></g>`;
   const house = (x, y) => `<g transform="translate(${x} ${y})"><path d="M0 18V7l9-7 9 7v11z" fill="#13213f"/><path d="M-2 8 9-1l11 9-2 1-9-7-9 7z" fill="#eef5ff"/>${win(4, 10)}${win(11, 10)}</g>`;
-  el.innerHTML = `<i class="xa-au a"></i><i class="xa-au b"></i><i class="xa-au c"></i>${stars}
+  el.innerHTML = `<i class="xa-au a"></i>${stars}
     ${svgImg(`<defs><linearGradient id="xaSnow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfdcf5"/><stop offset="1" stop-color="#5f6f9c"/></linearGradient><linearGradient id="xaFar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a3a6e"/><stop offset="1" stop-color="#121c3a"/></linearGradient></defs>
       <path d="M0 120C140 80 260 96 380 104S640 70 760 88s300 10 440-12V170H0z" fill="url(#xaFar)"/>${castle}
       ${house(250, 92)}${house(285, 98)}${house(930, 86)}${house(965, 92)}
@@ -385,15 +386,14 @@ function place() {
   }
   if (chat && !chat.querySelector('#xtree')) {
     const t = document.createElement('div'); t.id = 'xtree';
-    t.innerHTML = treeHTML() + `<div class="xt-magic">${Array.from({ length: 12 }, (_, i) => `<i style="left:${12 + ((i * 29) % 76)}%;top:${6 + ((i * 41) % 80)}%;--d:${(i * 0.53) % 3.200}s"></i>`).join('')}</div>`;
+    t.innerHTML = treeHTML() + `<div class="xt-magic">${Array.from({ length: 6 }, (_, i) => `<i style="left:${12 + ((i * 29) % 76)}%;top:${6 + ((i * 41) % 80)}%;--d:${(i * 0.53) % 3.200}s"></i>`).join('')}</div>`;
     chat.querySelector('#xsky').after(t);
-    fitOrbit(t); if (window.ResizeObserver) new ResizeObserver(() => fitOrbit(t)).observe(t);
   }
   if (!document.getElementById('xlights')) garland();
   aura(); deco(true); pixie();
   const brand = document.querySelector('#side .brand');
   if (brand && !brand.querySelector('.xhat')) brand.insertAdjacentHTML('afterbegin', `<svg class="xhat" viewBox="0 0 44 34" aria-hidden="true"><defs><linearGradient id="xhR" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff5b4f"/><stop offset="1" stop-color="#9e1414"/></linearGradient></defs><path d="M5 26C10 12 18 4 30 4c5 0 8 3 9 9-7-3-12 1-14 7l-4 8z" fill="url(#xhR)"/><path d="M12 20c4-6 9-10 15-11" stroke="#fff" stroke-opacity=".25" stroke-width="2" fill="none"/><rect x="2" y="22" width="28" height="9" rx="4.500" fill="#fbfbfb"/><rect x="2" y="22" width="28" height="3" rx="1.500" fill="#fff"/><circle cx="39" cy="13" r="4.500" fill="#fff"/></svg>`);
-  if (!snowStop) { const cv = document.createElement('canvas'); cv.id = 'xsnow'; document.body.appendChild(cv); const stop = snowCanvas(cv, { glint: 18 }); snowStop = () => { stop(); cv.remove(); snowStop = null; }; }
+  if (!snowStop) { const cv = document.createElement('canvas'); cv.id = 'xsnow'; document.body.appendChild(cv); const stop = snowCanvas(cv, { count: 45, step: 50 }); snowStop = () => { stop(); cv.remove(); snowStop = null; }; }
 }
 function clear() {
   ['xtree', 'xsky', 'xlights', 'xfrost', 'xflyby', 'xaura'].forEach((id) => document.getElementById(id)?.remove());

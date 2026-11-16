@@ -1571,12 +1571,8 @@ body.xmas #presence{background:rgba(8,12,22,.82);position:relative}
 .xt-tw i{position:absolute;width:5%;aspect-ratio:1;translate:-50% -50%;border-radius:50%;background:radial-gradient(circle,#fffbe8 0,var(--c) 30%,color-mix(in srgb,var(--c) 30%,transparent) 55%,transparent 72%)}
 .xt-tw.g0,.xt-tw.g1,.xt-tw.g2{will-change:opacity;animation:xtwink 2.8s ease-in-out infinite}.xt-tw.g1{animation-delay:-.93s}.xt-tw.g2{animation-delay:-1.86s}
 .xt-tw .xt-glow{width:30%;background:radial-gradient(circle,rgba(255,240,190,.75),rgba(255,215,106,.35) 40%,transparent 70%);animation:xtwink 3.4s ease-in-out infinite}
-.xt-orbit{position:absolute;left:0;top:0;width:260px;height:352px;transform-origin:0 0;transform:scale(var(--k,1))}
-.xt-orbit i{position:absolute;left:0;top:0;width:6px;height:6px;margin:-3px;border-radius:50%;background:radial-gradient(circle,#fff 0,#fff6d2 35%,rgba(255,226,140,.4) 60%,transparent 75%);offset-path:var(--p);offset-rotate:0deg;animation:xtorb 5s linear infinite;animation-delay:calc(var(--i) * -.18s);opacity:calc(1 - var(--i) * .1)}
-@keyframes xtorb{from{offset-distance:0%}to{offset-distance:100%}}
-body.lite .xt-tw,body.lite .xt-orbit i,body.lite .xst,body.lite .xg-ball,body.lite .xg-lt{animation:none!important}
-body.lite .xt-orbit{display:none}
-body.idle .xt-tw,body.idle .xt-orbit i,body.idle .xst,body.idle .xg-ball,body.idle .xg-lt,body.idle .xt-magic i{animation-play-state:paused!important}
+body.lite .xt-tw,body.lite .xst,body.lite .xg-ball,body.lite .xg-lt{animation:none!important}
+body.idle .xt-tw,body.idle .xst,body.idle .xg-ball,body.idle .xg-lt,body.idle .xt-magic i{animation-play-state:paused!important}
 /* 갈랜드: 정지 이미지 + 전구 빛 + 흔들리는 공 */
 #xlights svg{filter:none}
 .xg-in{position:relative}
@@ -1586,3 +1582,10 @@ body.idle .xt-tw,body.idle .xt-orbit i,body.idle .xst,body.idle .xg-ball,body.id
 .xg-lt{position:absolute;inset:0;will-change:opacity;animation:xglow 2.8s ease-in-out infinite}.xg-lt.g1{animation-delay:-.7s}.xg-lt.g2{animation-delay:-1.4s}.xg-lt.g3{animation-delay:-2.1s}
 .xg-lt i{position:absolute;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:radial-gradient(circle,var(--c) 0,color-mix(in srgb,var(--c) 45%,transparent) 40%,transparent 70%)}
 @media (max-width:860px){.xg-lt i{width:8px;height:8px;margin:-4px 0 0 -4px}}
+
+/* 성능: 그림자·마스크는 SVG 안에 구워 넣고, 동시에 도는 애니메이션을 줄인다 */
+#xtree .xt-img{-webkit-mask:none;mask:none;filter:none}
+.xg-art,.xg-ball img{filter:none}
+.xg-ball{animation:none;will-change:auto}
+body.xmas .btn.pri::after,body.xmas .btn.gold::after{animation:none}
+body.xmas #nav a.on::after{animation:none}
