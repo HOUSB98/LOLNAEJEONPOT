@@ -1447,3 +1447,13 @@ body.lite #xlights *,body.lite #xtree *,body.lite .xs-scene *{animation:none!imp
 @keyframes xfly{0%{transform:translate(-40vw,150px) rotate(-6deg)}100%{transform:translate(110vw,20px) rotate(-3deg)}}
 .xf-fly .xs-sleigh g{fill:#f3d68f;color:#f3d68f}.xf-fly .xs-sleigh path[stroke]{stroke:#f3d68f;stroke-opacity:.7}
 body.lite #xsky *,body.lite .xt-magic *{animation:none!important}
+/* 트리: 더 화려하게 + 살짝 더 투명하게 */
+#xtree{opacity:.5}
+#xtree .xt-swirl{stroke-dasharray:6 18;animation:xtsw 3.5s linear infinite;opacity:.75}
+@keyframes xtsw{to{stroke-dashoffset:-240}}
+#xtree .xt-dot{filter:drop-shadow(0 0 3px #ffe28c)}
+#xtree .xt-rays{transform-box:view-box;transform-origin:120px 40px;animation:xtspin 18s linear infinite}
+#xtree .xt-bgrays{transform-box:view-box;transform-origin:120px 180px;animation:xtsway 9s ease-in-out infinite}
+@keyframes xtspin{to{transform:rotate(360deg)}}
+@keyframes xtsway{50%{transform:rotate(6deg);opacity:.2}}
+body.lite #xtree .xt-dot{display:none}

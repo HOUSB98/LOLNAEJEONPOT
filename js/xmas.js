@@ -21,69 +21,91 @@ function progress(now = new Date()) {
 
 // ---------- 트리 (그리는 순서 = 하루에 하나씩 나타나는 순서) ----------
 const DEFS = `<defs>
-  <radialGradient id="xtHalo" cx=".5" cy=".55" r=".5"><stop offset="0" stop-color="#ffd98a" stop-opacity=".55"/><stop offset=".6" stop-color="#ffb347" stop-opacity=".12"/><stop offset="1" stop-color="#ffb347" stop-opacity="0"/></radialGradient>
-  <linearGradient id="xtLeaf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3fa86a"/><stop offset=".45" stop-color="#1f7a48"/><stop offset="1" stop-color="#0d4227"/></linearGradient>
-  <linearGradient id="xtLeafHi" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9be3b4" stop-opacity=".55"/><stop offset=".35" stop-color="#9be3b4" stop-opacity="0"/></linearGradient>
-  <linearGradient id="xtGold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff2c2"/><stop offset=".4" stop-color="#e9b949"/><stop offset=".7" stop-color="#b57d1f"/><stop offset="1" stop-color="#f7d778"/></linearGradient>
-  <linearGradient id="xtTrunk" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4a2c15"/><stop offset=".5" stop-color="#7a4a24"/><stop offset="1" stop-color="#3a210f"/></linearGradient>
-  <radialGradient id="xbRed" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#ff9a8f"/><stop offset=".35" stop-color="#d42a2a"/><stop offset="1" stop-color="#6e0d12"/></radialGradient>
-  <radialGradient id="xbGold" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#fff6cf"/><stop offset=".35" stop-color="#e3b23c"/><stop offset="1" stop-color="#7a5310"/></radialGradient>
-  <radialGradient id="xbBlue" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#b9d4ff"/><stop offset=".35" stop-color="#2f5fd0"/><stop offset="1" stop-color="#0f2257"/></radialGradient>
-  <radialGradient id="xbPearl" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#e8e2d8"/><stop offset="1" stop-color="#9c9284"/></radialGradient>
-  <radialGradient id="xtStarG" cx=".5" cy=".45" r=".6"><stop offset="0" stop-color="#fffbe6"/><stop offset=".5" stop-color="#ffd76a"/><stop offset="1" stop-color="#d99a1e"/></radialGradient>
+  <radialGradient id="xtHalo" cx=".5" cy=".55" r=".5"><stop offset="0" stop-color="#ffe3a0" stop-opacity=".6"/><stop offset=".55" stop-color="#ffb86b" stop-opacity=".14"/><stop offset="1" stop-color="#ffb347" stop-opacity="0"/></radialGradient>
+  <linearGradient id="xtLeaf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4cc07c"/><stop offset=".45" stop-color="#1f8a50"/><stop offset="1" stop-color="#0b4a2a"/></linearGradient>
+  <linearGradient id="xtLeafHi" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b8f0cc" stop-opacity=".6"/><stop offset=".35" stop-color="#b8f0cc" stop-opacity="0"/></linearGradient>
+  <linearGradient id="xtGold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff6d2"/><stop offset=".35" stop-color="#f0c55a"/><stop offset=".65" stop-color="#b9821f"/><stop offset="1" stop-color="#ffe08a"/></linearGradient>
+  <linearGradient id="xtSatin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff7b72"/><stop offset=".5" stop-color="#c81e2b"/><stop offset="1" stop-color="#7d0c16"/></linearGradient>
+  <linearGradient id="xtTrunk" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4a2c15"/><stop offset=".5" stop-color="#8a5629"/><stop offset="1" stop-color="#3a210f"/></linearGradient>
+  <radialGradient id="xbRed" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#ffb0a6"/><stop offset=".35" stop-color="#df2f35"/><stop offset="1" stop-color="#6e0d12"/></radialGradient>
+  <radialGradient id="xbGold" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#fffbe2"/><stop offset=".35" stop-color="#ecbd45"/><stop offset="1" stop-color="#7a5310"/></radialGradient>
+  <radialGradient id="xbBlue" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#cfe1ff"/><stop offset=".35" stop-color="#3a6ae0"/><stop offset="1" stop-color="#0f2257"/></radialGradient>
+  <radialGradient id="xbPearl" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#efe8de"/><stop offset="1" stop-color="#a39886"/></radialGradient>
+  <radialGradient id="xbPurple" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#f0d6ff"/><stop offset=".35" stop-color="#9b4fd8"/><stop offset="1" stop-color="#3b1561"/></radialGradient>
+  <radialGradient id="xtStarG" cx=".5" cy=".45" r=".6"><stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#ffe17a"/><stop offset="1" stop-color="#e09b1c"/></radialGradient>
+  <linearGradient id="xtRay" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff2c4" stop-opacity=".55"/><stop offset="1" stop-color="#fff2c4" stop-opacity="0"/></linearGradient>
   <filter id="xtGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter>
-  <linearGradient id="xgRed" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0413a"/><stop offset="1" stop-color="#8e1717"/></linearGradient>
-  <linearGradient id="xgGreen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2f9a5e"/><stop offset="1" stop-color="#115230"/></linearGradient>
-  <linearGradient id="xgNavy" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b5bb5"/><stop offset="1" stop-color="#16285e"/></linearGradient>
+  <filter id="xtSoft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.200"/></filter>
+  <filter id="xtBlur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>
+  <linearGradient id="xgRed" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e8483f"/><stop offset="1" stop-color="#8e1717"/></linearGradient>
+  <linearGradient id="xgGreen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34a866"/><stop offset="1" stop-color="#115230"/></linearGradient>
+  <linearGradient id="xgNavy" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4466c4"/><stop offset="1" stop-color="#16285e"/></linearGradient>
+  <linearGradient id="xgPurple" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a65fe0"/><stop offset="1" stop-color="#4a1a78"/></linearGradient>
+  <pattern id="xtCane" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(40)"><rect width="6" height="6" fill="#fff"/><rect width="3" height="6" fill="#e0262f"/></pattern>
 </defs>`;
-// 가지 한 단: 아래쪽이 물결 모양으로 늘어진 삼각형 + 왼쪽 하이라이트
+// 가지 한 단: 아래쪽이 물결 모양으로 늘어진 삼각형 + 왼쪽 하이라이트 + 가지 끝에 쌓인 눈
 const tier = (top, bot, half) => {
-  const l = 120 - half, r = 120 + half, n = 5, w = (r - l) / n;
-  let wave = ''; for (let i = 0; i < n; i++) wave += ` Q${r - w * i - w / 2} ${bot + 9} ${r - w * (i + 1)} ${bot}`;
+  const l = 120 - half, r = 120 + half, n = 6, w = (r - l) / n;
+  let wave = '', snow = '';
+  for (let i = 0; i < n; i++) { const x1 = r - w * i, x2 = r - w * (i + 1), mx = (x1 + x2) / 2; wave += ` Q${mx} ${bot + 10} ${x2} ${bot}`; snow += `<path d="M${x1 - 1} ${bot - 1} Q${mx} ${bot + 7} ${x2 + 1} ${bot - 1} Q${mx} ${bot + 2} ${x1 - 1} ${bot - 1}z" fill="#f4f8ff" opacity=".85"/>`; }
   const d = `M120 ${top} L${r} ${bot}${wave} Z`;
-  return `<path d="${d}" fill="url(#xtLeaf)"/><path d="${d}" fill="url(#xtLeafHi)"/><path d="M120 ${top} L${l + 6} ${bot - 2}" stroke="#a6e8c0" stroke-opacity=".25" stroke-width="1.200"/>`;
+  return `<path d="${d}" fill="url(#xtLeaf)"/><path d="${d}" fill="url(#xtLeafHi)"/><path d="M120 ${top} L${l + 6} ${bot - 2}" stroke="#c9f5d8" stroke-opacity=".3" stroke-width="1.200"/>${snow}`;
 };
-const bauble = (x, y, g, r = 7) => `<g><path d="M${x - 2} ${y - r - 2}h4v3h-4z" fill="#d8b25a"/><circle cx="${x}" cy="${y}" r="${r}" fill="url(#${g})"/><ellipse cx="${x - r * 0.35}" cy="${y - r * 0.38}" rx="${r * 0.32}" ry="${r * 0.2}" fill="#fff" opacity=".75" transform="rotate(-30 ${x - r * 0.35} ${y - r * 0.38})"/></g>`;
-const bulbs = (pts) => `<g class="xt-lights">${pts.map(([x, y, c], i) => `<g style="--i:${i}"><circle cx="${x}" cy="${y}" r="5" fill="${c}" opacity=".45" filter="url(#xtGlow)"/><circle cx="${x}" cy="${y}" r="2.200" fill="#fffbe8"/></g>`).join('')}</g>`;
-const gift = (x, y, w, h, g, rib) => `<g><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2.500" fill="url(#${g})"/><rect x="${x}" y="${y}" width="${w}" height="${h * 0.22}" fill="#fff" opacity=".1"/><rect x="${x + w / 2 - 2.500}" y="${y}" width="5" height="${h}" fill="${rib}"/><path d="M${x + w / 2} ${y}c-9-10-17-3-9 0zM${x + w / 2} ${y}c9-10 17-3 9 0z" fill="${rib}" stroke="#00000033"/></g>`;
+const bauble = (x, y, g, r = 7) => `<g><path d="M${x - 2} ${y - r - 2.500}h4v3.500h-4z" fill="url(#xtGold)"/><circle cx="${x}" cy="${y}" r="${r}" fill="url(#${g})"/><path d="M${x - r} ${y}q${r} ${r * 0.5} ${r * 2} 0" stroke="#fff3c4" stroke-opacity=".55" stroke-width=".9" fill="none"/><ellipse cx="${x - r * 0.35}" cy="${y - r * 0.38}" rx="${r * 0.32}" ry="${r * 0.2}" fill="#fff" opacity=".8" transform="rotate(-30 ${x - r * 0.35} ${y - r * 0.38})"/></g>`;
+const bulbs = (pts) => `<g class="xt-lights">${pts.map(([x, y, c], i) => `<g style="--i:${i}"><circle cx="${x}" cy="${y}" r="5.500" fill="${c}" opacity=".5" filter="url(#xtGlow)"/><circle cx="${x}" cy="${y}" r="2.200" fill="#fffbe8"/><path d="M${x} ${y - 5}v10M${x - 5} ${y}h10" stroke="#fffbe8" stroke-width=".8" opacity=".7"/></g>`).join('')}</g>`;
+const gift = (x, y, w, h, g, rib) => `<g><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2.500" fill="url(#${g})"/><rect x="${x}" y="${y}" width="${w}" height="${h * 0.22}" fill="#fff" opacity=".12"/><rect x="${x + w / 2 - 2.500}" y="${y}" width="5" height="${h}" fill="${rib}"/><rect x="${x}" y="${y + h / 2 - 2}" width="${w}" height="4" fill="${rib}" opacity=".9"/><path d="M${x + w / 2} ${y}c-10-11-19-3-10 0zM${x + w / 2} ${y}c10-11 19-3 10 0z" fill="${rib}" stroke="#00000030"/><circle cx="${x + w / 2}" cy="${y}" r="2.400" fill="${rib}"/></g>`;
+const cane = (x, y, flip = 1) => `<path d="M${x} ${y + 16} V${y + 4} q0 -6 ${5 * flip} -6 q${5 * flip} 0 ${5 * flip} 5" stroke="url(#xtCane)" stroke-width="3.400" fill="none" stroke-linecap="round"/>`;
+const bell = (x, y) => `<g><path d="M${x - 6} ${y + 6} q0 -11 6 -11 q6 0 6 11 l2 2 h-16z" fill="url(#xtGold)"/><circle cx="${x}" cy="${y + 9}" r="2" fill="#b9821f"/><path d="M${x - 3} ${y - 6} q3 -4 6 0" stroke="#c81e2b" stroke-width="2" fill="none"/></g>`;
+const starOrn = (x, y, s = 1) => `<path d="M${x} ${y - 7 * s} ${x + 2 * s} ${y - 2 * s} ${x + 7 * s} ${y - 2 * s} ${x + 3 * s} ${y + 1.500 * s} ${x + 4.500 * s} ${y + 7 * s} ${x} ${y + 4 * s} ${x - 4.500 * s} ${y + 7 * s} ${x - 3 * s} ${y + 1.500 * s} ${x - 7 * s} ${y - 2 * s} ${x - 2 * s} ${y - 2 * s}z" fill="url(#xtGold)" stroke="#fff6d2" stroke-width=".6"/>`;
 function treeParts() {
   const P = [];
-  P.push(`<ellipse cx="120" cy="190" rx="120" ry="150" fill="url(#xtHalo)"/>`); // 0 은은한 빛
-  P.push(`<path d="M106 286h28l4 30h-36z" fill="url(#xtTrunk)"/><ellipse cx="120" cy="318" rx="70" ry="9" fill="#e9f1ff" opacity=".55"/>`); // 줄기 + 눈 쌓인 바닥
-  P.push(tier(196, 292, 100));
-  P.push(tier(140, 236, 80));
-  P.push(tier(92, 180, 60));
-  P.push(tier(52, 124, 40));
-  // 금빛 리본(사선으로 감기는 띠)
-  P.push(`<path d="M48 284 C90 300 150 300 196 268" stroke="url(#xtGold)" stroke-width="6" fill="none" stroke-linecap="round"/>`);
-  P.push(`<path d="M62 226 C100 240 150 238 182 212" stroke="url(#xtGold)" stroke-width="5.500" fill="none" stroke-linecap="round"/>`);
-  P.push(`<path d="M76 172 C104 184 140 182 164 160" stroke="url(#xtGold)" stroke-width="5" fill="none" stroke-linecap="round"/>`);
-  P.push(`<path d="M92 120 C110 128 132 127 148 112" stroke="url(#xtGold)" stroke-width="4.500" fill="none" stroke-linecap="round"/>`);
-  // 장식 공(빨강·금·파랑·진주)
-  const B = [[70, 270, 'xbRed', 8], [168, 262, 'xbGold', 8], [118, 292, 'xbBlue', 8], [96, 252, 'xbPearl', 7], [146, 286, 'xbRed', 7], [186, 286, 'xbPearl', 6.5], [52, 292, 'xbGold', 6.5],
-    [88, 214, 'xbGold', 7.500], [150, 206, 'xbRed', 7.500], [118, 230, 'xbPearl', 7], [70, 230, 'xbBlue', 6.500], [172, 232, 'xbBlue', 6.500], [104, 196, 'xbRed', 6],
-    [100, 158, 'xbBlue', 7], [142, 152, 'xbGold', 7], [122, 174, 'xbRed', 6.500], [84, 174, 'xbPearl', 6], [158, 176, 'xbPearl', 6],
-    [112, 106, 'xbGold', 6], [132, 116, 'xbRed', 5.500], [100, 124, 'xbPearl', 5.500], [122, 86, 'xbBlue', 5]];
+  P.push(`<path d="M106 286h28l4 30h-36z" fill="url(#xtTrunk)"/><path d="M40 314 q80 -22 160 0 q-6 14 -80 14 q-74 0 -80 -14z" fill="url(#xtSatin)"/><path d="M40 314 q80 -22 160 0" stroke="url(#xtGold)" stroke-width="2.500" fill="none"/>`); // 줄기 + 트리 치마
+  P.push(tier(200, 292, 104));
+  P.push(tier(148, 238, 84));
+  P.push(tier(100, 184, 64));
+  P.push(tier(58, 128, 44));
+  // 공단 리본(사선으로 감기는 금빛 띠, 아래부터)
+  P.push(`<path d="M46 284 C92 302 150 302 198 268" stroke="url(#xtGold)" stroke-width="7" fill="none" stroke-linecap="round"/><path d="M46 282 C92 300 150 300 198 266" stroke="#fff6d2" stroke-opacity=".5" stroke-width="1.400" fill="none"/>`);
+  P.push(`<path d="M60 228 C100 244 152 242 184 214" stroke="url(#xtGold)" stroke-width="6.500" fill="none" stroke-linecap="round"/><path d="M60 226 C100 242 152 240 184 212" stroke="#fff6d2" stroke-opacity=".5" stroke-width="1.200" fill="none"/>`);
+  P.push(`<path d="M74 174 C104 188 142 186 166 162" stroke="url(#xtGold)" stroke-width="6" fill="none" stroke-linecap="round"/>`);
+  P.push(`<path d="M90 122 C110 131 134 130 150 114" stroke="url(#xtGold)" stroke-width="5" fill="none" stroke-linecap="round"/>`);
+  // 장식 공
+  const B = [[70, 270, 'xbRed', 8.500], [170, 262, 'xbGold', 8.500], [118, 294, 'xbBlue', 8], [96, 252, 'xbPearl', 7.500], [146, 288, 'xbPurple', 7.500], [188, 286, 'xbPearl', 7], [52, 292, 'xbGold', 7],
+    [88, 214, 'xbGold', 8], [152, 206, 'xbRed', 8], [118, 232, 'xbPurple', 7.500], [70, 232, 'xbBlue', 7], [174, 234, 'xbBlue', 7], [104, 196, 'xbRed', 6.500],
+    [100, 160, 'xbBlue', 7.500], [142, 154, 'xbGold', 7.500], [122, 176, 'xbRed', 7], [84, 176, 'xbPurple', 6.500], [160, 178, 'xbPearl', 6.500],
+    [112, 108, 'xbGold', 6.500], [132, 118, 'xbRed', 6], [100, 126, 'xbPearl', 6], [124, 90, 'xbPurple', 5.500]];
   B.forEach(([x, y, g, r]) => P.push(bauble(x, y, g, r)));
-  // 전구 줄(따뜻한 빛, 반짝임)
-  P.push(bulbs([[58, 262, '#ffcf6b'], [80, 278, '#ff8a7a'], [104, 284, '#ffcf6b'], [130, 280, '#9fd4ff'], [156, 272, '#ffcf6b'], [180, 256, '#ff8a7a']]));
-  P.push(bulbs([[72, 206, '#9fd4ff'], [94, 220, '#ffcf6b'], [120, 222, '#ff8a7a'], [146, 216, '#ffcf6b'], [168, 200, '#9fd4ff']]));
-  P.push(bulbs([[86, 152, '#ffcf6b'], [108, 166, '#ff8a7a'], [132, 164, '#ffcf6b'], [154, 150, '#9fd4ff'], [98, 104, '#ffcf6b'], [118, 112, '#9fd4ff'], [140, 102, '#ff8a7a']]));
+  // 지팡이 사탕·금종·별 장식
+  P.push(cane(58, 240)); P.push(cane(176, 250, -1)); P.push(cane(132, 192));
+  P.push(bell(80, 286)); P.push(bell(158, 222)); P.push(bell(112, 140));
+  P.push(starOrn(136, 268)); P.push(starOrn(64, 196, 0.9)); P.push(starOrn(150, 128, 0.8)); P.push(starOrn(92, 98, 0.7));
+  // 요정 전구(십자 반짝임)
+  P.push(bulbs([[56, 262, '#ffcf6b'], [78, 278, '#ff8a7a'], [102, 286, '#ffcf6b'], [128, 284, '#a8d8ff'], [154, 276, '#ffcf6b'], [180, 260, '#ff8a7a'], [196, 276, '#c8a8ff']]));
+  P.push(bulbs([[70, 208, '#a8d8ff'], [92, 222, '#ffcf6b'], [118, 226, '#ff8a7a'], [146, 220, '#ffcf6b'], [170, 202, '#c8a8ff']]));
+  P.push(bulbs([[84, 156, '#ffcf6b'], [106, 170, '#ff8a7a'], [132, 168, '#ffcf6b'], [156, 152, '#a8d8ff'], [96, 108, '#ffcf6b'], [118, 116, '#c8a8ff'], [140, 104, '#ff8a7a'], [110, 80, '#ffcf6b']]));
   // 선물 상자
-  P.push(gift(30, 296, 34, 26, 'xgRed', '#f2cf7a'));
-  P.push(gift(170, 290, 40, 32, 'xgGreen', '#f4efe6'));
-  P.push(gift(136, 302, 28, 20, 'xgNavy', '#f2cf7a'));
-  P.push(gift(66, 304, 24, 18, 'xgGreen', '#e04a3f'));
-  // 별(크리스마스 당일)
-  P.push(`<g class="xt-star"><circle cx="120" cy="40" r="26" fill="#ffd76a" opacity=".55" filter="url(#xtGlow)"/><path d="M120 12 127.500 31 148 32 132 44.500 137.500 64 120 53 102.500 64 108 44.500 92 32 112.500 31z" fill="url(#xtStarG)" stroke="#fff6cf" stroke-width="1.500"/><path d="M120 2v8M120 70v8M86 40h8M146 40h8" stroke="#fff3c4" stroke-width="1.500" stroke-linecap="round" opacity=".8"/></g>`);
+  P.push(gift(26, 300, 36, 26, 'xgRed', '#f2cf7a'));
+  P.push(gift(172, 292, 42, 34, 'xgGreen', '#f4efe6'));
+  P.push(gift(138, 306, 30, 20, 'xgNavy', '#f2cf7a'));
+  P.push(gift(64, 308, 26, 18, 'xgPurple', '#ffd6f0'));
+  P.push(gift(98, 312, 22, 14, 'xgRed', '#f4efe6'));
+  // 리본 나비매듭(별 바로 아래)
+  P.push(`<g><path d="M120 66 c-14 -12 -26 -4 -16 4 c-8 6 4 12 16 -4z" fill="url(#xtSatin)"/><path d="M120 66 c14 -12 26 -4 16 4 c8 6 -4 12 -16 -4z" fill="url(#xtSatin)"/><path d="M118 66 l-8 22 6 -3 2 6zM122 66 l8 22 -6 -3 -2 6z" fill="#a8121e"/><circle cx="120" cy="66" r="4" fill="#ff6b62"/></g>`);
+  // 별(크리스마스 당일): 회전하는 빛살 + 큰 빛무리
+  P.push(`<g class="xt-star"><g class="xt-rays">${Array.from({ length: 12 }, (_, i) => `<path d="M120 40 l-3 -46 h6z" fill="url(#xtRay)" transform="rotate(${i * 30} 120 40)"/>`).join('')}</g><circle cx="120" cy="40" r="30" fill="#ffd76a" opacity=".55" filter="url(#xtGlow)"/><path d="M120 8 128.500 30 152 31 134 45 140 68 120 55 100 68 106 45 88 31 111.500 30z" fill="url(#xtStarG)" stroke="#fff8dc" stroke-width="1.600"/><circle cx="114" cy="30" r="3" fill="#fff" opacity=".9"/></g>`);
   return P;
 }
 function treeSVG() {
   const parts = treeParts(), { d, total } = progress();
-  const n = d >= total ? parts.length : Math.min(parts.length - 1, 2 + Math.floor((d / total) * (parts.length - 2)));
-  const key = 'naejeon:xtree', seen = +localStorage.getItem(key) || 0;
+  const n = d >= total ? parts.length : Math.min(parts.length - 1, 1 + Math.floor((d / total) * (parts.length - 1)));
+  const key = 'naejeon:xtree2', seen = +localStorage.getItem(key) || 0;
   try { localStorage.setItem(key, String(n)); } catch {}
-  return `<svg viewBox="0 0 240 330" aria-hidden="true">${DEFS}${parts.slice(0, n).map((p, i) => `<g class="xt-p ${seen && i >= seen ? 'xt-new' : ''}">${p}</g>`).join('')}</svg>`;
+  // 항상 보이는 배경: 은은한 빛무리, 뒤쪽 빛살, 트리를 휘감아 오르는 금빛 마법 소용돌이
+  const aura = `<ellipse cx="120" cy="196" rx="124" ry="150" fill="url(#xtHalo)"/><g class="xt-bgrays" opacity=".22" filter="url(#xtBlur)">${Array.from({ length: 11 }, (_, i) => `<path d="M120 180 l-4 -200 h8z" fill="url(#xtRay)" transform="rotate(${-70 + i * 14} 120 180)"/>`).join('')}</g>`;
+  const swirl = `<path id="xtSw" d="M60 300 C150 290 200 260 170 240 C120 210 50 230 78 200 C100 176 170 186 160 156 C150 132 86 150 98 120 C108 96 150 106 142 80 C136 62 118 58 120 40" fill="none"/>
+    <path d="M60 300 C150 290 200 260 170 240 C120 210 50 230 78 200 C100 176 170 186 160 156 C150 132 86 150 98 120 C108 96 150 106 142 80 C136 62 118 58 120 40" fill="none" stroke="#ffe7a3" stroke-width="2.600" stroke-linecap="round" class="xt-swirl" filter="url(#xtSoft)"/>
+    ${Array.from({ length: 7 }, (_, i) => `<circle r="${2.400 - i * 0.2}" fill="#fff6d2" class="xt-dot"><animateMotion dur="5s" begin="${-i * 0.18}s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#xtSw"/></animateMotion></circle>`).join('')}`;
+  return `<svg viewBox="-10 -14 260 352" aria-hidden="true">${DEFS}${aura}${parts.slice(0, n).map((p, i) => `<g class="xt-p ${seen && i >= seen ? 'xt-new' : ''}">${p}</g>`).join('')}<g class="xt-magicsw">${swirl}</g></svg>`;
 }
 
 // ---------- 눈(작은 눈 + 가끔 흐린 큰 눈) ----------
