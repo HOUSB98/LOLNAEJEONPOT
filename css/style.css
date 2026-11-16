@@ -1327,3 +1327,17 @@ h1 .ic,h2 .ic,.ph b .ic,.mh b .ic{width:1em;height:1em;margin-right:6px;vertical
 .gb-x .ic,.gb-snd .ic{width:16px;height:16px}
 .gb-foot .btn .ic,.gb-livecall .ic{width:16px;height:16px;vertical-align:-3px}
 em.m-hide{font-style:normal}
+/* ---------- 리플레이 자동 연결 ---------- */
+.rq{display:grid;gap:10px}
+.rq-it{border:1px solid var(--line2);border-radius:12px;padding:12px 14px;background:linear-gradient(180deg,var(--panel2),var(--panel));display:grid;gap:10px}
+.rq-it.ok{border-color:rgba(79,208,139,.45)}.rq-it.ambig{border-color:rgba(217,164,65,.55)}.rq-it.none,.rq-it.err{border-color:rgba(240,80,110,.45)}.rq-it.done{opacity:.65}
+.rq-it.err{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.rq-h,.rq-f{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.rq-h b{font-size:14px;word-break:break-all}
+.rq-f select{flex:1 1 280px;min-width:0}
+.rq-teams{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rq-teams>div{display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:8px;border-radius:9px;background:rgba(0,0,0,.25)}
+.rq-teams em{font-style:normal;font:700 11px var(--mono);letter-spacing:.12em;margin-right:4px}
+.rq-teams span{display:inline-flex;align-items:center;gap:4px;padding:2px 8px 2px 2px;border-radius:99px;background:var(--panel2);font-size:12px;font-weight:600}
+.rq-teams span .ci{width:20px;height:20px;border-radius:50%}
+.rq-teams span.miss{opacity:.55;font-style:italic}
+@media (max-width:860px){.rq-teams{grid-template-columns:1fr}}

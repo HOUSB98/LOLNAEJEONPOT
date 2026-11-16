@@ -1,5 +1,5 @@
 // 리플레이(.rofl) 분석: 파일 안에 들어 있는 경기 결과 JSON(statsJson)을 브라우저에서 직접 읽는다. 파일은 어디에도 올라가지 않는다.
-import { S, page, act, esc, go, refresh, champIcon, toast, ic, modal, closeModal, mh, history, LANES, LANE_NAME, LANE_ICON } from './core.js';
+import { S, page, act, esc, go, refresh, champIcon, toast, ic, modal, closeModal, mh, history, fmtDT, LANES, LANE_NAME, LANE_ICON } from './core.js';
 import { importDraft } from './today.js';
 import { XKEYS } from './stats.js';
 
@@ -36,10 +36,12 @@ async function parseRofl(file) {
   throw new Error('파일에서 경기 결과 정보를 찾지 못했습니다. 다른 리플레이로 시도해 주세요.');
 }
 const champName = (skin) => { const c = S.champs.find((x) => x.id.toLowerCase() === String(skin).toLowerCase()); return c ? c.name : skin; };
+// 롤 닉네임 → 선수. 선수 정보의 롤 닉네임(쉼표로 여러 개 가능)과, 리플레이를 적용할 때 자동으로 배운 닉네임(riotAlt)을 본다.
+const nicks = (s) => [...String(s.p.riotId || '').split(/[,/]/), ...(s.p.riotAlt || [])].map(norm).filter(Boolean);
 function matchPlayer(gn, tag) {
   const full = norm(gn + '#' + tag), base = norm(gn);
   const list = S.st.list;
-  return (list.find((s) => norm(s.p.riotId) === full) || list.find((s) => norm(s.p.riotId).split('#')[0] === base) || list.find((s) => norm(s.name) === base))?.id || '';
+  return (list.find((s) => nicks(s).includes(full)) || list.find((s) => nicks(s).some((x) => x.split('#')[0] === base)) || list.find((s) => norm(s.name) === base))?.id || '';
 }
 function toRows(meta) {
   const rows = meta.stats.map((p) => {
@@ -75,7 +77,7 @@ const fmtDur = (ms) => { const s = Math.round(ms / 1000); return `${Math.floor(s
 const itemImg = (id) => (id && S.ver ? `<img class="it" src="https://ddragon.leagueoflegends.com/cdn/${S.ver}/img/item/${id}.png" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : '<span class="it"></span>');
 
 // 리플레이 분석 화면 사용 여부. false면 화면은 보이지만 파일을 넣을 수 없다("도입 예정"). 경기 기록의 경기별 "리플레이" 버튼은 계속 쓸 수 있다.
-const REPLAY_PAGE = false;
+const REPLAY_PAGE = true;
 page('replay', {
   render() {
     const m = R.meta, k = (v) => v.toLocaleString('ko-KR');
@@ -92,11 +94,12 @@ page('replay', {
     };
     return `<div class="h2row"><h1>${ic('replay')}리플레이 분석</h1><span class="tag gold">${REPLAY_PAGE ? 'BETA' : '도입 예정'}</span></div>
     ${REPLAY_PAGE ? '' : `<div class="panel soonbox">${ic('alert')}<div><b>도입 예정인 기능입니다</b><span>리플레이를 올리면 해당 경기를 자동으로 찾아 주는 기능과 함께 열릴 예정입니다. 그때까지는 <a href="#/matches">경기 기록</a>에서 각 경기의 <em>리플레이</em> 버튼으로 파일을 넣어 주세요.</span></div></div>`}
-    <label class="drop ${R.busy ? 'busy' : ''} ${REPLAY_PAGE ? '' : 'off'}" id="rdrop"><input type="file" accept=".rofl" id="rfile" hidden ${REPLAY_PAGE ? '' : 'disabled'}>
-      <div class="dr-ic">${ic('replay')}</div><b>${!REPLAY_PAGE ? '도입 예정 — 지금은 파일을 넣을 수 없습니다' : R.busy ? '분석 중…' : '.rofl 리플레이 파일을 끌어다 놓거나 눌러서 선택'}</b>
-      <span>롤 클라이언트 › 프로필 › 전적에서 경기를 눌러 <em>다운로드</em>하면 <code>문서\\League of Legends\\Replays</code> 폴더에 저장됩니다.<br>파일은 서버로 올라가지 않고 이 브라우저 안에서만 읽습니다.</span></label>
+    <label class="drop ${R.busy ? 'busy' : ''} ${REPLAY_PAGE ? '' : 'off'}" id="rdrop"><input type="file" accept=".rofl" id="rfile" multiple hidden ${REPLAY_PAGE ? '' : 'disabled'}>
+      <div class="dr-ic">${ic('replay')}</div><b>${!REPLAY_PAGE ? '도입 예정 — 지금은 파일을 넣을 수 없습니다' : R.busy ? '분석 중…' : '.rofl 리플레이 파일을 끌어다 놓거나 눌러서 선택 (여러 개 가능)'}</b>
+      <span>닉네임으로 선수를 찾고, 팀 색(블루/레드)과 상관없이 <b>같은 10명이 같은 편으로 뛴 경기</b>를 경기 기록에서 자동으로 찾아 연결합니다.<br>롤 클라이언트 › 프로필 › 전적에서 경기를 눌러 <em>다운로드</em>하면 <code>문서\\League of Legends\\Replays</code> 폴더에 저장됩니다.<br>파일은 서버로 올라가지 않고 이 브라우저 안에서만 읽습니다.</span></label>
     ${R.err ? `<div class="panel errbox">${ic('alert')} ${esc(R.err)}</div>` : ''}
-    ${m ? `<div class="stats">
+    ${Q.items.length && !m ? queueView() : ''}
+    ${m ? `${Q.items.length ? '<button class="btn ghost" data-a="rqBack">← 자동 연결 결과로 돌아가기</button>' : ''}<div class="stats">
         <div class="stat gold"><small>파일</small><b class="sm2">${esc(R.name)}</b><span>${esc(m.gameVersion || '')}</span></div>
         <div class="stat teal"><small>경기 시간</small><b class="mono">${fmtDur(R.dur)}</b><span>${R.rows.length}명</span></div>
         <div class="stat ${R.winner === 'blue' ? 'blue' : 'red'}"><small>승리</small><b>${R.winner === 'blue' ? '블루' : R.winner === 'red' ? '레드' : '—'}</b><span>리플레이 기록 기준</span></div>
@@ -104,7 +107,7 @@ page('replay', {
       ${team('blue')}${team('red')}
       <div class="panel"><p class="sm">내전 선수가 비어 있는 칸은 직접 골라 주세요. 롤 닉네임은 관리 › 선수 상세에서 등록하면 다음부터 자동으로 연결됩니다.</p>
         <button class="btn pri block big" data-a="rpSend">${ic('today')}오늘의 내전 입력 화면으로 보내기</button><p class="hint center">보낸 뒤 입력 화면에서 확인하고 "경기 결과 저장"을 눌러야 기록됩니다. 피어리스·시리즈 판정도 그 화면에서 그대로 적용됩니다.</p></div>`
-    : `<div class="grid2"><div class="panel"><div class="ph"><b>읽을 수 있는 정보</b></div><ul class="rlist">
+    : Q.items.length ? '' : `<div class="grid2"><div class="panel"><div class="ph"><b>읽을 수 있는 정보</b></div><ul class="rlist">
         <li>챔피언, 소환사(롤 닉네임), 진영, 포지션, 승패</li><li>킬 · 데스 · 어시스트, 최대 연속 킬</li><li>CS(미니언 + 정글몹), 골드, 레벨</li>
         <li>챔피언에게 가한 피해량, 받은 피해량</li><li>시야 점수, 와드 설치·제거, 제어 와드 구매</li><li>물리·마법·고정 피해 구성, 오브젝트·포탑 피해</li><li>치유·아군 보호막·피해 경감·CC 시간, 멀티킬, 사망 시간</li><li>최종 아이템 7칸, 경기 시간, 게임 버전</li></ul></div>
       <div class="panel"><div class="ph"><b>알아 둘 점</b></div><ul class="rlist">
@@ -114,10 +117,10 @@ page('replay', {
   after() {
     const drop = document.getElementById('rdrop'), inp = document.getElementById('rfile');
     if (!drop || !REPLAY_PAGE) return;
-    inp.onchange = () => inp.files[0] && load(inp.files[0]);
+    inp.onchange = () => inp.files.length && loadMany([...inp.files]);
     drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('over'); };
     drop.ondragleave = () => drop.classList.remove('over');
-    drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over'); const f = e.dataTransfer.files[0]; if (f) load(f); };
+    drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over'); const fs = [...e.dataTransfer.files].filter((f) => /\.rofl$/i.test(f.name)); if (fs.length) loadMany(fs); else toast('.rofl 파일만 넣을 수 있어요'); };
   },
 });
 // ---------- 기존 경기에 리플레이 붙이기 ----------
@@ -130,10 +133,10 @@ act('matchReplay', (d) => {
     try {
       const meta = await parseRofl(f), ids = [...m.blue, ...m.red];
       AT.id = d.id; AT.name = f.name; AT.dur = n(meta.gameLength);
-      AT.rows = toRows(meta).map((r) => ({ ...r, pid: ids.includes(r.pid) ? r.pid : '' }));
-      // 한 명만 못 찾았으면 남은 한 자리로 확정할 수 있다
-      const left = ids.filter((id) => !AT.rows.some((r) => r.pid === id)), miss = AT.rows.filter((r) => !r.pid);
-      if (left.length === 1 && miss.length === 1) miss[0].pid = left[0];
+      const rows = toRows(meta).map((r) => ({ ...r, pid: ids.includes(r.pid) ? r.pid : '' }));
+      // 팀 색과 상관없이 같은 편끼리 맞춰 보고, 못 찾은 사람은 같은 편의 남은 자리로 채운다
+      const c = candidates(rows).find((x) => x.id === m.id);
+      AT.rows = c ? resolve(rows, m, c.flip) : rows;
       attachView();
     } catch (e) { toast(e.message || String(e)); }
   };
@@ -158,10 +161,13 @@ function attachView() {
     <div class="row"><span class="grow"></span><button class="btn ghost" data-a="close">취소</button><button class="btn pri" data-a="atApply" ${miss || dup ? 'disabled' : ''}>${m.stats ? '기존 상세 기록을 이 리플레이로 교체' : '이 경기에 적용'}</button></div>`, 'xwide');
 }
 act('atPid', (d, el) => { AT.rows[+d.i].pid = el.value; attachView(); });
-act('atApply', async () => {
-  const m = S.store.data.matches[AT.id]; if (!m) return;
+act('atApply', async () => { if (await applyReplay(AT.id, AT.rows, AT.dur)) { closeModal(); toast('리플레이 기록을 적용했습니다'); } });
+// 경기에 리플레이 기록을 넣는다. 라인업·승패는 그대로, 선수별(id 기준)로 KDA·상세 기록·챔피언을 채우므로 팀 색이 반대로 기록돼 있어도 맞게 들어간다.
+// 처음 보는 롤 닉네임은 그 선수의 riotAlt에 저장해 다음부터 자동으로 찾는다.
+async function applyReplay(id, rows, dur) {
+  const m = S.store.data.matches[id]; if (!m) return false;
   const kda = { ...(m.kda || {}) }, stats = {}, champs = { blue: [...(m.champs?.blue || ['', '', '', '', ''])], red: [...(m.champs?.red || ['', '', '', '', ''])] };
-  for (const r of AT.rows) {
+  for (const r of rows) {
     kda[r.pid] = [r.k, r.d, r.a];
     stats[r.pid] = statsOf(r);
     const side = m.blue.includes(r.pid) ? 'blue' : 'red', i = m[side].indexOf(r.pid);
@@ -169,10 +175,15 @@ act('atApply', async () => {
   }
   try {
     await history('match-replay', m);
-    await S.store.patch('matches', m.id, { kda, stats, champs, dur: AT.dur });
-    closeModal(); toast('리플레이 기록을 적용했습니다');
-  } catch (e) { toast('저장 실패: ' + (e.code || e.message)); }
-});
+    await S.store.patch('matches', m.id, { kda, stats, champs, dur });
+    for (const r of rows) { // 닉네임 학습
+      const pl = S.store.data.players[r.pid], key = norm(r.riot);
+      if (!pl || !key || nicks({ p: pl }).includes(key)) continue;
+      await S.store.patch('players', r.pid, pl.riotId ? { riotAlt: [...(pl.riotAlt || []), r.riot].slice(-8) } : { riotId: r.riot });
+    }
+    return true;
+  } catch (e) { toast('저장 실패: ' + (e.code || e.message)); return false; }
+}
 
 async function load(file) {
   R.busy = true; R.err = ''; refresh();
@@ -197,4 +208,123 @@ act('rpSend', () => {
   }
   if (new Set(R.rows.map((r) => r.pid)).size !== R.rows.length) return toast('같은 선수가 두 번 선택되었습니다');
   importDraft(x); toast('입력 화면에 채웠습니다. 확인 후 저장하세요'); go('#/today');
+});
+
+// ---------- 리플레이 → 경기 자동 연결 ----------
+// 팀 색은 보지 않는다. 리플레이의 두 팀(각 5명)을 닉네임으로 선수에 연결한 뒤, 경기 기록 중
+// "한 팀의 선수가 모두 기록의 한 팀 안에, 다른 팀 선수는 모두 다른 팀 안에" 있고 "이긴 쪽도 같은" 경기를 찾는다.
+// 같은 멤버로 여러 판 했으면 챔피언 기록 → 아직 리플레이가 없는 경기 → 파일 순서(게임 번호)와 경기 시각 순서로 고른다.
+const Q = { items: [], busy: false };
+const gameNo = (name) => +(String(name).match(/(\d{6,})/)?.[1] || 0);
+function candidates(rows) {
+  const A = rows.filter((r) => r.side === 'blue'), B = rows.filter((r) => r.side === 'red'), winA = A.some((r) => r.win);
+  const known = rows.filter((r) => r.pid).length, out = [];
+  if (known < 5) return out;
+  for (const m of S.st.matches) {
+    for (const flip of [false, true]) { // flip: 리플레이 블루 = 기록 레드
+      const tb = flip ? B : A, tr = flip ? A : B;
+      if (!tb.every((r) => !r.pid || m.blue.includes(r.pid)) || !tr.every((r) => !r.pid || m.red.includes(r.pid))) continue;
+      if ((m.winner === 'blue') !== (flip ? !winA : winA)) continue;
+      let ch = 0, chMis = 0;
+      for (const [team, side] of [[tb, 'blue'], [tr, 'red']]) for (const r of team) {
+        const c = r.pid && m.champs?.[side]?.[m[side].indexOf(r.pid)];
+        if (c) c === r.champ ? ch++ : chMis++;
+      }
+      out.push({ id: m.id, flip, known, ch, chMis, has: !!m.stats, at: m.at });
+    }
+  }
+  return out.sort((a, b) => b.known - a.known || a.chMis - b.chMis || b.ch - a.ch || a.has - b.has || a.at - b.at);
+}
+// 닉네임으로 못 찾은 사람은 같은 편에 남은 자리로 채운다(남은 자리가 여럿이면 포지션 → 순서)
+function resolve(rows, m, flip) {
+  const out = rows.map((r) => ({ ...r }));
+  for (const side of ['blue', 'red']) {
+    const recSide = (side === 'blue') !== flip ? 'blue' : 'red', team = out.filter((r) => r.side === side);
+    const left = m[recSide].filter((id) => !team.some((r) => r.pid === id));
+    for (const r of team.filter((x) => !x.pid)) {
+      const byLane = left.find((id) => m[recSide].indexOf(id) === r.lane);
+      r.pid = byLane || left[0] || '';
+      left.splice(left.indexOf(r.pid), 1);
+    }
+  }
+  return out;
+}
+const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
+function plan() {
+  for (const it of Q.items) if (it.status !== 'done' && it.status !== 'err') {
+    const c = it.cands, top = c[0];
+    it.pick = top ? top.id : '';
+    it.status = !top ? 'none' : c.length === 1 || c[1].known < top.known || c[1].chMis > top.chMis || c[1].ch < top.ch ? 'ok' : 'ambig';
+  }
+  // 같은 후보 묶음(같은 멤버 연속 경기)을 공유하는 파일들은 게임 번호 순서 ↔ 경기 시각 순서로 하나씩 나눠 준다
+  const groups = new Map();
+  for (const it of Q.items) if (it.status === 'ambig') {
+    const ids = it.cands.filter((x) => x.known === it.cands[0].known && x.chMis === it.cands[0].chMis).map((x) => x.id).sort().join();
+    (groups.get(ids) || groups.set(ids, []).get(ids)).push(it);
+  }
+  for (const [ids, its] of groups) {
+    const ms = ids.split(',').map((id) => S.store.data.matches[id]).filter((m) => m && !m.stats).sort((a, b) => a.at - b.at);
+    its.sort((a, b) => gameNo(a.name) - gameNo(b.name));
+    if (its.length > 1 && ms.length >= its.length) its.forEach((it, i) => { it.pick = ms[i].id; it.guess = '파일 순서로 추정'; });
+    else if (ms.length) its[0].pick = ms[0].id;
+  }
+}
+const candOf = (it) => it.cands.find((c) => c.id === it.pick);
+const rowsFor = (it) => { const c = candOf(it), m = c && S.store.data.matches[c.id]; return m ? resolve(it.rows, m, c.flip) : it.rows; };
+async function loadMany(files) {
+  R.busy = true; R.err = ''; R.meta = null; refresh();
+  for (const f of files) {
+    if (Q.items.some((x) => x.name === f.name)) continue;
+    try {
+      const meta = await parseRofl(f), rows = toRows(meta);
+      Q.items.push({ name: f.name, meta, rows, dur: n(meta.gameLength), cands: candidates(rows), status: '', pick: '' });
+    } catch (e) { Q.items.push({ name: f.name, status: 'err', err: e.message || String(e), cands: [], rows: [] }); }
+  }
+  plan(); R.busy = false; refresh();
+  const ok = Q.items.filter((x) => x.status === 'ok').length;
+  toast(`${files.length}개 읽음 · ${ok}개 자동 연결`);
+}
+function queueView() {
+  const st = S.st, k = (v) => v.toLocaleString('ko-KR');
+  const label = (c) => { const m = S.store.data.matches[c.id], mi = st.MI[c.id]; return `#${mi?.no ?? '?'} · ${fmtDT(m.at)} · 닉네임 ${c.known}/10${c.ch ? ` · 챔피언 ${c.ch}개 일치` : ''}${c.has ? ' · 리플레이 있음(교체)' : ''}`; };
+  const ready = Q.items.filter((x) => x.pick && (x.status === 'ok' || x.status === 'ambig'));
+  return `<div class="panel rq"><div class="ph"><b>${ic('link')}자동 연결 결과</b><span class="tag">${Q.items.length}개</span><span class="grow"></span>
+    <button class="btn ghost xs" data-a="rqClear">목록 비우기</button>${ready.length ? `<button class="btn pri" data-a="rqAll">${ic('save')}연결된 ${ready.length}개 모두 적용</button>` : ''}</div>
+    ${Q.items.map((it, i) => {
+      if (it.status === 'err') return `<div class="rq-it err"><b>${esc(it.name)}</b><span class="tag bad">읽기 실패</span><small>${esc(it.err)}</small><button class="btn ghost xs" data-a="rqDrop" data-i="${i}">${ic('x')}</button></div>`;
+      const rows = rowsFor(it), m = it.pick && S.store.data.matches[it.pick], c = candOf(it);
+      const chip = it.status === 'done' ? '<span class="tag ok">적용 완료</span>' : it.status === 'ok' ? '<span class="tag ok">자동 연결</span>' : it.status === 'ambig' ? `<span class="tag warn">${it.guess || '후보 여러 개 · 확인 필요'}</span>` : '<span class="tag bad">맞는 경기 없음</span>';
+      const win = rows.filter((r) => r.win), lose = rows.filter((r) => !r.win);
+      const ppl = (list) => list.map((r) => `<span class="${r.pid ? '' : 'miss'}" title="${esc(r.riot)} · ${esc(r.champ)}">${champIcon(r.champ)}${esc(r.pid ? st.P[r.pid]?.name || '?' : r.riot)}</span>`).join('');
+      return `<div class="rq-it ${it.status}">
+        <div class="rq-h"><b>${esc(it.name)}</b><small class="mut">${fmtDur(it.dur)} · 닉네임 인식 ${it.rows.filter((r) => r.pid).length}/10</small>${chip}<span class="grow"></span><button class="btn ghost xs" data-a="rqDrop" data-i="${i}" title="목록에서 빼기">${ic('x')}</button></div>
+        <div class="rq-teams"><div><em class="good">승리</em>${ppl(win)}</div><div><em class="bad">패배</em>${ppl(lose)}</div></div>
+        ${it.status === 'done' ? '' : `<div class="rq-f">
+          <select class="inp" data-c="rqPick" data-i="${i}">${it.cands.length ? '' : '<option value="">찾은 경기 없음</option>'}${it.cands.map((x) => `<option value="${x.id}" ${x.id === it.pick ? 'selected' : ''}>${label(x)}</option>`).join('')}</select>
+          ${m ? `<small class="mut">기록상 ${c.flip ? '<b>팀 색이 반대로</b> 기록됨 · ' : ''}${m.winner === 'blue' ? '블루' : '레드'} 승</small>` : ''}
+          <span class="grow"></span><button class="btn ghost xs" data-a="rqNew" data-i="${i}" title="경기 기록에 없는 판이면 새 경기로 입력">새 경기로 입력</button>
+          ${m ? `<button class="btn gold xs" data-a="rqOne" data-i="${i}">적용</button>` : ''}</div>`}
+      </div>`;
+    }).join('')}
+    <p class="hint">닉네임을 못 찾은 사람(흐린 이름)은 같은 편의 남은 자리로 채웁니다. 적용하면 그 닉네임을 선수에게 기억해 두어 다음부터 바로 찾습니다.</p></div>`;
+}
+act('rqPick', (d, el) => { const it = Q.items[+d.i]; it.pick = el.value; it.guess = ''; it.status = 'ok'; refresh(); });
+act('rqDrop', (d) => { Q.items.splice(+d.i, 1); refresh(); });
+act('rqClear', () => { Q.items = []; refresh(); });
+act('rqBack', () => { R.meta = null; R.rows = []; refresh(); });
+act('rqNew', (d) => { const it = Q.items[+d.i]; R.name = it.name; R.meta = it.meta; R.rows = it.rows.map((r) => ({ ...r })); R.dur = it.dur; const w = R.rows.find((r) => r.win); R.winner = w ? w.side : ''; refresh(); });
+async function applyItem(it) {
+  const rows = rowsFor(it);
+  if (rows.some((r) => !r.pid) || new Set(rows.map((r) => r.pid)).size !== 10) { toast(`${it.name}: 선수를 모두 연결하지 못했습니다`); return false; }
+  const ok = await applyReplay(it.pick, rows, it.dur);
+  if (ok) it.status = 'done';
+  return ok;
+}
+act('rqOne', async (d) => { if (await applyItem(Q.items[+d.i])) toast('리플레이 기록을 적용했습니다'); refresh(); });
+act('rqAll', async () => {
+  const list = Q.items.filter((x) => x.pick && (x.status === 'ok' || x.status === 'ambig'));
+  const picks = list.map((x) => x.pick);
+  if (new Set(picks).size !== picks.length) return toast('같은 경기에 연결된 파일이 둘 이상 있습니다. 확인해 주세요');
+  let n_ = 0; for (const it of list) if (await applyItem(it)) n_++;
+  toast(`${n_}개 경기에 리플레이 기록을 적용했습니다`); refresh();
 });
