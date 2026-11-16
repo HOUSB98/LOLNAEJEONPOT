@@ -6,6 +6,7 @@ import { initSocial, renderChat, renderPresence, onMeta } from './social.js';
 import { watchReveal } from './today.js';
 import { duoRank } from './stats.js';
 import { watchDice } from './dice.js';
+import { watchBoard } from './board.js';
 import './replay.js';
 import './players.js';
 import './auction.js';
@@ -460,6 +461,7 @@ function onStore(c) {
   if (c === 'meta') {
     const ch = metaDiff();
     if (ch.dice) watchDice();
+    if (ch.board) watchBoard();
     if (ch.settings || ch.kicks) onMeta();
     if (ch.settings) refresh(true); else if (ch.todayDraft && S.page === 'today') refresh();
     return;
@@ -491,5 +493,5 @@ function onStore(c) {
     });
     await S.store.ready;
   } catch (e) { main.innerHTML = `<div class="panel landing"><h1>연결 실패</h1><p>${esc(e.message || e)}</p><p class="hint">js/config.js 의 Firebase 설정과 Firestore 규칙을 확인하세요.</p></div>`; return; }
-  metaDiff(); up = true; watchDice(true); watchReveal(true); initShell(); initSocial(); loadChamps();
+  metaDiff(); up = true; watchDice(true); watchBoard(true); watchReveal(true); initShell(); initSocial(); loadChamps();
 })();

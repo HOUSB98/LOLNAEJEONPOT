@@ -79,8 +79,9 @@ function rain(cv) {
     floats = Array.from({ length: 9 }, () => ({ x: Math.random() * cv.width, y: Math.random() * cv.height, v: 0.15 + Math.random() * 0.3, t: FORM[(Math.random() * FORM.length) | 0], c: TONE[(Math.random() * TONE.length) | 0], s: 15 + Math.random() * 16 }));
   };
   fit(); addEventListener('resize', fit);
+  const ro = 'ResizeObserver' in window ? new ResizeObserver(() => { if (cv.width !== cv.clientWidth || cv.height !== cv.clientHeight) fit(); }) : null; ro?.observe(cv); // 채팅창을 열고 닫으면 폭이 바뀐다
   (function loop(t) {
-    if (S.page !== 'maker' || !document.body.contains(cv)) return removeEventListener('resize', fit);
+    if (S.page !== 'maker' || !document.body.contains(cv)) { ro?.disconnect(); return removeEventListener('resize', fit); }
     requestAnimationFrame(loop);
     if (t - last < 45) return; last = t;
     g.fillStyle = 'rgba(5,7,13,.1)'; g.fillRect(0, 0, cv.width, cv.height);

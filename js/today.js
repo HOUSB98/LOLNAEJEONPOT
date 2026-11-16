@@ -4,6 +4,7 @@ import { evalLineup, commentary, bestDuo } from './stats.js';
 import { seriesUsed, matchCard } from './app.js';
 import { sysChat, nick } from './social.js';
 import { mascot, reveal } from './reveal.js';
+import { boardLive } from './board.js';
 
 const five = () => ['', '', '', '', ''];
 const blank = () => ({ blue: five(), red: five(), winner: '', champs: { blue: five(), red: five() }, bans: { blue: five(), red: five() }, kda: {}, newSeries: false, at: '', more: false });
@@ -179,16 +180,16 @@ page('today', {
       const id = d[side][i], l = LANES[i], s = st.P[id];
       const ch = d.champs[side][i], art = ch && artUrl(ch) ? ` art" style="--img:url('${artUrl(ch)}')` : '';
       const champ = `<button class="sl-champ" data-a="tChamp" data-s="${side}" data-i="${i}" title="챔피언 선택 (선택 사항)">${ch ? champIcon(ch) : `<span class="ci plus">${ic('plus')}</span>`}</button>`;
-      if (!s) return `<div class="slot ${side} emp${art}">${champ}<button class="sl-body" data-a="tSlot" data-s="${side}" data-i="${i}"><span>${ic('plus')}${LANE_NAME[l]} 선수 선택</span></button></div>`;
+      if (!s) return `<div class="slot ${side} emp${art}" data-ds="${side}" data-di="${i}">${champ}<button class="sl-body" data-a="tSlot" data-s="${side}" data-i="${i}"><span>${ic('plus')}${LANE_NAME[l]} 선수 선택</span></button></div>`;
       const ln = s.lanes[l], off = s.mainLane !== l;
-      return `<div class="slot ${side}${art}">${champ}<button class="sl-body" data-a="tSlot" data-s="${side}" data-i="${i}">
+      return `<div class="slot ${side}${art}" data-ds="${side}" data-di="${i}">${champ}<button class="sl-body" data-a="tSlot" data-s="${side}" data-i="${i}">
         <span class="sl-top"><b>${esc(s.name)}</b>${off ? `<i class="off" title="주라인은 ${LANE_NAME[s.mainLane]}">${LANE_ICON[s.mainLane]}오프</i>` : '<i class="main">주라인</i>'}</span>
         <span class="sl-meta"><span>${LANE_NAME[l]} ${ln.g ? `${pct(ln.w, ln.g)}% · ${ln.g}판` : '기록 없음'}</span><span class="mono">MMR ${Math.round(s.mmr)}</span>${dots(s.recent)}</span>
       </button><span class="sl-score mono">${(+s.p.scores?.[l] || 0).toFixed(1)}</span></div>`;
     };
     const duo = (side) => { const b = bestDuo(d[side], st); return b ? `<span class="${side}">${pname(b.a)} + ${pname(b.b)} <b class="mono">${pct(b.w, b.g)}%</b> <small>${b.g}판</small></span>` : `<span class="mut">${side === 'blue' ? '블루' : '레드'} — 함께한 기록 부족</span>`; };
     return `<div class="h2row"><h1>${ic('today')}${edit ? `경기 수정 <span class="mono">#${st.MI[edit.id]?.no ?? ''}</span>` : '오늘의 내전'}</h1><span class="tag ${full ? 'ok' : ''}">${filled}/10 배치</span>${full && !edit ? `<button class="btn xs gold" data-a="tqYes">${ic('bolt')}승률 공개</button>` : ''}<span class="grow"></span>
-      ${edit ? '<a class="btn" href="#/matches">취소</a>' : `<button class="btn gold" data-a="tDice">${ic('dice')}라인 주사위</button><button class="btn" data-a="tSwap">${ic('swap')}진영 교체</button><button class="btn ghost" data-a="tClear">비우기</button>`}</div>
+      ${edit ? '<a class="btn" href="#/matches">취소</a>' : `<button class="btn gold gbtn ${boardLive() ? 'live' : ''}" data-a="tBoard" title="길드 의뢰 게시판: 모두 함께 라인 지원 → 몰린 라인 추첨">📜 ${boardLive() ? '게시판 진행 중' : '길드 게시판'}</button><button class="btn gold" data-a="tDice">${ic('dice')}라인 주사위</button><button class="btn" data-a="tSwap">${ic('swap')}진영 교체</button><button class="btn ghost" data-a="tClear">비우기</button>`}</div>
     <section class="arena">
       <div class="scorebar"><div class="sb blue"><small>BLUE TEAM</small><b class="mono">${ev.bs.toFixed(1)}</b><span>평균 MMR ${ev.mmrB ? Math.round(ev.mmrB) : '—'}</span></div>
         <div class="sb-mid"><div class="ring" style="--p:${pb}"><b class="mono">${pb}<small>%</small></b><span>블루 예상 승률</span></div></div>
@@ -355,3 +356,65 @@ act('tqYes', async () => {
     sysChat('팀 확정 · 예상 승률 블루 ' + r.pb + '% : 레드 ' + (100 - r.pb) + '%');
   } catch (e) { toast('중계 전송 실패: ' + (e.code || e.message)); }
 });
+
+// ---------- 드래그로 선수 교환 ----------
+// 마우스는 끌기 시작하면 바로, 터치는 꾹 누르면(0.3초) 집어 든다. 다른 칸(빈 칸 포함)에 놓으면 두 자리의 선수·챔피언을 맞바꾼다.
+const DG = { from: null, src: null, ghost: null, x0: 0, y0: 0, dx: 0, dy: 0, pid: -1, touch: false, on: false, timer: 0, over: null, block: false };
+const slotAt = (x, y) => document.elementFromPoint(x, y)?.closest('.arena .slot[data-ds]') || null;
+function dgClean() {
+  clearTimeout(DG.timer);
+  DG.ghost?.remove(); DG.src?.classList.remove('dg-src'); DG.over?.classList.remove('dg-over');
+  document.body.classList.remove('dragging');
+  Object.assign(DG, { from: null, src: null, ghost: null, on: false, over: null, pid: -1 });
+}
+function dgLift(x, y) {
+  if (!DG.src || !document.body.contains(DG.src)) return dgClean();
+  const r = DG.src.getBoundingClientRect();
+  DG.on = true; DG.dx = x - r.left; DG.dy = y - r.top;
+  DG.ghost = DG.src.cloneNode(true); DG.ghost.classList.add('dg-ghost'); DG.ghost.style.width = r.width + 'px'; DG.ghost.style.height = r.height + 'px';
+  document.body.appendChild(DG.ghost); DG.src.classList.add('dg-src'); document.body.classList.add('dragging');
+  navigator.vibrate?.(15);
+  dgPlace(x, y);
+}
+function dgPlace(x, y) {
+  if (DG.ghost) DG.ghost.style.transform = `translate(${x - DG.dx}px,${y - DG.dy}px) rotate(-2deg) scale(1.04)`;
+  const t = slotAt(x, y), ok = t && t !== DG.src ? t : null;
+  if (ok !== DG.over) { DG.over?.classList.remove('dg-over'); ok?.classList.add('dg-over'); DG.over = ok; }
+}
+document.addEventListener('pointerdown', (e) => {
+  if (edit || S.page !== 'today' || e.button > 0 || DG.from) return;
+  const slot = e.target.closest('.arena .slot[data-ds]');
+  if (!slot || slot.classList.contains('emp') || e.target.closest('.sl-champ')) return;
+  Object.assign(DG, { from: { s: slot.dataset.ds, i: +slot.dataset.di }, src: slot, x0: e.clientX, y0: e.clientY, pid: e.pointerId, touch: e.pointerType !== 'mouse' });
+  if (DG.touch) DG.timer = setTimeout(() => dgLift(DG.x0, DG.y0), 320);
+});
+document.addEventListener('pointermove', (e) => {
+  if (!DG.from || e.pointerId !== DG.pid) return;
+  if (!DG.on) {
+    const dist = Math.hypot(e.clientX - DG.x0, e.clientY - DG.y0);
+    if (DG.touch) { if (dist > 10) dgClean(); return; } // 꾹 누르기 전에 움직이면 그냥 스크롤
+    if (dist < 6) return;
+    dgLift(e.clientX, e.clientY);
+  }
+  e.preventDefault(); dgPlace(e.clientX, e.clientY);
+});
+document.addEventListener('pointerup', (e) => {
+  if (!DG.from || e.pointerId !== DG.pid) return;
+  if (DG.on) {
+    const t = slotAt(e.clientX, e.clientY), f = DG.from;
+    DG.block = true; setTimeout(() => (DG.block = false), 60); // 놓는 순간의 클릭(선수 선택 창)이 열리지 않게
+    if (t && !(t.dataset.ds === f.s && +t.dataset.di === f.i)) {
+      const dr = D(), ts = t.dataset.ds, ti = +t.dataset.di;
+      [dr[f.s][f.i], dr[ts][ti]] = [dr[ts][ti], dr[f.s][f.i]];
+      [dr.champs[f.s][f.i], dr.champs[ts][ti]] = [dr.champs[ts][ti], dr.champs[f.s][f.i]];
+      const r = t.getBoundingClientRect();
+      dgClean(); keep(); burst(r.left + r.width / 2, r.top + r.height / 2, 40);
+      return;
+    }
+  }
+  dgClean();
+});
+document.addEventListener('pointercancel', () => DG.from && dgClean());
+document.addEventListener('touchmove', (e) => { if (DG.on) e.preventDefault(); }, { passive: false });
+document.addEventListener('contextmenu', (e) => { if (DG.from && DG.touch) e.preventDefault(); });
+document.addEventListener('click', (e) => { if (DG.block) { DG.block = false; e.stopPropagation(); e.preventDefault(); } }, true);
