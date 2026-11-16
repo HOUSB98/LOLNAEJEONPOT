@@ -1,6 +1,7 @@
 // 시즌 장식(크리스마스): 매년 11/16 ~ 12/26 에만 자동으로 켜진다. 인사말 같은 글자는 넣지 않는다.
 //  - 화면 위 금빛 갈랜드(늘어진 전선 + 유리 전구), 눈송이(작은 눈 + 흐린 큰 눈), 모서리 서리, 로고 산타 모자, 반짝이 색
 //  - 채팅창 뒤 고급 트리: 11/16부터 하루마다 장식이 하나씩 늘고 12/25에 별이 달려 완성된다(새 장식은 반짝임)
+//  - 클릭(터치)하면 그 자리에서 반짝이가 터진다
 //  - 시작(로딩) 화면: 달이 뜬 눈 내리는 밤하늘을 루돌프와 산타 썰매가 금빛 가루를 흩뿌리며 가로지른다(동화풍 벡터 그림)
 // 장식이 싫으면 사이드바(모바일은 더보기)의 '시즌 장식' 버튼으로 끈다(naejeon:xmas = '0').
 import { act, toast, moreHooks } from './core.js';
@@ -259,31 +260,35 @@ function deco(on) {
   decoObs.observe(main, { childList: true, subtree: true });
 }
 
-// ---------- 마우스를 따라 흩날리는 요정 가루(마우스가 있는 PC에서만) ----------
+// ---------- 클릭(터치)한 자리에서 반짝이가 톡 터진다 ----------
+// 평소에는 아무것도 그리지 않고, 터진 반짝이가 사라지면 캔버스를 다시 숨긴다.
 let dustOff = null;
 function pixie() {
-  if (dustOff || !matchMedia('(pointer: fine)').matches) return;
+  if (dustOff) return;
   const cv = document.createElement('canvas'); cv.id = 'xdust'; document.body.appendChild(cv);
-  const g = cv.getContext('2d'); let ps = [], raf = 0, lx = 0, ly = 0; cv.style.display = 'none';
+  const g = cv.getContext('2d'); let ps = [], raf = 0; cv.style.display = 'none';
   const fit = () => { cv.width = innerWidth; cv.height = innerHeight; }; fit();
   const loop = () => {
     g.clearRect(0, 0, cv.width, cv.height);
-    ps = ps.filter((p) => (p.l -= 0.022) > 0);
+    ps = ps.filter((p) => (p.l -= 0.025) > 0);
     g.globalCompositeOperation = 'lighter';
-    for (const p of ps) { p.x += p.vx; p.y += p.vy; p.vy += 0.03; g.globalAlpha = p.l * (0.6 + 0.4 * Math.sin(p.l * 20)); const r = (p.st ? p.r * p.l * 2.4 : p.r * 1.3); g.drawImage(sprite(p.c, p.st), p.x - r, p.y - r, r * 2, r * 2); }
+    for (const p of ps) { p.x += p.vx; p.y += p.vy; p.vx *= 0.94; p.vy = p.vy * 0.94 + 0.06; g.globalAlpha = Math.min(1, p.l * 1.6) * (0.7 + 0.3 * Math.sin(p.l * 24)); const r = p.st ? p.r * (0.5 + p.l) * 2 : p.r * 1.3; g.drawImage(sprite(p.c, p.st), p.x - r, p.y - r, r * 2, r * 2); }
     g.globalAlpha = 1;
     raf = ps.length ? requestAnimationFrame(loop) : 0;
-    if (!raf) cv.style.display = 'none'; // 가루가 없을 땐 화면 전체 크기 캔버스를 합성 대상에서 뺀다
+    if (!raf) cv.style.display = 'none';
   };
-  const move = (e) => {
-    const b = document.body.classList; if (b.contains('lite') || e.pointerType !== 'mouse') return;
-    const d = Math.hypot(e.clientX - lx, e.clientY - ly); if (d < 6) return; lx = e.clientX; ly = e.clientY;
-    for (let i = 0; i < Math.min(3, 1 + d / 18); i++) ps.push({ x: e.clientX + (Math.random() - 0.5) * 6, y: e.clientY + (Math.random() - 0.5) * 6, vx: (Math.random() - 0.5) * 0.8, vy: Math.random() * 0.4, l: 1, r: 1.5 + Math.random() * 2.2, st: Math.random() < 0.45, c: Math.random() < 0.7 ? '255,224,138' : Math.random() < 0.5 ? '255,255,255' : '191,225,255' });
-    if (ps.length > 140) ps.splice(0, ps.length - 140);
+  const burst = (e) => {
+    if (document.body.classList.contains('lite') || e.button > 0) return;
+    const n = 16;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * 6.283 + Math.random() * 0.4, v = 2 + Math.random() * 3.2;
+      ps.push({ x: e.clientX, y: e.clientY, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 0.8, l: 0.8 + Math.random() * 0.3, r: 1.6 + Math.random() * 2.4, st: i % 2 === 0, c: Math.random() < 0.65 ? '255,224,138' : Math.random() < 0.5 ? '255,255,255' : '191,225,255' });
+    }
+    if (ps.length > 120) ps.splice(0, ps.length - 120);
     if (!raf) { cv.style.display = ''; raf = requestAnimationFrame(loop); }
   };
-  addEventListener('pointermove', move, { passive: true }); addEventListener('resize', fit);
-  dustOff = () => { removeEventListener('pointermove', move); removeEventListener('resize', fit); cancelAnimationFrame(raf); cv.remove(); dustOff = null; };
+  addEventListener('pointerdown', burst, { passive: true }); addEventListener('resize', fit);
+  dustOff = () => { removeEventListener('pointerdown', burst); removeEventListener('resize', fit); cancelAnimationFrame(raf); cv.remove(); dustOff = null; };
 }
 
 // ---------- 시작(로딩) 화면: 동화풍 밤하늘 ----------
