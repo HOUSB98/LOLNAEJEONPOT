@@ -1300,3 +1300,23 @@ i.face svg{width:58%;height:58%}i.face .lic{color:var(--lc)}
 }
 body.lite .lp-name.new,body.lite .ld-c.won,body.lite .lf-n{animation:none!important}
 .lp-ttl{display:block;font-size:11px;color:var(--mut);margin-top:2px}
+/* ---------- 경기 기록: 필터·검색·날짜 접기 ---------- */
+.mf{display:grid;gap:10px;margin:12px 0 4px}
+.mf-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mf-q{flex:1 1 260px;display:flex;align-items:center;gap:8px;padding:0 10px;border:1px solid var(--line2);border-radius:10px;background:#080d17}
+.mf-q:focus-within{border-color:var(--gold)}.mf-q .ic{width:16px;height:16px;color:var(--mut);flex:none}
+.mf-q .inp{border:0;background:transparent;padding:10px 0;box-shadow:none!important;min-width:0;width:100%}
+.mf-chips{display:flex;flex-wrap:wrap;gap:6px}
+.mf-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:99px;border:1px solid var(--line2);background:var(--panel2);color:var(--text);font:600 13px inherit;cursor:pointer}
+.mf-chip small{font:600 11px var(--mono);color:var(--mut)}
+.mf-chip:hover{border-color:#4a5e80}
+.mf-chip.on{border-color:var(--gold);background:rgba(217,164,65,.16);color:var(--gold2)}.mf-chip.on small{color:var(--gold)}
+.mf-more{padding:6px 11px;border-radius:99px;border:1px dashed var(--line2);background:none;color:var(--mut);font:600 13px inherit;cursor:pointer}
+.mf-mode{justify-self:start}
+.mf-day{cursor:pointer;user-select:none;padding:10px 4px 8px;margin-top:14px;border-radius:8px 8px 0 0;transition:background .15s}
+.mf-day:hover{background:rgba(255,255,255,.03)}
+.mf-day:not(.open){border-bottom-style:dashed}
+.mf-tg{display:inline-flex;align-items:center;gap:4px;font-style:normal;font-size:12px;color:var(--mut)}
+.mf-tg .ic{width:14px;height:14px;transition:transform .2s}.mf-day.open .mf-tg .ic{transform:rotate(180deg)}
+.mf-day + .mlist{margin-top:10px}
+@media (max-width:860px){.mf-chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}.mf-chip,.mf-more{flex:none;padding:8px 12px}}

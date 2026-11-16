@@ -1,7 +1,7 @@
 // 시작점 + 홈 / 랭킹 / 경기 기록 / 챔피언 / 피어리스 화면
 import { FIREBASE_CONFIG } from './config.js';
 import { createStore } from './store.js';
-import { S, page, act, ddMenu, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, toast, download, csv, needAdmin, history, modal, mh, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
+import { S, page, act, ddMenu, cho, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, toast, download, csv, needAdmin, history, modal, mh, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
 import { initSocial, renderChat, renderPresence, onMeta } from './social.js';
 import { watchReveal } from './today.js';
 import { duoRank } from './stats.js';
@@ -286,17 +286,70 @@ export function matchCard(m, tools = true) {
       ${tools ? ddMenu(`<button data-a="editMatch" data-id="${m.id}">${ic('edit')}수정</button><button class="danger" data-a="delMatch" data-id="${m.id}">${ic('trash')}삭제</button>`, 'xs') : ''}</div>
     <div class="vs">${team('blue')}${team('red')}</div></div>`;
 }
+// 경기 기록: 날짜별로 접어 두고(가장 최근 날짜만 펼침), 선수 필터와 검색으로 원하는 경기만 본다.
+// 페이지에 들어올 때마다 필터·검색·펼침 상태는 처음 상태로 돌아간다.
+const MF = { sel: [], q: '', mode: 'all', open: null, chips: false };
+const resetMF = () => { MF.sel = []; MF.q = ''; MF.mode = 'all'; MF.open = null; MF.chips = false; };
+addEventListener('hashchange', () => { if (/^#\/matches\/?$/.test(location.hash)) resetMF(); });
+const squash = (s) => String(s || '').replace(/\s/g, '').toLowerCase();
+function matchHit(m) {
+  const all = [...m.blue, ...m.red];
+  if (MF.sel.length) {
+    if (!MF.sel.every((id) => all.includes(id))) return false;
+    if (MF.sel.length > 1 && MF.mode !== 'all') {
+      const sides = MF.sel.map((id) => (m.blue.includes(id) ? 'b' : 'r'));
+      const same = sides.every((x) => x === sides[0]);
+      if (MF.mode === 'with' && !same) return false;
+      if (MF.mode === 'vs' && same) return false;
+    }
+  }
+  if (MF.q) {
+    const q = squash(MF.q), qc = cho(q);
+    const words = [...all.map((id) => S.st.P[id]?.name || ''), ...(m.champs?.blue || []), ...(m.champs?.red || []), '#' + (S.st.MI[m.id]?.no ?? '')].filter(Boolean).map(squash);
+    if (!words.some((w) => w.includes(q) || cho(w).includes(qc))) return false;
+  }
+  return true;
+}
 page('matches', {
   render() {
     const st = S.st, days = [...st.days].reverse();
     if (!st.matches.length) return `<h1>${ic('matches')}경기 기록</h1><div class="panel empty">아직 기록된 경기가 없습니다.<br><a class="btn pri" href="#/today">첫 경기 기록하기</a></div>`;
-    return `<div class="h2row"><h1>${ic('matches')}경기 기록</h1><span class="tag">${st.matches.length}경기</span><span class="grow"></span><button class="btn" data-a="exportCsv">${ic('down')}CSV 내보내기</button></div>
-    ${days.map((d) => {
-      const ms = st.matches.filter((m) => st.MI[m.id].day === d).reverse(), bw = ms.filter((m) => m.winner === 'blue').length;
-      return `<h3 class="day"><span class="mono">${fmtDay(d)}</span><small>${ms.length}경기 · 블루 ${bw}승 / 레드 ${ms.length - bw}승</small></h3><div class="mlist">${ms.map((m) => matchCard(m)).join('')}</div>`;
-    }).join('')}`;
+    const filtering = MF.sel.length > 0 || !!MF.q.trim();
+    if (!MF.open) MF.open = new Set(days.slice(0, 1)); // 처음에는 가장 최근 날짜만 펼친다
+    const hits = filtering ? st.matches.filter(matchHit) : st.matches;
+    const played = st.list.filter((s) => s.g > 0).sort((a, b) => b.g - a.g || a.name.localeCompare(b.name, 'ko'));
+    const chip = (s) => `<button class="mf-chip ${MF.sel.includes(s.id) ? 'on' : ''}" data-a="mfSel" data-id="${s.id}">${esc(s.name)}<small>${s.g}</small></button>`;
+    const shown = MF.chips ? played : played.slice(0, 12);
+    const filters = `<div class="panel mf">
+      <div class="mf-top"><label class="mf-q">${ic('target')}<input id="mfq" class="inp" placeholder="선수·챔피언·경기 번호 검색 (초성 가능)" value="${esc(MF.q)}" data-i="mfQ" autocomplete="off"></label>
+        ${filtering ? `<span class="tag ok">${hits.length}경기 일치</span><button class="btn ghost xs" data-a="mfClear">${ic('x')}필터 해제</button>` : ''}</div>
+      <div class="mf-chips">${shown.map(chip).join('')}${played.length > 12 ? `<button class="mf-more" data-a="mfChips">${MF.chips ? '접기' : `+${played.length - 12}명 더`}</button>` : ''}</div>
+      ${MF.sel.length > 1 ? `<div class="seg mf-mode">${[['all', '모두 출전'], ['with', '같은 팀'], ['vs', '맞대결']].map(([k, t]) => `<button class="${MF.mode === k ? 'on' : ''}" data-a="mfMode" data-m="${k}">${t}</button>`).join('')}</div>` : ''}
+    </div>`;
+    const dayBlock = (d) => {
+      const all = st.matches.filter((m) => st.MI[m.id].day === d), ms = (filtering ? all.filter(matchHit) : all).reverse();
+      if (!ms.length) return '';
+      const bw = ms.filter((m) => m.winner === 'blue').length, open = filtering || MF.open.has(d);
+      return `<h3 class="day mf-day ${open ? 'open' : ''}" data-a="mfDay" data-d="${d}"><span class="mono">${fmtDay(d)}</span><small>${ms.length}경기 · 블루 ${bw}승 / 레드 ${ms.length - bw}승</small><span class="grow"></span>${filtering ? '' : `<i class="mf-tg">${open ? '접기' : '펼치기'}${ic('down')}</i>`}</h3>
+        ${open ? `<div class="mlist">${ms.map((m) => matchCard(m)).join('')}</div>` : ''}`;
+    };
+    const body = days.map(dayBlock).join('');
+    return `<div class="h2row"><h1>${ic('matches')}경기 기록</h1><span class="tag">${st.matches.length}경기</span><span class="grow"></span>
+      ${filtering ? '' : `<button class="btn ghost" data-a="mfAll">${MF.open.size >= days.length ? '모두 접기' : '모두 펼치기'}</button>`}<button class="btn" data-a="exportCsv">${ic('down')}CSV 내보내기</button></div>
+    ${filters}
+    ${body || '<div class="panel empty">조건에 맞는 경기가 없습니다.</div>'}`;
   },
 });
+act('mfSel', (d) => { MF.sel = MF.sel.includes(d.id) ? MF.sel.filter((x) => x !== d.id) : [...MF.sel, d.id]; if (MF.sel.length < 2) MF.mode = 'all'; refresh(); });
+// 검색: 한글 조합 중에는 다시 그리지 않고(글자가 깨진다), 조합이 끝나거나 입력이 멈추면 반영한다
+let mfT = 0;
+act('mfQ', (d, el, e) => { MF.q = el.value; clearTimeout(mfT); if (e?.isComposing) return; mfT = setTimeout(refresh, 200); });
+document.addEventListener('compositionend', (e) => { if (e.target.id === 'mfq') { MF.q = e.target.value; clearTimeout(mfT); mfT = setTimeout(refresh, 120); } });
+act('mfMode', (d) => { MF.mode = d.m; refresh(); });
+act('mfClear', () => { MF.sel = []; MF.q = ''; MF.mode = 'all'; refresh(); });
+act('mfChips', () => { MF.chips = !MF.chips; refresh(); });
+act('mfDay', (d, el, e) => { if (e.target.closest('button,a') && !e.target.closest('.mf-day > button')) return; MF.open.has(d.d) ? MF.open.delete(d.d) : MF.open.add(d.d); refresh(); });
+act('mfAll', () => { const days = S.st.days; MF.open = MF.open.size >= days.length ? new Set() : new Set(days); refresh(); });
 // 경기 상세: 리플레이로 입력한 경기는 피해량·골드·CS·시야·아이템까지, 손으로 입력한 경기는 라인업과 KDA만 보여 준다
 act('matchDetail', (d) => {
   const m = S.store.data.matches[d.id], st = S.st, mi = st.MI[d.id]; if (!m || !mi) return;
