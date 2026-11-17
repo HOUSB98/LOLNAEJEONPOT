@@ -16,7 +16,7 @@ function renderQuota() {
   el.innerHTML = `<small>무료 남음</small><div>${cell('read', '읽기')}${cell('write', '쓰기')}</div><em class="${d.month.usd > 0 ? 'paid' : ''}">이번 달 <b class="mono">${won(d.month.usd, d.krw)}</b></em>`;
 }
 
-const cid = localStorage.getItem('naejeon:cid') || (() => { const v = uid(); localStorage.setItem('naejeon:cid', v); return v; })();
+export const cid = localStorage.getItem('naejeon:cid') || (() => { const v = uid(); localStorage.setItem('naejeon:cid', v); return v; })();
 export const nick = () => localStorage.getItem('naejeon:nick') || '';
 // 10분마다 생존 신호를 보내고, 12분 동안 신호가 없으면 나간 것으로 본다. 탭을 닫으면 그 즉시 나감 표시(at:0)를 보낸다.
 const ONLINE_MS = 12 * 60e3, BEAT_MS = 10 * 60e3;

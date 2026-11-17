@@ -1,10 +1,12 @@
 // 라인 지원: 참가자가 원하는 라인(탑~서폿·상관없음)을 직접 고르고, 마감하면 2명 넘게 몰린 라인은 무작위로 2명을 뽑아 라인업에 넣는다.
 // meta/board 문서 하나로 모든 접속자가 같은 지원 현황과 같은 추첨 장면을 같은 시각에 본다(시작 시각은 서버 시계 기준).
-import { S, act, esc, modal, closeModal, mh, toast, burst, refresh, ic, LANES, LANE_NAME, LANE_ICON, LANE_COLOR } from './core.js';
+import { S, act, isAdmin, esc, modal, closeModal, mh, toast, burst, refresh, ic, LANES, LANE_NAME, LANE_ICON, LANE_COLOR } from './core.js';
 import { setDraftTeams, placedIds } from './today.js';
 import { aiBalance } from './stats.js';
 import { notify } from './hook.js';
-import { sysChat, nick } from './social.js';
+import { sysChat, nick, cid } from './social.js';
+// 마감·취소는 게시자(연 사람의 브라우저)와 관리자만 할 수 있다. 예전 게시물(owner 없음)은 누구나.
+const isOwner = (d) => !d?.owner || d.owner === cid || isAdmin();
 
 const OPTS = [...LANES, 'any'];
 const NAME = { ...LANE_NAME, any: '상관없음' };
@@ -78,7 +80,7 @@ function openHTML(d) {
       <div class="lp-roster">${d.ids.map((id) => { const p = prefs(d, id)[0], mine = id === BD.me; return `<button class="lp-mem ${mine ? 'me' : ''} ${p ? 'ok' : ''}" data-a="bdMe" data-id="${id}" style="--lc:${p && mine ? COLOR[p] : p ? '#4fd08b' : '#5a6a84'}" title="${p ? '지원 완료' : '아직 지원 안 함'}">${p ? `<i>${mine ? icon(p) : '✓'}</i>` : '<i class="dot"></i>'}${esc(nm(id))}</button>`; }).join('')}</div></div>`}
     <div class="lp-grid">${OPTS.map((o) => card(d, o)).join('')}</div>
     <div class="lp-foot"><span class="lp-count"><b class="mono">${picked}</b> / <span class="mono">${d.ids.length}</span> 지원 완료${d.by ? ` · 연 사람 ${esc(d.by)}` : ''}<small class="lp-ttl">2시간 동안 아무도 지원하지 않으면 자동으로 닫혀요</small></span><span class="grow"></span>
-      <button class="btn ghost" data-a="bdShut">취소하기</button><button class="btn pri" data-a="bdGo" ${picked ? '' : 'disabled'}>${ic('dice')}지원 마감 · 추첨 시작</button></div>`;
+      ${isOwner(d) ? `<button class="btn ghost" data-a="bdShut">취소하기</button><button class="btn pri" data-a="bdGo" ${picked ? '' : 'disabled'}>${ic('dice')}지원 마감 · 추첨 시작</button>` : `<span class="mut sm">마감·추첨은 연 사람${d.by ? `(${esc(d.by)})` : ''}만 할 수 있어요</span>`}</div>`;
 }
 function finalHTML(d) {
   const rk = d.rankOf || {};
@@ -128,7 +130,7 @@ act('bdNone', () => { BD.sel = []; setup(); });
 act('bdOpen', async () => {
   if (BD.sel.length < 2) return;
   await S.store.syncServerClock?.();
-  const d = { rid: Date.now().toString(36) + rnd(1e6).toString(36), status: 'open', at: S.store.serverNow(), ids: [...BD.sel], picks: {}, by: nick() || '익명' };
+  const d = { rid: Date.now().toString(36) + rnd(1e6).toString(36), status: 'open', at: S.store.serverNow(), ids: [...BD.sel], picks: {}, by: nick() || '익명', owner: cid };
   BD.prev = {};
   bseen = d.rid + d.status; // 내 화면은 직접 연다(내 쓰기가 돌아와도 다시 열지 않게)
   try { await S.store.put('meta', 'board', d); } catch (e) { return toast('게시 실패: ' + (e.code || e.message)); }
@@ -163,7 +165,9 @@ act('bdPick', async (x) => {
 act('bdHide', () => closeModal());
 act('bdMute', () => { BD.muted = !BD.muted; localStorage.setItem('naejeon:bdmute', BD.muted ? '1' : '0'); document.querySelectorAll('.lp [data-a="bdMute"]').forEach((x) => (x.innerHTML = ic(BD.muted ? 'mute' : 'sound'))); });
 act('bdShut', async () => {
-  const d = cur(); if (!d || !confirm('라인 지원을 취소할까요? 지원 내용이 사라집니다.')) return;
+  const d = cur(); if (!d) return;
+  if (!isOwner(d)) return toast('라인 지원을 연 사람만 취소할 수 있어요');
+  if (!confirm('라인 지원을 취소할까요? 지원 내용이 사라집니다.')) return;
   await S.store.put('meta', 'board', { ...d, status: 'closed' }).catch(() => {});
   closeModal();
 });
@@ -200,6 +204,7 @@ function plan(d) {
 }
 act('bdGo', async () => {
   const d = cur(); if (!d || d.status !== 'open') return;
+  if (!isOwner(d)) return toast('라인 지원을 연 사람만 마감할 수 있어요');
   if (!live(d)) { toast('라인 지원이 만료됐어요. 다시 열어 주세요'); closeModal(); if (S.page === 'today') refresh(); return; }
   const miss = d.ids.filter((id) => !prefs(d, id).length).length;
   if (miss && !confirm(`아직 ${miss}명이 지원하지 않았어요. 미지원자는 '상관없음'으로 보고 마감할까요?`)) return;
