@@ -1778,7 +1778,7 @@ button.sticker.xmas:hover{background:linear-gradient(rgba(200,48,58,.22),rgba(31
 @keyframes gcbob{50%{transform:translateY(-3px) rotate(-6deg)}}
 .gc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
 .gc-it{--c:#aaa;position:relative;display:flex;flex-direction:column;gap:3px;padding:6px;border-radius:12px;border:1px solid color-mix(in srgb,var(--c) 45%,var(--line));background:var(--panel2);color:var(--text);font:inherit;text-align:left;cursor:pointer;transition:.15s}
-.gc-it:hover{transform:translateY(-2px);border-color:var(--c)}
+.gc-it{cursor:default}
 .gc-it.on{box-shadow:0 0 0 2px var(--gold),0 0 16px -4px var(--gold)}
 .gc-it-art{display:block;aspect-ratio:1;border-radius:8px;background:#0a0f19 var(--img) center/cover}
 .gc-it b{font-size:12px;line-height:1.25;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}

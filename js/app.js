@@ -289,7 +289,7 @@ page('rank', {
   render() {
     const st = S.st, x = st.sum;
     const cols = COLS[LB.view], sortCol = cols.find((c) => c[0] === LB.sort) || cols[0];
-    const sig = cardChamp; // 랭킹은 가챠 꾸미기를 반영
+    const sig = cardChamp; // 선수가 고른 대표 챔피언
     const rows = st.list.filter((s) => s.g >= LB.min).sort((a, b) => LB.dir * (sortCol[2](a) - sortCol[2](b)) || b.ovr - a.ovr);
     // 상단 TOP 3 카드: 지금 정렬 기준의 1~3위
     const medal = ['CHAMPION', 'RUNNER-UP', 'THIRD'];

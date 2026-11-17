@@ -307,11 +307,14 @@ export function lazyArt(root = document) {
 // 주라인에서 가장 많이 쓴 챔피언 → (기록이 없으면) 솔랭 모스트 → 내전 모스트
 const SIG_CHAMP_PREF = { 승정: '진' };
 const sigCache = new WeakMap();
-// 가챠 보관함에서 본인이 고른 챔피언·스킨(skin.pick): 선수 대표 일러스트가 나오는 모든 화면에 반영한다
-const gachaPick = (s) => { const eq = s?.p?.skin; return eq?.pick && S.champBy[eq.champ] ? (+eq.num ? skinAlias(eq.champ, +eq.num, eq.name) : eq.champ) : ''; };
+// 대표 챔피언: 선수마다 직접 고른 챔피언(players/{id}.champ, 기본 일러스트)을 선수 관련 모든 화면에 쓴다.
+// 아직 고르지 않았으면 DEFAULT_CHAMP. 예외 선수(FREE_SIG)만 예전처럼 경기 기록·지정 스킨으로 정한다.
+export const DEFAULT_CHAMP = '가렌';
+export const FREE_SIG = ['혜나'];
+export const canPickChamp = (s) => !!s && !FREE_SIG.some((n) => s.name?.includes(n));
 export const cardChamp = (s) => sigChamp(s); // 예전 이름 호환
 export function sigChamp(s) {
-  const picked = gachaPick(s); if (picked) return picked;
+  if (canPickChamp(s)) return S.champBy[s.p?.champ] ? s.p.champ : DEFAULT_CHAMP;
   const preferred = SIG_CHAMP_PREF[s.name];
   if (preferred && S.champBy[preferred]) return skinFor(s, preferred);
   const st = S.st; let cnt = sigCache.get(st);
