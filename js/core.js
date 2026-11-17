@@ -307,14 +307,11 @@ export function lazyArt(root = document) {
 // 주라인에서 가장 많이 쓴 챔피언 → (기록이 없으면) 솔랭 모스트 → 내전 모스트
 const SIG_CHAMP_PREF = { 승정: '진' };
 const sigCache = new WeakMap();
-// 선수 카드·랭킹 전용 대표 일러스트: 가챠 보관함에서 본인이 고른 챔피언·스킨(skin.pick)이 있으면 그것, 없으면 sigChamp.
-// 홈·케미·경매 등 다른 화면은 sigChamp(경기 기록 기준)를 그대로 쓴다.
-export function cardChamp(s) {
-  const eq = s?.p?.skin;
-  if (eq?.pick && S.champBy[eq.champ]) return +eq.num ? skinAlias(eq.champ, +eq.num, eq.name) : eq.champ;
-  return sigChamp(s);
-}
+// 가챠 보관함에서 본인이 고른 챔피언·스킨(skin.pick): 선수 대표 일러스트가 나오는 모든 화면에 반영한다
+const gachaPick = (s) => { const eq = s?.p?.skin; return eq?.pick && S.champBy[eq.champ] ? (+eq.num ? skinAlias(eq.champ, +eq.num, eq.name) : eq.champ) : ''; };
+export const cardChamp = (s) => sigChamp(s); // 예전 이름 호환
 export function sigChamp(s) {
+  const picked = gachaPick(s); if (picked) return picked;
   const preferred = SIG_CHAMP_PREF[s.name];
   if (preferred && S.champBy[preferred]) return skinFor(s, preferred);
   const st = S.st; let cnt = sigCache.get(st);
