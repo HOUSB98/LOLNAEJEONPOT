@@ -129,7 +129,8 @@ function saveMe() { try { localStorage.setItem(meKey(), JSON.stringify({ pid: G.
 const fmtPct = (v) => (v >= 1 ? v.toFixed(1) : v >= 0.01 ? v.toFixed(2) : v.toFixed(3)).replace(/\.?0+$/, '') + '%';
 function oddsHTML() {
   const nc = S.champs.length, rows = skinOdds(), c = gcfg(), CH_MISS = Math.min(100, Math.max(0, +c.chMiss));
-  return `<div class="panel gc-odds"><div class="ph"><b>${ic('scale')}뽑기 확률 공개</b><small class="mut">모든 뽑기는 아래 확률로 무작위 결정됩니다</small></div>
+  const wide = matchMedia('(min-width: 861px)').matches;
+  return `<details class="panel gc-odds" ${wide ? 'open' : ''}><summary class="ph"><b>${ic('scale')}뽑기 확률 공개</b><small class="mut">모든 뽑기는 아래 확률로 무작위 결정됩니다</small><span class="grow"></span><i class="gc-odds-x">펼치기</i></summary>
     <div class="gc-odds-g">
       <div><h4>챔피언 뽑기</h4><table class="tbl gc-tbl"><thead><tr><th class="l">결과</th><th>확률</th><th>대상</th><th>개당</th></tr></thead><tbody>
         <tr class="miss"><td class="l"><i style="--c:${TIER.miss.c}"></i>꽝</td><td class="mono">${CH_MISS}%</td><td>-</td><td>-</td></tr>
@@ -139,7 +140,7 @@ function oddsHTML() {
         ${rows.map((r) => `<tr class="${r.k}"><td class="l"><i style="--c:${r.c}"></i>${r.name}${r.price ? ` <small class="mut">${r.price}</small>` : ''}</td><td class="mono">${fmtPct(r.p)}</td><td class="mono">${r.k === 'miss' ? '-' : G.cat ? r.n : '…'}</td><td class="mono">${r.k === 'miss' || !r.n ? '-' : fmtPct(r.eff / r.n)}</td><td class="mono">${r.shard || '-'}</td></tr>`).join('')}
       </tbody></table>${G.cat && rows.some((r) => r.to && r.p) ? `<p class="hint">스킨이 없는 등급: ${rows.filter((r) => r.to && r.p).map((r) => `${r.name} → ${r.to}`).join(', ')} (그 등급이 뽑히면 아래 등급 스킨이 나와요)</p>` : ''}${G.catNote ? `<p class="hint bad">${esc(G.catNote)}</p>` : G.cat ? '' : '<p class="hint">스킨 목록을 불러오는 중…</p>'}</div>
     </div>
-    <p class="hint">뽑기권: 오픈(11/17) 이후 내전 ${c.every.champ}판마다 챔피언 뽑기권 1장, ${c.every.skin}판마다 스킨 뽑기권 1장 · <b>희생 보너스</b> 주라인이 아닌 라인으로 ${c.sac}판마다 챔피언 뽑기권 1장 · 오픈 기념 챔피언 ${c.welcome.champ}장·스킨 ${c.welcome.skin}장 · <b>출석</b> 매일 챔피언 ${c.daily.champ}장·스킨 ${c.daily.skin}장(그날 안 쓰면 사라짐, 먼저 쓰임) · <b>조각</b> 챔피언 뽑기권 ${c.shop.champ}개 / 스킨 뽑기권 ${c.shop.skin}개로 교환</p></div>`;
+    <p class="hint">뽑기권: 오픈(11/17) 이후 내전 ${c.every.champ}판마다 챔피언 뽑기권 1장, ${c.every.skin}판마다 스킨 뽑기권 1장 · <b>희생 보너스</b> 주라인이 아닌 라인으로 ${c.sac}판마다 챔피언 뽑기권 1장 · 오픈 기념 챔피언 ${c.welcome.champ}장·스킨 ${c.welcome.skin}장 · <b>출석</b> 매일 챔피언 ${c.daily.champ}장·스킨 ${c.daily.skin}장(그날 안 쓰면 사라짐, 먼저 쓰임) · <b>조각</b> 챔피언 뽑기권 ${c.shop.champ}개 / 스킨 뽑기권 ${c.shop.skin}개로 교환</p></details>`;
 }
 function lockHTML() {
   const list = [...S.st.list].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
@@ -186,7 +187,7 @@ function mineHTML() {
       <div class="gc-tk sh"><small>SHARDS</small><b class="mono">${+d.shards || 0}</b><span>조각</span><em><button class="lnk" data-a="gcBuy" data-k="champ" ${(+d.shards || 0) >= SHOP.champ ? '' : 'disabled'}>챔피언권 교환(${SHOP.champ})</button> · <button class="lnk" data-a="gcBuy" data-k="skin" ${(+d.shards || 0) >= SHOP.skin ? '' : 'disabled'}>스킨권 교환(${SHOP.skin})</button></em></div>
     </div>
     ${starterOk ? '' : '<p class="hint gc-first">뽑기는 기본 챔피언을 고른 뒤에 할 수 있어요.</p>'}
-    <div class="gc-mach">
+    <div class="gc-mach ${starterOk ? 'stick' : ''}">
       <button class="gc-go ch" data-a="gcDraw" data-k="champ" ${t.left.champ > 0 && ready && !G.busy && starterOk ? '' : 'disabled'}><i class="gc-orb"></i><span><b>챔피언 뽑기</b><small>뽑기권 1장 · 꽝 ${c.chMiss}%</small></span></button>
       <button class="gc-go sk" data-a="gcDraw" data-k="skin" ${t.left.skin > 0 && G.cat && !G.busy && starterOk ? '' : 'disabled'}><i class="gc-orb"></i><span><b>스킨 뽑기</b><small>${G.cat ? `뽑기권 1장 · 꽝 ${fmtPct(skinOdds()[0].p)}` : '스킨 목록 불러오는 중…'}</small></span></button>
     </div>
