@@ -484,6 +484,42 @@ button.sticker:hover{transform:translateY(-2px) scale(1.04);background:color-mix
 #splash .logo.draw .lg-gem,.enter .logo.draw .lg-gem{opacity:0;animation:gem .5s 1.3s forwards;transform-origin:center;transform-box:fill-box}
 .enter .word span,.enter .word i{display:inline-block;transform:translateY(110%);animation:wordup .7s .7s cubic-bezier(.2,.9,.2,1) forwards}.enter .word i{animation-delay:.85s}
 
+/* ---------- 시작 화면 모션 (한 흐름으로 이어지게) ----------
+   0.0s 로고 카드가 살짝 떠오르며 나타남 → 금테가 그려짐 → 무늬·스티치·N·P·MAISON이 차례로 스며듦
+   1.0s 글자가 한 자씩 올라옴 → 1.5s 빛이 로고를 한 번 훑고 지나감 → 인사말·리그 이름 → 진행 막대
+   끝: 내용이 살짝 위로 떠오르며 화면 전체와 함께 사라짐. 모두 투명도·위치만 바꿔(그래픽 카드 처리) 끊기지 않게 한다 */
+.sp-mark{position:relative;width:148px;height:148px;animation:spmark 1s cubic-bezier(.16,1,.3,1) both;will-change:transform,opacity}
+.sp-box .sp-mark .logo{filter:drop-shadow(0 10px 24px rgba(0,0,0,.45));animation:none;position:relative;z-index:1}
+.sp-glow{position:absolute;inset:-46%;border-radius:50%;background:radial-gradient(closest-side,rgba(246,227,168,.55),rgba(217,164,65,.22) 45%,transparent 72%);opacity:0;animation:spglowin 1.4s .3s ease-out forwards,spglow 3.6s 1.7s ease-in-out infinite;will-change:opacity,transform;pointer-events:none}
+.sp-shine{position:absolute;inset:6%;z-index:2;border-radius:18%;overflow:hidden;pointer-events:none}
+.sp-shine::after{content:"";position:absolute;top:-20%;bottom:-20%;left:0;width:45%;background:linear-gradient(100deg,transparent,rgba(255,250,230,.55) 45%,rgba(255,255,255,.75) 50%,rgba(255,250,230,.55) 55%,transparent);transform:translateX(-160%) skewX(-12deg);animation:spshine 1s 1.45s cubic-bezier(.45,0,.2,1) forwards;will-change:transform}
+@keyframes spmark{from{opacity:0;transform:translateY(18px) scale(.92)}}
+@keyframes spglowin{to{opacity:.85}}
+@keyframes spglow{0%,100%{opacity:.85;transform:scale(1)}50%{opacity:.55;transform:scale(1.06)}}
+@keyframes spshine{to{transform:translateX(360%) skewX(-12deg)}}
+/* 로고 안쪽 조각: 크기를 0에서 키우지 않고(툭 튀어나오는 느낌) 투명도로 차례차례 스며들게 */
+#splash .logo.draw .lg-gem,.enter .logo.draw .lg-gem{opacity:0;transform:none;animation:lgfade .9s ease-out forwards}
+#splash .logo.draw .lg-pat,.enter .logo.draw .lg-pat{animation-delay:.2s}
+#splash .logo.draw .lg-st,.enter .logo.draw .lg-st{animation-delay:.4s}
+#splash .logo.draw .lg-mn,.enter .logo.draw .lg-mn{animation:lgrise .9s .55s cubic-bezier(.16,1,.3,1) forwards;transform-box:fill-box}
+#splash .logo.draw .lg-mt,.enter .logo.draw .lg-mt{animation-delay:.95s}
+#splash .logo.draw path.lg-hex,.enter .logo.draw path.lg-hex{animation:draw 1.1s .05s cubic-bezier(.65,0,.35,1) forwards}
+#splash .logo.draw path.lg-n,.enter .logo.draw path.lg-n{animation:draw 1s .6s cubic-bezier(.65,0,.35,1) forwards}
+@keyframes lgfade{to{opacity:1}}
+@keyframes lgrise{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+/* NAEJEONPOT: 한 글자씩 이어서 올라온다 */
+.sp-word span,.sp-word i{display:inline-block;opacity:0;transform:translateY(100%);animation:spletter .75s calc(.95s + var(--i,0) * 45ms) cubic-bezier(.16,1,.3,1) forwards;will-change:transform,opacity}
+@keyframes spletter{to{opacity:1;transform:none}}
+.sp-sub{animation:rise .8s 1.55s cubic-bezier(.16,1,.3,1) forwards}
+.sp-league{animation:rise .8s 1.75s cubic-bezier(.16,1,.3,1) forwards}
+.sp-bar{animation:rise .5s 1.85s ease-out forwards}
+.sp-bar i{width:100%;transform:scaleX(0);transform-origin:0 50%;animation:spload 1.55s 1.95s cubic-bezier(.45,0,.25,1) forwards}
+@keyframes spload{to{transform:none}}
+/* 끝: 내용은 위로 살짝 떠오르며 흐려지고, 화면 전체는 투명도만 */
+#splash.out{animation:spout .8s cubic-bezier(.4,0,.2,1) forwards}
+#splash.out .sp-box,#splash.out .sp-skip{animation:spboxout .6s cubic-bezier(.4,0,1,1) forwards}
+@keyframes spboxout{to{opacity:0;transform:translateY(-14px)}}
+
 /* ---------- 모달 · 토스트 ---------- */
 #modal{position:fixed;inset:0;background:rgba(2,4,8,.82);display:none;z-index:20;align-items:center;justify-content:center;padding:16px}
 #modal.on{display:flex;animation:fade .2s}
@@ -531,7 +567,7 @@ canvas.fx{position:fixed;inset:0;pointer-events:none;z-index:70}
 @keyframes wordup{to{transform:none}}
 @keyframes load{to{width:100%}}
 @keyframes logopulse{50%{filter:drop-shadow(0 0 46px rgba(246,227,168,.9))}}
-@keyframes spout{to{opacity:0;transform:scale(1.06);visibility:hidden}} /* 화면 전체 흐림(blur)은 매 프레임 다시 그려야 해서 끊김 → 투명도·크기만 */
+@keyframes spout{to{opacity:0;visibility:hidden}} /* 화면 전체는 투명도만(흐림·확대는 화면 전체를 다시 그려야 해서 끊김) */
 @keyframes kenburns{from{transform:scale(1.02)}to{transform:scale(1.12) translate(-1.500%,-1%)}}
 @keyframes kenburns2{from{transform:scale(1.12) translate(1.500%,-1%)}to{transform:scale(1.02)}}
 @keyframes wob{0%,100%{transform:rotateZ(-5deg) rotateY(-12deg)}50%{transform:rotateZ(5deg) rotateY(12deg)}}

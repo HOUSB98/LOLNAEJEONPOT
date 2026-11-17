@@ -236,7 +236,7 @@ act('carGo', (d) => carMove(+d.d));
 act('carSet', (d) => carMove(0, +d.i));
 
 // ---------- 랭킹 ----------
-const LB = { view: 'all', sort: 'ovr', dir: -1, min: 0 };
+const LB = { view: 'all', sort: 'ovr', dir: -1, min: 1 }; // 기본: 1판 이상 뛴 선수만
 const COLS = {
   all: [
     ['g', '판', (s) => s.g, (s) => `<span class="mono">${s.g}</span>`],
@@ -415,7 +415,7 @@ export function exportMatches() {
 act('exportCsv', exportMatches);
 
 // ---------- 챔피언 ----------
-const CH = { sort: 'tier', dir: 1, q: '', lane: 'top', si: 0, t: 0 };
+const CH = { sort: 'tier', dir: 1, q: '', lane: 'all', si: 0, t: 0 }; // 처음엔 전체 챔피언 티어
 // 티어: 보정 승률(표본이 적을수록 50%에 가깝게) + 선택 빈도 가산점
 const tierVal = (c, maxG) => ((c.w + 3) / (c.g + 6)) * 100 + (c.g / maxG) * 8;
 function tierOf(c, maxG) {

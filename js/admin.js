@@ -54,10 +54,6 @@ page('admin', {
       <tbody>${st.list.map((s, i) => `<tr><td class="no mono">${i + 1}</td><td class="l nm"><span class="nmc">${LANE_ICON[s.mainLane]}${esc(s.name)}</span></td>${LANES.map((l) => `<td class="scd l-${l} ${s.mainLane === l ? 'main' : ''}" style="--v:${Math.min(100, (+s.p.scores?.[l] || 0) * 5)}%"><input id="sc-${s.id}-${l}" class="inp cell mono" type="number" min="0" max="20" step="0.5" value="${s.p.scores?.[l] ?? 0}" data-c="plScore" data-id="${s.id}" data-l="${l}" ${adm ? '' : 'disabled'}></td>`).join('')}<td class="num mono avg"><b>${s.avg.toFixed(1)}</b></td><td><select class="inp cell" data-c="plMain" data-id="${s.id}" ${adm ? '' : 'disabled'}>${LANES.map((l) => `<option value="${l}" ${s.mainLane === l ? 'selected' : ''}>${LANE_NAME[l]}</option>`).join('')}</select></td><td class="l tier">${esc(s.p.soloTier || '-')}</td><td class="num mono">${s.mmrInit}</td><td><button class="btn xs" data-a="plEdit" data-id="${s.id}">상세</button></td></tr>`).join('') || '<tr><td colspan="11" class="empty">선수가 없습니다.</td></tr>'}</tbody></table></div>
       ${gone.length ? `<p class="sm mut">숨긴 선수: ${gone.map((p) => `${esc(p.name)} <button class="btn xs ghost" data-a="plRestore" data-id="${p.id}">복구</button>`).join(' ')}</p>` : ''}</div>
 
-    <div class="panel"><div class="ph"><b>${ic('down')}구글 시트 데이터 가져오기</b></div>
-      <p class="sm">기존 "내전 팀짜기" 시트의 선수 27명(라인 점수·솔랭 분석)과 경기 17판(챔피언 포함)을 한 번에 넣습니다. <b>처음 한 번만</b> 실행하세요.</p>
-      <button class="btn" data-a="seed">시트 데이터 가져오기</button> ${st.list.length || st.matches.length ? '<span class="tag warn">이미 데이터가 있습니다 — 같은 선수·경기는 덮어씁니다</span>' : ''}</div>
-
     <div class="panel"><div class="ph"><b>${ic('admin')}설정</b></div>
       <form id="cfgf" class="fgrid">
         <label class="fld"><span>리그 이름</span><input class="inp" name="leagueName" value="${esc(cfg.leagueName)}"></label>

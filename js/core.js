@@ -85,12 +85,12 @@ export function logo(anim = false, size = 44) {
     <defs><linearGradient id="lg-l" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7a4f2d"/><stop offset=".55" stop-color="#4f311b"/><stop offset="1" stop-color="#2e1c0f"/></linearGradient>
       <linearGradient id="lg-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbeec8"/><stop offset=".55" stop-color="#e2be78"/><stop offset="1" stop-color="#b8863f"/></linearGradient>
       <pattern id="lg-pt" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M10 6l1.2 2.8L14 10l-2.8 1.2L10 14l-1.2-2.8L6 10l2.8-1.2z" fill="#e2c07c" opacity=".2"/><circle r="1.3" fill="#e2c07c" opacity=".16"/><circle cx="20" cy="20" r="1.3" fill="#e2c07c" opacity=".16"/></pattern></defs>
-    <rect x="6" y="6" width="108" height="108" rx="22" fill="url(#lg-l)"/><rect class="lg-gem" x="6" y="6" width="108" height="108" rx="22" fill="url(#lg-pt)"/>
+    <rect x="6" y="6" width="108" height="108" rx="22" fill="url(#lg-l)"/><rect class="lg-gem lg-pat" x="6" y="6" width="108" height="108" rx="22" fill="url(#lg-pt)"/>
     <path class="lg-hex" pathLength="1" d="M28 7H92A21 21 0 0 1 113 28V92A21 21 0 0 1 92 113H28A21 21 0 0 1 7 92V28A21 21 0 0 1 28 7Z" stroke="url(#lg-g)" stroke-width="1.6" stroke-opacity=".75"/>
-    <rect class="lg-gem" x="12" y="12" width="96" height="96" rx="17" stroke="url(#lg-g)" stroke-width="1.5" stroke-dasharray="3 2.4"/>
+    <rect class="lg-gem lg-st" x="12" y="12" width="96" height="96" rx="17" stroke="url(#lg-g)" stroke-width="1.5" stroke-dasharray="3 2.4"/>
     <path class="lg-gem lg-mn" d="${LG_N}" fill="url(#lg-g)"/>
     <path class="lg-n lg-mp" pathLength="1" d="${LG_P}" stroke="url(#lg-g)" stroke-width="2"/>
-    ${size >= 90 ? `<path class="lg-gem" d="${LG_M}" fill="#ecd29a"/>` : ''}
+    ${size >= 90 ? `<path class="lg-gem lg-mt" d="${LG_M}" fill="#ecd29a"/>` : ''}
   </svg>`;
 }
 
