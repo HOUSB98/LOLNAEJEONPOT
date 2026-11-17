@@ -333,20 +333,20 @@ export function gachaAdminHTML() {
       <div class="gcf-g">
         <div><h4>챔피언 뽑기</h4>
           <label>꽝 확률 % ${NUM('chMiss', c.chMiss)}</label><p class="mut sm">나머지 ${Math.max(0, 100 - c.chMiss)}%를 모든 챔피언이 똑같이 나눔</p>
-          <label>중복 조각 ${NUM('champDup', c.champDup, 1)}</label></div>
+          <label>중복 조각 ${NUM('champDup', c.champDup, 1)}</label><p class="gcf-d">이미 가진 챔피언이 또 나오면 받는 조각 개수예요. 0이면 조각을 주지 않아요.</p></div>
         <div><h4>스킨 뽑기 <small class="mut">꽝 = 100 − 등급 합계</small></h4>
           <table class="tbl gc-tbl"><thead><tr><th class="l">등급</th><th>확률 %</th><th>중복 조각</th></tr></thead><tbody>
             <tr><td class="l"><i style="--c:${TIER.miss.c}"></i>꽝</td><td class="mono" id="gcf-miss">${(100 - sum).toFixed(2).replace(/\.?0+$/, '')}</td><td>-</td></tr>
             ${T.slice(1).map((t) => `<tr><td class="l"><i style="--c:${t.c}"></i>${t.name} <small class="mut">${t.price}</small></td><td>${NUM('p.' + t.k, t.p)}</td><td>${NUM('shard.' + t.k, t.shard, 1)}</td></tr>`).join('')}
-          </tbody></table></div>
+          </tbody></table><p class="gcf-d">확률 %: 스킨 뽑기 한 번에 그 등급이 나올 확률이에요. 등급 안에서는 모든 스킨이 똑같은 확률로 나오고, 합계가 100을 넘을 수 없어요. 중복 조각: 이미 가진 스킨이 또 나오면 받는 조각 개수예요.</p></div>
         <div><h4>뽑기권 지급</h4>
           <label>챔피언 뽑기권: ${NUM('every.champ', c.every.champ, 1)} 판마다</label>
-          <label>스킨 뽑기권: ${NUM('every.skin', c.every.skin, 1)} 판마다</label>
-          <label>희생 보너스(주라인 밖): ${NUM('sac', c.sac, 1)} 판마다 챔피언권</label>
-          <label>오픈 기념: 챔피언 ${NUM('welcome.champ', c.welcome.champ, 1)} 장 · 스킨 ${NUM('welcome.skin', c.welcome.skin, 1)} 장</label>
+          <label>스킨 뽑기권: ${NUM('every.skin', c.every.skin, 1)} 판마다</label><p class="gcf-d">오픈(11/17) 이후 내전에 나간 판수로 계산해요. 이기든 지든 똑같이 쳐요.</p>
+          <label>희생 보너스(주라인 밖): ${NUM('sac', c.sac, 1)} 판마다 챔피언권</label><p class="gcf-d">주라인이 아닌 라인으로 이만큼 뛰면 챔피언 뽑기권을 1장 더 줘요.</p>
+          <label>오픈 기념: 챔피언 ${NUM('welcome.champ', c.welcome.champ, 1)} 장 · 스킨 ${NUM('welcome.skin', c.welcome.skin, 1)} 장</label><p class="gcf-d">모든 선수에게 처음부터 주는 뽑기권이에요.</p>
           <h4>조각 교환</h4>
           <label>챔피언 뽑기권 = ${NUM('shop.champ', c.shop.champ, 1)} 조각</label>
-          <label>스킨 뽑기권 = ${NUM('shop.skin', c.shop.skin, 1)} 조각</label></div>
+          <label>스킨 뽑기권 = ${NUM('shop.skin', c.shop.skin, 1)} 조각</label><p class="gcf-d">모은 조각을 이 개수만큼 내면 가챠 페이지에서 뽑기권 1장으로 바꿀 수 있어요.</p></div>
       </div>
       <div class="row wrapr"><button class="btn pri">가챠 설정 저장</button><button type="button" class="btn ghost" data-a="gcCfgReset">기본값으로</button><span class="mut sm">관리자 PIN 필요 · 지급 판수를 바꾸면 이미 쌓인 뽑기권 수도 다시 계산돼요</span></div>
     </form></div>`;

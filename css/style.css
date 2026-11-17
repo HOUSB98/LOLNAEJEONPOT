@@ -1798,6 +1798,7 @@ button.sticker.xmas:hover{background:linear-gradient(rgba(200,48,58,.22),rgba(31
 .gcf-g{display:grid;grid-template-columns:1fr 1.3fr 1.2fr;gap:18px;margin-bottom:12px}
 .gcf h4{margin:4px 0 8px;font-size:14px}.gcf label{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:6px 0;font-size:13px}
 .gcf-n{width:76px;padding:6px 8px;text-align:right}
+.gcf-d{margin:-2px 0 10px;font-size:12px;line-height:1.5;color:var(--mut)}
 .gcf .gc-tbl td{padding:4px 6px}.gcf #gcf-miss.bad{color:var(--red)}
 @media (max-width:1100px){.gcf-g{grid-template-columns:1fr}}
 
