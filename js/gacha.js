@@ -60,7 +60,7 @@ function tickets(pid, doc) {
 async function skinCatalog() {
   if (G.cat || G.catBusy || !S.ver || !S.champs.length || G.catTried === S.ver) return G.cat;
   G.catTried = S.ver; // 실패해도 같은 패치에서는 다시 시도하지 않는다(화면을 다시 그릴 때마다 받지 않게)
-  try { const c = JSON.parse(localStorage.getItem('naejeon:skincat')); if (c?.ver === S.ver && c.list?.length) { G.cat = c.list; G.catNote = c.note || ''; return G.cat; } } catch {}
+  try { const c = JSON.parse(localStorage.getItem('naejeon:skincat')); if (c?.ver === S.ver && c.list?.length && !c.note) { G.cat = c.list; G.catNote = c.note || ''; return G.cat; } } catch {}
   G.catBusy = true;
   const byKey = Object.fromEntries(S.champs.filter((c) => c.key).map((c) => [c.key, c])); let list = [], note = '';
   try {
@@ -79,16 +79,20 @@ async function skinCatalog() {
     } catch (e) { console.warn('[gacha] 스킨 목록을 받지 못했습니다', e); }
   }
   G.catBusy = false;
-  if (list.length) { G.cat = list; G.catNote = note; try { localStorage.setItem('naejeon:skincat', JSON.stringify({ ver: S.ver, list, note })); } catch {} }
+  if (list.length) { G.cat = list; G.catNote = note; if (!note) try { localStorage.setItem('naejeon:skincat', JSON.stringify({ ver: S.ver, list })); } catch {} }
   if (S.page === 'gacha') refresh();
   return G.cat;
 }
-// 등급별 실제 확률: 스킨이 하나도 없는 등급의 확률은 꽝으로 넘긴다
+// 등급별 확률: p = 관리 화면에서 정한 값(그대로 표시), eff = 실제로 그 등급 스킨이 나올 확률.
+// 스킨이 하나도 없는 등급이 뽑히면 바로 아래(더 싼) 등급 중 스킨이 있는 등급으로 준다(없으면 꽝).
 function skinOdds() {
   const cnt = {}; (G.cat || []).forEach((x) => (cnt[x[4]] = (cnt[x[4]] || 0) + 1));
-  let miss = 0; const rows = tiers().map((t) => ({ ...t, n: t.k === 'miss' ? 0 : cnt[t.k] || 0 }));
-  rows.forEach((r) => { if (r.k !== 'miss' && !r.n) { miss += r.p; r.p = 0; } });
-  rows[0].p += miss;
+  const rows = tiers().map((t) => ({ ...t, n: t.k === 'miss' ? 0 : cnt[t.k] || 0, eff: t.p, to: '' }));
+  for (let i = rows.length - 1; i > 0; i--) {
+    if (rows[i].n) continue;
+    let j = i - 1; while (j > 0 && !rows[j].n) j--;
+    rows[j].eff += rows[i].eff; rows[i].eff = 0; rows[i].to = rows[j].name;
+  }
   return rows;
 }
 
@@ -115,8 +119,8 @@ function oddsHTML() {
         <tr><td class="l"><i style="--c:${CHAMP_COLOR}"></i>챔피언 (전원 동일)</td><td class="mono">${100 - CH_MISS}%</td><td class="mono">${nc || '…'}종</td><td class="mono">${nc ? fmtPct((100 - CH_MISS) / nc) : '-'}</td></tr>
       </tbody></table><p class="hint">중복이면 조각 ${c.champDup}개</p></div>
       <div><h4>스킨 뽑기 <small class="mut">(가격이 비쌀수록 낮음)</small></h4><table class="tbl gc-tbl"><thead><tr><th class="l">등급</th><th>확률</th><th>스킨 수</th><th>개당</th><th>중복 조각</th></tr></thead><tbody>
-        ${rows.map((r) => `<tr class="${r.k}"><td class="l"><i style="--c:${r.c}"></i>${r.name}${r.price ? ` <small class="mut">${r.price}</small>` : ''}</td><td class="mono">${fmtPct(r.p)}</td><td class="mono">${r.k === 'miss' ? '-' : G.cat ? r.n : '…'}</td><td class="mono">${r.k === 'miss' || !r.n ? '-' : fmtPct(r.p / r.n)}</td><td class="mono">${r.shard || '-'}</td></tr>`).join('')}
-      </tbody></table>${G.catNote ? `<p class="hint bad">${esc(G.catNote)}</p>` : G.cat ? '' : '<p class="hint">스킨 목록을 불러오는 중…</p>'}</div>
+        ${rows.map((r) => `<tr class="${r.k}"><td class="l"><i style="--c:${r.c}"></i>${r.name}${r.price ? ` <small class="mut">${r.price}</small>` : ''}</td><td class="mono">${fmtPct(r.p)}</td><td class="mono">${r.k === 'miss' ? '-' : G.cat ? r.n : '…'}</td><td class="mono">${r.k === 'miss' || !r.n ? '-' : fmtPct(r.eff / r.n)}</td><td class="mono">${r.shard || '-'}</td></tr>`).join('')}
+      </tbody></table>${G.cat && rows.some((r) => r.to && r.p) ? `<p class="hint">스킨이 없는 등급: ${rows.filter((r) => r.to && r.p).map((r) => `${r.name} → ${r.to}`).join(', ')} (그 등급이 뽑히면 아래 등급 스킨이 나와요)</p>` : ''}${G.catNote ? `<p class="hint bad">${esc(G.catNote)}</p>` : G.cat ? '' : '<p class="hint">스킨 목록을 불러오는 중…</p>'}</div>
     </div>
     <p class="hint">뽑기권: 오픈(11/17) 이후 내전 ${c.every.champ}판마다 챔피언 뽑기권 1장, ${c.every.skin}판마다 스킨 뽑기권 1장 · <b>희생 보너스</b> 주라인이 아닌 라인으로 ${c.sac}판마다 챔피언 뽑기권 1장 · 오픈 기념 챔피언 ${c.welcome.champ}장·스킨 ${c.welcome.skin}장 · <b>조각</b> 챔피언 뽑기권 ${c.shop.champ}개 / 스킨 뽑기권 ${c.shop.skin}개로 교환</p></div>`;
 }
@@ -227,7 +231,7 @@ act('gcDraw', async (d) => {
   } else {
     if (!G.cat) return toast('스킨 목록을 불러오는 중이에요');
     const rows = skinOdds(); let r = rand() * 100, tier = 'miss';
-    for (const row of rows) { if (r < row.p) { tier = row.k; break; } r -= row.p; }
+    for (const row of rows) { if (r < row.eff) { tier = row.k; break; } r -= row.eff; }
     if (tier === 'miss') res = { t: 'miss' };
     else { const pool = G.cat.filter((x) => x[4] === tier), x = pool[Math.floor(rand() * pool.length)]; res = { t: tier, sid: String(x[0]), c: x[1], num: x[2], n: x[3] }; }
   }
