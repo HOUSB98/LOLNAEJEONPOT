@@ -308,16 +308,21 @@ export function lazyArt(root = document) {
 const SIG_CHAMP_PREF = { 승정: '진' };
 const sigCache = new WeakMap();
 // 대표 챔피언: 선수마다 직접 고른 챔피언(players/{id}.champ, 기본 일러스트)을 선수 관련 모든 화면에 쓴다.
-// 아직 고르지 않았으면 DEFAULT_CHAMP. 예외 선수(FREE_SIG)만 예전처럼 경기 기록·지정 스킨으로 정한다.
+// 아직 고르지 않았으면 DEFAULT_CHAMP. 단 SKIN_PREF에 적힌 선수(혜나)는 처음부터 그 챔피언·스킨을 가진 것으로 보고 그대로 보여 준다.
 export const DEFAULT_CHAMP = '가렌';
-export const FREE_SIG = ['혜나'];
-export const canPickChamp = (s) => !!s && !FREE_SIG.some((n) => s.name?.includes(n));
+export const canPickChamp = (s) => !!s;
+// 처음부터 가진 기본 챔피언·스킨: { champ(한글), id, num, name } — 가챠에서 기본 챔피언·보유 스킨으로 친다
+export function presetCard(s) {
+  const pref = s && SKIN_PREF.find((x) => s.name?.includes(x.player)), c = pref && S.champBy[pref.champ]; if (!c) return null;
+  const list = skinList(pref.champ), hit = list && list.find((x) => pref.kw.some((k) => x[1].includes(k)));
+  return { champ: pref.champ, id: c.id, num: hit ? hit[0] : pref.num, name: hit ? hit[1] : `${pref.kw[0]} ${pref.champ}` };
+}
 export const cardChamp = (s) => sigChamp(s); // 예전 이름 호환
 // players/{id}.skin = {champ, num, name}: 관리자가 "카드 수정"에서 고른 스킨. 그 챔피언이 대표일 때만 쓴다(선수가 직접 고르면 기본 스킨으로 초기화)
 const chosenSkin = (s, name) => { const k = s.p?.skin; return k && k.champ === name && +k.num && !isBad(name, +k.num) ? skinAlias(name, +k.num, k.name) : name; };
 export function sigChamp(s) {
   if (S.champBy[s.p?.champ]) return chosenSkin(s, s.p.champ); // 선수(가챠 페이지)나 관리자가 고른 챔피언 — 혜나도 관리자가 정하면 따른다
-  if (canPickChamp(s)) return DEFAULT_CHAMP;
+  if (!presetCard(s)) return DEFAULT_CHAMP;
   const preferred = SIG_CHAMP_PREF[s.name];
   if (preferred && S.champBy[preferred]) return skinFor(s, preferred);
   const st = S.st; let cnt = sigCache.get(st);
