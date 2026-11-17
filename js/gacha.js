@@ -167,7 +167,7 @@ const mainRow = (s) => {
   const main = sigChamp(s), st = champById()[G.doc?.starter];
   return `<div class="panel gc-main ${st ? '' : 'need'}"><span class="gc-main-art ${st ? '' : 'empty'}" style="--img:url('${main ? tileUrl(main) : ''}')">${st ? '' : '<i>?</i>'}</span><div class="gc-main-tx"><small>MY CHAMPION</small><b>${st ? esc(main || DEFAULT_CHAMP) : '아직 없음'}</b>${st ? '' : `<small class="mut">지금 선수 카드에는 임시로 ${DEFAULT_CHAMP} 그림이 보여요</small>`}${st
     ? `<span class="mut sm">기본 챔피언: <b>${esc(st.name)}</b> · 아래 보관함에서 기본 챔피언과 뽑은 챔피언·스킨 중 골라 카드에 적용해요.</span></div>`
-    : `<span class="mut sm"><b>뽑기 전에 먼저</b> 전체 챔피언 중 <b>기본 챔피언 1개</b>를 골라 주세요(기본 스킨, 한 번 정하면 바꿀 수 없어요). 그 뒤로는 뽑기로 얻은 챔피언·스킨을 더해서 쓸 수 있어요.</span></div><button class="btn gold" data-a="gcMain">${ic('star')}기본 챔피언 고르기</button>`}</div>`;
+    : `<span class="mut sm"><b class="gc-red">뽑기 전에 먼저 전체 챔피언 중 기본 챔피언 1개를 골라 주세요.</b> (기본 스킨, 한 번 정하면 바꿀 수 없어요) 그 뒤로는 뽑기로 얻은 챔피언·스킨을 더해서 쓸 수 있어요.</span></div><button class="btn gold" data-a="gcMain">${ic('star')}기본 챔피언 고르기</button>`}</div>`;
 };
 const dailyTag = (t, k) => (+gcfg().daily[k] ? (t.daily[k] ? ` <i class="gc-daily" title="오늘 자정(한국 시간)에 사라져요. 쌓이지 않아요">출석 ${t.daily[k]} · 오늘만</i>` : ' <i class="gc-daily off" title="내일 자정(한국 시간)에 새로 생겨요">오늘 출석권 사용</i>') : '');
 function mineHTML() {
