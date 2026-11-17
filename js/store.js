@@ -58,7 +58,12 @@ function localStore(key, onChange) {
 
 async function firebaseStore(key, onChange) {
   const [{ initializeApp }, fs] = await Promise.all([import(FB + 'firebase-app.js'), import(FB + 'firebase-firestore.js')]);
-  const db = fs.getFirestore(initializeApp(FIREBASE_CONFIG));
+  // 로컬 캐시(IndexedDB): 새로고침해도 기기에 저장된 기록을 먼저 쓰고, 서버에서는 바뀐 문서만 받는다(30분 안에 다시 열면 바뀐 문서만 읽기로 계산).
+  // 여러 탭을 동시에 열어도 되도록 탭 관리자를 쓴다. 저장소를 막는 브라우저(일부 사파리 개인정보 보호 모드 등)는 SDK가 알아서 지금처럼 메모리로 동작한다.
+  const app = initializeApp(FIREBASE_CONFIG);
+  let db;
+  try { db = fs.initializeFirestore(app, { localCache: fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() }) }); }
+  catch (e) { console.warn('[store] 로컬 캐시를 쓸 수 없어 기본 방식으로 연결합니다', e); db = fs.getFirestore(app); }
   const ref = (col, id) => fs.doc(db, 'leagues', key, col, id);
   let clockOffset = 0, clockSyncedAt = 0, clockPromise = null;
 
@@ -95,16 +100,25 @@ async function firebaseStore(key, onChange) {
   let pending = WATCHED.length, done;
   const ready = new Promise((r) => (done = r));
   const seen = {};
+  const mark = (col) => { if (!seen[col]) { seen[col] = 1; if (--pending === 0) done(); } };
+  // 처음 화면은 서버 확인이 끝난 값으로 그린다(캐시의 옛 값으로 시작하면 주사위·라인 지원·입장 알림이 '새로 생긴 일'로 오해할 수 있어서).
+  // 그래서 캐시에서 온 첫 결과는 담아만 두고, 서버 확인 결과가 오면 준비 완료로 본다. 오프라인이면 4초 뒤 캐시 값으로 시작한다.
+  const cached = {};
+  setTimeout(() => WATCHED.forEach((col) => cached[col] && mark(col)), 4000); // 캐시가 있으면 4초, 없으면(첫 방문·빈 컬렉션) 12초까지 서버를 기다린다
+  setTimeout(() => WATCHED.forEach(mark), 12000);
   WATCHED.forEach((col) => {
     data[col] = {};
     const src = fs.collection(db, 'leagues', key, col);
-    fs.onSnapshot(col === 'chat' ? fs.query(src, fs.orderBy('at', 'desc'), fs.limit(CHAT_LIMIT)) : src, (snap) => {
+    fs.onSnapshot(col === 'chat' ? fs.query(src, fs.orderBy('at', 'desc'), fs.limit(CHAT_LIMIT)) : src, { includeMetadataChanges: true }, (snap) => {
+      const fromServer = !snap.metadata.fromCache, first = !seen[col];
+      if (!first && !snap.docChanges().length) return; // 내용은 그대로이고 상태 표시만 바뀐 알림은 무시(다시 그리지 않음)
       const m = {};
       snap.forEach((d) => (m[d.id] = { ...d.data(), id: d.id }));
       data[col] = m;
-      if (!seen[col]) { seen[col] = 1; if (--pending === 0) done(); }
+      if (first && !fromServer) { cached[col] = snap.size > 0 || cached[col]; return; } // 캐시 값: 담아만 두고 서버 확인을 기다린다
+      mark(col);
       onChange(col);
-    }, (err) => { console.error(err); if (!seen[col]) { seen[col] = 1; if (--pending === 0) done(); } onChange('error', err); });
+    }, (err) => { console.error(err); mark(col); onChange('error', err); });
   });
   return {
     mode: 'firebase', data, ready,
@@ -112,6 +126,7 @@ async function firebaseStore(key, onChange) {
     serverClockReady: () => !!clockSyncedAt && performance.now() - clockSyncedAt < 5 * 60e3,
     syncServerClock,
     watchDoc: (col, id, onData, onError) => fs.onSnapshot(ref(col, id), (snap) => {
+      if (snap.metadata.fromCache) return; // 캐시의 옛 값은 건너뛴다(주사위·라인 지원이 지난 일을 다시 띄우지 않게). 처음 상태는 위 구독에서 이미 받았다
       onData(snap.exists() ? { ...snap.data(), id: snap.id } : null, snap);
     }, onError),
     watchCollection: (col, onSnap, onError) => {
