@@ -11,6 +11,7 @@ import './players.js';
 import './auction.js';
 import './admin.js';
 import './maker.js';
+import './gacha.js';
 import { watchPosts } from './talk.js';
 import { initXmas, xmasOn } from './xmas.js';
 import { initNewYear } from './newyear.js';

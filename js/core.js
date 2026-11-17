@@ -54,6 +54,7 @@ const I = {
   sound: '<path d="M4 9v6h4l5 4V5L8 9zM16 9a4 4 0 0 1 0 6M18.500 6.500a8 8 0 0 1 0 11"/>',
   mute: '<path d="M4 9v6h4l5 4V5L8 9zM17 9.500l5 5M22 9.500l-5 5"/>',
   talk: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12.500h5"/>',
+  gacha: '<circle cx="12" cy="12" r="8"/><path d="M4 12h16"/><circle cx="12" cy="12" r="2.600"/><path d="M9.500 6.500a6 6 0 0 1 3-.900" opacity=".5"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M4.500 21c.8-4.200 3.800-7 7.500-7s6.700 2.800 7.500 7"/>',
   more: '<circle cx="5" cy="12" r="1.300" fill="currentColor"/><circle cx="12" cy="12" r="1.300" fill="currentColor"/><circle cx="19" cy="12" r="1.300" fill="currentColor"/>',
   replay: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8h18M7 4l2 4M12 4l2 4M17 4l2 4M10 11.500v5l4.500-2.500z"/>',
@@ -100,7 +101,7 @@ export const act = (name, fn) => (acts[name] = fn);
 export const NAV = [
   ['', 'LEAGUE'], ['home', '홈'], ['rank', '랭킹'], ['matches', '경기 기록'], ['players', '선수 카드'],
   ['', 'ANALYSIS'], ['champs', '챔피언'], ['chem', '케미'],
-  ['', 'PLAY'], ['today', '오늘의 내전'], ['auction', '팀 경매'], ['replay', '리플레이 분석'], ['admin', '관리'],
+  ['', 'PLAY'], ['today', '오늘의 내전'], ['gacha', '가챠'], ['auction', '팀 경매'], ['replay', '리플레이 분석'], ['admin', '관리'],
   ['', 'COMMUNITY'], ['talk', '익명 게시판'],
   ['', 'CREDITS'], ['maker', '제작자'],
 ];
@@ -307,6 +308,7 @@ export function lazyArt(root = document) {
 const SIG_CHAMP_PREF = { 승정: '진' };
 const sigCache = new WeakMap();
 export function sigChamp(s) {
+  const eq = s.p.skin; if (eq?.pick && S.champBy[eq.champ]) return skinFor(s, eq.champ); // 가챠에서 본인이 고른 챔피언·스킨
   const preferred = SIG_CHAMP_PREF[s.name];
   if (preferred && S.champBy[preferred]) return skinFor(s, preferred);
   const st = S.st; let cnt = sigCache.get(st);
@@ -376,7 +378,7 @@ export { mh };
 const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
 export const cho = (s) => [...s].map((c) => { const n = c.charCodeAt(0) - 0xac00; return n >= 0 && n < 11172 ? CHO[Math.floor(n / 588)] : c; }).join('');
 export async function loadChamps() {
-  const KEY = 'naejeon:champs2';
+  const KEY = 'naejeon:champs3';
   const set = (o) => { S.ver = o.ver; S.champs = o.list; S.champBy = Object.fromEntries(o.list.map((c) => [c.name, c])); };
   try {
     const cached = JSON.parse(localStorage.getItem(KEY) || 'null');
@@ -384,7 +386,7 @@ export async function loadChamps() {
     if (cached && Date.now() - cached.at < 12 * 3600e3) return; // 패치 버전은 반나절마다 다시 확인
     const ver = (await (await fetch('https://ddragon.leagueoflegends.com/api/versions.json')).json())[0];
     const data = (await (await fetch(`https://ddragon.leagueoflegends.com/cdn/${ver}/data/ko_KR/champion.json`)).json()).data;
-    const list = Object.values(data).map((c) => ({ id: c.id, name: c.name, img: `https://ddragon.leagueoflegends.com/cdn/${ver}/img/champion/${c.image.full}` })).sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+    const list = Object.values(data).map((c) => ({ id: c.id, key: +c.key, name: c.name, img: `https://ddragon.leagueoflegends.com/cdn/${ver}/img/champion/${c.image.full}` })).sort((a, b) => a.name.localeCompare(b.name, 'ko'));
     const o = { ver, list, at: Date.now() };
     localStorage.setItem(KEY, JSON.stringify(o)); set(o); refresh();
   } catch (e) { console.warn('챔피언 목록을 불러오지 못했습니다', e); }

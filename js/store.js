@@ -17,7 +17,7 @@ function localStore(key, onChange) {
   const k = (col) => `naejeon:${key}:${col}`;
   const load = (col) => { try { return JSON.parse(localStorage.getItem(k(col))) || {}; } catch { return {}; } };
   const data = {};
-  WATCHED.concat('history', 'reveals').forEach((c) => (data[c] = load(c)));
+  WATCHED.concat('history', 'reveals', 'gacha').forEach((c) => (data[c] = load(c)));
   const subs = {}; // 체험 모드에서도 다른 탭의 이벤트(승률 공개)를 받을 수 있게 한다
   const bc = 'BroadcastChannel' in window ? new BroadcastChannel('naejeon:' + key) : null;
   if (bc) bc.onmessage = (e) => {
@@ -45,7 +45,8 @@ function localStore(key, onChange) {
       return () => {};
     },
     bye() {},
-    async put(col, id, doc) { data[col][id] = { ...doc, id }; save(col, id); },
+    async get(col, id) { data[col] = load(col); return data[col][id] ? { ...data[col][id] } : null; },
+    async put(col, id, doc) { (data[col] ||= {})[id] = { ...doc, id }; save(col, id); },
     async patch(col, id, part) { data[col][id] = { ...(data[col][id] || { id }), ...part }; save(col); },
     async tx(col, id, fn) {
       data[col] = load(col);
@@ -145,6 +146,7 @@ async function firebaseStore(key, onChange) {
         fetch(u, { method: 'PATCH', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: { [field]: { integerValue: String(value) } } }) }).catch(() => {});
       } catch {}
     },
+    get: async (col, id) => { const d = await fs.getDoc(ref(col, id)); return d.exists() ? { ...d.data(), id } : null; }, // 구독하지 않는 문서(가챠 등)를 필요할 때 한 번 읽는다
     put: (col, id, doc) => fs.setDoc(ref(col, id), clean({ ...doc, id })),
     patch: (col, id, part) => fs.setDoc(ref(col, id), clean(part), { merge: true }),
     tx: (col, id, fn) => fs.runTransaction(db, async (t) => {
