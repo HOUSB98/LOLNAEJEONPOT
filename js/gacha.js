@@ -3,7 +3,7 @@
 //  · 챔피언 뽑기권: 3판마다 1장 + 희생 보너스(주라인이 아닌 라인으로 3판마다 1장) · 스킨 뽑기권: 5판마다 1장 · 오픈 기념 각 1장
 //  · 이미 가진 것이 나오면 조각을 주고, 조각으로 뽑기권을 바꿀 수 있다.
 //  · 본인 확인은 선수별 PIN(해시만 저장). 친구끼리 쓰는 잠금 수준이라 개발자 도구로는 우회할 수 있다.
-// 데이터: gacha/{선수id} = { starter(처음 고른 기본 챔피언 id), pinHash, used{champ,skin}, bought{champ,skin}, shards, champs{챔피언id:개수}, skins{스킨id:{n,c,num,name,tier}}, log[] }
+// 데이터: gacha/{선수id} = { starter(처음 고른 기본 챔피언 id), daily{day,champ,skin}(오늘 쓴 출석권), pinHash, used{champ,skin}, bought{champ,skin}, shards, champs{챔피언id:개수}, skins{스킨id:{n,c,num,name,tier}}, log[] }
 //         (구독하지 않는 컬렉션이라 접속자 화면에 퍼지지 않는다. 가챠 화면에서만 한 번씩 읽는다)
 import { S, page, act, esc, refresh, toast, sha, needAdmin, ic, burst, settings, modal, closeModal, mh, pickChamp, sigChamp, canPickChamp, DEFAULT_CHAMP, tileUrl } from './core.js';
 
@@ -12,10 +12,11 @@ const START = Date.parse('2026-11-17T12:00:00+09:00'); // 가챠 오픈: 이 시
 export const GACHA_DEF = {
   chMiss: 60, champDup: 1, // 챔피언 뽑기 꽝(%), 챔피언 중복 조각
   every: { champ: 3, skin: 5 }, sac: 3, welcome: { champ: 1, skin: 1 }, shop: { champ: 5, skin: 15 },
+  daily: { champ: 1, skin: 1 }, // 출석 뽑기권: 매일(한국 시간 자정) 새로 생기고, 그날 안 쓰면 사라진다(쌓이지 않음)
   p: { common: 19, epic: 7.5, legendary: 2.8, ultimate: 0.5, mythic: 0.15, transcendent: 0.05 }, // 스킨 등급 확률(%), 꽝 = 100 - 합계
   shard: { common: 2, epic: 4, legendary: 8, ultimate: 15, mythic: 25, transcendent: 40 }, // 스킨 중복 조각
 };
-export const gcfg = () => { const g = settings().gacha || {}, D = GACHA_DEF; return { ...D, ...g, every: { ...D.every, ...g.every }, welcome: { ...D.welcome, ...g.welcome }, shop: { ...D.shop, ...g.shop }, p: { ...D.p, ...g.p }, shard: { ...D.shard, ...g.shard } }; };
+export const gcfg = () => { const g = settings().gacha || {}, D = GACHA_DEF; return { ...D, ...g, every: { ...D.every, ...g.every }, welcome: { ...D.welcome, ...g.welcome }, daily: { ...D.daily, ...g.daily }, shop: { ...D.shop, ...g.shop }, p: { ...D.p, ...g.p }, shard: { ...D.shard, ...g.shard } }; };
 // 스킨 등급(가격 기준): 이름·색·가격 표시는 고정, 확률과 조각은 설정에서 온다
 const TIER_META = [
   { k: 'miss', name: '꽝', c: '#7d8799', price: '' },
@@ -48,12 +49,18 @@ const artOf = (id, num = 0) => `https://ddragon.leagueoflegends.com/cdn/img/cham
 const blankDoc = (pid) => ({ pid, pinHash: '', used: { champ: 0, skin: 0 }, bought: { champ: 0, skin: 0 }, shards: 0, champs: {}, skins: {}, log: [] });
 
 // ---------- 뽑기권 계산 (경기 기록 기준) ----------
+// 오늘 날짜(한국 시간). 출석 뽑기권은 날짜가 바뀌면 새로 생긴다
+const kstDay = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+// left = 출석권 + 보유권(경기·오픈 기념·조각 교환). 뽑을 때는 출석권부터 쓴다
 function tickets(pid, doc) {
   const st = S.st, s = st.P[pid]; let g = 0, off = 0;
   if (s) st.matches.forEach((m) => { if (m.at < START) return; const side = m.blue.includes(pid) ? 'blue' : m.red.includes(pid) ? 'red' : ''; if (!side) return; g++; if (['top', 'jg', 'mid', 'adc', 'sup'][m[side].indexOf(pid)] !== s.mainLane) off++; });
   const b = doc?.bought || {}, u = doc?.used || {}, c = gcfg(), E = { champ: Math.max(1, +c.every.champ), skin: Math.max(1, +c.every.skin) }, SAC = Math.max(1, +c.sac);
   const earned = { champ: (+c.welcome.champ || 0) + Math.floor(g / E.champ) + Math.floor(off / SAC) + (+b.champ || 0), skin: (+c.welcome.skin || 0) + Math.floor(g / E.skin) + (+b.skin || 0) };
-  return { g, off, sac: SAC, earned, left: { champ: earned.champ - (+u.champ || 0), skin: earned.skin - (+u.skin || 0) }, next: { champ: E.champ - (g % E.champ), skin: E.skin - (g % E.skin), sac: SAC - (off % SAC) } };
+  const today = kstDay(), dd = doc?.daily?.day === today ? doc.daily : {};
+  const daily = { champ: Math.max(0, (+c.daily.champ || 0) - (+dd.champ || 0)), skin: Math.max(0, (+c.daily.skin || 0) - (+dd.skin || 0)) };
+  const stock = { champ: earned.champ - (+u.champ || 0), skin: earned.skin - (+u.skin || 0) };
+  return { g, off, sac: SAC, earned, today, daily, stock, left: { champ: stock.champ + daily.champ, skin: stock.skin + daily.skin }, next: { champ: E.champ - (g % E.champ), skin: E.skin - (g % E.skin), sac: SAC - (off % SAC) } };
 }
 
 // ---------- 스킨 목록 (가격 등급 포함) ----------
@@ -124,7 +131,7 @@ function oddsHTML() {
         ${rows.map((r) => `<tr class="${r.k}"><td class="l"><i style="--c:${r.c}"></i>${r.name}${r.price ? ` <small class="mut">${r.price}</small>` : ''}</td><td class="mono">${fmtPct(r.p)}</td><td class="mono">${r.k === 'miss' ? '-' : G.cat ? r.n : '…'}</td><td class="mono">${r.k === 'miss' || !r.n ? '-' : fmtPct(r.eff / r.n)}</td><td class="mono">${r.shard || '-'}</td></tr>`).join('')}
       </tbody></table>${G.cat && rows.some((r) => r.to && r.p) ? `<p class="hint">스킨이 없는 등급: ${rows.filter((r) => r.to && r.p).map((r) => `${r.name} → ${r.to}`).join(', ')} (그 등급이 뽑히면 아래 등급 스킨이 나와요)</p>` : ''}${G.catNote ? `<p class="hint bad">${esc(G.catNote)}</p>` : G.cat ? '' : '<p class="hint">스킨 목록을 불러오는 중…</p>'}</div>
     </div>
-    <p class="hint">뽑기권: 오픈(11/17) 이후 내전 ${c.every.champ}판마다 챔피언 뽑기권 1장, ${c.every.skin}판마다 스킨 뽑기권 1장 · <b>희생 보너스</b> 주라인이 아닌 라인으로 ${c.sac}판마다 챔피언 뽑기권 1장 · 오픈 기념 챔피언 ${c.welcome.champ}장·스킨 ${c.welcome.skin}장 · <b>조각</b> 챔피언 뽑기권 ${c.shop.champ}개 / 스킨 뽑기권 ${c.shop.skin}개로 교환</p></div>`;
+    <p class="hint">뽑기권: 오픈(11/17) 이후 내전 ${c.every.champ}판마다 챔피언 뽑기권 1장, ${c.every.skin}판마다 스킨 뽑기권 1장 · <b>희생 보너스</b> 주라인이 아닌 라인으로 ${c.sac}판마다 챔피언 뽑기권 1장 · 오픈 기념 챔피언 ${c.welcome.champ}장·스킨 ${c.welcome.skin}장 · <b>출석</b> 매일 챔피언 ${c.daily.champ}장·스킨 ${c.daily.skin}장(그날 안 쓰면 사라짐, 먼저 쓰임) · <b>조각</b> 챔피언 뽑기권 ${c.shop.champ}개 / 스킨 뽑기권 ${c.shop.skin}개로 교환</p></div>`;
 }
 function lockHTML() {
   const list = [...S.st.list].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
@@ -158,14 +165,15 @@ const mainRow = (s) => {
     ? `<span class="mut sm">기본 챔피언: <b>${esc(st.name)}</b> · 아래 보관함에서 기본 챔피언과 뽑은 챔피언·스킨 중 골라 카드에 적용해요.</span></div>`
     : `<span class="mut sm"><b>뽑기 전에 먼저</b> 전체 챔피언 중 <b>기본 챔피언 1개</b>를 골라 주세요(기본 스킨, 한 번 정하면 바꿀 수 없어요). 그 뒤로는 뽑기로 얻은 챔피언·스킨을 더해서 쓸 수 있어요.</span></div><button class="btn gold" data-a="gcMain">${ic('star')}기본 챔피언 고르기</button>`}</div>`;
 };
+const dailyTag = (t, k) => (+gcfg().daily[k] ? (t.daily[k] ? ` <i class="gc-daily" title="오늘 자정(한국 시간)에 사라져요. 쌓이지 않아요">출석 ${t.daily[k]} · 오늘만</i>` : ' <i class="gc-daily off" title="내일 자정(한국 시간)에 새로 생겨요">오늘 출석권 사용</i>') : '');
 function mineHTML() {
   const d = G.doc, s = S.st.P[G.pid], t = tickets(G.pid, d);
   const ready = S.champs.length > 0, c = gcfg(), SHOP = c.shop, starterOk = !!d.starter || !canPickChamp(s);
   return `<div class="gc-who"><span>${ic('user')}<b>${esc(s?.name || '?')}</b> 님의 가챠</span><span class="grow"></span><button class="btn ghost xs" data-a="gcLock">${ic('lock')}잠그기</button></div>
     ${canPickChamp(s) ? mainRow(s) : ''}
     <div class="gc-tix">
-      <div class="gc-tk ch"><small>CHAMPION TICKET</small><b class="mono">${t.left.champ}</b><span>챔피언 뽑기권</span><em>다음까지 ${t.next.champ}판 · 희생 보너스 ${t.sac - t.next.sac}/${t.sac}</em></div>
-      <div class="gc-tk sk"><small>SKIN TICKET</small><b class="mono">${t.left.skin}</b><span>스킨 뽑기권</span><em>다음까지 ${t.next.skin}판</em></div>
+      <div class="gc-tk ch"><small>CHAMPION TICKET</small><b class="mono">${t.left.champ}</b><span>챔피언 뽑기권${dailyTag(t, 'champ')}</span><em>다음까지 ${t.next.champ}판 · 희생 보너스 ${t.sac - t.next.sac}/${t.sac}</em></div>
+      <div class="gc-tk sk"><small>SKIN TICKET</small><b class="mono">${t.left.skin}</b><span>스킨 뽑기권${dailyTag(t, 'skin')}</span><em>다음까지 ${t.next.skin}판</em></div>
       <div class="gc-tk sh"><small>SHARDS</small><b class="mono">${+d.shards || 0}</b><span>조각</span><em><button class="lnk" data-a="gcBuy" data-k="champ" ${(+d.shards || 0) >= SHOP.champ ? '' : 'disabled'}>챔피언권 교환(${SHOP.champ})</button> · <button class="lnk" data-a="gcBuy" data-k="skin" ${(+d.shards || 0) >= SHOP.skin ? '' : 'disabled'}>스킨권 교환(${SHOP.skin})</button></em></div>
     </div>
     ${starterOk ? '' : '<p class="hint gc-first">뽑기는 기본 챔피언을 고른 뒤에 할 수 있어요.</p>'}
@@ -258,8 +266,10 @@ act('gcDraw', async (d) => {
   try {
     ok = await S.store.tx('gacha', G.pid, (doc) => {
       if (!doc || doc.pinHash !== G.h) return null;
-      if (tickets(G.pid, doc).left[k] <= 0) return null;
-      const next = { ...doc, used: { ...(doc.used || {}), [k]: (+doc.used?.[k] || 0) + 1 }, champs: { ...(doc.champs || {}) }, skins: { ...(doc.skins || {}) }, shards: +doc.shards || 0 };
+      const tk = tickets(G.pid, doc); if (tk.left[k] <= 0) return null;
+      const dd = doc.daily?.day === tk.today ? doc.daily : { day: tk.today, champ: 0, skin: 0 };
+      const useDaily = tk.daily[k] > 0;
+      const next = { ...doc, used: { ...(doc.used || {}), [k]: (+doc.used?.[k] || 0) + (useDaily ? 0 : 1) }, daily: useDaily ? { ...dd, [k]: (+dd[k] || 0) + 1 } : doc.daily || dd, champs: { ...(doc.champs || {}) }, skins: { ...(doc.skins || {}) }, shards: +doc.shards || 0 };
       dup = 0;
       if (res.t === 'champ') { if (next.champs[res.id] || next.starter === res.id) dup = +gcfg().champDup || 0; next.champs[res.id] = (next.champs[res.id] || 0) + 1; }
       else if (res.t !== 'miss') { const had = next.skins[res.sid]; if (had) dup = +gcfg().shard[res.t] || 0; next.skins[res.sid] = { n: (had?.n || 0) + 1, c: res.c, num: res.num, name: res.n, tier: res.t }; }
@@ -393,6 +403,7 @@ export function gachaAdminHTML() {
           <label>스킨 뽑기권: ${NUM('every.skin', c.every.skin, 1)} 판마다</label><p class="gcf-d">오픈(11/17) 이후 내전에 나간 판수로 계산해요. 이기든 지든 똑같이 쳐요.</p>
           <label>희생 보너스(주라인 밖): ${NUM('sac', c.sac, 1)} 판마다 챔피언권</label><p class="gcf-d">주라인이 아닌 라인으로 이만큼 뛰면 챔피언 뽑기권을 1장 더 줘요.</p>
           <label>오픈 기념: 챔피언 ${NUM('welcome.champ', c.welcome.champ, 1)} 장 · 스킨 ${NUM('welcome.skin', c.welcome.skin, 1)} 장</label><p class="gcf-d">모든 선수에게 처음부터 주는 뽑기권이에요.</p>
+          <label>출석(매일): 챔피언 ${NUM('daily.champ', c.daily.champ, 1)} 장 · 스킨 ${NUM('daily.skin', c.daily.skin, 1)} 장</label><p class="gcf-d">매일 한국 시간 자정에 새로 생기고, 그날 안 쓰면 사라져요(쌓이지 않음). 뽑을 때 보유 뽑기권보다 먼저 쓰여요. 0이면 주지 않아요.</p>
           <h4>조각 교환</h4>
           <label>챔피언 뽑기권 = ${NUM('shop.champ', c.shop.champ, 1)} 조각</label>
           <label>스킨 뽑기권 = ${NUM('shop.skin', c.shop.skin, 1)} 조각</label><p class="gcf-d">모은 조각을 이 개수만큼 내면 가챠 페이지에서 뽑기권 1장으로 바꿀 수 있어요.</p></div>
@@ -408,7 +419,7 @@ document.addEventListener('input', (e) => { // 스킨 등급 확률을 바꾸면
 document.addEventListener('submit', (e) => {
   if (e.target.id !== 'gcff') return;
   e.preventDefault();
-  const f = new FormData(e.target), g = { every: {}, welcome: {}, shop: {}, p: {}, shard: {} };
+  const f = new FormData(e.target), g = { every: {}, welcome: {}, daily: {}, shop: {}, p: {}, shard: {} };
   for (const [k, v] of f.entries()) { const n = Math.max(0, +v || 0), [a, b] = k.split('.'); if (b) g[a][b] = n; else g[a] = n; }
   const sum = Object.values(g.p).reduce((a, x) => a + x, 0);
   if (sum > 100) return toast(`스킨 등급 확률 합계가 ${sum}%예요. 100% 이하로 맞춰 주세요`);
