@@ -270,7 +270,7 @@ function play(k, res, dup) {
       <div class="gx-cap"><i class="gx-cap-t"></i><i class="gx-cap-b"></i><i class="gx-core"></i></div>
       <div class="gx-card">${res.t === 'miss'
         ? '<div class="gx-miss"><b>꽝</b><span>다음 기회에…</span></div>'
-        : `<div class="gx-art" style="--img:url('${img}')"></div><div class="gx-info"><small style="color:${tier.c}">${tier.name}${lv >= 4 ? ' ★'.repeat(lv - 3) : ''}</small><b>${esc(res.n)}</b>${dup ? `<em>중복! 조각 +${dup}</em>` : '<em>새로 획득!</em>'}</div>`}</div>
+        : `<div class="gx-art" style="--img:url('${img}')"></div><div class="gx-info"><small style="color:${tier.c}">${tier.name}${lv >= 4 ? ' ★'.repeat(lv - 3) : ''}${tier.price ? ` · ${tier.price}` : ''}</small><b>${esc(res.n)}</b>${dup ? `<em>중복! 조각 +${dup}</em>` : '<em>새로 획득!</em>'}</div>`}</div>
       <div class="gx-banner">${lv >= 6 ? 'MYTHIC' : lv === 5 ? 'ULTIMATE' : lv === 4 ? 'LEGENDARY' : ''}</div>
       <button class="gx-x btn ghost" hidden>확인</button>`;
     document.body.appendChild(el);
