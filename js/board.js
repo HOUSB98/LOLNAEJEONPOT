@@ -5,8 +5,9 @@ import { setDraftTeams, placedIds } from './today.js';
 import { aiBalance } from './stats.js';
 import { notify } from './hook.js';
 import { sysChat, nick, cid } from './social.js';
-// 마감·취소는 게시자(연 사람의 브라우저)와 관리자만 할 수 있다. 예전 게시물(owner 없음)은 누구나.
-const isOwner = (d) => !d?.owner || d.owner === cid || isAdmin();
+// 마감·취소·AI 추천은 게시자(연 사람의 브라우저)와 관리자만 할 수 있다.
+// owner가 없는 예전 게시물은 연 사람 닉네임으로 비교한다(닉네임도 없으면 누구나).
+const isOwner = (d) => !d || isAdmin() || (d.owner ? d.owner === cid : !d.by || d.by === '익명' || d.by === nick());
 
 const OPTS = [...LANES, 'any'];
 const NAME = { ...LANE_NAME, any: '상관없음' };
@@ -93,7 +94,7 @@ function finalHTML(d) {
     ${d.left?.length ? `<p class="mut center">대기: ${d.left.map((x) => esc(nm(x))).join(', ')}</p>` : ''}
     <p class="hint center"><em class="lf-tag">N지망</em> 몇 지망으로 들어갔는지 (·추첨: 몰려서 뽑힘) · <em class="lf-tag">배치</em> 상관없음·지망 실패·미지원으로 빈 자리에 들어감 · 진영·자리 교체는 라인업에서 끌어다 놓으면 됩니다</p>
     ${d.ai ? `<p class="lf-ai center">${ic('bolt')}AI 추천 배치 · 점수 <b class="blue">${(+d.ai.bs).toFixed(1)}</b> : <b class="red">${(+d.ai.rs).toFixed(1)}</b> (차이 ${(+d.ai.diff).toFixed(1)})</p>` : ''}
-    <div class="lp-foot center"><button class="btn gold" data-a="bdAi" ${LANES.every((l) => d.result?.[l]?.[0] && d.result?.[l]?.[1]) ? '' : 'disabled title="빈 자리가 있으면 쓸 수 없어요"'}>${ic('bolt')}AI 추천</button><button class="btn pri" data-a="bdLineup">${ic('today')}라인업 확인</button><button class="btn ghost" data-a="bdClose">닫기</button></div>`;
+    <div class="lp-foot center">${isOwner(d) ? '' : '<span class="mut sm">AI 추천은 연 사람만 쓸 수 있어요</span>'}${isOwner(d) ? `<button class="btn gold" data-a="bdAi" ${LANES.every((l) => d.result?.[l]?.[0] && d.result?.[l]?.[1]) ? '' : 'disabled title="빈 자리가 있으면 쓸 수 없어요"'}>${ic('bolt')}AI 추천</button>` : ''}<button class="btn pri" data-a="bdLineup">${ic('today')}라인업 확인</button><button class="btn ghost" data-a="bdClose">닫기</button></div>`;
 }
 function draw() {
   const el = view(), d = cur();
@@ -213,7 +214,7 @@ act('bdGo', async () => {
   let mine = null;
   try {
     mine = await S.store.tx('meta', 'board', (r) => {
-      if (!r || r.rid !== d.rid || r.status !== 'open') return null;
+      if (!r || r.rid !== d.rid || r.status !== 'open' || !isOwner(r)) return null;
       const p = plan(r);
       return { ...r, status: 'play', startAt: S.store.serverNow() + 1800, ...p, runner: nick() || '익명' };
     });
@@ -321,12 +322,13 @@ async function play(d) {
 // 결과는 meta/board에 적어 모든 화면에 같이 보이고, 라인업에 이미 반영됐으면 라인업도 바꾼다.
 act('bdAi', async () => {
   const d = cur(); if (!d?.result) return;
+  if (!isOwner(d)) return toast('라인 지원을 연 사람만 AI 추천을 적용할 수 있어요');
   const r = aiBalance(LANES.map((l) => [d.result[l]?.[0], d.result[l]?.[1]]), S.st);
   if (!r) return toast('빈 자리가 있으면 AI 추천을 쓸 수 없어요');
   const result = Object.fromEntries(LANES.map((l, i) => [l, [r.blue[i], r.red[i]]]));
   const ai = { bs: r.bs, rs: r.rs, diff: r.diff };
   let next = null;
-  try { next = await S.store.tx('meta', 'board', (x) => (x && x.rid === d.rid ? { ...x, result, ai } : null)); } catch (e) { return toast('AI 추천 실패: ' + (e.code || e.message)); }
+  try { next = await S.store.tx('meta', 'board', (x) => (x && x.rid === d.rid && isOwner(x) ? { ...x, result, ai } : null)); } catch (e) { return toast('AI 추천 실패: ' + (e.code || e.message)); }
   if (!next) return;
   if (S.store.mode === 'local') next = cur(); // 체험 모드의 tx는 true/false만 돌려준다
   if (next.status === 'done') { setDraftTeams(r.blue, r.red); if (S.page === 'today') refresh(); }
