@@ -2,7 +2,7 @@
 import { S, page, act, esc, pname, go, refresh, fmtDT, wrClass, wrBar, dots, streak, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, baseChamp, skinList, skinBad, pickChamp, needAdmin, isAdmin, modal, closeModal, mh, toast, ic, logo, countUp, burst, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct } from './core.js';
 import { chem, playerLine, duoRank, CHEM_RULE } from './stats.js';
 import { cardChamp, canPickChamp } from './core.js';
-import './gacha.js';
+import { gcBadge } from './gacha.js';
 
 const PV = { view: 'card', dl: 'all', gr: 'mmr' };
 const LANE_EN = { top: 'TOP LANE', jg: 'JUNGLE', mid: 'MID LANE', adc: 'BOT CARRY', sup: 'SUPPORT' };
@@ -22,7 +22,7 @@ function listView() {
       ${o.most ? `<div class="sm">모스트 3 · ${esc(o.most)}</div>` : ''}${o.comment ? `<p>${esc(o.comment)}</p>` : '<p class="mut">솔랭 분석 정보가 없습니다.</p>'}</div>`; }).join('')}</div>`;
   }
   // 주라인별로 묶고, 묶음 안에서는 오버롤 높은 순
-  const card = (s, i) => { const r = rarity(s, n); return `<a class="pcard ${r[2]}" href="#/players/${s.id}" style="--tc:${LANE_COLOR[s.mainLane]};--img:url('${tileUrl(cardChamp(s))}');--d:${Math.min(i, 16)}">
+  const card = (s, i) => { const r = rarity(s, n); return `<a class="pcard ${r[2]} ${skinTier(s)}" href="#/players/${s.id}" style="--tc:${LANE_COLOR[s.mainLane]};--img:url('${tileUrl(cardChamp(s))}');--d:${Math.min(i, 16)}">
     <div class="pc-art"></div><i class="pc-no mono">${i + 1}</i>
     <div class="pc-top"><span class="pc-type">${LANE_ICON[s.mainLane]}</span><b>${esc(s.name)}</b><span class="pc-ovr mono"><small>OVR</small>${s.ovr}</span></div>
     <div class="pc-bot"><span class="mono">${s.g ? `${s.wr}% · ${s.g}판` : '출전 없음'}</span><span class="pc-rar">${r[0]}</span></div>
@@ -34,11 +34,13 @@ function listView() {
       <div class="pgrid">${g.map((s, i) => card(s, i).replace(/--d:\d+/, `--d:${Math.min(base + i, 16)}`)).join('')}</div></section>`; }).join('')}`;
 }
 
+// 가챠 스킨 등급(전설 이상)을 적용하면 카드 테두리가 그 등급 색으로 빛난다
+const skinTier = (s) => { const k = s.p?.skin; return k && k.champ === s.p.champ && +k.num && ['legendary', 'ultimate', 'mythic', 'transcendent'].includes(k.tier) ? 'gt gt-' + k.tier : ''; };
 function holo(s, n) {
   const p = s.p, r = rarity(s, n), sc = LANES.map((l) => [l, +p.scores?.[l] || 0]).sort((a, b) => b[1] - a[1]);
   const weak = sc[4][0], sig = cardChamp(s), line = playerLine(s, S.st).split('. ')[0].replace(/\.$/, '') + '.';
   const move = ([l, v]) => `<div class="hc-move"><span class="en">${LANE_ICON[l].repeat(v >= 15 ? 3 : v >= 9 ? 2 : 1)}</span><div><b>${MOVE[l]}</b><small>${LANE_NAME[l]} 승률 ${s.lanes[l].g ? `${pct(s.lanes[l].w, s.lanes[l].g)}% (${s.lanes[l].g}판)` : '기록 없음'}</small></div><em class="mono">${Math.round(v * 10)}</em></div>`;
-  return `<div class="holo-wrap ${r[2]}" style="--tc:${LANE_COLOR[s.mainLane]}">
+  return `<div class="holo-wrap ${r[2]} ${skinTier(s)}" style="--tc:${LANE_COLOR[s.mainLane]}">
     <div class="holo-tilt"><div class="holo ${r[2]}">
     <div class="hc-in">
       <div class="hc-head"><span class="hc-stage">${r[1]}</span><b>${esc(s.name)}</b><span class="hc-hp mono"><small>OVR</small>${s.ovr}</span><span class="hc-type">${LANE_ICON[s.mainLane]}</span></div>
@@ -54,6 +56,7 @@ function holo(s, n) {
     <div class="gd-con"><span class="jc l"><i class="stick"></i><i class="dpad"></i></span><span class="scr"><i class="scr-card"></i><i class="scr-scan"></i></span><span class="jc r"><i class="btns"></i><i class="stick"></i></span></div>
     <i class="gd-ring r1"></i><i class="gd-ring r2"></i><i class="gd-shadow"></i></div>
   ${canPickChamp(s) ? `<button class="btn gold deco-btn" data-a="decoOpen" data-id="${s.id}" title="가챠에서 뽑은 챔피언·스킨으로 꾸미기 (본인 PIN)">${ic('star')}카드 꾸미기</button>` : ''}
+  ${gcBadge(s.id)}
   <small class="mut">카드 위에서 마우스를 움직여 보세요 · <button class="lnk" data-a="pcReplay">다시 소환</button> · <button class="lnk" data-a="cardEdit" data-id="${s.id}" title="관리자 PIN 필요">카드 수정(관리자)</button></small></div>`;
 }
 
@@ -236,7 +239,7 @@ act('pvGr', (d) => { PV.gr = d.v; refresh(); });
 // 관리자 카드 수정: 챔피언(전체 중) → 그 챔피언의 스킨을 골라 players/{id}.champ·skin 에 저장한다(모든 화면에 반영)
 act('cardEdit', (d) => needAdmin(() => {
   const s = S.st.P[d.id]; if (!s) return;
-  pickChamp({ title: `${s.name} · 카드 챔피언 고르기 (관리자)`, current: baseChamp(sigChamp(s)), onPick: (name) => {
+  pickChamp({ title: `${s.name} · 카드 챔피언 고르기 (관리자)`, current: baseChamp(sigChamp(s)), note: '관리자는 보유 여부와 상관없이 정할 수 있어요. 선수가 나중에 가챠 보관함에서 다시 적용하면 그걸로 바뀌어요. 비우기 = 원래대로', onPick: (name) => {
     if (!name) return saveCard(d.id, '', 0, '');
     skinModal(s, name, 0);
   } });
@@ -246,12 +249,15 @@ function skinModal(s, name, tries) {
   const list = skinList(name);
   if (!list) { // 스킨 목록을 받는 중이면 잠시 기다렸다 다시 연다
     if (tries === 0) modal(`${mh(`${esc(s.name)} · ${esc(name)} 스킨 선택`)}<p class="mut">스킨 목록을 불러오는 중…</p>`, 'tall');
-    return tries < 20 ? setTimeout(() => skinModal(s, name, tries + 1), 250) : toast('스킨 목록을 불러오지 못했어요. 잠시 뒤 다시 해 주세요');
+    if (tries < 20) return setTimeout(() => skinModal(s, name, tries + 1), 250);
+    // 목록을 못 받았으면 기본 스킨만이라도 고를 수 있게
+    return modal(`${mh(`${esc(s.name)} · ${esc(name)} 스킨 선택`)}<p class="mut sm">스킨 목록을 불러오지 못했어요(인터넷 연결 확인). 기본 스킨으로는 지금 바로 정할 수 있어요.</p>
+      <button class="btn pri" data-a="cardSkin" data-id="${s.id}" data-n="0" data-c="${esc(name)}" data-nm="기본">${esc(name)} 기본 스킨으로 정하기</button>`);
   }
   const url = (n) => `https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/${c.id === 'Fiddlesticks' ? 'FiddleSticks' : c.id}_${n}.jpg`;
   const cur = s.p.champ === name ? +s.p.skin?.num || 0 : -1;
   modal(`${mh(`${esc(s.name)} · ${esc(name)} 스킨 선택`)}
-    <p class="mut sm">고른 챔피언·스킨이 선수 카드·랭킹·홈 등 이 선수가 나오는 모든 화면에 보여요. 선수가 가챠 페이지에서 기본 챔피언을 다시 고르면 기본 스킨으로 바뀌어요.</p>
+    <p class="mut sm">고른 챔피언·스킨이 선수 카드·랭킹·홈 등 이 선수가 나오는 모든 화면에 보여요. <b>선수가 나중에 가챠 보관함에서 다른 챔피언·스킨을 적용하면 그걸로 바뀌어요.</b></p>
     <div class="skgrid">${[[0, '기본'], ...list].map(([n, nm]) => `<button class="skp ${n === cur ? 'on' : ''}" data-a="cardSkin" data-id="${s.id}" data-n="${n}" data-c="${esc(name)}" data-nm="${esc(nm)}"><img src="${url(n)}" alt=""><span>${esc(nm)}</span></button>`).join('')}</div>`, 'tall').querySelectorAll('.skp img').forEach((im) => {
     const b = im.closest('.skp'), drop = () => { b.remove(); skinBad(name, +b.dataset.n); }; // 일러스트가 없는 스킨은 빼고 기록
     if (+b.dataset.n) { im.onerror = drop; if (im.complete && !im.naturalWidth) drop(); }
