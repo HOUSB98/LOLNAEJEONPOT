@@ -224,8 +224,8 @@ function splash() {
   if (sessionStorage.getItem('naejeon:welcomed') && nick()) { el.remove(); return; }
   const first = !nick(), name = settings().leagueName || '친구 내전 리그';
   el.innerHTML = `<canvas></canvas><div class="sp-rays"></div>
-    <div class="sp-box">${logo(true, 148)}
-      <div class="sp-word"><span>NAEJEON</span><i>POT</i></div>
+    <div class="sp-box"><div class="sp-mark"><i class="sp-glow"></i>${logo(true, 148)}<i class="sp-shine"></i></div>
+      <div class="sp-word">${[...'NAEJEON'].map((c, i) => `<span style="--i:${i}">${c}</span>`).join('')}${[...'POT'].map((c, i) => `<i style="--i:${i + 7}">${c}</i>`).join('')}</div>
       <p class="sp-sub">${first ? '소환사의 협곡에 오신 것을 환영합니다' : `${esc(nick())} 님, 다시 오셨군요`}</p>
       <p class="sp-league">${esc(name)}</p>
       ${first ? `<form id="spf"><input id="spn" class="inp" maxlength="12" placeholder="닉네임을 입력하세요" autocomplete="off"><button class="btn pri">입장</button></form>` : '<div class="sp-bar"><i></i></div>'}
@@ -235,7 +235,7 @@ function splash() {
   nySplash(el); // 새해(1/1~1/15)면 불꽃놀이·풍등 배경
   // 기본 불씨 캔버스는 시즌 배경(크리스마스·새해)에서는 가려지므로 아예 돌리지 않는다(보이지 않는 캔버스를 계속 그리면 인트로가 끊긴다)
   const stop = el.classList.contains('xs') || el.classList.contains('ny') ? () => {} : embers(el.querySelector('canvas'));
-  const close = () => { if (el.dataset.done) return; el.dataset.done = 1; sessionStorage.setItem('naejeon:welcomed', '1'); el.classList.add('out'); setTimeout(() => { stop(); el.remove(); }, 900); };
+  const close = () => { if (el.dataset.done) return; el.dataset.done = 1; sessionStorage.setItem('naejeon:welcomed', '1'); el.classList.add('out'); setTimeout(() => { stop(); el.remove(); }, 850); };
   if (first) {
     setTimeout(() => el.querySelector('#spn')?.focus(), 1900);
     el.querySelector('#spf').onsubmit = (e) => { e.preventDefault(); if (setNick(el.querySelector('#spn').value)) close(); };
