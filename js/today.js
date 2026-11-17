@@ -1,6 +1,7 @@
 // 오늘의 내전: 라인업 보드(점수·예상승률·해설) + 경기 결과 입력/수정
 import { S, page, act, esc, uid, pname, go, refresh, ddMenu, champIcon, artUrl, toast, pickChamp, pickPlayer, history, ic, dots, burst, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
-import { evalLineup, commentary, bestDuo } from './stats.js';
+import { evalLineup, commentary, bestDuo, aiBalance } from './stats.js';
+import { notify } from './hook.js';
 import { seriesUsed, matchCard } from './app.js';
 import { sysChat, nick } from './social.js';
 import { mascot, reveal } from './reveal.js';
@@ -189,7 +190,7 @@ page('today', {
     };
     const duo = (side) => { const b = bestDuo(d[side], st); return b ? `<span class="${side}">${pname(b.a)} + ${pname(b.b)} <b class="mono">${pct(b.w, b.g)}%</b> <small>${b.g}판</small></span>` : `<span class="mut">${side === 'blue' ? '블루' : '레드'} — 함께한 기록 부족</span>`; };
     return `<div class="h2row"><h1>${ic('today')}${edit ? `경기 수정 <span class="mono">#${st.MI[edit.id]?.no ?? ''}</span>` : '오늘의 내전'}</h1><span class="tag ${full ? 'ok' : ''}">${filled}/10 배치</span>${full && !edit ? `<button class="btn xs gold" data-a="tqYes">${ic('bolt')}승률 공개</button>` : ''}<span class="grow"></span>
-      ${edit ? '<a class="btn" href="#/matches">취소</a>' : `<button class="btn gold gbtn ${boardLive() ? 'live' : ''}" data-a="tBoard" title="라인 지원: 모두 함께 원하는 라인 고르기 → 몰린 라인은 추첨">${ic('users')}<span>${boardLive() ? '라인 지원 중' : '라인 지원'}</span></button><button class="btn gold" data-a="tDice">${ic('dice')}라인 주사위</button>${ddMenu(`<button data-a="tSwap">${ic('swap')}진영 교체</button><button class="danger" data-a="tClear">${ic('trash')}비우기</button>`)}`}</div>
+      ${edit ? '<a class="btn" href="#/matches">취소</a>' : `<button class="btn gold" data-a="tAi" ${full ? '' : 'disabled'} title="${full ? '라인은 그대로 두고, 점수 차이가 가장 작아지도록 블루·레드를 나눕니다 (높은 원딜·높은 서폿은 같은 팀 안 됨)' : '10명을 모두 배치하면 쓸 수 있어요'}">${ic('bolt')}AI<span class="m-hide"> 추천</span></button><button class="btn gold gbtn ${boardLive() ? 'live' : ''}" data-a="tBoard" title="라인 지원: 모두 함께 원하는 라인 고르기 → 몰린 라인은 추첨">${ic('users')}<span>${boardLive() ? '라인 지원 중' : '라인 지원'}</span></button><button class="btn gold" data-a="tDice">${ic('dice')}라인 주사위</button>${ddMenu(`<button data-a="tSwap">${ic('swap')}진영 교체</button><button class="danger" data-a="tClear">${ic('trash')}비우기</button>`)}`}</div>
     <section class="arena">
       <div class="scorebar"><div class="sb blue"><small>BLUE TEAM</small><b class="mono">${ev.bs.toFixed(1)}</b><span>평균 MMR ${ev.mmrB ? Math.round(ev.mmrB) : '—'}</span></div>
         <div class="sb-mid"><div class="ring" style="--p:${pb}"><b class="mono">${pb}<small>%</small></b><span>블루 예상 승률</span></div></div>
@@ -253,6 +254,20 @@ act('tKda', (d, el) => {
   D().kda[d.id] = el.value.trim();
   if (!edit) keep();
 });
+// AI 추천: 라인별 두 사람은 그대로, 블루/레드만 다시 나눈다(챔피언 선택도 사람을 따라간다)
+act('tAi', () => {
+  const dr = D(); if (!isFull(dr)) return toast('양 팀 10명을 모두 배치해 주세요');
+  const r = aiBalance(LANES.map((_, i) => [dr.blue[i], dr.red[i]]), S.st);
+  if (!r) return;
+  if (!r.swaps) return toast(`이미 가장 균형 잡힌 배치예요 · 점수 차 ${r.diff.toFixed(1)}`);
+  LANES.forEach((_, i) => {
+    if (r.blue[i] === dr.blue[i]) return;
+    [dr.blue[i], dr.red[i]] = [dr.red[i], dr.blue[i]];
+    [dr.champs.blue[i], dr.champs.red[i]] = [dr.champs.red[i], dr.champs.blue[i]];
+  });
+  keep(); burst(innerWidth / 2, innerHeight / 3, 60);
+  toast(`AI 추천 배치 · 점수 ${r.bs.toFixed(1)} : ${r.rs.toFixed(1)} (차이 ${r.diff.toFixed(1)})`);
+});
 act('tSwap', () => { const dr = D(); [dr.blue, dr.red] = [dr.red, dr.blue]; [dr.champs.blue, dr.champs.red] = [dr.champs.red, dr.champs.blue]; [dr.bans.blue, dr.bans.red] = [dr.bans.red, dr.bans.blue]; if (dr.winner) dr.winner = dr.winner === 'blue' ? 'red' : 'blue'; keep(); });
 act('tClear', () => { if (confirm('라인업과 입력 내용을 모두 비울까요?')) { draft = blank(); keep(); } });
 act('tSave', async (d, btn) => {
@@ -282,6 +297,7 @@ act('tSave', async (d, btn) => {
   if (old) { edit = null; return go('#/matches'); }
   burst(innerWidth / 2, innerHeight / 3);
   sysChat(`경기 기록 · ${dr.winner === 'blue' ? '블루' : '레드'} 승리 (${m[dr.winner].map((p) => S.st.P[p]?.name).join(', ')})`);
+  notify('match', id); // 디스코드 알림(연동 서버가 설정돼 있을 때만)
   lastSaved = id;
   draft = { ...blank(), blue: dr.blue, red: dr.red }; // 같은 팀으로 다음 판을 바로 기록할 수 있게 라인업은 유지
   keep(); window.scrollTo(0, 0); document.getElementById('main').scrollTop = 0;

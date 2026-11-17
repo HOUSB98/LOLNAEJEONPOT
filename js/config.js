@@ -8,3 +8,7 @@ export const FIREBASE_CONFIG = {
   messagingSenderId: "119632359909",
   appId: "1:119632359909:web:ac3f8c1c5e87c4dea13f0c",
 };
+
+// 연동 서버(Cloudflare Worker) 주소. 디스코드 알림·Firebase 사용량·라이엇 전적 자동 갱신에 쓴다.
+// 비워 두면 해당 기능만 꺼지고 사이트는 그대로 동작한다. 설정 방법은 worker/README.md 참고.
+export const WORKER_URL = '';

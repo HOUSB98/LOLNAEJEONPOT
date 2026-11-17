@@ -2,7 +2,7 @@
 import { S, page, act, esc, pname, go, refresh, fmtDT, wrClass, wrBar, dots, streak, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, skinList, skinBad, baseChamp, needAdmin, isAdmin, modal, closeModal, mh, toast, ic, logo, countUp, burst, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct } from './core.js';
 import { chem, playerLine, duoRank, CHEM_RULE } from './stats.js';
 
-const PV = { view: 'card', dl: 'all' };
+const PV = { view: 'card', dl: 'all', gr: 'mmr' };
 const LANE_EN = { top: 'TOP LANE', jg: 'JUNGLE', mid: 'MID LANE', adc: 'BOT CARRY', sup: 'SUPPORT' };
 const opgg = (rid) => (rid && rid.includes('#') ? `https://op.gg/ko/lol/summoners/kr/${encodeURIComponent(rid.replace('#', '-'))}` : '');
 const rarity = (s, n) => { const r = s.ovrRank / n; return r <= 0.12 ? ['★★★', 'LEGEND', 'legend'] : r <= 0.4 ? ['★★', 'RARE', 'rare'] : ['★', 'COMMON', 'common']; };
@@ -91,6 +91,50 @@ function detailPanel(s) {
     <p class="hint">${x.xg < x.g ? `세부 지표(피해 구성·치유·CC 등)는 새 형식으로 넣은 리플레이 ${x.xg}판만 집계됩니다. 예전에 넣은 경기는 경기 상세의 "리플레이 교체"로 다시 넣으면 채워집니다. ` : ''}라인을 고르면 그 라인으로 뛴 판만 따로 봅니다. 표본이 적을 때는 참고용으로만 보세요.</p></div>`;
 }
 
+// 성장 그래프: 경기마다 내전 MMR / 누적 승률(+최근 10판 승률)의 변화. 선은 SVG로 늘려 그리고, 점·눈금 글자는 HTML로 얹어 화면 폭이 달라도 찌그러지지 않게 한다
+function growthPanel(s) {
+  const h = s.hist || [];
+  const head = (extra = '') => `<div class="ph"><b>${ic('rank')}성장 그래프</b><small class="mut">경기마다 바뀐 기록</small><span class="grow"></span>${extra}</div>`;
+  if (h.length < 2) return `<div class="panel">${head()}<p class="mut sm">${h.length ? '경기가 2판 이상 쌓이면' : '내전에 출전하면'} 내전 MMR과 승률이 어떻게 변했는지 그래프로 보여 드려요.</p></div>`;
+  const mode = PV.gr === 'wr' ? 'wr' : 'mmr', n = h.length;
+  const seg = `<div class="seg">${[['mmr', 'MMR'], ['wr', '승률']].map(([k, t]) => `<button class="${mode === k ? 'on' : ''}" data-a="pvGr" data-v="${k}">${t}</button>`).join('')}</div>`;
+  const md = (t) => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()}`; };
+  let pts, sub = null, lo, hi, ticks, fmt;
+  if (mode === 'mmr') {
+    pts = [{ i: 0, v: s.mmrInit, label: `시작 MMR ${s.mmrInit}` }, ...h.map((x, k) => ({ i: k + 1, v: x.mmr, win: x.win, label: `${k + 1}판째 · ${md(x.at)} · ${x.win ? '승' : '패'} · MMR ${Math.round(x.mmr)}` }))];
+    const vs = pts.map((p) => p.v); lo = Math.min(...vs); hi = Math.max(...vs);
+    const padv = Math.max(8, (hi - lo) * 0.12); lo = Math.floor((lo - padv) / 10) * 10; hi = Math.ceil((hi + padv) / 10) * 10;
+    const step = Math.max(10, Math.ceil((hi - lo) / 4 / 10) * 10); ticks = []; for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) ticks.push(v);
+    fmt = (v) => Math.round(v);
+  } else {
+    pts = h.map((x, k) => ({ i: k + 1, v: (x.w / x.g) * 100, win: x.win, label: `${k + 1}판째 · ${md(x.at)} · ${x.win ? '승' : '패'} · 누적 ${Math.round((x.w / x.g) * 100)}% (${x.w}승 ${x.g - x.w}패)` }));
+    sub = h.map((x, k) => { const r = h.slice(Math.max(0, k - 9), k + 1); return { i: k + 1, v: (r.filter((y) => y.win).length / r.length) * 100 }; });
+    lo = 0; hi = 100; ticks = [0, 25, 50, 75, 100]; fmt = (v) => v + '%';
+  }
+  const X = (i) => (n ? (i / n) * 100 : 0), Y = (v) => 100 - ((v - lo) / (hi - lo)) * 100;
+  const line = (arr) => arr.map((p, k) => `${k ? 'L' : 'M'}${X(p.i).toFixed(2)},${Y(p.v).toFixed(2)}`).join('');
+  const main = line(pts), area = `${main}L${X(pts[pts.length - 1].i).toFixed(2)},100L${X(pts[0].i).toFixed(2)},100Z`;
+  const ref = mode === 'wr' ? 50 : s.mmrInit;
+  const dots = n <= 80 ? pts.filter((p) => p.win !== undefined).map((p) => `<i class="gr-dot ${p.win ? 'w' : 'l'}" style="left:${X(p.i).toFixed(2)}%;top:${Y(p.v).toFixed(2)}%" title="${p.label}"></i>`).join('') : '';
+  const last = pts[pts.length - 1];
+  const best = mode === 'mmr' ? h.reduce((a, x, k) => (x.mmr > a.v ? { v: x.mmr, k } : a), { v: s.mmrInit, k: -1 }) : null;
+  const r10 = h.slice(-10), r10w = r10.filter((x) => x.win).length;
+  const stats = mode === 'mmr'
+    ? `<span>현재 <b class="mono">${Math.round(s.mmr)}</b></span><span>시작 대비 <b class="mono ${s.mmr >= s.mmrInit ? 'good' : 'bad'}">${s.mmr >= s.mmrInit ? '+' : '−'}${Math.abs(Math.round(s.mmr - s.mmrInit))}</b></span><span>최고 <b class="mono">${Math.round(best.v)}</b>${best.k >= 0 ? ` <small>${best.k + 1}판째</small>` : ''}</span>`
+    : `<span>통산 <b class="mono">${s.wr}%</b></span><span>최근 10판 <b class="mono ${r10w * 2 >= r10.length ? 'good' : 'bad'}">${Math.round((r10w / r10.length) * 100)}%</b> <small>${r10w}승 ${r10.length - r10w}패</small></span>`;
+  return `<div class="panel gr">${head(seg)}
+    <div class="gr-stats">${stats}</div>
+    <div class="gr-box ${mode}"><div class="gr-plot">
+      ${ticks.map((v) => `<span class="gr-tick" style="top:${Y(v).toFixed(2)}%"><em class="mono">${fmt(v)}</em></span>`).join('')}
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <defs><linearGradient id="gr-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="gr-s0"/><stop offset="1" class="gr-s1"/></linearGradient></defs>
+        <line class="gr-ref" x1="0" x2="100" y1="${Y(ref).toFixed(2)}" y2="${Y(ref).toFixed(2)}"/>
+        <path class="gr-area" d="${area}"/>${sub ? `<path class="gr-sub" d="${line(sub)}"/>` : ''}<path class="gr-line" d="${main}"/>
+      </svg>${dots}<i class="gr-now" style="left:${X(last.i).toFixed(2)}%;top:${Y(last.v).toFixed(2)}%"></i>
+    </div><div class="gr-x"><span>${mode === 'mmr' ? '시작' : md(h[0].at)}</span><span>${n}판 · ${md(h[n - 1].at)}</span></div></div>
+    <p class="hint">${mode === 'mmr' ? `점선은 시작 MMR(${s.mmrInit}). 점 색: <b class="good">승</b> · <b class="bad">패</b>` : '실선 = 누적 승률 · 옅은 선 = 최근 10판 승률 · 점선 = 50%'}${n > 80 ? '' : ' · 점에 마우스를 올리면 그 경기 정보'}</p></div>`;
+}
+
 function cardView(id) {
   const st = S.st, s = st.P[id];
   if (!s) return `<div class="panel empty">선수를 찾을 수 없습니다. <a href="#/players">목록으로</a></div>`;
@@ -114,6 +158,7 @@ function cardView(id) {
       <div class="ks form"><small>RECENT FORM</small><b>${dots(s.recent)}</b><span>${streak(s.cur) || (s.g ? '연속 기록 없음' : '출전 기록 없음')}</span></div>
     </div>
     <div class="chips big">${titleChips(s) || '<span class="mut sm">아직 칭호 없음</span>'}</div>
+    ${growthPanel(s)}
     <div class="panel"><div class="ph"><b>라인 파워</b><small class="mut">점수(20점 만점) · 세로선은 리그 평균 · 오른쪽은 라인 승률</small></div>
       ${LANES.map((l) => { const v = +p.scores?.[l] || 0, a = st.laneAvg[l], rk = st.laneRank[id][l]; return `<div class="pw">${LANE_ICON[l]}<span>${LANE_NAME[l]}</span><div class="bar"><i style="width:${v * 5}%;background:${LANE_COLOR[l]}"></i><u style="left:${a * 5}%"></u></div><b class="mono">${v}</b><small class="mono">${rk}위</small><small class="mono ${wrClass(pct(s.lanes[l].w, s.lanes[l].g))}">${s.lanes[l].g ? `${pct(s.lanes[l].w, s.lanes[l].g)}% (${s.lanes[l].g})` : '—'}</small></div>`; }).join('')}</div>
     <div class="grid2">
@@ -184,6 +229,7 @@ page('players', {
   },
 });
 act('pvView', (d) => { PV.view = d.v; refresh(); });
+act('pvGr', (d) => { PV.gr = d.v; refresh(); });
 // 선수 카드 스킨 고르기: 대표 챔피언의 스킨 목록에서 하나를 골라 선수 문서에 저장한다(모든 사람 화면에 반영)
 // 관리자 PIN을 확인한 뒤에만 열린다
 act('skinPick', (d) => needAdmin(() => {

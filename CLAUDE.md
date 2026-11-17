@@ -6,4 +6,5 @@
 - 통계는 저장하지 않고 `js/stats.js`의 `compute()`가 매번 경기 기록에서 다시 계산한다.
 - DB 문서는 지우지 않는다(`deleted:true`). Firestore는 중첩 배열·undefined를 받지 않는다.
 - 사용자 계정으로 해야 하는 일(GitHub, Firebase)은 "여기를 눌러 주세요" 식으로 짧게 안내.
-- 남은 일: 스크린샷/.rofl 자동 입력 검토(샘플 파일로 파싱 가능 여부부터), Firebase 연결 후 실기기 테스트.
+- 연동 서버는 `worker/worker.js`(Cloudflare Worker, 사용자가 대시보드에 붙여 넣어 배포). 고치면 사용자에게 "다시 붙여 넣고 배포" 안내. 비밀값은 Worker에만 둔다.
+- 남은 일: 스크린샷/.rofl 자동 입력 검토(샘플 파일로 파싱 가능 여부부터), Firebase 연결 후 실기기 테스트, Worker 배포 후 디스코드·사용량·라이엇 실제 동작 확인(라이엇 Personal API Key 승인 대기).

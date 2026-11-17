@@ -2,6 +2,8 @@
 // meta/board 문서 하나로 모든 접속자가 같은 지원 현황과 같은 추첨 장면을 같은 시각에 본다(시작 시각은 서버 시계 기준).
 import { S, act, esc, modal, closeModal, mh, toast, burst, refresh, ic, LANES, LANE_NAME, LANE_ICON, LANE_COLOR } from './core.js';
 import { setDraftTeams, placedIds } from './today.js';
+import { aiBalance } from './stats.js';
+import { notify } from './hook.js';
 import { sysChat, nick } from './social.js';
 
 const OPTS = [...LANES, 'any'];
@@ -88,7 +90,8 @@ function finalHTML(d) {
       ${LANES.map((l, i) => `<span class="lf-l" style="--lc:${COLOR[l]}">${LANE_ICON[l]}${LANE_NAME[l]}</span>${cell(d.result?.[l]?.[0], 'blue', i * 2)}${cell(d.result?.[l]?.[1], 'red', i * 2 + 1)}`).join('')}</div>
     ${d.left?.length ? `<p class="mut center">대기: ${d.left.map((x) => esc(nm(x))).join(', ')}</p>` : ''}
     <p class="hint center"><em class="lf-tag">N지망</em> 몇 지망으로 들어갔는지 (·추첨: 몰려서 뽑힘) · <em class="lf-tag">배치</em> 상관없음·지망 실패·미지원으로 빈 자리에 들어감 · 진영·자리 교체는 라인업에서 끌어다 놓으면 됩니다</p>
-    <div class="lp-foot center"><button class="btn pri" data-a="bdLineup">${ic('today')}라인업 확인</button><button class="btn ghost" data-a="bdClose">닫기</button></div>`;
+    ${d.ai ? `<p class="lf-ai center">${ic('bolt')}AI 추천 배치 · 점수 <b class="blue">${(+d.ai.bs).toFixed(1)}</b> : <b class="red">${(+d.ai.rs).toFixed(1)}</b> (차이 ${(+d.ai.diff).toFixed(1)})</p>` : ''}
+    <div class="lp-foot center"><button class="btn gold" data-a="bdAi" ${LANES.every((l) => d.result?.[l]?.[0] && d.result?.[l]?.[1]) ? '' : 'disabled title="빈 자리가 있으면 쓸 수 없어요"'}>${ic('bolt')}AI 추천</button><button class="btn pri" data-a="bdLineup">${ic('today')}라인업 확인</button><button class="btn ghost" data-a="bdClose">닫기</button></div>`;
 }
 function draw() {
   const el = view(), d = cur();
@@ -130,6 +133,7 @@ act('bdOpen', async () => {
   bseen = d.rid + d.status; // 내 화면은 직접 연다(내 쓰기가 돌아와도 다시 열지 않게)
   try { await S.store.put('meta', 'board', d); } catch (e) { return toast('게시 실패: ' + (e.code || e.message)); }
   sysChat(`라인 지원이 열렸습니다 · 참가자 ${d.ids.length}명`);
+  notify('board', d.rid); // 디스코드 알림
   sfx('start'); openBoard();
 });
 act('bdMe', (x) => { BD.me = x.id; BD.roster = false; localStorage.setItem('naejeon:bdme:' + S.key, x.id); draw(); });
@@ -235,7 +239,7 @@ function finish(el, d) {
   BD.playing = '';
   if (!el || !document.body.contains(el)) return;
   el.classList.remove('drawing');
-  el.innerHTML = finalHTML(d);
+  const c = cur(); el.innerHTML = finalHTML(c && c.rid === d.rid ? c : d); // 그사이 AI 추천으로 바뀌었으면 최신 배치로
   sfx('win'); burst(innerWidth / 2, innerHeight / 3, 150);
 }
 function confirmPick(row, id, fresh) {
@@ -308,12 +312,32 @@ async function play(d) {
   await wait(end - now());
   if (alive()) finish(el, d);
 }
+// AI 추천: 라인별 두 사람은 그대로 두고 블루/레드만 점수 차이가 가장 작게 다시 나눈다(높은 원딜·높은 서폿은 같은 팀 안 됨).
+// 결과는 meta/board에 적어 모든 화면에 같이 보이고, 라인업에 이미 반영됐으면 라인업도 바꾼다.
+act('bdAi', async () => {
+  const d = cur(); if (!d?.result) return;
+  const r = aiBalance(LANES.map((l) => [d.result[l]?.[0], d.result[l]?.[1]]), S.st);
+  if (!r) return toast('빈 자리가 있으면 AI 추천을 쓸 수 없어요');
+  const result = Object.fromEntries(LANES.map((l, i) => [l, [r.blue[i], r.red[i]]]));
+  const ai = { bs: r.bs, rs: r.rs, diff: r.diff };
+  let next = null;
+  try { next = await S.store.tx('meta', 'board', (x) => (x && x.rid === d.rid ? { ...x, result, ai } : null)); } catch (e) { return toast('AI 추천 실패: ' + (e.code || e.message)); }
+  if (!next) return;
+  if (S.store.mode === 'local') next = cur(); // 체험 모드의 tx는 true/false만 돌려준다
+  if (next.status === 'done') { setDraftTeams(r.blue, r.red); if (S.page === 'today') refresh(); }
+  const el = view(); if (el && BD.playing !== d.rid) { el.classList.remove('drawing'); el.innerHTML = finalHTML(next); }
+  sfx('lock'); burst(innerWidth / 2, innerHeight / 3, 80);
+  toast(r.swaps ? `AI 추천 배치 · 점수 차 ${r.diff.toFixed(1)}` : `이미 가장 균형 잡힌 배치예요 · 점수 차 ${r.diff.toFixed(1)}`);
+  sysChat(`AI 추천 배치 · 블루 ${r.blue.map(nm).join('/')} vs 레드 ${r.red.map(nm).join('/')} (점수 차 ${r.diff.toFixed(1)})`);
+});
 act('bdSkip', () => { BD.skipped = true; finish(view(), BD.d || cur()); });
 act('bdClose', () => closeModal());
 async function finishRun(d) { // 'play'→'done'을 먼저 바꾼 한 사람만 라인업에 반영한다(중복 반영·중복 채팅 방지)
   let ok = false;
   try { ok = await S.store.tx('meta', 'board', (r) => (r && r.rid === d.rid && r.status === 'play' ? { ...r, status: 'done' } : null)); } catch { return; }
   if (!ok) return;
+  const latest = S.store.mode === 'local' ? cur() : ok; // 추첨 재생 중에 AI 추천으로 진영이 바뀌었으면 그 결과를 쓴다
+  if (latest?.rid === d.rid && latest.result) d = latest;
   const blue = LANES.map((l) => d.result[l]?.[0] || ''), red = LANES.map((l) => d.result[l]?.[1] || '');
   setDraftTeams(blue, red);
   if (S.page === 'today') refresh();
@@ -325,7 +349,7 @@ let bseen = null, docWatch = false;
 function onBoard(d) {
   const k = d ? d.rid + d.status : '';
   if (bseen === null) { bseen = k; return; }
-  if (k === bseen) { if (d?.status === 'open') draw(); return; }
+  if (k === bseen) { if (d?.status === 'open' || (d?.status === 'done' && view())) draw(); return; }
   bseen = k;
   if (!d) return;
   if (d.status === 'open') { if (view()) draw(); else { sfx('start'); openBoard(); } }
