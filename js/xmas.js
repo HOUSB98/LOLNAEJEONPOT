@@ -318,45 +318,47 @@ function hillsSVG() {
     <path d="M0 236 C220 200 420 226 640 230 S1000 196 1200 214V300H0z" fill="url(#xsH2)"/>
     ${[40, 300, 980, 1160].map((x) => tree(x, 238, 1.3)).join('')}</svg>`;
 }
+const INTRO_MS = 2100; // 시작 화면에서 로고·NAEJEONPOT 글자가 다 올라오는 시간(css의 .sp-word 애니메이션과 맞춤)
 export function splashScene(splash) {
   if (!xmasOn()) return;
   splash.classList.add('xs');
   const sc = document.createElement('div'); sc.className = 'xs-scene';
-  sc.innerHTML = `<canvas class="xs-stars"></canvas><div class="xs-moon"><i></i><i></i><i></i><i></i></div>
+  sc.innerHTML = `<canvas class="xs-stars a"></canvas><canvas class="xs-stars b"></canvas><i class="xs-shoot"></i><div class="xs-moon"><i></i><i></i><i></i><i></i></div>
     <div class="xs-fly">${sleighSVG()}</div>${hillsSVG()}<canvas class="xs-dust"></canvas><canvas class="xs-snow"></canvas>`;
   splash.prepend(sc);
   if (calm()) return;
   const stops = [];
-  // 반짝이는 별 + 가끔 별똥별
+  // 반짝이는 별: 매 프레임 다시 그리지 않고 두 장의 캔버스에 한 번만 찍은 뒤, CSS로 두 장의 밝기를 엇갈려 바꾼다(그래픽 카드가 처리해 끊기지 않음).
+  // 별똥별도 CSS 애니메이션(.xs-shoot)으로 지나간다.
   (() => {
-    const cv = sc.querySelector('.xs-stars'), g = cv.getContext('2d'); let W, H, stars = [], raf, shoot = null;
-    const fit = () => { W = cv.width = innerWidth; H = cv.height = innerHeight; stars = Array.from({ length: Math.round(W * H / 5200) }, () => ({ x: Math.random() * W, y: Math.random() * H * 0.72, r: Math.random() * 1.3 + 0.2, p: Math.random() * 6.28, s: 0.6 + Math.random() * 1.6 })); };
-    fit();
-    const loop = (t) => {
-      raf = requestAnimationFrame(loop); g.clearRect(0, 0, W, H);
-      for (const s of stars) { g.globalAlpha = 0.35 + 0.65 * Math.abs(Math.sin(s.p + t / 1000 * s.s)); g.fillStyle = '#fff'; g.fillRect(s.x, s.y, s.r, s.r); }
-      if (!shoot && Math.random() < 0.006) shoot = { x: Math.random() * W * 0.6, y: Math.random() * H * 0.3, l: 1 };
-      if (shoot) { g.globalAlpha = shoot.l; const gr = g.createLinearGradient(shoot.x, shoot.y, shoot.x - 120, shoot.y - 40); gr.addColorStop(0, '#fff'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.strokeStyle = gr; g.lineWidth = 2; g.beginPath(); g.moveTo(shoot.x, shoot.y); g.lineTo(shoot.x - 120, shoot.y - 40); g.stroke(); shoot.x += 14; shoot.y += 4.6; shoot.l -= 0.03; if (shoot.l <= 0) shoot = null; }
-      g.globalAlpha = 1;
-    };
-    raf = requestAnimationFrame(loop); stops.push(() => cancelAnimationFrame(raf));
+    const W = innerWidth, H = innerHeight, n = Math.round((W * H) / 5200);
+    sc.querySelectorAll('.xs-stars').forEach((cv, half) => {
+      cv.width = W; cv.height = H; const g = cv.getContext('2d'); g.fillStyle = '#fff';
+      for (let i = half; i < n; i += 2) { const r = Math.random() * 1.3 + 0.2; g.globalAlpha = 0.45 + Math.random() * 0.55; g.fillRect(Math.random() * W, Math.random() * H * 0.72, r, r); }
+    });
   })();
-  // 썰매 뒤로 흩날리는 금빛 가루
+  // 썰매 뒤로 흩날리는 금빛 가루: 절반 해상도·초당 30번만 그리고, 썰매 위치는 세 번에 한 번만 잰다(매 프레임 재면 화면 배치 계산이 반복돼 끊긴다)
   (() => {
-    const cv = sc.querySelector('.xs-dust'), g = cv.getContext('2d'), fly = sc.querySelector('.xs-sleigh'); let raf, ps = [];
-    cv.width = innerWidth; cv.height = innerHeight;
-    const loop = () => {
+    const cv = sc.querySelector('.xs-dust'), g = cv.getContext('2d'), fly = sc.querySelector('.xs-sleigh'); let raf, ps = [], last = 0, n = 0, r = null;
+    const Q = 0.5; cv.width = Math.round(innerWidth * Q); cv.height = Math.round(innerHeight * Q); g.setTransform(Q, 0, 0, Q, 0, 0);
+    const loop = (t) => {
       raf = requestAnimationFrame(loop);
-      const r = fly.getBoundingClientRect();
-      if (r.right > 0 && r.left < innerWidth) for (let k = 0; k < 4; k++) ps.push({ x: r.left + r.width * (0.05 + Math.random() * 0.25), y: r.top + r.height * (0.55 + Math.random() * 0.35), vx: -0.6 - Math.random(), vy: 0.3 + Math.random() * 0.8, l: 1, s: 0.8 + Math.random() * 2.2, c: Math.random() < 0.7 ? '255,226,140' : '255,255,255' });
-      g.clearRect(0, 0, cv.width, cv.height); g.globalCompositeOperation = 'lighter';
-      ps = ps.filter((p) => (p.l -= 0.012) > 0);
-      for (const p of ps) { p.x += p.vx; p.y += p.vy; p.vy += 0.004; g.globalAlpha = p.l; g.fillStyle = `rgb(${p.c})`; g.beginPath(); g.arc(p.x, p.y, p.s * (0.6 + 0.4 * Math.sin(p.l * 20)), 0, 6.283); g.fill(); }
+      if (t - last < 33) return; last = t;
+      if (!r || n++ % 3 === 0) r = fly.getBoundingClientRect();
+      if (r.right > 0 && r.left < innerWidth) for (let k = 0; k < 5; k++) ps.push({ x: r.left + r.width * (0.05 + Math.random() * 0.25), y: r.top + r.height * (0.55 + Math.random() * 0.35), vx: -1.2 - Math.random() * 2, vy: 0.6 + Math.random() * 1.6, l: 1, s: 0.8 + Math.random() * 2.2, c: Math.random() < 0.7 ? '255,226,140' : '255,255,255' });
+      g.clearRect(0, 0, innerWidth, innerHeight); g.globalCompositeOperation = 'lighter';
+      ps = ps.filter((p) => (p.l -= 0.024) > 0);
+      for (const p of ps) { p.x += p.vx; p.y += p.vy; p.vy += 0.016; g.globalAlpha = p.l; g.fillStyle = `rgb(${p.c})`; g.beginPath(); g.arc(p.x, p.y, p.s * (0.6 + 0.4 * Math.sin(p.l * 20)), 0, 6.283); g.fill(); }
       g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
     };
-    raf = requestAnimationFrame(loop); stops.push(() => cancelAnimationFrame(raf));
+    let started = false;
+    const t = setTimeout(() => { started = true; raf = requestAnimationFrame(loop); }, INTRO_MS);
+    stops.push(() => { clearTimeout(t); if (started) cancelAnimationFrame(raf); });
   })();
-  stops.push(snowCanvas(sc.querySelector('.xs-snow'), { always: true, full: true, count: 120, glint: 24 }));
+  // 눈도 로고·이름 등장이 끝난 뒤에 내리기 시작한다(등장 모션이 먼저 부드럽게 끝나도록). 캔버스는 CSS로 서서히 나타난다
+  let snowStop = null;
+  const snowT = setTimeout(() => { snowStop = snowCanvas(sc.querySelector('.xs-snow'), { always: true, count: 100, glint: 18 }); sc.classList.add('snowing'); }, INTRO_MS); // 절반 해상도(눈은 부드러워 티가 안 남)
+  stops.push(() => { clearTimeout(snowT); snowStop?.(); });
   const gone = new MutationObserver(() => { if (!document.body.contains(splash)) { stops.forEach((f) => f()); gone.disconnect(); } });
   gone.observe(document.body, { childList: true });
 }

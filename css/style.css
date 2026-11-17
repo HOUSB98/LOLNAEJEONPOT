@@ -465,7 +465,7 @@ button.sticker:hover{transform:translateY(-2px) scale(1.04);background:color-mix
 /* ---------- 환영 인트로 ---------- */
 #splash{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;flex-direction:column;background:radial-gradient(900px 600px at 50% 40%,#101a2e,#03050a 70%);overflow:hidden}
 #splash.on{display:flex}#splash canvas{position:absolute;inset:0}
-#splash.out{animation:spout .9s cubic-bezier(.7,0,.3,1) forwards}
+#splash.out{animation:spout .9s cubic-bezier(.7,0,.3,1) forwards;will-change:opacity,transform}
 .sp-rays{position:absolute;width:160vmax;height:160vmax;background:repeating-conic-gradient(from 0deg,rgba(217,164,65,.07) 0 6deg,transparent 6deg 18deg);animation:spin 60s linear infinite;mask:radial-gradient(circle,#000,transparent 60%);-webkit-mask:radial-gradient(circle,#000,transparent 60%)}
 .sp-box{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;padding:20px}
 .sp-box .logo{filter:drop-shadow(0 0 30px rgba(217,164,65,.6));animation:logopulse 3s 1.8s ease-in-out infinite}
@@ -531,7 +531,7 @@ canvas.fx{position:fixed;inset:0;pointer-events:none;z-index:70}
 @keyframes wordup{to{transform:none}}
 @keyframes load{to{width:100%}}
 @keyframes logopulse{50%{filter:drop-shadow(0 0 46px rgba(246,227,168,.9))}}
-@keyframes spout{to{opacity:0;transform:scale(1.15);filter:blur(8px);visibility:hidden}}
+@keyframes spout{to{opacity:0;transform:scale(1.06);visibility:hidden}} /* 화면 전체 흐림(blur)은 매 프레임 다시 그려야 해서 끊김 → 투명도·크기만 */
 @keyframes kenburns{from{transform:scale(1.02)}to{transform:scale(1.12) translate(-1.500%,-1%)}}
 @keyframes kenburns2{from{transform:scale(1.12) translate(1.500%,-1%)}to{transform:scale(1.02)}}
 @keyframes wob{0%,100%{transform:rotateZ(-5deg) rotateY(-12deg)}50%{transform:rotateZ(5deg) rotateY(12deg)}}
@@ -1434,12 +1434,20 @@ body.xmas .panel,body.xmas .stat{border-color:color-mix(in srgb,var(--line) 75%,
 .xs-scene canvas{position:absolute;inset:0;width:100%;height:100%}
 .xs-moon{position:absolute;right:9%;top:9%;width:min(26vw,250px);aspect-ratio:1;border-radius:50%;
   background:radial-gradient(circle at 38% 36%,#fffef4 0,#fff3cf 42%,#f1dca2 70%,#e2c27e 100%);
-  box-shadow:0 0 40px 8px rgba(255,240,190,.55),0 0 120px 40px rgba(255,226,160,.25),0 0 260px 90px rgba(170,160,255,.15);animation:xsmoon 6s ease-in-out infinite}
+  box-shadow:0 0 40px 8px rgba(255,240,190,.55),0 0 120px 40px rgba(255,226,160,.25),0 0 260px 90px rgba(170,160,255,.15)}
+/* 달빛 맥동: 큰 그림자를 매 프레임 다시 그리지 않고, 미리 그린 빛 한 장의 투명도만 바꾼다 */
+.xs-moon::after{content:"";position:absolute;inset:-30%;border-radius:50%;background:radial-gradient(closest-side,rgba(255,240,190,.32),rgba(255,226,160,.12) 55%,transparent);animation:xsmoon 6s ease-in-out infinite;will-change:opacity}
+.xs-scene .xs-snow,.xs-scene .xs-dust{opacity:0;transition:opacity 1.2s ease}.xs-scene.snowing .xs-snow,.xs-scene.snowing .xs-dust{opacity:1}
+.xs-stars{will-change:opacity}.xs-stars.a{animation:xstw 3.4s ease-in-out infinite}.xs-stars.b{animation:xstw 3.4s ease-in-out -1.7s infinite}
+@keyframes xstw{0%,100%{opacity:1}50%{opacity:.35}}
+.xs-shoot{position:absolute;left:12%;top:10%;width:130px;height:2px;border-radius:2px;background:linear-gradient(90deg,rgba(255,255,255,0),#fff);opacity:0;transform:rotate(18deg);animation:xsshoot 7s 2.2s ease-out infinite;will-change:transform,opacity}
+@keyframes xsshoot{0%{opacity:0;transform:translate(0,0) rotate(18deg)}2%{opacity:1}12%{opacity:0;transform:translate(46vw,15vw) rotate(18deg)}100%{opacity:0;transform:translate(46vw,15vw) rotate(18deg)}}
 .xs-moon i{position:absolute;border-radius:50%;background:radial-gradient(circle at 40% 40%,rgba(196,164,96,.35),rgba(196,164,96,.12) 70%,transparent)}
 .xs-moon i:nth-child(1){width:22%;height:22%;left:56%;top:24%}.xs-moon i:nth-child(2){width:14%;height:14%;left:28%;top:58%}.xs-moon i:nth-child(3){width:9%;height:9%;left:62%;top:64%}.xs-moon i:nth-child(4){width:11%;height:11%;left:34%;top:28%}
-@keyframes xsmoon{50%{box-shadow:0 0 50px 10px rgba(255,240,190,.65),0 0 140px 50px rgba(255,226,160,.3),0 0 280px 100px rgba(170,160,255,.18)}}
+@keyframes xsmoon{0%,100%{opacity:.4}50%{opacity:1}}
 .xs-fly{position:absolute;left:0;top:0;width:min(54vw,520px);animation:xsfly 7.5s cubic-bezier(.35,.05,.55,.95) -1.6s infinite;will-change:transform}
-.xs-sleigh{width:100%;height:auto;overflow:visible;animation:xsbob 1.4s ease-in-out infinite;filter:drop-shadow(0 0 10px rgba(255,240,200,.35))}
+.xs-sleigh{width:100%;height:auto;overflow:visible;animation:xsbob 1.4s ease-in-out infinite}
+#splash .xs-sleigh{will-change:transform}
 @keyframes xsfly{0%{transform:translate(-60vw,52vh) rotate(-7deg)}55%{transform:translate(52vw,14vh) rotate(-5deg)}100%{transform:translate(118vw,-8vh) rotate(-3deg)}}
 @keyframes xsbob{50%{transform:translateY(-6px)}}
 .xs-rd{animation:xsgallop .5s ease-in-out infinite}.xs-rd.b{animation-delay:-.12s}.xs-rd.c{animation-delay:-.25s}.xs-rd.d{animation-delay:-.37s}
