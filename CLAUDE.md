@@ -7,4 +7,4 @@
 - DB 문서는 지우지 않는다(`deleted:true`). Firestore는 중첩 배열·undefined를 받지 않는다.
 - 사용자 계정으로 해야 하는 일(GitHub, Firebase)은 "여기를 눌러 주세요" 식으로 짧게 안내.
 - 연동 서버는 `worker/worker.js`(Cloudflare Worker, 사용자가 대시보드에 붙여 넣어 배포). 고치면 사용자에게 "다시 붙여 넣고 배포" 안내. 비밀값은 Worker에만 둔다.
-- 남은 일: 스크린샷/.rofl 자동 입력 검토(샘플 파일로 파싱 가능 여부부터), Firebase 연결 후 실기기 테스트, Worker는 배포 완료(https://naejeonpot.idairo0401.workers.dev, 디스코드 알림·라이엇 갱신 실동작 확인, 라이엇 Personal API Key 사용 중). 사용량 조회는 Cloud Monitoring이 결제 계정을 요구해 Spark에서는 콘솔 바로가기만 표시(Blaze 전환 시 자동으로 게이지 표시).
+- 남은 일: 스크린샷/.rofl 자동 입력 검토(샘플 파일로 파싱 가능 여부부터), Firebase 연결 후 실기기 테스트, Worker는 배포 완료(https://naejeonpot.idairo0401.workers.dev, 디스코드 알림·라이엇 갱신 실동작 확인, 라이엇 Personal API Key 사용 중). 2026-11-17 Blaze로 전환: 관리 화면 사용량·예상 요금, 채팅창 머리의 남은 무료 한도·이번 달 요금, 30분마다 사용량 감시 디스코드 알림(Cron `*/30 * * * *`, 기록은 `ops/alerts`). 요금 단가는 서울 추정치라 실제 청구서와 대조 필요.

@@ -2,36 +2,33 @@
 import { S, page, act, esc, uid, col, settings, pname, refresh, fmtDT, toast, download, csv, modal, closeModal, mh, sha, needAdmin, isAdmin, history, ic, LANES, LANE_NAME, LANE_ICON } from './core.js';
 import { TITLES, DEFAULTS, initMmr } from './stats.js';
 import { exportMatches } from './app.js';
-import { callWorker, hookOn } from './hook.js';
+import { callWorker, hookOn, USAGE, loadUsage, won } from './hook.js';
 import { WORKER_URL } from './config.js';
 
 // ---------- 연동 서버: Firebase 사용량 · 디스코드 테스트 · 라이엇 갱신 ----------
-const UZ = { d: null, err: '', busy: false, at: 0, riot: null };
+const UZ = { riot: null };
 const fmtN = (v) => Math.round(+v || 0).toLocaleString('ko-KR');
 function usageHTML() {
   if (!WORKER_URL) return `<p class="hint">연동 서버가 아직 설정되지 않았어요. <code>worker/README.md</code> 순서대로 Cloudflare Worker를 만들고, 주소를 <code>js/config.js</code>의 <code>WORKER_URL</code>에 넣으면 디스코드 알림·사용량·라이엇 자동 갱신이 켜집니다.</p>`;
   if (S.store.mode !== 'firebase') return '<p class="hint">체험 모드에서는 연동 기능을 쓰지 않습니다.</p>';
-  const d = UZ.d;
+  const d = USAGE.d;
   const meter = (k, label) => { const v = +d.today[k] || 0, lim = d.limits[k], p = Math.min(100, (v / lim) * 100); return `<div class="uz-m ${p >= 90 ? 'bad' : p >= 60 ? 'warn' : ''}"><div class="uz-t"><b>${label}</b><span class="mono">${fmtN(v)} <small>/ ${fmtN(lim)}</small></span></div><div class="uz-bar"><i style="width:${p.toFixed(1)}%"></i></div><small class="mono">${p.toFixed(1)}% 사용</small></div>`; };
   const maxR = d ? Math.max(d.limits.read, ...d.days.map((x) => x.read)) : 1;
   const CONSOLE = 'https://console.firebase.google.com/project/lolnaejeonpot/firestore/usage';
   // Spark(무료) 요금제는 구글 사용량 API를 쓸 수 없다. 이 경우 콘솔 바로가기만 보여 준다(Blaze로 바꾸면 코드 수정 없이 아래 게이지가 나온다)
-  if (!d && /billing/i.test(UZ.err)) return `<p class="sm">무료(Spark) 요금제에서는 사이트 안에서 사용량을 불러올 수 없어요. 정확한 숫자는 Firebase 콘솔에서 확인해 주세요.</p>
+  if (!d && /billing/i.test(USAGE.err)) return `<p class="sm">무료(Spark) 요금제에서는 사이트 안에서 사용량을 불러올 수 없어요. 정확한 숫자는 Firebase 콘솔에서 확인해 주세요.</p>
     <div class="row wrapr"><a class="btn gold" href="${CONSOLE}" target="_blank" rel="noopener">${ic('bolt')}Firebase 콘솔에서 사용량 보기</a></div>
     <p class="hint">하루 무료 한도: 읽기 5만 · 쓰기 2만 · 삭제 2만 (미국 태평양 시간 자정, 한국 시간 오후 4~5시에 초기화). 나중에 Blaze 요금제로 바꾸면 이 칸에 게이지가 자동으로 나옵니다.</p>`;
-  return `${UZ.err ? `<p class="bad sm">${ic('alert')}${esc(UZ.err)}</p>` : ''}
-    ${d ? `<div class="uz">${meter('read', '읽기')}${meter('write', '쓰기')}${meter('delete', '삭제')}</div>
-      <div class="uz-days" title="최근 8일 읽기 (점선 = 무료 한도 5만)"><div class="uz-in"><i class="uz-lim" style="bottom:${((d.limits.read / maxR) * 100).toFixed(1)}%"></i>${d.days.map((x, i) => `<div class="uz-day ${i === d.days.length - 1 ? 'now' : ''} ${x.read > d.limits.read ? 'over' : ''}"><i style="height:${Math.max(1, (x.read / maxR) * 100).toFixed(1)}%"></i><small class="mono">${x.date.slice(5).replace('-', '/')}</small><span class="mono">${x.read >= 1000 ? (x.read / 1000).toFixed(1) + 'k' : x.read}</span></div>`).join('')}</div></div>
-      <p class="hint">오늘 = 미국 태평양 시간 기준(한국 시간 오후 4~5시에 0으로 초기화). 구글 집계라 몇 분 늦게 반영되고, 5분 동안은 같은 값을 보여 줍니다 · ${fmtDT(d.at)} 기준</p>` : `<p class="mut sm">${UZ.busy ? '불러오는 중…' : '아직 불러오지 않았어요'}</p>`}`;
+  const cost = d && d.month ? `<div class="uz-cost">
+      <div class="${d.today.usd > 0 ? 'bad' : ''}"><small>오늘 요금</small><b class="mono">${won(d.today.usd, d.krw)}</b><span class="mono">$${(+d.today.usd).toFixed(4)}</span></div>
+      <div class="${d.month.usd > 0 ? 'warn' : ''}"><small>이번 달 누적 (${+d.month.key.slice(5)}월)</small><b class="mono">${won(d.month.usd, d.krw)}</b><span class="mono">$${(+d.month.usd).toFixed(4)}</span></div>
+      <div><small>넘은 만큼 요금 (10만 건당)</small><span class="mono">읽기 $${d.rates.read} · 쓰기 $${d.rates.write} · 삭제 $${d.rates.delete}</span><span class="mono">환율 ₩${d.krw.toLocaleString('ko-KR')}/$</span></div></div>` : '';
+  return `${USAGE.err ? `<p class="bad sm">${ic('alert')}${esc(USAGE.err)}</p>` : ''}
+    ${d ? `<div class="uz">${meter('read', '읽기')}${meter('write', '쓰기')}${meter('delete', '삭제')}</div>${cost}
+      <div class="uz-days" title="최근 8일 읽기 (점선 = 무료 한도 5만)"><div class="uz-in"><i class="uz-lim" style="bottom:${((d.limits.read / maxR) * 100).toFixed(1)}%"></i>${d.days.map((x, i) => `<div class="uz-day ${i === d.days.length - 1 ? 'now' : ''} ${x.read > d.limits.read ? 'over' : ''}" title="${x.date} · 읽기 ${fmtN(x.read)} · 쓰기 ${fmtN(x.write)} · 삭제 ${fmtN(x.delete)}${x.usd ? ` · ${won(x.usd, d.krw)}` : ''}"><i style="height:${Math.max(1, (x.read / maxR) * 100).toFixed(1)}%"></i><small class="mono">${x.date.slice(5).replace('-', '/')}</small><span class="mono">${x.read >= 1000 ? (x.read / 1000).toFixed(1) + 'k' : x.read}</span></div>`).join('')}</div></div>
+      <p class="hint">오늘 = 미국 태평양 시간 기준(한국 시간 오후 4~5시에 0으로 초기화). 구글 집계라 몇 분 늦게 반영되고, 5분 동안은 같은 값을 보여 줍니다 · ${fmtDT(d.at)} 기준. 요금은 하루마다 무료 한도를 넘은 건수로 계산한 <b>예상 금액</b>이라 실제 청구서와 조금 다를 수 있어요. 단가·환율은 Worker 변수 <code>RATE_READ</code>·<code>RATE_WRITE</code>·<code>RATE_DELETE</code>·<code>USD_KRW</code>로 바꿀 수 있어요 · <a class="lnk" href="https://cloud.google.com/firestore/pricing" target="_blank" rel="noopener">가격표</a> · <a class="lnk" href="https://console.cloud.google.com/billing?project=lolnaejeonpot" target="_blank" rel="noopener">실제 청구 내역</a></p>` : `<p class="mut sm">${USAGE.busy ? '불러오는 중…' : '아직 불러오지 않았어요'}</p>`}`;
 }
-async function loadUsage(force) {
-  if (!hookOn() || UZ.busy || (!force && Date.now() - UZ.at < 5 * 60e3)) return;
-  UZ.busy = true; UZ.at = Date.now();
-  const r = await callWorker('/usage');
-  UZ.busy = false;
-  if (r.error) UZ.err = r.error; else { UZ.d = r; UZ.err = ''; }
-  const el = document.getElementById('uzbox'); if (el) el.innerHTML = usageHTML();
-}
+addEventListener('usage', () => { const el = document.getElementById('uzbox'); if (el) el.innerHTML = usageHTML(); });
 
 
 page('admin', {
@@ -44,7 +41,7 @@ page('admin', {
       <div class="row wrapr"><button class="btn" data-a="exportCsv">⬇ 경기 기록 CSV</button><button class="btn" data-a="exportPlayers">⬇ 선수 CSV</button><button class="btn" data-a="backup">⬇ 전체 백업 (JSON)</button><button class="btn ghost" data-a="restore">⬆ 백업 복원</button></div>
       <p class="hint">${S.store.mode === 'local' ? `${ic('alert')}` + ' 지금은 체험 모드라 데이터가 이 브라우저에만 저장됩니다. Firebase를 연결하면 친구들과 실시간으로 공유됩니다(README 참고).' : '데이터는 Firebase에 저장됩니다. Firestore 무료 요금제는 오래 안 써도 일시정지되지 않지만, 가끔 전체 백업을 내려받아 두세요.'}</p></div>
 
-    <div class="panel"><div class="ph"><b>${ic('bolt')}Firebase 사용량</b><small class="mut">무료 한도 대비 오늘 사용량</small><span class="grow"></span>${hookOn() && !/billing/i.test(UZ.err) ? '<button class="btn xs" data-a="uzLoad">새로고침</button>' : ''}</div>
+    <div class="panel"><div class="ph"><b>${ic('bolt')}Firebase 사용량</b><small class="mut">무료 한도 대비 오늘 사용량</small><span class="grow"></span>${hookOn() && !/billing/i.test(USAGE.err) ? '<button class="btn xs" data-a="uzLoad">새로고침</button>' : ''}</div>
       <div id="uzbox">${usageHTML()}</div>
       ${hookOn() ? `<div class="ph"><b>연동</b><small class="mut">디스코드 알림 · 라이엇 솔랭 자동 갱신(매일 새벽 4시)</small></div>
       <div class="row wrapr"><button class="btn" data-a="hkTest">디스코드 테스트 알림</button><button class="btn" data-a="hkRiot">라이엇 전적 지금 갱신</button></div>
