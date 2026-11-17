@@ -1179,8 +1179,12 @@ button,a,.slot{-webkit-tap-highlight-color:transparent}
   #tabbar .tb-main.on i{background:linear-gradient(180deg,#fff0c4,#d9a441)}#tabbar .tb-main .ic{width:24px;height:24px}
   body:not(.chat-closed) #tabbar{display:none}
   body.bare #tabbar{display:none}body.bare #main{padding-bottom:30px}
-  #chatfab{bottom:calc(var(--tb) + var(--safe) + 14px)!important;right:12px!important;width:52px!important;height:52px!important;border-radius:16px!important}
-  #chatfab em{display:none}#chatfab .cf-core{transform:none}
+  /* 모바일: 채팅 버튼을 아래쪽 떠 있는 자리에서 위쪽 머리 줄(접속자 표시 오른쪽)로 옮겨 내용을 가리지 않게 한다 */
+  #chatfab{top:calc(max(6px, env(safe-area-inset-top)) + 3px)!important;bottom:auto!important;right:10px!important;width:38px!important;height:38px!important;border-radius:12px!important;z-index:10!important;animation:none!important}
+  #chatfab em,#chatfab .cf-ring,#chatfab .cf-line{display:none}#chatfab .cf-core{transform:none}#chatfab .cf-core .ic{width:20px;height:20px}
+  #chatfab:hover{transform:none}
+  #chatbadge{top:-5px;right:-5px;min-width:17px;height:17px;font-size:10px}
+  body.chat-closed #presence{margin-right:44px}
   #toast{bottom:calc(var(--tb) + var(--safe) + 16px)}
   #joinfeed{bottom:calc(var(--tb) + var(--safe) + 76px)}
   #chat{width:100vw;padding-bottom:var(--safe)}
@@ -1728,6 +1732,29 @@ body.lite .wring .wr-arc.hi,body.lite .wring::before{animation:none}
 .sticker.xmas{--c:#ff9aa2;color:#fff3f3;border:1px solid transparent;background:linear-gradient(#141a26,#141a26) padding-box,linear-gradient(135deg,#e2434b,#f6e3a8,#2fa35f) border-box}
 button.sticker.xmas:hover{background:linear-gradient(rgba(200,48,58,.22),rgba(31,122,69,.22)) padding-box,linear-gradient(135deg,#e2434b,#f6e3a8,#2fa35f) border-box}
 .sticker.big.xmas{color:#fff;background:linear-gradient(135deg,rgba(200,48,58,.35),rgba(31,122,69,.35)) padding-box,linear-gradient(135deg,#e2434b,#f6e3a8,#2fa35f) border-box;border:2px solid transparent;box-shadow:0 0 22px -6px #e2434b,0 0 22px -10px #2fa35f;text-shadow:0 0 12px rgba(255,255,255,.5)}
+
+/* 모바일 터치 영역: 손가락으로 누르기 쉽게 작은 버튼·링크를 키운다(보이는 크기는 거의 그대로, 누르는 범위만 넓힘) */
+@media (max-width:860px){
+  #main .btn.xs{min-height:34px;padding-inline:11px}
+  #main .mhd .btn.xs{min-height:32px;padding-inline:8px}#main .mhd{gap:5px}
+  @media (max-width:400px){#main .mhd{flex-wrap:wrap;row-gap:6px}#main .mhd .grow{flex-basis:0}}
+  /* 아주 작은 폰(360px 이하): 머리 줄은 로고만, 라인업 칸은 챔피언 칸·점수를 줄여 이름이 보이게 */
+  @media (max-width:360px){
+    .brandrow .bt{display:none}
+    .lrow{grid-template-columns:1fr 28px 1fr;gap:4px}
+    .slot{gap:5px;padding:5px 6px}
+    .sl-champ .ci{width:26px;height:26px;border-radius:7px}
+    .sl-score{font-size:14px}
+  }
+  #main [data-a="carGo"]{min-width:38px;min-height:38px}
+  #main .dnav button{min-height:32px;padding:6px 10px}
+  #main .holo-wrap small .lnk{display:inline-block;padding:9px 4px}
+  #main .sec-h>a.mut.sm,#main .ltier a.mut.sm{display:inline-flex;align-items:center;min-height:34px;padding:0 4px}
+  #main .tk-rb{height:34px;padding:0 12px}
+  #main input[type="checkbox"]{width:20px;height:20px}
+  #main .wr-c small{font-size:10px}
+  .chat .x,#chat header .btn.xs{min-width:36px;min-height:36px}
+}
 
 /* 익명 게시판 공감·비공감 */
 .tk-rx{display:flex;justify-content:flex-end;gap:6px;margin-top:10px}
