@@ -157,6 +157,7 @@ async function notify(env, { type, id }) {
   if (!once(type + ':' + id)) return { ok: true, skipped: '이미 보낸 알림' };
   if (type === 'board') return boardMessage(env, id);
   if (type === 'match') return matchMessage(env, id);
+  if (type === 'gacha') return gachaMessage(env, id);
   throw new Error('알 수 없는 알림 종류');
 }
 
@@ -175,6 +176,25 @@ async function boardMessage(env, rid) {
       fields: [{ name: `참가자 ${names.length}명`, value: names.join(', ').slice(0, 1000) || '-' }],
       footer: { text: `연 사람 ${d.by || '익명'} · 2시간 동안 움직임이 없으면 자동으로 닫혀요` },
       timestamp: new Date(d.at || Date.now()).toISOString(),
+    }],
+  });
+}
+
+// 가챠 전설 이상 스킨: id = "선수id-뽑은시각". gacha/{선수id} 의 기록에 정말 있는지(30분 이내) 확인하고 보낸다
+const GACHA_TIER = { legendary: ['전설', 0xffb347, '1820 RP'], ultimate: ['궁극', 0xff5d8f, '3250 RP'], mythic: ['신화', 0xff4fd8, '신화 정수'], transcendent: ['초월', 0x7ff3ff, '한정·최고가'] };
+async function gachaMessage(env, id) {
+  const m = id.match(/^(.+)-(\d{12,14})$/); if (!m) throw new Error('잘못된 id');
+  const [, pid, at] = m, d = await getDoc(env, 'gacha', pid);
+  const l = (d?.log || []).find((x) => +x.at === +at && x.k === 'skin' && GACHA_TIER[x.t]);
+  if (!l || Date.now() - +at > 30 * 60e3) return { ok: true, skipped: '해당 기록 없음' };
+  const p = await getDoc(env, 'players', pid), [tn, color, price] = GACHA_TIER[l.t];
+  const img = l.c ? `https://ddragon.leagueoflegends.com/cdn/img/champion/splash/${l.c === 'Fiddlesticks' ? 'FiddleSticks' : l.c}_${+l.num || 0}.jpg` : undefined;
+  return discord(env, {
+    embeds: [{
+      title: `🎉 ${p?.name || '누군가'}님이 [${tn}] 스킨을 뽑았어요!`, url: env.SITE_URL || undefined, color,
+      description: `**${l.n}**\n${tn} · ${price}${env.SITE_URL ? `\n\n👉 [나도 뽑으러 가기](${env.SITE_URL}#/gacha)` : ''}`,
+      image: img ? { url: img } : undefined,
+      timestamp: new Date(+at).toISOString(),
     }],
   });
 }

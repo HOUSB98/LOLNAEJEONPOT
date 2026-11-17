@@ -6,6 +6,10 @@
 // 데이터: gacha/{선수id} = { starter(처음 고른 기본 챔피언 id), daily{day,champ,skin}(오늘 쓴 출석권), pinHash, used{champ,skin}, bought{champ,skin}, shards, champs{챔피언id:개수}, skins{스킨id:{n,c,num,name,tier}}, log[] }
 //         (구독하지 않는 컬렉션이라 접속자 화면에 퍼지지 않는다. 가챠 화면에서만 한 번씩 읽는다)
 import { S, page, act, esc, refresh, toast, sha, needAdmin, ic, burst, settings, modal, closeModal, mh, pickChamp, sigChamp, canPickChamp, DEFAULT_CHAMP, tileUrl } from './core.js';
+import { notify } from './hook.js';
+import { sysChat } from './social.js';
+// 이 등급 이상 스킨을 뽑으면 사이트 채팅과 디스코드에 알린다
+const BRAG = ['legendary', 'ultimate', 'mythic', 'transcendent'];
 
 const START = Date.parse('2026-11-17T12:00:00+09:00'); // 가챠 오픈: 이 시각 이후 경기만 뽑기권으로 친다
 // 확률·지급 기준 기본값. 관리 화면 "가챠 설정"에서 바꾸면 meta/settings.gacha 에 저장되고 그 값이 우선한다
@@ -261,6 +265,7 @@ act('gcDraw', async (d) => {
     if (tier === 'miss') res = { t: 'miss' };
     else { const pool = G.cat.filter((x) => x[4] === tier), x = pool[Math.floor(rand() * pool.length)]; res = { t: tier, sid: String(x[0]), c: x[1], num: x[2], n: x[3] }; }
   }
+  const drawAt = Date.now();
   G.busy = true; refresh();
   let dup = 0, ok = false;
   try {
@@ -274,13 +279,18 @@ act('gcDraw', async (d) => {
       if (res.t === 'champ') { if (next.champs[res.id] || next.starter === res.id) dup = +gcfg().champDup || 0; next.champs[res.id] = (next.champs[res.id] || 0) + 1; }
       else if (res.t !== 'miss') { const had = next.skins[res.sid]; if (had) dup = +gcfg().shard[res.t] || 0; next.skins[res.sid] = { n: (had?.n || 0) + 1, c: res.c, num: res.num, name: res.n, tier: res.t }; }
       next.shards += dup;
-      next.log = [{ at: Date.now(), k, t: res.t, n: res.n || '', d: dup }, ...(doc.log || [])].slice(0, 30);
+      next.log = [{ at: drawAt, k, t: res.t, n: res.n || '', d: dup, ...(res.c ? { c: res.c, num: res.num } : {}) }, ...(doc.log || [])].slice(0, 30);
       return next;
     });
   } catch (e) { G.busy = false; refresh(); return toast('뽑기 실패: ' + (e.code || e.message)); }
   if (!ok) { G.busy = false; await loadDoc(); return toast('뽑기권이 없거나 잠겨 있어요'); }
   await play(k, res, dup);
   G.busy = false; await loadDoc();
+  if (BRAG.includes(res.t)) { // 자랑: 채팅 공지 + 디스코드(연동 서버가 가챠 기록을 직접 확인하고 보낸다)
+    const who = S.st.P[G.pid]?.name || '누군가', tn = TIER[res.t]?.name || '';
+    sysChat(`🎉 ${who}님이 가챠에서 [${tn}] ${res.n} 스킨을 뽑았어요!`);
+    notify('gacha', `${G.pid}-${drawAt}`);
+  }
 });
 
 // ---------- 연출 ----------
