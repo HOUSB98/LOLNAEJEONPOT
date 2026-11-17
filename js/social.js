@@ -1,6 +1,6 @@
 // 환영 인트로, 닉네임, 접속자 표시, 공용 채팅
 import { S, act, esc, uid, col, settings, toast, modal, closeModal, mh, ic, logo, needAdmin, LANE_ICON, LANE_COLOR, LANE_NAME } from './core.js';
-import { splashScene, xmasOn, xmasFace } from './xmas.js';
+import { splashScene, xmasOn, xmasFace, inSeason } from './xmas.js';
 import { nySplash } from './newyear.js';
 import { hookOn, USAGE, loadUsage, won, kfmt } from './hook.js';
 
@@ -91,13 +91,29 @@ act('presList', () => { // 모바일에서는 접속자 목록이 숨겨져 있�
 });
 
 // ---------- 채팅 ----------
-const STICKERS = [
-  ['gg', 'GG', 'gold'], ['wp', 'WP', 'teal'], ['?', '?', 'yellow'], ['omw', '가는 중', 'teal'], ['danger', '위험!', 'red'], ['help', '도와줘', 'blue'],
-  ['carry', '캐리했다', 'gold'], ['bus', '버스 탑승', 'teal'], ['jg', '정글 차이', 'red'], ['throw', '던졌다', 'red'], ['again', '한 판 더', 'blue'], ['nice', '명장면', 'gold'],
-  ['troll', '트롤 검거', 'yellow'], ['sorry', '미안합니다', 'blue'], ['ff', '15 ㄱ?', 'red'], ['gap', '격이 다르다', 'gold'],
+// 스티커는 분류별로 묶는다. [키, 글자, 색]. 키는 채팅 기록에 저장되므로 한 번 정한 키는 바꾸지 않는다.
+// season:true 분류(크리스마스)는 시즌 기간(11/16~12/26)에만 고르는 칸에 나온다. 이미 보낸 스티커는 시즌이 끝나도 그대로 보인다.
+const STK_CATS = [
+  { id: 'hi', name: '인사', items: [['gg', 'GG', 'gold'], ['wp', 'WP', 'teal'], ['again', '한 판 더', 'blue'], ['sorry', '미안합니다', 'blue'], ['ty', '수고했어', 'teal'], ['plz', '잘 부탁해', 'gold']] },
+  { id: 'call', name: '게임 콜', items: [['omw', '가는 중', 'teal'], ['danger', '위험!', 'red'], ['help', '도와줘', 'blue'], ['?', '?', 'yellow'], ['drake', '용 먹자', 'teal'], ['ff', '15 ㄱ?', 'red']] },
+  { id: 'gj', name: '칭찬', items: [['carry', '캐리했다', 'gold'], ['nice', '명장면', 'gold'], ['gap', '격이 다르다', 'gold'], ['bus', '버스 탑승', 'teal'], ['master', '장인 인정', 'yellow'], ['clutch', '한타 지배자', 'blue']] },
+  { id: 'lol', name: '드립', items: [['jg', '정글 차이', 'red'], ['throw', '던졌다', 'red'], ['troll', '트롤 검거', 'yellow'], ['lane', '라인전 차이', 'red'], ['cold', '손이 안 풀림', 'blue'], ['ping', '핑 탓이다', 'yellow']] },
+  { id: 'xmas', name: '🎄 크리스마스', season: true, items: [['x-merry', '🎄 메리 크리스마스', 'xmas'], ['x-santa', '🎅 산타 등장', 'xmas'], ['x-gift', '🎁 선물 배달', 'xmas'], ['x-snow', '❄️ 눈 오는 날 내전', 'xmas'], ['x-rudolph', '🦌 루돌프 정글', 'xmas'], ['x-solo', '🥲 솔로 크리스마스', 'xmas'], ['x-carol', '🔔 캐롤 각', 'xmas'], ['x-star', '⭐ 트리 꼭대기 별', 'xmas'], ['x-coal', '⛏ 석탄 받을 플레이', 'xmas']] },
 ];
+const STICKERS = STK_CATS.flatMap((c) => c.items);
 const EMOJI = ['😂', '🔥', '👍', '😭', '🤡', '💀', '🫡', '🙏', '👀', '🎉', '😎', '🥲'];
+const EMOJI_XMAS = ['🎄', '🎅', '🤶', '🎁', '❄️', '⛄', '🔔', '🦌', '✨', '🍪'];
 const STK = Object.fromEntries(STICKERS.map((s) => [s[0], s]));
+let stkTab = '';
+const stkCats = () => { const on = STK_CATS.filter((c) => !c.season || inSeason()); return [...on.filter((c) => c.season), ...on.filter((c) => !c.season)]; }; // 시즌 한정 분류를 맨 앞에
+function trayHTML() {
+  const cats = stkCats(), cur = cats.find((c) => c.id === stkTab) || cats.find((c) => c.season) || cats[0]; // 시즌에는 크리스마스 칸이 먼저 열린다
+  stkTab = cur.id;
+  return `<div class="stk-tabs" role="tablist">${cats.map((c) => `<button class="${c.id === cur.id ? 'on' : ''} ${c.season ? 'xm' : ''}" data-a="chatStkTab" data-t="${c.id}" role="tab" aria-selected="${c.id === cur.id}">${c.name}${c.season ? '<em>한정</em>' : ''}</button>`).join('')}</div>
+    <div class="stk-grid ${cur.season ? 'xm' : ''}">${cur.items.map(([k, t, c]) => `<button class="sticker ${c}" data-a="chatStk" data-k="${k}">${esc(t)}</button>`).join('')}</div>
+    <div class="emo-row">${(cur.season ? EMOJI_XMAS : EMOJI).map((e) => `<button data-a="chatEmo" data-e="${e}">${e}</button>`).join('')}</div>`;
+}
+act('chatStkTab', (d) => { stkTab = d.t; const el = document.getElementById('chattray'); if (el) el.innerHTML = trayHTML(); });
 let unread = 0, lastSeenAt = +localStorage.getItem('naejeon:chatseen') || 0, lastChatAt = 0, tray = false;
 const isOpen = () => !document.body.classList.contains('chat-closed');
 const msgs = () => col('chat').filter((m) => !m.deleted && m.at > (+settings().chatClearedAt || 0)).sort((a, b) => a.at - b.at || a.id.localeCompare(b.id));
@@ -127,10 +143,7 @@ function buildChat() {
   document.getElementById('chat').innerHTML = `
     <header><div class="ch-t"><span class="ch-k"><i class="live"></i>LIVE</span><b>Lobby<i>Chat</i></b><small><span id="chat-on">0</span>명 접속 중</small></div><div class="ch-side"><div class="ch-btns"><button class="btn ghost xs" data-a="chatClear" title="채팅 전체 삭제 (관리자)" aria-label="채팅 전체 삭제">${ic('trash')}</button><button class="btn ghost xs chatx" data-a="chatToggle" title="채팅창 접기" aria-label="채팅창 접기">${ic('fold')}</button></div><div id="chat-quota" hidden></div></div></header>
     <div id="chatlog"></div>
-    <div id="chattray" hidden>
-      <div class="stk-grid">${STICKERS.map(([k, t, c]) => `<button class="sticker ${c}" data-a="chatStk" data-k="${k}">${esc(t)}</button>`).join('')}</div>
-      <div class="emo-row">${EMOJI.map((e) => `<button data-a="chatEmo" data-e="${e}">${e}</button>`).join('')}</div>
-    </div>
+    <div id="chattray" hidden>${trayHTML()}</div>
     <form id="chatform"><button type="button" class="cbtn2" data-a="chatTray" title="스티커">${ic('star')}</button><button type="button" class="cbtn2" data-a="chatRoll" title="주사위 1~100">${ic('dice')}</button>
       <input id="chatinp" class="inp grow" maxlength="200" placeholder="메시지 입력…" autocomplete="off"><button class="cbtn2 go" title="전송">${ic('send')}</button></form>`;
   document.getElementById('chatform').onsubmit = (e) => {
