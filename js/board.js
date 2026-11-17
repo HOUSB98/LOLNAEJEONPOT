@@ -1,11 +1,12 @@
-// 라인 지원: 참가자가 원하는 라인(탑~서폿·상관없음)을 직접 고르고, 마감하면 2명 넘게 몰린 라인은 무작위로 2명을 뽑아 라인업에 넣는다.
+// 라인 지원: 참가자가 원하는 라인(탑~서폿·상관없음)을 직접 고르고 '선택 완료'를 누른다. 모두 완료하면 자동으로 추첨이 시작되고,
+// 2명 넘게 몰린 라인은 무작위로 2명을 뽑아 라인업에 넣는다. 연 사람·관리자는 취소하거나 강제 마감할 수 있다.
 // meta/board 문서 하나로 모든 접속자가 같은 지원 현황과 같은 추첨 장면을 같은 시각에 본다(시작 시각은 서버 시계 기준).
 import { S, act, isAdmin, esc, modal, closeModal, mh, toast, burst, refresh, ic, LANES, LANE_NAME, LANE_ICON, LANE_COLOR } from './core.js';
 import { setDraftTeams, placedIds } from './today.js';
 import { aiBalance } from './stats.js';
 import { notify } from './hook.js';
 import { sysChat, nick, cid } from './social.js';
-// 마감·취소·AI 추천은 게시자(연 사람의 브라우저)와 관리자만 할 수 있다.
+// 강제 마감·취소·AI 추천은 게시자(연 사람의 브라우저)와 관리자만 할 수 있다.
 // owner가 없는 예전 게시물은 연 사람 닉네임으로 비교한다(닉네임도 없으면 누구나).
 const isOwner = (d) => !d || isAdmin() || (d.owner ? d.owner === cid : !d.by || d.by === '익명' || d.by === nick());
 
@@ -35,6 +36,9 @@ export const boardLive = () => live(cur());
 // 지망: picks[선수] = ['top','mid','any'] 처럼 1~3지망 목록(예전 문서의 문자열 한 개도 1지망으로 읽는다)
 const prefs = (d, id) => { const v = d.picks?.[id]; return Array.isArray(v) ? v.filter(Boolean) : v ? [v] : []; };
 const RANK = ['1지망', '2지망', '3지망'];
+// 완료: done[선수] = true. 모두 완료하면 마지막으로 누른 사람의 쓰기에서 바로 추첨 단계로 넘어간다.
+const isDone = (d, id) => !!d.done?.[id];
+const allDone = (d) => d.ids.length > 0 && d.ids.every((id) => isDone(d, id));
 
 // ---------- 효과음(파일 없이 Web Audio로, 부드러운 전자음만) ----------
 let AC = null;
@@ -62,7 +66,7 @@ function card(d, o) {
   const prevN = Object.values(BD.prev).filter((v) => (Array.isArray(v) ? v[0] : v) === o).length;
   const myRank = BD.me ? prefs(d, BD.me).indexOf(o) : -1;
   const state = o === 'any' ? '' : n > 2 ? `<span class="lp-st hot">1지망 ${n - 2}명 초과 · 추첨</span>` : n === 2 ? '<span class="lp-st ok">딱 맞음</span>' : `<span class="lp-st low">${2 - n}자리 남음</span>`;
-  return `<button class="lp-card ${myRank >= 0 ? 'mine' : ''} ${o === 'any' ? 'any' : ''}" data-a="bdPick" data-o="${o}" style="--lc:${COLOR[o]}" ${d.status !== 'open' ? 'disabled' : ''}>
+  return `<button class="lp-card ${myRank >= 0 ? 'mine' : ''} ${o === 'any' ? 'any' : ''}" data-a="bdPick" data-o="${o}" style="--lc:${COLOR[o]}" ${d.status !== 'open' || (BD.me && isDone(d, BD.me)) ? 'disabled' : ''}>
     <span class="lp-ch"><i class="lp-ico">${icon(o)}</i><b>${NAME[o]}</b>${myRank >= 0 ? `<em class="r${myRank + 1}">${RANK[myRank]}</em>` : ''}</span>
     <span class="lp-meta">${o === 'any' ? '빈 자리에 배치' : '모집 2명'}${state}</span>
     <span class="lp-bar"><i style="width:${o === 'any' ? 0 : Math.min(100, n * 50)}%"></i></span>
@@ -71,17 +75,26 @@ function card(d, o) {
   </button>`;
 }
 function openHTML(d) {
-  const picked = d.ids.filter((id) => prefs(d, id).length).length, isMe = d.ids.includes(BD.me), mine = isMe ? prefs(d, BD.me) : [];
+  const doneN = d.ids.filter((id) => isDone(d, id)).length, isMe = d.ids.includes(BD.me), mine = isMe ? prefs(d, BD.me) : [], meDone = isMe && isDone(d, BD.me), own = isOwner(d);
+  const mem = (id) => {
+    const p = prefs(d, id)[0], me = id === BD.me, ok = isDone(d, id);
+    const st = ok ? 'done' : p ? 'ok' : '';
+    return `<button class="lp-mem ${me ? 'me' : ''} ${st}" data-a="bdMe" data-id="${id}" style="--lc:${ok ? '#4fd08b' : p ? '#d9a441' : '#5a6a84'}" title="${ok ? '선택 완료' : p ? '고르는 중 (아직 완료 안 누름)' : '아직 안 고름'}">${ok ? '<i>✓</i>' : p ? `<i>${me ? icon(p) : '…'}</i>` : '<i class="dot"></i>'}${esc(nm(id))}</button>`;
+  };
+  const myBtn = !isMe ? '<span class="lp-wait">본인 이름을 먼저 눌러 주세요</span>'
+    : meDone ? `<button class="btn ghost" data-a="bdUndo">${ic('edit')}다시 고르기</button>`
+    : `<button class="btn pri lp-done" data-a="bdDone" ${mine.length ? '' : 'disabled title="라인을 하나 이상 고르세요 (상관없음도 가능)"'}>✓ 선택 완료</button>`;
+  const ownBtns = own ? `<div class="lp-own"><button class="btn ghost xs" data-a="bdShut">취소하기</button><button class="btn ghost xs" data-a="bdGo" ${d.ids.some((id) => prefs(d, id).length) ? '' : 'disabled'}>${ic('dice')}강제 마감</button></div>` : '';
   return `<div class="lp-h"><div><small><i class="live"></i>LIVE · 모두 같은 화면</small><h2>${ic('users')}라인 지원</h2></div><span class="grow"></span>
       <button class="btn ghost xs" data-a="bdMute" title="효과음">${ic(BD.muted ? 'mute' : 'sound')}</button><button class="btn ghost xs" data-a="bdHide" title="닫기 (라인 지원은 계속 열려 있음)">${ic('x')}</button></div>
-    <ol class="lp-steps"><li class="${isMe ? 'done' : 'on'}">내 이름 선택</li><li class="${isMe ? (mine.length ? 'done' : 'on') : ''}">라인 1~3지망 선택</li><li>마감 → 지망 순서대로 추첨</li></ol>
-    ${isMe ? `<div class="lp-my"><b>${esc(nm(BD.me))}</b>의 지망${[0, 1, 2].map((r) => `<span class="lp-rk ${mine[r] ? 'on' : ''}" style="--lc:${mine[r] ? COLOR[mine[r]] : '#3a4a64'}"><small>${RANK[r]}</small>${mine[r] ? `${icon(mine[r])}${NAME[mine[r]]}` : '—'}</span>`).join('')}<small class="mut">카드를 누른 순서대로 1·2·3지망 · 다시 누르면 빠져요</small></div>` : ''}
-    ${isMe && !BD.roster ? `<div class="lp-sec lp-mini"><span>${ic('user')}<b>${esc(nm(BD.me))}</b>(으)로 지원 중</span><button class="btn ghost xs" data-a="bdRoster">다른 이름 · 대리 지원</button></div>`
+    <ol class="lp-steps"><li class="${isMe ? 'done' : 'on'}">내 이름 선택</li><li class="${isMe ? (mine.length ? 'done' : 'on') : ''}">라인 1~3지망 선택</li><li class="${meDone ? 'done' : isMe && mine.length ? 'on' : ''}">선택 완료 누르기</li><li>모두 완료 → 자동 추첨</li></ol>
+    ${isMe ? `<div class="lp-my ${meDone ? 'locked' : ''}"><b>${esc(nm(BD.me))}</b>의 지망${[0, 1, 2].map((r) => `<span class="lp-rk ${mine[r] ? 'on' : ''}" style="--lc:${mine[r] ? COLOR[mine[r]] : '#3a4a64'}"><small>${RANK[r]}</small>${mine[r] ? `${icon(mine[r])}${NAME[mine[r]]}` : '—'}</span>`).join('')}<small class="mut">${meDone ? '완료했어요 · 바꾸려면 아래 \'다시 고르기\'' : '카드를 누른 순서대로 1·2·3지망 · 다시 누르면 빠져요'}</small></div>` : ''}
+    ${isMe && !BD.roster ? `<div class="lp-sec lp-mini"><span>${ic('user')}<b>${esc(nm(BD.me))}</b>(으)로 지원 중</span><button class="btn ghost xs" data-a="bdRoster">참가자 현황 · 대리 지원</button></div>`
       : `<div class="lp-sec"><div class="lp-sh"><b>참가자</b><small>${isMe ? `<b>${esc(nm(BD.me))}</b>(으)로 지원 중 · 다른 이름을 누르면 대리 지원` : '본인 이름을 눌러 주세요'}</small></div>
-      <div class="lp-roster">${d.ids.map((id) => { const p = prefs(d, id)[0], mine = id === BD.me; return `<button class="lp-mem ${mine ? 'me' : ''} ${p ? 'ok' : ''}" data-a="bdMe" data-id="${id}" style="--lc:${p && mine ? COLOR[p] : p ? '#4fd08b' : '#5a6a84'}" title="${p ? '지원 완료' : '아직 지원 안 함'}">${p ? `<i>${mine ? icon(p) : '✓'}</i>` : '<i class="dot"></i>'}${esc(nm(id))}</button>`; }).join('')}</div></div>`}
+      <div class="lp-roster">${d.ids.map(mem).join('')}</div></div>`}
     <div class="lp-grid">${OPTS.map((o) => card(d, o)).join('')}</div>
-    <div class="lp-foot"><span class="lp-count"><b class="mono">${picked}</b> / <span class="mono">${d.ids.length}</span> 지원 완료${d.by ? ` · 연 사람 ${esc(d.by)}` : ''}<small class="lp-ttl">2시간 동안 아무도 지원하지 않으면 자동으로 닫혀요</small></span><span class="grow"></span>
-      ${isOwner(d) ? `<button class="btn ghost" data-a="bdShut">취소하기</button><button class="btn pri" data-a="bdGo" ${picked ? '' : 'disabled'}>${ic('dice')}지원 마감 · 추첨 시작</button>` : `<span class="mut sm">마감·추첨은 연 사람${d.by ? `(${esc(d.by)})` : ''}만 할 수 있어요</span>`}</div>`;
+    <div class="lp-foot"><div class="lp-count"><b class="mono">${doneN}</b> / <span class="mono">${d.ids.length}</span> 완료<span class="lp-prog"><i style="width:${d.ids.length ? (doneN / d.ids.length) * 100 : 0}%"></i></span><small class="lp-ttl">모두 완료하면 자동으로 추첨이 시작돼요${d.by ? ` · 연 사람 ${esc(d.by)}` : ''}</small></div>
+      <div class="lp-act">${myBtn}${ownBtns}</div></div>`;
 }
 function finalHTML(d) {
   const rk = d.rankOf || {};
@@ -117,7 +130,7 @@ function setup() {
   if (!BD.sel.length) { const p = placedIds(); BD.sel = p.length >= 2 ? p : last ? [...last.blue, ...last.red] : []; }
   const list = [...st.list].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
   const html = `${mh(`${ic('users')}라인 지원 열기`)}
-    <p class="mut">오늘 내전에 참가할 사람을 고르세요. 라인 지원을 열면 <b class="good">접속한 모든 사람의 화면에 함께 뜹니다.</b> 각자 원하는 라인을 고르고, 마감하면 몰린 라인은 추첨해서 라인업에 바로 넣습니다.</p>
+    <p class="mut">오늘 내전에 참가할 사람을 고르세요. 라인 지원을 열면 <b class="good">접속한 모든 사람의 화면에 함께 뜹니다.</b> 각자 원하는 라인을 고르고 <b>선택 완료</b>를 누르면, 모두 완료한 순간 자동으로 추첨해서 라인업에 넣습니다.</p>
     <div class="ph"><b>참가자</b><span class="tag ${BD.sel.length === 10 ? 'ok' : ''}">${BD.sel.length}명</span><span class="grow"></span>${last ? '<button class="btn xs" data-a="bdRecent">최근 내전 참가자</button>' : ''}<button class="btn xs ghost" data-a="bdNone">해제</button></div>
     <div class="chipsel">${list.map((s) => `<button class="${BD.sel.includes(s.id) ? 'on' : ''}" data-a="bdSel" data-id="${s.id}">${esc(s.name)}</button>`).join('')}</div>
     <button class="btn pri block big" data-a="bdOpen" ${BD.sel.length >= 2 ? '' : 'disabled'}>${BD.sel.length >= 2 ? `${BD.sel.length}명으로 라인 지원 열기` : '참가자를 2명 이상 고르세요'}</button>`;
@@ -145,11 +158,12 @@ act('bdPick', async (x) => {
   const d = cur(); if (!d || d.status !== 'open') return;
   if (!live(d)) { toast('2시간 동안 움직임이 없어 라인 지원이 닫혔어요. 다시 열어 주세요'); closeModal(); if (S.page === 'today') refresh(); return; }
   if (!d.ids.includes(BD.me)) { toast('위쪽 참가자 목록에서 본인 이름을 먼저 눌러 주세요'); view()?.querySelector('.lp-roster')?.classList.add('nudge'); setTimeout(() => view()?.querySelector('.lp-roster')?.classList.remove('nudge'), 900); return; }
+  if (isDone(d, BD.me)) { toast("완료한 뒤에는 바꿀 수 없어요. '다시 고르기'를 누른 뒤 고쳐 주세요"); return; }
   const me = BD.me, rid = d.rid;
   sfx('pick');
   try {
     await S.store.tx('meta', 'board', (r) => {
-      if (!r || r.rid !== rid || r.status !== 'open') return null;
+      if (!r || r.rid !== rid || r.status !== 'open' || isDone(r, me)) return null;
       const picks = { ...(r.picks || {}) }, curP = prefs(r, me);
       let next;
       if (curP.includes(x.o)) next = curP.filter((v) => v !== x.o); // 다시 누르면 빠진다
@@ -162,6 +176,38 @@ act('bdPick', async (x) => {
       return { ...r, picks, upd: S.store.serverNow() };
     });
   } catch (e) { toast('지원 실패: ' + (e.code || e.message)); }
+});
+act('bdDone', async () => {
+  const d = cur(); if (!d || d.status !== 'open') return;
+  if (!live(d)) { toast('2시간 동안 움직임이 없어 라인 지원이 닫혔어요. 다시 열어 주세요'); closeModal(); if (S.page === 'today') refresh(); return; }
+  const me = BD.me;
+  if (!d.ids.includes(me)) return toast('위쪽 참가자 목록에서 본인 이름을 먼저 눌러 주세요');
+  if (!prefs(d, me).length) return toast('라인을 하나 이상 골라 주세요 (상관없음도 돼요)');
+  await S.store.syncServerClock?.();
+  let res = null;
+  try {
+    res = await S.store.tx('meta', 'board', (r) => {
+      if (!r || r.rid !== d.rid || r.status !== 'open' || !prefs(r, me).length) return null;
+      const next = { ...r, done: { ...(r.done || {}), [me]: true }, upd: S.store.serverNow() };
+      if (!allDone(next)) return next;
+      return { ...next, status: 'play', startAt: S.store.serverNow() + 1800, ...plan(next), runner: nick() || '익명' }; // 마지막 완료 → 바로 추첨
+    });
+  } catch (e) { return toast('완료 실패: ' + (e.code || e.message)); }
+  if (!res) return;
+  const r = S.store.mode === 'local' ? cur() : res;
+  sfx('lock');
+  if (r?.status === 'play' && r.rid === d.rid) { BD.runner = r.rid; bseen = r.rid + r.status; play(r); }
+});
+act('bdUndo', async () => {
+  const d = cur(); if (!d || d.status !== 'open') return;
+  const me = BD.me;
+  try {
+    await S.store.tx('meta', 'board', (r) => {
+      if (!r || r.rid !== d.rid || r.status !== 'open' || !isDone(r, me)) return null;
+      const done = { ...(r.done || {}) }; delete done[me];
+      return { ...r, done, upd: S.store.serverNow() };
+    });
+  } catch (e) { toast('실패: ' + (e.code || e.message)); }
 });
 act('bdHide', () => closeModal());
 act('bdMute', () => { BD.muted = !BD.muted; localStorage.setItem('naejeon:bdmute', BD.muted ? '1' : '0'); document.querySelectorAll('.lp [data-a="bdMute"]').forEach((x) => (x.innerHTML = ic(BD.muted ? 'mute' : 'sound'))); });
@@ -205,10 +251,10 @@ function plan(d) {
 }
 act('bdGo', async () => {
   const d = cur(); if (!d || d.status !== 'open') return;
-  if (!isOwner(d)) return toast('라인 지원을 연 사람만 마감할 수 있어요');
+  if (!isOwner(d)) return toast('라인 지원을 연 사람만 강제 마감할 수 있어요');
   if (!live(d)) { toast('라인 지원이 만료됐어요. 다시 열어 주세요'); closeModal(); if (S.page === 'today') refresh(); return; }
-  const miss = d.ids.filter((id) => !prefs(d, id).length).length;
-  if (miss && !confirm(`아직 ${miss}명이 지원하지 않았어요. 미지원자는 '상관없음'으로 보고 마감할까요?`)) return;
+  const miss = d.ids.filter((id) => !isDone(d, id)).length;
+  if (miss && !confirm(`아직 ${miss}명이 완료를 누르지 않았어요. 지금 고른 지망대로(안 고른 사람은 '상관없음') 강제 마감할까요?`)) return;
   await S.store.syncServerClock?.();
   BD.runner = d.rid; // 내 쓰기가 먼저 돌아와 재생이 시작돼도 내가 라인업을 반영하도록 미리 표시
   let mine = null;

@@ -1915,3 +1915,22 @@ body.gx-shake #gx{animation:gxquake .45s linear}
   .gx-x{min-width:160px;min-height:48px;bottom:calc(8% + var(--safe,0px))}.gx-eq{min-height:40px;padding:0 18px;font-size:14px}
   .gcs table{font-size:12px;white-space:nowrap}
 }
+/* 라인 지원: 모두 '선택 완료'를 눌러야 추첨 */
+.lp-foot:not(.center){justify-content:space-between;gap:10px 16px}
+.lp-foot .lp-count{display:flex;align-items:center;flex-wrap:wrap;gap:4px 6px;min-width:0;flex:1 1 220px}
+.lp-prog{flex:0 0 90px;height:6px;border-radius:9px;background:#1a2536;overflow:hidden;margin-left:4px}
+.lp-prog i{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,#2f9e63,#4fd08b);transition:width .3s}
+.lp-foot .lp-ttl{flex-basis:100%}
+.lp-act{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.lp-act .lp-done{min-width:150px;font-size:15px}
+.lp-own{display:flex;gap:6px;padding-left:8px;border-left:1px solid var(--line2)}
+.lp-wait{font-size:13px;color:var(--gold2)}
+.lp-mem.done{border-color:rgba(79,208,139,.55);background:rgba(79,208,139,.1)}
+.lp-mem.done i{color:#4fd08b}
+.lp-my.locked{border-color:rgba(79,208,139,.5);background:rgba(79,208,139,.07)}
+@media (max-width:640px){
+  .lp-foot:not(.center){flex-direction:column;align-items:stretch;gap:8px}
+  .lp-foot .lp-count{flex:none}.lp-prog{flex:1 1 auto}.lp-foot .lp-ttl{margin-top:0}
+  .lp-act{justify-content:stretch}.lp-act>.btn{flex:1}
+  .lp-own{width:100%;padding:6px 0 0;border-left:0;border-top:1px solid var(--line2);justify-content:flex-end}
+}
