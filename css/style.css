@@ -1890,3 +1890,28 @@ body.gx-shake #gx{animation:gxquake .45s linear}
 .pcard.gt{box-shadow:0 0 0 2px var(--gt),0 0 22px -4px var(--gt)}
 .gc-lt{opacity:.7;margin-left:4px}
 .gcs{margin:0 0 16px;padding:12px 14px;border:1px solid var(--line2);border-radius:12px;background:var(--panel2)}.gcs h4{margin:0}.gcs .tblwrap{overflow-x:auto;margin-top:8px}.gcs .gc-red{font-size:12px}
+
+/* 가챠 모바일 */
+.gc-odds>summary{cursor:pointer;list-style:none}.gc-odds>summary::-webkit-details-marker{display:none}
+.gc-odds-x{font-style:normal;font-size:12px;color:var(--gold)}.gc-odds[open] .gc-odds-x{display:none}
+.gc-lock-f input::placeholder{letter-spacing:0}
+@media (max-width:860px){
+  .gc-lock{gap:10px}.gc-lock>.ic{display:none}
+  .gc-lock-f{flex-direction:column;align-items:stretch}.gc-lock-f select,.gc-lock-f input,.gc-lock-f .btn{width:100%;min-height:48px;font-size:16px}
+  .gc-steps{flex-direction:column;gap:2px}
+  .gc-who{margin-bottom:8px}
+  .gc-main{padding:10px 12px;gap:10px}.gc-main-art{width:52px;height:52px}.gc-main-tx>b{font-size:16px}.gc-main .btn{width:100%;min-height:46px}
+  .gc-tix{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.gc-tk.sh{grid-column:auto}
+  .gc-tk{padding:10px 10px 9px;border-radius:12px}.gc-tk small{font-size:8.5px;letter-spacing:.08em}.gc-tk b{font-size:26px}.gc-tk span{font-size:11.5px}.gc-tk em{font-size:10px;margin-top:2px}
+  .gc-tk .gc-daily{display:block;width:max-content;margin:3px 0 0}
+  .gc-tk.sh em{display:flex;flex-direction:column;gap:6px;font-size:0}.gc-tk.sh em .lnk{font-size:11.5px;padding:2px 0}
+  /* 뽑기 버튼: 스크롤해도 하단 탭 바로 위에 붙어 있게 */
+  .gc-mach{grid-template-columns:1fr 1fr;gap:8px}.gc-mach.stick{position:sticky;bottom:calc(var(--tb,62px) + var(--safe,0px) + 6px);z-index:6;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;padding:6px;border-radius:18px;background:color-mix(in srgb,#05070d 82%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+  .gc-go{padding:12px 10px;gap:8px;border-radius:14px;min-height:62px}.gc-go b{font-size:16px}.gc-go small{font-size:10.5px}.gc-go .gc-orb{width:34px;height:34px;flex:none}
+  .gc-first{text-align:center}
+  .gc-col .seg button{min-height:40px;padding:0 14px}
+  .gc-it{padding:5px}.gc-it b{font-size:11.5px}.gc-it small{font-size:10px}
+  .gc-log{gap:6px}.gc-lg{font-size:11.5px}
+  .gx-x{min-width:160px;min-height:48px;bottom:calc(8% + var(--safe,0px))}.gx-eq{min-height:40px;padding:0 18px;font-size:14px}
+  .gcs table{font-size:12px;white-space:nowrap}
+}
