@@ -4,6 +4,7 @@ import { TITLES, DEFAULTS, initMmr } from './stats.js';
 import { exportMatches } from './app.js';
 import { callWorker, hookOn, USAGE, loadUsage, won } from './hook.js';
 import { WORKER_URL } from './config.js';
+import { gachaAdminHTML } from './gacha.js';
 
 // ---------- 연동 서버: Firebase 사용량 · 디스코드 테스트 · 라이엇 갱신 ----------
 const UZ = { riot: null };
@@ -53,6 +54,8 @@ page('admin', {
       <div class="tw scw"><table class="tbl edit score ${adm ? '' : 'locked'}"><thead><tr><th class="no">#</th><th class="l">이름</th>${LANES.map((l) => `<th class="lh l-${l}">${LANE_ICON[l]}${LANE_NAME[l]}</th>`).join('')}<th>평균</th><th>주라인</th><th class="l">솔랭 티어</th><th>시작 MMR</th><th></th></tr></thead>
       <tbody>${st.list.map((s, i) => `<tr><td class="no mono">${i + 1}</td><td class="l nm"><span class="nmc">${LANE_ICON[s.mainLane]}${esc(s.name)}</span></td>${LANES.map((l) => `<td class="scd l-${l} ${s.mainLane === l ? 'main' : ''}" style="--v:${Math.min(100, (+s.p.scores?.[l] || 0) * 5)}%"><input id="sc-${s.id}-${l}" class="inp cell mono" type="number" min="0" max="20" step="0.5" value="${s.p.scores?.[l] ?? 0}" data-c="plScore" data-id="${s.id}" data-l="${l}" ${adm ? '' : 'disabled'}></td>`).join('')}<td class="num mono avg"><b>${s.avg.toFixed(1)}</b></td><td><select class="inp cell" data-c="plMain" data-id="${s.id}" ${adm ? '' : 'disabled'}>${LANES.map((l) => `<option value="${l}" ${s.mainLane === l ? 'selected' : ''}>${LANE_NAME[l]}</option>`).join('')}</select></td><td class="l tier">${esc(s.p.soloTier || '-')}</td><td class="num mono">${s.mmrInit}</td><td><button class="btn xs" data-a="plEdit" data-id="${s.id}">상세</button></td></tr>`).join('') || '<tr><td colspan="11" class="empty">선수가 없습니다.</td></tr>'}</tbody></table></div>
       ${gone.length ? `<p class="sm mut">숨긴 선수: ${gone.map((p) => `${esc(p.name)} <button class="btn xs ghost" data-a="plRestore" data-id="${p.id}">복구</button>`).join(' ')}</p>` : ''}</div>
+
+    ${gachaAdminHTML()}
 
     <div class="panel"><div class="ph"><b>${ic('admin')}설정</b></div>
       <form id="cfgf" class="fgrid">
