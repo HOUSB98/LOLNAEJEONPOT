@@ -14,6 +14,11 @@ function usageHTML() {
   const d = UZ.d;
   const meter = (k, label) => { const v = +d.today[k] || 0, lim = d.limits[k], p = Math.min(100, (v / lim) * 100); return `<div class="uz-m ${p >= 90 ? 'bad' : p >= 60 ? 'warn' : ''}"><div class="uz-t"><b>${label}</b><span class="mono">${fmtN(v)} <small>/ ${fmtN(lim)}</small></span></div><div class="uz-bar"><i style="width:${p.toFixed(1)}%"></i></div><small class="mono">${p.toFixed(1)}% 사용</small></div>`; };
   const maxR = d ? Math.max(d.limits.read, ...d.days.map((x) => x.read)) : 1;
+  const CONSOLE = 'https://console.firebase.google.com/project/lolnaejeonpot/firestore/usage';
+  // Spark(무료) 요금제는 구글 사용량 API를 쓸 수 없다. 이 경우 콘솔 바로가기만 보여 준다(Blaze로 바꾸면 코드 수정 없이 아래 게이지가 나온다)
+  if (!d && /billing/i.test(UZ.err)) return `<p class="sm">무료(Spark) 요금제에서는 사이트 안에서 사용량을 불러올 수 없어요. 정확한 숫자는 Firebase 콘솔에서 확인해 주세요.</p>
+    <div class="row wrapr"><a class="btn gold" href="${CONSOLE}" target="_blank" rel="noopener">${ic('bolt')}Firebase 콘솔에서 사용량 보기</a></div>
+    <p class="hint">하루 무료 한도: 읽기 5만 · 쓰기 2만 · 삭제 2만 (미국 태평양 시간 자정, 한국 시간 오후 4~5시에 초기화). 나중에 Blaze 요금제로 바꾸면 이 칸에 게이지가 자동으로 나옵니다.</p>`;
   return `${UZ.err ? `<p class="bad sm">${ic('alert')}${esc(UZ.err)}</p>` : ''}
     ${d ? `<div class="uz">${meter('read', '읽기')}${meter('write', '쓰기')}${meter('delete', '삭제')}</div>
       <div class="uz-days" title="최근 8일 읽기 (점선 = 무료 한도 5만)"><div class="uz-in"><i class="uz-lim" style="bottom:${((d.limits.read / maxR) * 100).toFixed(1)}%"></i>${d.days.map((x, i) => `<div class="uz-day ${i === d.days.length - 1 ? 'now' : ''} ${x.read > d.limits.read ? 'over' : ''}"><i style="height:${Math.max(1, (x.read / maxR) * 100).toFixed(1)}%"></i><small class="mono">${x.date.slice(5).replace('-', '/')}</small><span class="mono">${x.read >= 1000 ? (x.read / 1000).toFixed(1) + 'k' : x.read}</span></div>`).join('')}</div></div>
@@ -39,7 +44,7 @@ page('admin', {
       <div class="row wrapr"><button class="btn" data-a="exportCsv">⬇ 경기 기록 CSV</button><button class="btn" data-a="exportPlayers">⬇ 선수 CSV</button><button class="btn" data-a="backup">⬇ 전체 백업 (JSON)</button><button class="btn ghost" data-a="restore">⬆ 백업 복원</button></div>
       <p class="hint">${S.store.mode === 'local' ? `${ic('alert')}` + ' 지금은 체험 모드라 데이터가 이 브라우저에만 저장됩니다. Firebase를 연결하면 친구들과 실시간으로 공유됩니다(README 참고).' : '데이터는 Firebase에 저장됩니다. Firestore 무료 요금제는 오래 안 써도 일시정지되지 않지만, 가끔 전체 백업을 내려받아 두세요.'}</p></div>
 
-    <div class="panel"><div class="ph"><b>${ic('bolt')}Firebase 사용량</b><small class="mut">무료 한도 대비 오늘 사용량</small><span class="grow"></span>${hookOn() ? '<button class="btn xs" data-a="uzLoad">새로고침</button>' : ''}</div>
+    <div class="panel"><div class="ph"><b>${ic('bolt')}Firebase 사용량</b><small class="mut">무료 한도 대비 오늘 사용량</small><span class="grow"></span>${hookOn() && !/billing/i.test(UZ.err) ? '<button class="btn xs" data-a="uzLoad">새로고침</button>' : ''}</div>
       <div id="uzbox">${usageHTML()}</div>
       ${hookOn() ? `<div class="ph"><b>연동</b><small class="mut">디스코드 알림 · 라이엇 솔랭 자동 갱신(매일 새벽 4시)</small></div>
       <div class="row wrapr"><button class="btn" data-a="hkTest">디스코드 테스트 알림</button><button class="btn" data-a="hkRiot">라이엇 전적 지금 갱신</button></div>
