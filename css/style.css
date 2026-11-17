@@ -1672,6 +1672,19 @@ body.lite .wring .wr-arc.hi,body.lite .wring::before{animation:none}
 @media (prefers-reduced-motion:reduce){.wring .wr-arc.hi,.wring::before{animation:none}}
 @media (max-width:860px){.wring{width:108px;height:108px}.wr-c b{font-size:27px}.wr-c b i{font-size:12px}.wr-c small{font-size:9px}.wr-c span{display:none}}
 
+/* 채팅 스티커 분류 탭 + 크리스마스 한정 */
+.stk-tabs{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 8px}
+.stk-tabs button{flex:none;display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:99px;border:1px solid var(--line2);background:transparent;color:var(--mut);font:600 12px var(--sans);cursor:pointer;transition:.15s}
+.stk-tabs button:hover{color:var(--text)}
+.stk-tabs button.on{color:#1a1204;background:linear-gradient(180deg,#e9bb5c,#c08a2b);border-color:transparent}
+.stk-tabs button.xm{border-color:rgba(214,64,69,.55);color:#ffb3b8}
+.stk-tabs button.xm.on{color:#fff;background:linear-gradient(135deg,#c8303a,#1f7a45);border-color:transparent;box-shadow:0 0 12px -2px rgba(200,48,58,.6)}
+.stk-tabs button em{font-style:normal;font:700 9px var(--mono);letter-spacing:.06em;padding:0 5px;border-radius:99px;background:rgba(255,255,255,.18)}
+.stk-grid.xm{grid-template-columns:repeat(2,1fr)}
+.sticker.xmas{--c:#ff9aa2;color:#fff3f3;border:1px solid transparent;background:linear-gradient(#141a26,#141a26) padding-box,linear-gradient(135deg,#e2434b,#f6e3a8,#2fa35f) border-box}
+button.sticker.xmas:hover{background:linear-gradient(rgba(200,48,58,.22),rgba(31,122,69,.22)) padding-box,linear-gradient(135deg,#e2434b,#f6e3a8,#2fa35f) border-box}
+.sticker.big.xmas{color:#fff;background:linear-gradient(135deg,rgba(200,48,58,.35),rgba(31,122,69,.35)) padding-box,linear-gradient(135deg,#e2434b,#f6e3a8,#2fa35f) border-box;border:2px solid transparent;box-shadow:0 0 22px -6px #e2434b,0 0 22px -10px #2fa35f;text-shadow:0 0 12px rgba(255,255,255,.5)}
+
 /* 익명 게시판 공감·비공감 */
 .tk-rx{display:flex;justify-content:flex-end;gap:6px;margin-top:10px}
 .tk-rb{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px;border-radius:99px;border:1px solid var(--line2);background:transparent;color:var(--mut);font:600 12px var(--sans);cursor:pointer;transition:color .15s,border-color .15s,background .15s}
