@@ -39,7 +39,7 @@ export function compute(playerList, matchList, settings) {
       id: p.id, name: p.name, p, g: 0, w: 0, results: [], mmrInit: mmr, mmr, mmrLast: 0,
       lanes: Object.fromEntries(LANES.map((l) => [l, blank()])), side: { blue: blank(), red: blank() },
       champs: {}, days: {}, off: blank(), upsetWins: 0, dogWins: 0, dogGames: 0, favLosses: 0, pSum: 0,
-      lastAt: 0, dawn: 0, kda: [0, 0, 0], kdaG: 0, cur: 0, maxStreak: 0, zkw: 0, dx: null, dxl: {},
+      hist: [], lastAt: 0, dawn: 0, kda: [0, 0, 0], kdaG: 0, cur: 0, maxStreak: 0, zkw: 0, dx: null, dxl: {},
       mainLane: p.mainLane || LANES.reduce((a, l) => ((p.scores?.[l] || 0) > (p.scores?.[a] || 0) ? l : a), 'top'),
     };
   }
@@ -77,6 +77,7 @@ export function compute(playerList, matchList, settings) {
         if (lane !== s.mainLane) add(s.off, win);
         s.results.push(win); s.lastAt = m.at; s.pSum += myP;
         s.mmrLast = side === 'blue' ? delta : -delta; s.mmr += s.mmrLast;
+        s.hist.push({ at: m.at, mmr: s.mmr, g: s.g, w: s.w, win }); // 성장 그래프용(경기마다 MMR·누적 승률)
         if (hour < 5) s.dawn++;
         if (myP < 0.5 && win) s.dogWins++;
         if (myP < 0.4) { s.dogGames++; if (win) s.upsetWins++; }
@@ -305,6 +306,32 @@ export function evalLineup(blue, red, st) {
   const mm = (ids) => { const v = ids.filter((id) => st.P[id]); return v.length ? v.reduce((a, id) => a + st.P[id].mmr, 0) / v.length : 0; };
   const full = blue.every(Boolean) && red.every(Boolean);
   return { lanes, bs, rs, pBlue: winProb(bs - rs, st.cfg.scale), mmrB: mm(blue), mmrR: mm(red), full };
+}
+// AI 팀 배정: 라인마다 두 사람이 정해져 있을 때 누가 블루/레드로 갈지 2^5가지를 모두 따져 점수 합 차이가 가장 작은 배치를 고른다.
+// 규칙: 원딜 중 점수가 더 높은 사람과 서폿 중 점수가 더 높은 사람은 같은 팀이 될 수 없다(둘 중 한 라인이라도 동점이면 이 규칙은 적용하지 않음).
+// 차이가 같으면 MMR 평균 차이가 작은 배치 → 지금 자리에서 덜 옮기는 배치 순으로 고른다.
+// pairs: LANES 순서로 [지금 블루, 지금 레드] 5쌍. 돌려주는 값: { blue, red, diff, mmrGap, swaps }
+export function aiBalance(pairs, st) {
+  if (pairs.length !== 5 || pairs.some((p) => !p[0] || !p[1])) return null;
+  const sc = (id, l) => +st.P[id]?.p.scores?.[l] || 0, mmr = (id) => st.P[id]?.mmr || 1200;
+  const A = LANES.indexOf('adc'), U = LANES.indexOf('sup');
+  const [a0, a1] = pairs[A].map((id) => sc(id, 'adc')), [u0, u1] = pairs[U].map((id) => sc(id, 'sup'));
+  let best = null;
+  for (let mask = 0; mask < 32; mask++) {
+    const blue = [], red = [];
+    pairs.forEach(([x, y], i) => { const sw = (mask >> i) & 1; blue.push(sw ? y : x); red.push(sw ? x : y); });
+    if (a0 !== a1 && u0 !== u1) {
+      const adcHiBlue = (blue[A] === pairs[A][0]) === (a0 > a1), supHiBlue = (blue[U] === pairs[U][0]) === (u0 > u1);
+      if (adcHiBlue === supHiBlue) continue; // 높은 원딜·높은 서폿이 같은 팀
+    }
+    const bs = blue.reduce((s, id, i) => s + sc(id, LANES[i]), 0), rs = red.reduce((s, id, i) => s + sc(id, LANES[i]), 0);
+    const diff = Math.round(Math.abs(bs - rs) * 100) / 100;
+    const mmrGap = Math.abs(blue.reduce((s, id) => s + mmr(id), 0) - red.reduce((s, id) => s + mmr(id), 0)) / 5;
+    const swaps = [...Array(5).keys()].filter((i) => (mask >> i) & 1).length;
+    const c = { blue, red, diff, mmrGap, swaps, bs, rs };
+    if (!best || c.diff < best.diff || (c.diff === best.diff && (c.mmrGap < best.mmrGap - 0.5 || (Math.abs(c.mmrGap - best.mmrGap) <= 0.5 && c.swaps < best.swaps)))) best = c;
+  }
+  return best;
 }
 export function bestDuo(ids, st, min = 3) {
   let best = null;

@@ -1589,3 +1589,35 @@ body.idle .xt-tw,body.idle .xst,body.idle .xg-ball,body.idle .xg-lt,body.idle .x
 .xg-ball{animation:none;will-change:auto}
 body.xmas .btn.pri::after,body.xmas .btn.gold::after{animation:none}
 body.xmas #nav a.on::after{animation:none}
+
+/* ---------- 성장 그래프 (선수 카드) ---------- */
+.gr-stats{display:flex;flex-wrap:wrap;gap:6px 18px;margin:2px 0 10px;color:var(--mut);font-size:13px}.gr-stats b{color:var(--text);font-size:17px}
+.gr-box{--gc:var(--gold);padding-left:44px}.gr-box.wr{--gc:var(--teal)}
+.gr-plot{position:relative;height:190px;border-left:1px solid var(--line2);border-bottom:1px solid var(--line2)}
+.gr-plot svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.gr-tick{position:absolute;left:0;right:0;border-top:1px dashed rgba(255,255,255,.06)}.gr-tick em{position:absolute;right:calc(100% + 8px);top:-8px;font-size:12px;color:var(--mut);font-style:normal;white-space:nowrap}
+.gr-ref{stroke:rgba(255,255,255,.28);stroke-width:1;stroke-dasharray:4 4;vector-effect:non-scaling-stroke}
+.gr-line{fill:none;stroke:var(--gc);stroke-width:2.5;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.gr-sub{fill:none;stroke:var(--gc);stroke-opacity:.38;stroke-width:1.5;vector-effect:non-scaling-stroke}
+.gr-area{fill:url(#gr-fill)}.gr-s0{stop-color:var(--gc);stop-opacity:.22}.gr-s1{stop-color:var(--gc);stop-opacity:0}
+.gr-dot{position:absolute;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border-radius:50%;border:1.5px solid var(--panel)}.gr-dot.w{background:var(--green)}.gr-dot.l{background:var(--red)}
+.gr-dot:hover{transform:scale(1.8);z-index:2}
+.gr-now{position:absolute;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;border-radius:50%;background:var(--gc);box-shadow:0 0 0 4px color-mix(in srgb,var(--gc) 25%,transparent);pointer-events:none}
+.gr-x{display:flex;justify-content:space-between;margin-top:6px;font-size:12px;color:var(--mut)}
+@media (max-width:560px){.gr-box{padding-left:38px}.gr-plot{height:160px}}
+
+/* ---------- Firebase 사용량 (관리) ---------- */
+.uz{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:4px 0 12px}
+.uz-m{--uc:var(--green);background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}.uz-m.warn{--uc:var(--gold)}.uz-m.bad{--uc:var(--red)}
+.uz-t{display:flex;justify-content:space-between;align-items:baseline;gap:6px}.uz-t span{font-size:17px;font-weight:700}
+.uz-bar{height:8px;border-radius:5px;background:rgba(255,255,255,.07);margin:8px 0 4px;overflow:hidden}.uz-bar i{display:block;height:100%;background:var(--uc);border-radius:5px}
+.uz-days{padding-bottom:30px;margin:6px 0}
+.uz-in{position:relative;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px;align-items:end;height:90px;border-bottom:1px solid var(--line2)}
+.uz-lim{position:absolute;left:0;right:0;border-top:1px dashed rgba(240,80,110,.55);pointer-events:none;z-index:1}
+.uz-day{position:relative;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
+.uz-day i{display:block;width:100%;max-width:34px;background:var(--line2);border-radius:4px 4px 0 0}.uz-day.now i{background:var(--gold)}.uz-day.over i{background:var(--red)}
+.uz-day small{position:absolute;bottom:-28px;font-size:11px}.uz-day span{position:absolute;bottom:-15px;font-size:11px;color:var(--text)}
+@media (max-width:560px){.uz{grid-template-columns:1fr}}
+
+/* AI 추천 결과 표시 (라인 지원 최종 화면) */
+.lf-ai{display:flex;align-items:center;justify-content:center;gap:6px;color:var(--gold2);font-weight:700;margin:6px 0}.lf-ai .ic{color:var(--gold)}

@@ -34,6 +34,7 @@
 - **장식 성능**: 움직이지 않는 장식(트리·갈랜드·마을)은 data URL SVG `<img>`로 한 번만 그리고, 반짝임·흔들림은 위에 얹은 작은 HTML 요소의 투명도·회전만 바꿈(묶음 단위). 오로라는 흐림·혼합 없이 그라데이션, 별은 박스 그림자 3겹, 눈·요정 가루는 shadowBlur 대신 스프라이트(눈은 절반 해상도). 사용 중에도 30초마다 프레임을 확인해 계속 버벅이면 가벼운 모드로 자동 전환(직접 끈 사람은 제외).
 - **첫 화면 로딩**: `index.html`의 짧은 인라인 스크립트가 모듈·DB 연결 전에 로딩창(`#splash.boot`)을 바로 덮어 홈이 잠깐 비치는 문제를 막음. 글꼴은 비동기 로드, JS 모듈은 `modulepreload`로 한꺼번에 미리 받음, Firebase·글꼴 서버 preconnect.
 - **시즌 장식(새해)**: `js/newyear.js`. 매년 1/1~1/15에만 자동으로 켜짐(`body.newyear`), 글자 없음. 시작 화면은 밤하늘 불꽃놀이 + 떠오르는 금빛 풍등 + 산 능선 너머 새벽빛(5.6초). 채팅창 뒤에는 풍등이 떠오르는 밤하늘·해돋이 빛·가끔 작은 불꽃, 사이트 전체에는 가끔 위쪽 작은 불꽃·금빛 반짝임·로고 옆 불꽃 장식, 반짝이 색(금·장밋빛·샴페인). 가벼운 모드·창 비활성 땐 멈춤, '시즌 장식' 버튼으로 끄기(`naejeon:newyear`)
+- **7차 개편(2026-11-17)**: AI 팀 배정(`stats.js`의 `aiBalance`: 라인별 두 사람은 그대로 두고 블루/레드 2^5가지 중 라인 점수 합 차이가 가장 작은 배치. 규칙: 원딜 중 점수가 높은 사람과 서폿 중 점수가 높은 사람은 같은 팀 금지(어느 한쪽이 동점이면 미적용). 차이가 같으면 MMR 차이 → 덜 옮기는 배치 순) — 오늘의 내전 "AI 추천" 버튼(10명 다 차야 켜짐, 바로 적용)과 라인 지원 최종 화면 "AI 추천"(`meta/board.result`·`ai`에 적어 모두에게 반영, 라인업에 이미 들어갔으면 라인업도 교체). 선수 카드 성장 그래프(MMR / 누적·최근 10판 승률, `compute()`의 `s.hist`). 링크 미리보기(`index.html`의 Open Graph 태그 + `og.png` 1200×630). 연동 서버(`worker/`, Cloudflare Worker): 디스코드 알림(라인 지원 열림·경기 결과, `js/hook.js`의 `notify`), 관리 화면 Firebase 사용량(Cloud Monitoring), 라이엇 솔랭 티어·전적 매일 자동 갱신(`players.riot`, 처음 갱신 때 `mmrInit` 고정). `js/config.js`의 `WORKER_URL`이 비어 있으면 연동 기능만 꺼짐
 - 주소 끝에 `?demo`를 붙이면 실제 리그와 무관한 체험 모드(이 브라우저에만 저장)로 열린다. 수정 후 확인용.
 
 ## 처음 설정 (한 번만)
@@ -43,6 +44,8 @@
 4. **GitHub**: 새 저장소(Public) 생성 → 이 폴더의 파일을 전부 업로드 → Settings > Pages > Branch `main` / `/ (root)` 저장
 5. `https://아이디.github.io/저장소이름/` 접속 → "새 리그 만들기" → 만들어진 주소(`?k=...` 포함)가 초대 링크
 6. 관리 > "시트 데이터 가져오기" (이때 정하는 PIN이 관리자 PIN)
+7. (선택) 디스코드 알림·사용량·라이엇 자동 갱신: `worker/README.md` 순서대로 Cloudflare Worker를 만들고 주소를 `js/config.js`의 `WORKER_URL`에 넣기
+8. 사이트 주소가 `https://housb98.github.io/LOLNAEJEONPOT/`가 아니면 `index.html`의 `og:image` 주소도 바꾸기(링크 미리보기 이미지)
 
 ## 보안 방식
 - 가입·로그인 없음. **초대 링크의 `?k=` 코드가 열쇠**다. 링크를 아는 사람만 읽고 쓸 수 있다.
@@ -58,10 +61,12 @@ GitHub 저장소가 원본이다. 집 PC에서 저장소를 내려받아(Downloa
 - `index.html`, `css/style.css`
 - `js/config.js` Firebase 설정 · `js/store.js` 데이터 계층(Firestore/체험 모드) · `js/stats.js` 모든 통계·MMR·칭호 계산
 - `js/core.js` 공통(라우터·모달·챔피언 선택) · `js/app.js` 리더보드·기록·챔피언·피어리스 · `js/today.js` 입력 · `js/players.js` 선수·케미 · `js/auction.js` 경매 · `js/board.js` 길드 의뢰 게시판 · `js/admin.js` 관리
+- `js/hook.js` 연동 서버 호출(디스코드 알림·관리 화면) · `worker/worker.js` 연동 서버 코드(Cloudflare 대시보드에 붙여 넣음) · `worker/README.md` 설정 순서
+- `og.png` 링크 미리보기 이미지
 - `data/seed.js` 시트 스냅샷(2026-11-12)
 
 ## 데이터 모델 (Firestore: `leagues/{코드}/...`)
-- `players/{id}`: name, scores{top,jg,mid,adc,sup}, mainLane, soloTier, riotId, mmrInit, solo{record,peak,most,pos,comment}, deleted
+- `players/{id}`: name, scores{top,jg,mid,adc,sup}, mainLane, soloTier, riotId, mmrInit, solo{record,peak,most,pos,comment,asOf}, riot{id,puuid,tier,rank,lp,w,l,at | err,errAt}(연동 서버가 적음), deleted
 - `matches/{id}`: at, seriesId, blue[5], red[5] (탑→서폿 순서의 선수 id), winner, champs{blue[5],red[5]}, bans, kda{선수id:[k,d,a]}, snap{bs,rs,pBlue}(기록 당시 점수·예상승률), deleted
 - `auctions/{id}`: 경매 방 상태(`cfg.mode`에 실시간/일괄 방식, 일괄 입찰 제출과 동점 재입찰 포함) · `meta/settings`: leagueName, scale, k, pinHash · `history/*`: 수정·삭제 전 원본
 

@@ -2,6 +2,32 @@
 import { S, page, act, esc, uid, col, settings, pname, refresh, fmtDT, toast, download, csv, modal, closeModal, mh, sha, needAdmin, isAdmin, history, ic, LANES, LANE_NAME, LANE_ICON } from './core.js';
 import { TITLES, DEFAULTS, initMmr } from './stats.js';
 import { exportMatches } from './app.js';
+import { callWorker, hookOn } from './hook.js';
+import { WORKER_URL } from './config.js';
+
+// ---------- 연동 서버: Firebase 사용량 · 디스코드 테스트 · 라이엇 갱신 ----------
+const UZ = { d: null, err: '', busy: false, at: 0, riot: null };
+const fmtN = (v) => Math.round(+v || 0).toLocaleString('ko-KR');
+function usageHTML() {
+  if (!WORKER_URL) return `<p class="hint">연동 서버가 아직 설정되지 않았어요. <code>worker/README.md</code> 순서대로 Cloudflare Worker를 만들고, 주소를 <code>js/config.js</code>의 <code>WORKER_URL</code>에 넣으면 디스코드 알림·사용량·라이엇 자동 갱신이 켜집니다.</p>`;
+  if (S.store.mode !== 'firebase') return '<p class="hint">체험 모드에서는 연동 기능을 쓰지 않습니다.</p>';
+  const d = UZ.d;
+  const meter = (k, label) => { const v = +d.today[k] || 0, lim = d.limits[k], p = Math.min(100, (v / lim) * 100); return `<div class="uz-m ${p >= 90 ? 'bad' : p >= 60 ? 'warn' : ''}"><div class="uz-t"><b>${label}</b><span class="mono">${fmtN(v)} <small>/ ${fmtN(lim)}</small></span></div><div class="uz-bar"><i style="width:${p.toFixed(1)}%"></i></div><small class="mono">${p.toFixed(1)}% 사용</small></div>`; };
+  const maxR = d ? Math.max(d.limits.read, ...d.days.map((x) => x.read)) : 1;
+  return `${UZ.err ? `<p class="bad sm">${ic('alert')}${esc(UZ.err)}</p>` : ''}
+    ${d ? `<div class="uz">${meter('read', '읽기')}${meter('write', '쓰기')}${meter('delete', '삭제')}</div>
+      <div class="uz-days" title="최근 8일 읽기 (점선 = 무료 한도 5만)"><div class="uz-in"><i class="uz-lim" style="bottom:${((d.limits.read / maxR) * 100).toFixed(1)}%"></i>${d.days.map((x, i) => `<div class="uz-day ${i === d.days.length - 1 ? 'now' : ''} ${x.read > d.limits.read ? 'over' : ''}"><i style="height:${Math.max(1, (x.read / maxR) * 100).toFixed(1)}%"></i><small class="mono">${x.date.slice(5).replace('-', '/')}</small><span class="mono">${x.read >= 1000 ? (x.read / 1000).toFixed(1) + 'k' : x.read}</span></div>`).join('')}</div></div>
+      <p class="hint">오늘 = 미국 태평양 시간 기준(한국 시간 오후 4~5시에 0으로 초기화). 구글 집계라 몇 분 늦게 반영되고, 5분 동안은 같은 값을 보여 줍니다 · ${fmtDT(d.at)} 기준</p>` : `<p class="mut sm">${UZ.busy ? '불러오는 중…' : '아직 불러오지 않았어요'}</p>`}`;
+}
+async function loadUsage(force) {
+  if (!hookOn() || UZ.busy || (!force && Date.now() - UZ.at < 5 * 60e3)) return;
+  UZ.busy = true; UZ.at = Date.now();
+  const r = await callWorker('/usage');
+  UZ.busy = false;
+  if (r.error) UZ.err = r.error; else { UZ.d = r; UZ.err = ''; }
+  const el = document.getElementById('uzbox'); if (el) el.innerHTML = usageHTML();
+}
+
 
 page('admin', {
   render() {
@@ -12,6 +38,12 @@ page('admin', {
     <div class="panel"><div class="ph"><b>${ic('save')}내보내기 · 백업</b></div>
       <div class="row wrapr"><button class="btn" data-a="exportCsv">⬇ 경기 기록 CSV</button><button class="btn" data-a="exportPlayers">⬇ 선수 CSV</button><button class="btn" data-a="backup">⬇ 전체 백업 (JSON)</button><button class="btn ghost" data-a="restore">⬆ 백업 복원</button></div>
       <p class="hint">${S.store.mode === 'local' ? `${ic('alert')}` + ' 지금은 체험 모드라 데이터가 이 브라우저에만 저장됩니다. Firebase를 연결하면 친구들과 실시간으로 공유됩니다(README 참고).' : '데이터는 Firebase에 저장됩니다. Firestore 무료 요금제는 오래 안 써도 일시정지되지 않지만, 가끔 전체 백업을 내려받아 두세요.'}</p></div>
+
+    <div class="panel"><div class="ph"><b>${ic('bolt')}Firebase 사용량</b><small class="mut">무료 한도 대비 오늘 사용량</small><span class="grow"></span>${hookOn() ? '<button class="btn xs" data-a="uzLoad">새로고침</button>' : ''}</div>
+      <div id="uzbox">${usageHTML()}</div>
+      ${hookOn() ? `<div class="ph"><b>연동</b><small class="mut">디스코드 알림 · 라이엇 솔랭 자동 갱신(매일 새벽 4시)</small></div>
+      <div class="row wrapr"><button class="btn" data-a="hkTest">디스코드 테스트 알림</button><button class="btn" data-a="hkRiot">라이엇 전적 지금 갱신</button></div>
+      ${UZ.riot ? `<p class="sm">${esc(UZ.riot)}</p>` : ''}<p class="hint">라인 지원이 열릴 때와 경기 결과를 저장할 때 디스코드 채널에 알림이 올라갑니다. 라이엇 갱신은 선수의 라이엇 ID(이름#태그)로 솔랭 티어·전적을 채우며, 한 사람은 하루 한 번만 갱신됩니다.</p>` : ''}</div>
 
     <div class="panel"><div class="ph"><b>${ic('users')}선수 관리</b><span class="tag">${st.list.length}명</span><span class="grow"></span><button class="btn pri xs" data-a="plEdit" data-id="">＋ 선수 추가</button></div>
       <div class="lockbar ${adm ? 'open' : ''}">${adm ? `${ic('shield')}<b>관리자 모드</b><span>점수와 주라인을 칸에서 바로 고치면 즉시 저장됩니다. 이 창을 닫기 전까지 유지됩니다.</span><button class="btn xs" data-a="admLock">잠그기</button>` : `${ic('shield')}<b>잠겨 있음</b><span>관리자 PIN을 한 번 입력하면 모든 선수의 점수를 바로 수정할 수 있습니다.</span><button class="btn gold xs" data-a="admUnlock">관리자 PIN 입력</button>`}</div>
@@ -40,11 +72,21 @@ page('admin', {
       <div class="dogam">${TITLES.map((t) => { const own = st.list.filter((s) => s.titles.includes(t)); return `<div><b>${t.e} ${t.n}</b><span>${esc(t.d)}</span><small>${own.length ? own.map((s) => esc(s.name)).join(', ') : '—'}</small></div>`; }).join('')}</div></div>`;
   },
   after() {
+    loadUsage(false);
     const f = document.getElementById('cfgf');
     if (f) f.onsubmit = (e) => { e.preventDefault(); const d = new FormData(f); needAdmin(async () => { await S.store.patch('meta', 'settings', { leagueName: d.get('leagueName').trim() || DEFAULTS.leagueName, scale: Math.max(1, +d.get('scale') || DEFAULTS.scale), k: Math.max(0, +d.get('k') || DEFAULTS.k), notice: String(d.get('notice') || '').trim().slice(0, 300) }); toast('설정을 저장했습니다'); }); };
   },
 });
 
+act('uzLoad', () => { loadUsage(true); const el = document.getElementById('uzbox'); if (el) el.innerHTML = usageHTML(); });
+act('hkTest', async (d, btn) => { btn.disabled = true; const r = await callWorker('/test'); btn.disabled = false; toast(r.error ? '실패: ' + r.error : '디스코드에 테스트 알림을 보냈어요'); });
+act('hkRiot', (d, btn) => needAdmin(async () => {
+  btn.disabled = true; toast('라이엇 전적을 불러오는 중…');
+  const r = await callWorker('/riot'); btn.disabled = false;
+  if (r.error) { UZ.riot = '실패: ' + r.error; return refresh(); }
+  UZ.riot = `갱신 ${r.updated.length}명${r.failed.length ? ` · 실패 ${r.failed.length}명 (${r.failed.join(' / ')})` : ''}${r.left ? ` · 남은 ${r.left}명은 다음 실행에서 이어서` : ''}${!r.updated.length && !r.failed.length && !r.left ? ' · 오늘 이미 모두 갱신됐어요(한 사람은 하루 한 번)' : ''}`;
+  toast(`라이엇 갱신 ${r.updated.length}명 완료`); refresh();
+}));
 act('exportPlayers', () => {
   const rows = S.st.list.map((s) => [s.name, ...LANES.map((l) => s.p.scores?.[l] ?? 0), LANE_NAME[s.mainLane], s.p.soloTier || '', s.p.riotId || '', s.g, s.w, s.g - s.w, s.g ? s.wr + '%' : '', s.mmrInit, Math.round(s.mmr), s.ovr, s.titles.map((t) => t.n).join(' ')]);
   download(`내전_선수_${new Date().toISOString().slice(0, 10)}.csv`, csv([['이름', ...LANES.map((l) => LANE_NAME[l]), '주라인', '솔랭 티어', '롤 닉네임', '판', '승', '패', '승률', '시작 MMR', '현재 MMR', 'OVR', '칭호'], ...rows]));
