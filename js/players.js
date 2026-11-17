@@ -1,7 +1,8 @@
 // 선수 카드(홀로 카드) / 솔랭 분석 / 케미 분석
 import { S, page, act, esc, pname, go, refresh, fmtDT, wrClass, wrBar, dots, streak, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, baseChamp, skinList, skinBad, pickChamp, needAdmin, isAdmin, modal, closeModal, mh, toast, ic, logo, countUp, burst, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct } from './core.js';
 import { chem, playerLine, duoRank, CHEM_RULE } from './stats.js';
-import { cardChamp } from './core.js';
+import { cardChamp, canPickChamp } from './core.js';
+import './gacha.js';
 
 const PV = { view: 'card', dl: 'all', gr: 'mmr' };
 const LANE_EN = { top: 'TOP LANE', jg: 'JUNGLE', mid: 'MID LANE', adc: 'BOT CARRY', sup: 'SUPPORT' };
@@ -52,6 +53,7 @@ function holo(s, n) {
   <div class="gdeck" aria-hidden="true"><i class="gd-halo"></i><i class="gd-beam"></i><i class="gd-core"></i>${Array.from({ length: 14 }, (_, i) => `<u style="--i:${i}"></u>`).join('')}
     <div class="gd-con"><span class="jc l"><i class="stick"></i><i class="dpad"></i></span><span class="scr"><i class="scr-card"></i><i class="scr-scan"></i></span><span class="jc r"><i class="btns"></i><i class="stick"></i></span></div>
     <i class="gd-ring r1"></i><i class="gd-ring r2"></i><i class="gd-shadow"></i></div>
+  ${canPickChamp(s) ? `<button class="btn gold deco-btn" data-a="decoOpen" data-id="${s.id}" title="가챠에서 뽑은 챔피언·스킨으로 꾸미기 (본인 PIN)">${ic('star')}카드 꾸미기</button>` : ''}
   <small class="mut">카드 위에서 마우스를 움직여 보세요 · <button class="lnk" data-a="pcReplay">다시 소환</button> · <button class="lnk" data-a="cardEdit" data-id="${s.id}" title="관리자 PIN 필요">카드 수정(관리자)</button></small></div>`;
 }
 
