@@ -48,6 +48,23 @@ code{background:var(--panel2);padding:1px 6px;border-radius:5px;font-family:var(
 .prl button i{width:7px;height:7px;border-radius:50%;background:hsl(var(--h) 80% 62%);box-shadow:0 0 0 0 hsl(var(--h) 80% 62%/.6);animation:pulse 2.4s infinite}
 .prl .me{border-color:var(--gold);cursor:pointer}.prl small{color:var(--gold)}
 .sidefoot{display:flex;align-items:center;justify-content:space-between;gap:6px}
+/* ---------- 사이드바를 한 화면에 (스크롤 없이) ---------- */
+@media (min-width:861px){#side{gap:7px;padding:12px 12px 10px;scrollbar-width:none}#side::-webkit-scrollbar{display:none}}
+@media (max-width:860px){.brandrow{flex:1;min-width:0}.brandrow .invite{display:none}.brandrow .brand .logo{width:30px;height:30px}}
+.brandrow{display:flex;align-items:center;gap:6px}.brandrow .brand{flex:1;min-width:0;padding:0 2px;gap:8px}
+.brandrow .brand .logo{width:36px;height:36px;flex:none}.brandrow .bt{overflow:hidden}.brandrow .bt b{font-size:13px;letter-spacing:.08em;white-space:nowrap}
+.brandrow .invite{flex:none;padding:4px 7px;font-size:11px;line-height:1.2;text-align:center;color:var(--mut)}.brandrow .invite:hover{color:var(--gold2);border-color:#6b5320}
+#side>a.btn.gold.block{padding:7px 10px}
+#nav,.nav-g{gap:0}
+#nav h6{margin:7px 10px 2px}
+.nav-chev{margin-top:3px}
+#nav a{padding:6px 12px}
+#nav a.on::before{height:18px}
+#presence{padding:7px 9px}.prl{margin-top:6px;max-height:60px}
+.sidefoot{flex-wrap:wrap;gap:4px}.sidefoot:not(:has(*)){display:none}#mode:empty{display:none}
+.sidefoot .btn.xs{padding:3px 7px;font-size:11px;gap:3px;min-height:0}.sidefoot .btn.xs u{font-size:9px;padding:0 4px;margin-left:2px}
+@media (max-height:820px){#nav a{padding:5px 12px}#nav h6{margin:5px 10px 1px}.prl{max-height:28px}}
+@media (max-height:740px){#nav a{padding:4px 12px}#nav h6{margin:3px 10px 0}.brand .logo{width:34px;height:34px}}
 .live{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:6px;animation:pulse 2s infinite;box-shadow:0 0 0 0 rgba(79,208,139,.6)}
 #main{margin-left:var(--sw);margin-right:var(--cw);padding:24px 28px 90px;min-height:100vh}
 body.bare #side,body.bare #chat,body.bare #chatfab{display:none}body.bare #main{margin:0}
