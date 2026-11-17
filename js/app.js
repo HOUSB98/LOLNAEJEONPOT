@@ -3,7 +3,6 @@ import { FIREBASE_CONFIG } from './config.js';
 import { createStore } from './store.js';
 import { S, page, act, ddMenu, cho, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, toast, download, csv, needAdmin, history, modal, mh, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
 import { initSocial, renderChat, renderPresence, onMeta } from './social.js';
-import { watchReveal } from './today.js';
 import { duoRank } from './stats.js';
 import { watchDice } from './dice.js';
 import { watchBoard } from './board.js';
@@ -568,5 +567,5 @@ function onStore(c) {
     });
     await S.store.ready;
   } catch (e) { document.getElementById('splash')?.remove(); main.innerHTML = `<div class="panel landing"><h1>연결 실패</h1><p>${esc(e.message || e)}</p><p class="hint">js/config.js 의 Firebase 설정과 Firestore 규칙을 확인하세요.</p></div>`; return; }
-  metaDiff(); up = true; watchDice(true); watchBoard(true); watchPosts(true); watchReveal(true); initShell(); initSocial(); initXmas(); initNewYear(); loadChamps();
+  metaDiff(); up = true; watchDice(true); watchBoard(true); watchPosts(true); initShell(); initSocial(); initXmas(); initNewYear(); loadChamps();
 })();

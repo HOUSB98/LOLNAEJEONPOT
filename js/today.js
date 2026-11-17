@@ -3,8 +3,7 @@ import { S, page, act, esc, uid, pname, go, refresh, ddMenu, champIcon, artUrl, 
 import { evalLineup, commentary, bestDuo, aiBalance } from './stats.js';
 import { notify } from './hook.js';
 import { seriesUsed, matchCard } from './app.js';
-import { sysChat, nick } from './social.js';
-import { mascot, reveal } from './reveal.js';
+import { sysChat } from './social.js';
 import { boardLive } from './board.js';
 
 const five = () => ['', '', '', '', ''];
@@ -110,9 +109,6 @@ function applyRemoteDraft() {
 }
 const dkey = () => 'naejeon:draft:' + S.key;
 let draft = null, edit = null, lastSaved = null;
-// 팀 확정 질문: 10명이 다 찬 "그 라인업"에 대해 한 번만 묻는다. 한 명이라도 바뀌면 다시 묻는다.
-const TQ = { shown: '', no: '', done: '' };
-const lineKey = (d) => d.blue.join() + '|' + d.red.join();
 const isFull = (d) => { const all = [...d.blue, ...d.red]; return all.every(Boolean) && new Set(all).size === 10; };
 function D() {
   if (S.page === 'today' && S.arg[0] === 'edit') {
@@ -176,7 +172,7 @@ page('today', {
     const sid = seriesFor(d), sr = sid && st.series.find((s) => s.id === sid);
     const any = d.blue.some(Boolean) || d.red.some(Boolean), pb = any ? Math.round(ev.pBlue * 100) : 50;
     const filled = [...d.blue, ...d.red].filter(Boolean).length;
-    const full = isFull(d), key = lineKey(d), ask = full && !edit && TQ.no !== key && TQ.done !== key;
+    const full = isFull(d);
     const slot = (side, i) => {
       const id = d[side][i], l = LANES[i], s = st.P[id];
       const ch = d.champs[side][i], art = ch && artUrl(ch) ? ` art" style="--img:url('${artUrl(ch)}')` : '';
@@ -189,11 +185,11 @@ page('today', {
       </button><span class="sl-score mono">${(+s.p.scores?.[l] || 0).toFixed(1)}</span></div>`;
     };
     const duo = (side) => { const b = bestDuo(d[side], st); return b ? `<span class="${side}">${pname(b.a)} + ${pname(b.b)} <b class="mono">${pct(b.w, b.g)}%</b> <small>${b.g}판</small></span>` : `<span class="mut">${side === 'blue' ? '블루' : '레드'} — 함께한 기록 부족</span>`; };
-    return `<div class="h2row"><h1>${ic('today')}${edit ? `경기 수정 <span class="mono">#${st.MI[edit.id]?.no ?? ''}</span>` : '오늘의 내전'}</h1><span class="tag ${full ? 'ok' : ''}">${filled}/10 배치</span>${full && !edit ? `<button class="btn xs gold" data-a="tqYes">${ic('bolt')}승률 공개</button>` : ''}<span class="grow"></span>
+    return `<div class="h2row"><h1>${ic('today')}${edit ? `경기 수정 <span class="mono">#${st.MI[edit.id]?.no ?? ''}</span>` : '오늘의 내전'}</h1><span class="tag ${full ? 'ok' : ''}">${filled}/10 배치</span><span class="grow"></span>
       ${edit ? '<a class="btn" href="#/matches">취소</a>' : `<button class="btn gold" data-a="tAi" ${full ? '' : 'disabled'} title="${full ? '라인은 그대로 두고, 점수 차이가 가장 작아지도록 블루·레드를 나눕니다 (높은 원딜·높은 서폿은 같은 팀 안 됨)' : '10명을 모두 배치하면 쓸 수 있어요'}">${ic('bolt')}AI<span class="m-hide"> 추천</span></button><button class="btn gold gbtn ${boardLive() ? 'live' : ''}" data-a="tBoard" title="라인 지원: 모두 함께 원하는 라인 고르기 → 몰린 라인은 추첨">${ic('users')}<span>${boardLive() ? '라인 지원 중' : '라인 지원'}</span></button><button class="btn gold" data-a="tDice">${ic('dice')}라인 주사위</button>${ddMenu(`<button data-a="tSwap">${ic('swap')}진영 교체</button><button class="danger" data-a="tClear">${ic('trash')}비우기</button>`)}`}</div>
     <section class="arena">
       <div class="scorebar"><div class="sb blue"><small>BLUE TEAM</small><b class="mono">${ev.bs.toFixed(1)}</b><span>평균 MMR ${ev.mmrB ? Math.round(ev.mmrB) : '—'}</span></div>
-        <div class="sb-mid"><div class="ring" style="--p:${pb}"><b class="mono">${pb}<small>%</small></b><span>블루 예상 승률</span></div></div>
+        <div class="sb-mid">${winRing(pb, full, any, filled)}</div>
         <div class="sb red"><small>RED TEAM</small><b class="mono">${ev.rs.toFixed(1)}</b><span>평균 MMR ${ev.mmrR ? Math.round(ev.mmrR) : '—'}</span></div></div>
       <div class="prob"><i style="width:${pb}%"></i></div>
       ${ev.lanes.map((x, i) => { const g = x.bs - x.rs, both = x.b && x.r; return `<div class="lrow" style="--d:${i}">${slot('blue', i)}
@@ -214,11 +210,32 @@ page('today', {
       </div>` : ''}
       <button class="btn pri block big" data-a="tSave">${edit ? '수정 내용 저장' : '경기 결과 저장'}</button>
     </div>
-    ${lastSaved && !edit && S.st.MI[lastSaved] ? `<div class="sec-h"><h2>방금 기록한 경기</h2></div>${matchCard(S.store.data.matches[lastSaved])}` : ''}
-    ${ask ? `<div class="ask ${TQ.shown === key ? '' : 'in'}" role="dialog" aria-label="팀 확정 확인">${mascot()}<div class="ask-b"><b>팀을 정하셨나요?</b><span>다 정했으면 예상 승률을 공개할게요!</span><div class="row"><button class="btn pri" data-a="tqYes">정했어!</button><button class="btn ghost" data-a="tqNo">아직이야</button></div></div></div>` : ''}`;
+    ${lastSaved && !edit && S.st.MI[lastSaved] ? `<div class="sec-h"><h2>방금 기록한 경기</h2></div>${matchCard(S.store.data.matches[lastSaved])}` : ''}`;
   },
-  after() { const d = D(); TQ.shown = isFull(d) && !edit ? lineKey(d) : ''; }, // 같은 라인업으로 화면만 다시 그릴 때는 등장 모션을 반복하지 않는다
 });
+
+// 예상 승률 원형 그래프: 바깥 금테 + 눈금, 블루·레드 두 호. 가운데에는 승률이 더 높은 팀의 승률을 보여 주고 그 팀의 호를 빛나게 한다.
+// 10명이 다 차야 빛나는 효과와 '○○ 예상 승률'을 표시하고, 배치 중에는 흐리게 지금까지의 예상만 보여 준다.
+const RC = 2 * Math.PI * 50; // 호의 둘레(반지름 50)
+function winRing(pb, full, any, filled) {
+  const even = pb === 50, hi = even ? '' : pb > 50 ? 'blue' : 'red', hv = even ? 50 : Math.max(pb, 100 - pb);
+  const gap = any && pb > 0 && pb < 100 ? 3 : 0, bl = Math.max(0, (RC * pb) / 100 - gap), rl = Math.max(0, (RC * (100 - pb)) / 100 - gap);
+  const label = !any ? '예상 승률' : even ? '완전 팽팽' : `${hi === 'blue' ? '블루' : '레드'} 예상 승률`;
+  const ticks = Array.from({ length: 40 }, (_, i) => `<line x1="60" y1="2.5" x2="60" y2="${i % 5 ? 5 : 7.5}" transform="rotate(${i * 9} 60 60)"/>`).join('');
+  return `<div class="wring ${full ? 'full' : 'part'} ${hi}" role="img" aria-label="${label} ${hv}%">
+    <svg viewBox="0 0 120 120" aria-hidden="true">
+      <defs><linearGradient id="wr-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbeec8"/><stop offset=".5" stop-color="#d9a441"/><stop offset="1" stop-color="#7a5418"/></linearGradient>
+        <radialGradient id="wr-in" cx=".5" cy=".38" r=".7"><stop offset="0" stop-color="#16213a"/><stop offset="1" stop-color="#070b13"/></radialGradient></defs>
+      <circle cx="60" cy="60" r="58.5" fill="none" stroke="url(#wr-gold)" stroke-width="1.2" opacity=".85"/>
+      <g class="wr-ticks" stroke="url(#wr-gold)" stroke-width=".8">${ticks}</g>
+      <circle cx="60" cy="60" r="50" fill="none" class="wr-track" stroke-width="8"/>
+      ${any ? `<circle cx="60" cy="60" r="50" fill="none" class="wr-arc b ${hi === 'blue' ? 'hi' : ''}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${bl.toFixed(2)} ${RC.toFixed(2)}" transform="rotate(-90 60 60) translate(0 0)" style="stroke-dashoffset:${(-gap / 2).toFixed(2)}"/>
+      <circle cx="60" cy="60" r="50" fill="none" class="wr-arc r ${hi === 'red' ? 'hi' : ''}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${rl.toFixed(2)} ${RC.toFixed(2)}" transform="rotate(-90 60 60)" style="stroke-dashoffset:${(-(RC * pb) / 100 - gap / 2).toFixed(2)}"/>` : ''}
+      <circle cx="60" cy="60" r="42.5" fill="url(#wr-in)" stroke="url(#wr-gold)" stroke-width=".6" stroke-opacity=".5"/>
+    </svg>
+    <div class="wr-c"><small>${label}</small><b class="mono">${hv}<i>%</i></b><span>${full ? (even ? '누가 이겨도 이상하지 않아요' : `${hi === 'blue' ? '레드' : '블루'} ${100 - hv}%`) : any ? `배치 중 ${filled}/10` : '선수를 배치하세요'}</span></div>
+  </div>`;
+}
 
 act('tSlot', (d) => {
   const dr = D(), i = +d.i;
@@ -301,76 +318,6 @@ act('tSave', async (d, btn) => {
   lastSaved = id;
   draft = { ...blank(), blue: dr.blue, red: dr.red }; // 같은 팀으로 다음 판을 바로 기록할 수 있게 라인업은 유지
   keep(); window.scrollTo(0, 0); document.getElementById('main').scrollTop = 0;
-});
-
-// ---------- 팀 확정 → 예상 승률 공개 ----------
-// 누군가 "정했어!"를 누르면 meta/reveal 문서에 적고, 접속한 모든 사람의 화면에서 같은 연출이 재생된다(주사위와 같은 방식).
-// 누군가 "정했어!"를 누르면 reveals 컬렉션에 이벤트 문서를 하나 만들고, 접속한 모든 사람의 화면에서 같은 연출이 재생된다.
-// 시작 시각(startAt)은 서버 시각 기준이라 각자 시계가 달라도 같은 순간에 맞춰진다.
-const rvSeen = new Set();
-let rvWatch = false;
-const revealLine = (d) => {
-  if (d.line) return d.line;
-  const ids = new Map(S.st.list.map((s) => [s.name, s.id]));
-  const blue = (d.blue || []).map((n) => ids.get(n) || ''), red = (d.red || []).map((n) => ids.get(n) || '');
-  return blue.length === 5 && red.length === 5 && [...blue, ...red].every(Boolean) ? lineKey({ blue, red }) : '';
-};
-const playReveal = (d, mine = false) => {
-  try {
-    reveal({
-      pb: Number(d.pb) || 50, blue: Array.isArray(d.blue) ? d.blue : [], red: Array.isArray(d.red) ? d.red : [], by: mine ? '' : (d.by || ''),
-      startAt: Number(d.startAt) || Number(d.at) || Date.now(), now: S.store.serverNow(),
-      from: S.page === 'today' ? document.querySelector('.arena .ring') : null,
-    });
-  } catch (e) { console.error('[reveal]', e); }
-};
-export function watchReveal() {
-  if (rvWatch || !S.store?.watchCollection) return;
-  rvWatch = true;
-  let primed = false;
-  S.store.watchCollection('reveals', (snap) => {
-    const changes = typeof snap?.docChanges === 'function' ? snap.docChanges() : snap.changes();
-    const docs = changes.filter((c) => c.type === 'added').map((c) => (c.doc?.data ? { ...c.doc.data(), id: c.doc.id } : c.doc)).filter((d) => d?.id);
-    // 이미 있는 이벤트는 재생하지 않되, 현재 팀 구성의 확정 여부는 접속자끼리 공유한다.
-    if (!primed) {
-      primed = true;
-      let hideAsk = false;
-      docs.forEach((d) => {
-        rvSeen.add(d.id);
-        const line = revealLine(d);
-        if (line && line === lineKey(D())) { TQ.done = line; hideAsk = true; }
-      });
-      if (hideAsk && S.page === 'today') refresh();
-      return;
-    }
-    for (const d of docs) {
-      if (rvSeen.has(d.id)) continue;
-      rvSeen.add(d.id);
-      const line = revealLine(d);
-      if (line && line === lineKey(D())) {
-        TQ.done = line;
-        if (S.page === 'today') refresh();
-      }
-      if (S.store.serverNow() - (Number(d.at) || 0) < 20000) playReveal(d, false); // 너무 늦게 도착한 이벤트(오프라인 복귀 등)는 건너뛴다
-    }
-  }, (err) => console.error('[reveal] listener', err));
-}
-
-act('tqNo', () => { TQ.no = lineKey(D()); refresh(); });
-act('tqYes', async () => {
-  const d = D(); if (!isFull(d)) return toast('양 팀 10명을 모두 배치해 주세요');
-  const nm = (ids) => ids.map((id) => S.st.P[id]?.name || '?');
-  try {
-    await S.store.syncServerClock?.();
-    const now = S.store.serverNow();
-    const r = { id: uid(), at: now, startAt: now + 1800, line: lineKey(d), pb: Math.round(evalLineup(d.blue, d.red, S.st).pBlue * 100), blue: nm(d.blue), red: nm(d.red), by: nick() || '익명' };
-    TQ.done = lineKey(d);
-    rvSeen.add(r.id); // 내 화면은 응답을 기다리지 않고 바로 재생하고, 내 이벤트가 돌아와도 두 번 재생하지 않는다
-    playReveal(r, true);
-    refresh();
-    await S.store.put('reveals', r.id, r);
-    sysChat('팀 확정 · 예상 승률 블루 ' + r.pb + '% : 레드 ' + (100 - r.pb) + '%');
-  } catch (e) { toast('중계 전송 실패: ' + (e.code || e.message)); }
 });
 
 // ---------- 드래그로 선수 교환 ----------
