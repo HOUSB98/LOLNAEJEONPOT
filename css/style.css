@@ -23,7 +23,7 @@ code{background:var(--panel2);padding:1px 6px;border-radius:5px;font-family:var(
 #side{position:fixed;inset:0 auto 0 0;width:var(--sw);background:linear-gradient(180deg,#080d17,#05080e);border-right:1px solid var(--line);padding:16px 12px 12px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;z-index:6}
 #side::after{content:"";position:absolute;inset:0 0 auto 0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.7}
 .brand{display:flex;gap:10px;align-items:center;padding:2px 4px 8px}
-.brand .logo{filter:drop-shadow(0 0 10px rgba(217,164,65,.35));transition:transform .5s}.brand:hover .logo{transform:rotate(60deg)}
+.brand .logo{filter:drop-shadow(0 0 10px rgba(217,164,65,.35));transition:transform .4s}.brand:hover .logo{transform:rotate(-6deg) scale(1.06)}
 .bt{display:flex;flex-direction:column;min-width:0}
 .bt b{font:800 15px/1.1 "Cinzel",serif;letter-spacing:.12em}.bt b i{font-style:normal;color:var(--gold)}
 .bt small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
