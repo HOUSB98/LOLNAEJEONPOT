@@ -2,6 +2,19 @@
 import { S, act, esc, uid, col, settings, toast, modal, closeModal, mh, ic, logo, needAdmin, LANE_ICON, LANE_COLOR, LANE_NAME } from './core.js';
 import { splashScene, xmasOn, xmasFace } from './xmas.js';
 import { nySplash } from './newyear.js';
+import { hookOn, USAGE, loadUsage, won, kfmt } from './hook.js';
+
+// 채팅창 머리의 남은 무료 한도·이번 달 요금(연동 서버가 있고 Blaze 요금제일 때만 보인다)
+function renderQuota() {
+  const el = document.getElementById('chat-quota'), d = USAGE.d;
+  if (!el) return;
+  if (!d?.today || !d.month) { el.hidden = true; return; }
+  const left = (k) => d.limits[k] - d.today[k];
+  const cell = (k, label) => { const v = left(k); return `<span class="${v <= 0 ? 'over' : v < d.limits[k] * 0.2 ? 'low' : ''}">${label} <b class="mono">${v <= 0 ? '초과' : kfmt(v)}</b></span>`; };
+  el.hidden = false;
+  el.title = `오늘 남은 무료 사용량 (한국 시간 오후 4~5시 초기화)\n읽기 ${Math.max(0, left('read')).toLocaleString('ko-KR')} · 쓰기 ${Math.max(0, left('write')).toLocaleString('ko-KR')} · 삭제 ${Math.max(0, left('delete')).toLocaleString('ko-KR')}\n오늘 요금 ${won(d.today.usd, d.krw)} · 이번 달 ${won(d.month.usd, d.krw)} (예상)`;
+  el.innerHTML = `<small>무료 남음</small><div>${cell('read', '읽기')}${cell('write', '쓰기')}</div><em class="${d.month.usd > 0 ? 'paid' : ''}">이번 달 <b class="mono">${won(d.month.usd, d.krw)}</b></em>`;
+}
 
 const cid = localStorage.getItem('naejeon:cid') || (() => { const v = uid(); localStorage.setItem('naejeon:cid', v); return v; })();
 export const nick = () => localStorage.getItem('naejeon:nick') || '';
@@ -112,7 +125,7 @@ export function sysChat(text) {
 }
 function buildChat() {
   document.getElementById('chat').innerHTML = `
-    <header><div class="ch-t"><span class="ch-k"><i class="live"></i>LIVE</span><b>Lobby<i>Chat</i></b><small><span id="chat-on">0</span>명 접속 중</small></div><div class="ch-btns"><button class="btn ghost xs" data-a="chatClear" title="채팅 전체 삭제 (관리자)" aria-label="채팅 전체 삭제">${ic('trash')}</button><button class="btn ghost xs chatx" data-a="chatToggle" title="채팅창 접기" aria-label="채팅창 접기">${ic('fold')}</button></div></header>
+    <header><div class="ch-t"><span class="ch-k"><i class="live"></i>LIVE</span><b>Lobby<i>Chat</i></b><small><span id="chat-on">0</span>명 접속 중</small></div><div class="ch-side"><div class="ch-btns"><button class="btn ghost xs" data-a="chatClear" title="채팅 전체 삭제 (관리자)" aria-label="채팅 전체 삭제">${ic('trash')}</button><button class="btn ghost xs chatx" data-a="chatToggle" title="채팅창 접기" aria-label="채팅창 접기">${ic('fold')}</button></div><div id="chat-quota" hidden></div></div></header>
     <div id="chatlog"></div>
     <div id="chattray" hidden>
       <div class="stk-grid">${STICKERS.map(([k, t, c]) => `<button class="sticker ${c}" data-a="chatStk" data-k="${k}">${esc(t)}</button>`).join('')}</div>
@@ -217,6 +230,11 @@ function splash() {
 
 export function initSocial() {
   buildChat(); renderPresence(); renderChat(true); splash(); onMeta();
+  if (hookOn()) { // 사용량은 5분마다(탭이 보일 때만) 새로 받는다
+    addEventListener('usage', renderQuota);
+    loadUsage(false);
+    setInterval(() => { if (document.visibilityState === 'visible') loadUsage(false); }, 5 * 60e3);
+  }
   // 접속자 우클릭(모바일은 길게 누르기) → 관리자 메뉴
   document.getElementById('presence').addEventListener('contextmenu', (e) => { const b = e.target.closest('[data-cid]'); if (!b) return; e.preventDefault(); openCtx(e.clientX, e.clientY, b.dataset.cid, b.dataset.nick); });
   document.addEventListener('click', (e) => { if (!e.target.closest('#ctx')) closeCtx(); });

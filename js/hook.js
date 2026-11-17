@@ -24,3 +24,18 @@ export async function callWorker(path, body) {
     return r.ok ? j : { error: j.error || `서버 오류 (${r.status})` };
   } catch (e) { return { error: '연동 서버에 연결하지 못했어요 · ' + (e.message || e) }; }
 }
+
+// ---------- Firebase 사용량 (관리 화면·채팅창 공용) ----------
+// 연동 서버가 구글 집계를 5분 동안 재사용하므로 여러 화면에서 불러도 같은 값이다. Firestore 읽기는 쓰지 않는다.
+// 새 값이 오면 window 에 'usage' 이벤트를 보낸다.
+export const USAGE = { d: null, err: '', at: 0, busy: false };
+export async function loadUsage(force) {
+  if (!hookOn() || USAGE.busy || (!force && Date.now() - USAGE.at < 5 * 60e3)) return;
+  USAGE.busy = true; USAGE.at = Date.now();
+  const r = await callWorker('/usage');
+  USAGE.busy = false;
+  if (r.error) USAGE.err = r.error; else { USAGE.d = r; USAGE.err = ''; }
+  dispatchEvent(new Event('usage'));
+}
+export const won = (usd, krw) => '₩' + Math.round((+usd || 0) * (krw || 1400)).toLocaleString('ko-KR');
+export const kfmt = (v) => (v >= 10000 ? (v / 1000).toFixed(0) + 'k' : v >= 1000 ? (v / 1000).toFixed(1) + 'k' : String(Math.max(0, Math.round(v))));

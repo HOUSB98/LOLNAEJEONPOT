@@ -11,12 +11,20 @@
 //   SITE_URL         디스코드 메시지의 바로가기 주소 (예: 초대 링크 전체)
 //   DISCORD_MENTION  (선택) 라인 지원 알림에 붙일 멘션. 예: @everyone 또는 <@&역할ID>
 //   ALLOWED_ORIGINS  (선택) 사이트 주소. 기본값 https://housb98.github.io
+//   RATE_READ / RATE_WRITE / RATE_DELETE  (선택) 무료 한도를 넘었을 때 10만 건당 요금(달러). 기본값은 서울 리전 추정치
+//   USD_KRW          (선택) 원화 환산 환율. 기본값 1400
+// 예약 실행(Cron) 두 개: '0,10,20 19 * * *' = 라이엇 갱신(매일 새벽 4시), '*/30 * * * *' = 사용량 감시(무료 한도 근접·요금 디스코드 알림)
 
 const PROJECT = 'lolnaejeonpot';
 const API_KEY = 'AIzaSyBx9DdwpagQTZqFqkISJLPpRe7zHYKOgC0'; // Firebase 웹 API 키(공개값). 접근 권한은 LEAGUE_KEY와 Firestore 규칙이 정한다
 const LANES = ['top', 'jg', 'mid', 'adc', 'sup'];
 const LANE_NAME = { top: '탑', jg: '정글', mid: '미드', adc: '원딜', sup: '서폿' };
 const LIMITS = { read: 50000, write: 20000, delete: 20000 }; // Firestore 무료 할당량(하루, 미국 태평양 시간 자정에 초기화)
+// 무료 한도를 넘은 만큼의 요금(10만 건당 달러). 서울(asia-northeast3) 추정치라, 정확한 값은 Firestore 가격 페이지에서 확인해 Worker 변수로 덮어쓴다
+const RATES = { read: 0.038, write: 0.115, delete: 0.013 };
+const RIOT_CRON = '0,10,20 19 * * *';
+const NEAR = 0.8; // 하루 무료 한도의 80%를 넘으면 디스코드로 미리 알린다
+const REPORT_HOUR = 9; // 요금 누적 알림은 한국 시간 오전 9시 이후 하루 한 번
 
 export default {
   async fetch(req, env, ctx) {
@@ -36,6 +44,7 @@ export default {
       if (url.pathname === '/notify') return json(await notify(env, body), 200, cors);
       if (url.pathname === '/test') return json(await testMessage(env), 200, cors);
       if (url.pathname === '/usage') return json(await usage(env), 200, cors);
+      if (url.pathname === '/watch') return json(await watchUsage(env), 200, cors); // 사용량 감시를 지금 한 번 실행(설정 확인용)
       if (url.pathname === '/riot') {
         if (Date.now() - (MEM.riotAt || 0) < 60e3) return json({ error: '1분 뒤에 다시 눌러 주세요' }, 429, cors);
         MEM.riotAt = Date.now();
@@ -49,7 +58,8 @@ export default {
   // 예약 실행(Settings > Triggers > Cron). 라이엇 갱신은 한 번에 처리할 수 있는 양이 정해져 있어(무료 플랜 요청 50회)
   // 새벽에 10분 간격으로 몇 번 돌리면, 그날 아직 안 된 사람만 이어서 처리한다.
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(riotUpdate(env, false).catch((e) => console.error('[riot]', e)));
+    if (event.cron === RIOT_CRON) ctx.waitUntil(riotUpdate(env, false).catch((e) => console.error('[riot]', e)));
+    else ctx.waitUntil(watchUsage(env).catch((e) => console.error('[usage]', e)));
   },
 };
 
@@ -232,22 +242,70 @@ async function points(tok, metric, start, end, period) {
   if (!r.ok) throw new Error('사용량 조회 실패: ' + (j.error?.message || r.status));
   return (j.timeSeries?.[0]?.points || []).map((p) => ({ end: Date.parse(p.interval.endTime), v: Number(p.value.int64Value ?? p.value.doubleValue ?? 0) }));
 }
-async function usage(env) {
-  if (MEM.usage && Date.now() - MEM.usage.at < 5 * 60e3) return { ...MEM.usage, cached: true };
+const rates = (env) => ({ read: +env.RATE_READ || RATES.read, write: +env.RATE_WRITE || RATES.write, delete: +env.RATE_DELETE || RATES.delete });
+// 하루 무료 한도는 날마다 따로 적용된다: 그날 넘은 만큼만 요금
+const dayCost = (d, r) => ['read', 'write', 'delete'].reduce((s, k) => s + (Math.max(0, d[k] - LIMITS[k]) / 1e5) * r[k], 0);
+async function usage(env, fresh = false) {
+  if (!fresh && MEM.usage && Date.now() - MEM.usage.at < 5 * 60e3) return { ...MEM.usage, cached: true };
   const tok = await googleToken(env);
   const now = Date.now(), hour = now - (now % 3600e3), min = now - (now % 60e3);
   const days = {};
-  for (let i = 7; i >= 0; i--) days[ptDate(now - i * 864e5)] = { read: 0, write: 0, delete: 0 };
+  for (let i = 31; i >= 0; i--) days[ptDate(now - i * 864e5)] = { read: 0, write: 0, delete: 0 };
   await Promise.all(['read', 'write', 'delete'].map(async (k) => {
-    // 지난 7일은 1시간 단위로 받아 태평양 시간 날짜별로 묶고, 이번 시간의 앞부분은 따로 받아 오늘에 더한다
-    const hrs = await points(tok, k, hour - 7 * 864e5, hour, 3600);
+    // 지난 31일(이번 달 누적용)은 1시간 단위로 받아 태평양 시간 날짜별로 묶고, 이번 시간의 앞부분은 따로 받아 오늘에 더한다
+    const hrs = await points(tok, k, hour - 31 * 864e5, hour, 3600);
     hrs.forEach((p) => { const d = days[ptDate(p.end - 1)]; if (d) d[k] += p.v; });
     if (min - hour >= 60e3) (await points(tok, k, hour, min, (min - hour) / 1000)).forEach((p) => { const d = days[ptDate(p.end - 1)]; if (d) d[k] += p.v; });
   }));
-  const list = Object.entries(days).map(([date, v]) => ({ date, ...v }));
-  const out = { at: now, today: list[list.length - 1], days: list, limits: LIMITS, note: '구글 집계는 보통 몇 분 늦게 반영됩니다' };
+  const r = rates(env), krw = +env.USD_KRW || 1400;
+  const list = Object.entries(days).map(([date, v]) => ({ date, ...v, usd: +dayCost(v, r).toFixed(4) }));
+  const today = list[list.length - 1], month = today.date.slice(0, 7);
+  const mUsd = list.filter((x) => x.date.startsWith(month)).reduce((s, x) => s + x.usd, 0);
+  const out = { at: now, today, days: list.slice(-8), month: { key: month, usd: +mUsd.toFixed(4) }, limits: LIMITS, rates: r, krw, note: '구글 집계는 보통 몇 분 늦게 반영됩니다' };
   MEM.usage = out;
   return out;
+}
+
+// ---------- 사용량 감시 (예약 실행, 30분마다) ----------
+// 알림 기록은 ops/alerts 문서에 둔다(사이트가 구독하지 않는 컬렉션이라 접속자 화면에 읽기가 퍼지지 않는다)
+const won = (usd, krw) => '₩' + Math.round(usd * krw).toLocaleString('ko-KR');
+const money = (usd, krw) => `${won(usd, krw)} ($${usd.toFixed(2)})`;
+const NAME3 = { read: '읽기', write: '쓰기', delete: '삭제' };
+async function watchUsage(env) {
+  if (!env.GCP_SA || !env.DISCORD_WEBHOOK) return { skipped: true };
+  const u = await usage(env, true), t = u.today, krw = u.krw;
+  const st = (await getDoc(env, 'ops', 'alerts')) || {};
+  const prev = { date: st.date || '', near: st.near || {}, charged: !!st.charged, reportDay: st.reportDay || '', reportedUsd: +st.reportedUsd || 0, reportedMonth: st.reportedMonth || '' };
+  const next = JSON.parse(JSON.stringify(prev));
+  if (next.date !== t.date) { next.date = t.date; next.near = {}; next.charged = false; } // 태평양 시간 자정이 지나면 하루 기록 초기화
+  if (next.reportedMonth !== u.month.key) { next.reportedMonth = u.month.key; next.reportedUsd = 0; }
+  const msgs = [];
+  // ① 무료 한도 근접 (항목마다 하루 한 번)
+  const near = ['read', 'write', 'delete'].filter((k) => t[k] >= LIMITS[k] * NEAR && t[k] < LIMITS[k] && !next.near[k]); // 이미 넘었으면 아래 요금 알림이 대신한다
+  if (near.length) {
+    near.forEach((k) => (next.near[k] = true));
+    msgs.push({ title: '⚠️ 오늘 무료 사용량이 거의 다 찼어요', color: 0xf2c14e,
+      description: near.map((k) => `**${NAME3[k]}** ${t[k].toLocaleString('ko-KR')} / ${LIMITS[k].toLocaleString('ko-KR')} (${Math.round((t[k] / LIMITS[k]) * 100)}%)`).join('\n') + '\n\n한도를 넘으면 넘은 만큼 요금이 붙어요. 한국 시간 오후 4~5시에 0으로 초기화됩니다.' });
+  }
+  // ② 오늘 처음 요금 발생 (하루 한 번)
+  let chargedNow = false;
+  if (t.usd > 0 && !next.charged) {
+    next.charged = chargedNow = true;
+    msgs.push({ title: '💸 오늘 무료 한도를 넘어 요금이 붙기 시작했어요', color: 0xef4444,
+      description: `오늘 지금까지 **${money(t.usd, krw)}**\n이번 달 누적 **${money(u.month.usd, krw)}**\n\n` + ['read', 'write', 'delete'].map((k) => `${NAME3[k]} ${t[k].toLocaleString('ko-KR')} / ${LIMITS[k].toLocaleString('ko-KR')}`).join(' · ') });
+  }
+  // ③ 요금 누적: 이번 달 금액이 지난 알림 때보다 늘었으면 하루 한 번(한국 시간 오전 9시 이후)
+  const kst = new Date(Date.now() + 9 * 3600e3), kstDay = kst.toISOString().slice(0, 10);
+  if (!chargedNow && kst.getUTCHours() >= REPORT_HOUR && next.reportDay !== kstDay && u.month.usd > next.reportedUsd + 0.00005) {
+    const y = u.days[u.days.length - 2];
+    next.reportDay = kstDay; next.reportedUsd = u.month.usd;
+    msgs.push({ title: '🧾 Firebase 요금이 늘었어요', color: 0x9b8cff,
+      description: `이번 달 누적 **${money(u.month.usd, krw)}**\n어제(${y.date.slice(5).replace('-', '/')}) ${money(y.usd, krw)} · 오늘 지금까지 ${money(t.usd, krw)}`,
+      footer: { text: '사용량으로 계산한 예상 금액이라 실제 청구서와 조금 다를 수 있어요' } });
+  }
+  if (msgs.length) await discord(env, { embeds: msgs.map((e) => ({ url: env.SITE_URL || undefined, timestamp: new Date().toISOString(), ...e })) });
+  if (JSON.stringify(next) !== JSON.stringify(prev)) await commit(env, [{ update: { name: docName(env, 'ops', 'alerts'), fields: enc(next).mapValue.fields } }]);
+  return { sent: msgs.length };
 }
 
 // ---------- 라이엇 솔랭 자동 갱신 ----------
