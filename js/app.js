@@ -1,6 +1,7 @@
 // 시작점 + 홈 / 랭킹 / 경기 기록 / 챔피언 / 피어리스 화면
 import { FIREBASE_CONFIG } from './config.js';
 import { createStore } from './store.js';
+import { cardChamp } from './core.js';
 import { S, page, act, ddMenu, cho, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, toast, download, csv, needAdmin, history, modal, mh, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
 import { initSocial, renderChat, renderPresence, onMeta } from './social.js';
 import { duoRank } from './stats.js';
@@ -288,7 +289,7 @@ page('rank', {
   render() {
     const st = S.st, x = st.sum;
     const cols = COLS[LB.view], sortCol = cols.find((c) => c[0] === LB.sort) || cols[0];
-    const sig = sigChamp;
+    const sig = cardChamp; // 랭킹은 가챠 꾸미기를 반영
     const rows = st.list.filter((s) => s.g >= LB.min).sort((a, b) => LB.dir * (sortCol[2](a) - sortCol[2](b)) || b.ovr - a.ovr);
     // 상단 TOP 3 카드: 지금 정렬 기준의 1~3위
     const medal = ['CHAMPION', 'RUNNER-UP', 'THIRD'];

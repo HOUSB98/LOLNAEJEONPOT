@@ -1,6 +1,8 @@
 // 선수 카드(홀로 카드) / 솔랭 분석 / 케미 분석
 import { S, page, act, esc, pname, go, refresh, fmtDT, wrClass, wrBar, dots, streak, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, skinList, skinBad, baseChamp, needAdmin, isAdmin, modal, closeModal, mh, toast, ic, logo, countUp, burst, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct } from './core.js';
 import { chem, playerLine, duoRank, CHEM_RULE } from './stats.js';
+import { cardChamp } from './core.js';
+import { openDeco } from './gacha.js';
 
 const PV = { view: 'card', dl: 'all', gr: 'mmr' };
 const LANE_EN = { top: 'TOP LANE', jg: 'JUNGLE', mid: 'MID LANE', adc: 'BOT CARRY', sup: 'SUPPORT' };
@@ -20,7 +22,7 @@ function listView() {
       ${o.most ? `<div class="sm">모스트 3 · ${esc(o.most)}</div>` : ''}${o.comment ? `<p>${esc(o.comment)}</p>` : '<p class="mut">솔랭 분석 정보가 없습니다.</p>'}</div>`; }).join('')}</div>`;
   }
   // 주라인별로 묶고, 묶음 안에서는 오버롤 높은 순
-  const card = (s, i) => { const r = rarity(s, n); return `<a class="pcard ${r[2]}" href="#/players/${s.id}" style="--tc:${LANE_COLOR[s.mainLane]};--img:url('${tileUrl(sigChamp(s))}');--d:${Math.min(i, 16)}">
+  const card = (s, i) => { const r = rarity(s, n); return `<a class="pcard ${r[2]}" href="#/players/${s.id}" style="--tc:${LANE_COLOR[s.mainLane]};--img:url('${tileUrl(cardChamp(s))}');--d:${Math.min(i, 16)}">
     <div class="pc-art"></div><i class="pc-no mono">${i + 1}</i>
     <div class="pc-top"><span class="pc-type">${LANE_ICON[s.mainLane]}</span><b>${esc(s.name)}</b><span class="pc-ovr mono"><small>OVR</small>${s.ovr}</span></div>
     <div class="pc-bot"><span class="mono">${s.g ? `${s.wr}% · ${s.g}판` : '출전 없음'}</span><span class="pc-rar">${r[0]}</span></div>
@@ -34,7 +36,7 @@ function listView() {
 
 function holo(s, n) {
   const p = s.p, r = rarity(s, n), sc = LANES.map((l) => [l, +p.scores?.[l] || 0]).sort((a, b) => b[1] - a[1]);
-  const weak = sc[4][0], sig = sigChamp(s), line = playerLine(s, S.st).split('. ')[0].replace(/\.$/, '') + '.';
+  const weak = sc[4][0], sig = cardChamp(s), line = playerLine(s, S.st).split('. ')[0].replace(/\.$/, '') + '.';
   const move = ([l, v]) => `<div class="hc-move"><span class="en">${LANE_ICON[l].repeat(v >= 15 ? 3 : v >= 9 ? 2 : 1)}</span><div><b>${MOVE[l]}</b><small>${LANE_NAME[l]} 승률 ${s.lanes[l].g ? `${pct(s.lanes[l].w, s.lanes[l].g)}% (${s.lanes[l].g}판)` : '기록 없음'}</small></div><em class="mono">${Math.round(v * 10)}</em></div>`;
   return `<div class="holo-wrap ${r[2]}" style="--tc:${LANE_COLOR[s.mainLane]}">
     <div class="holo-tilt"><div class="holo ${r[2]}">
@@ -51,6 +53,7 @@ function holo(s, n) {
   <div class="gdeck" aria-hidden="true"><i class="gd-halo"></i><i class="gd-beam"></i><i class="gd-core"></i>${Array.from({ length: 14 }, (_, i) => `<u style="--i:${i}"></u>`).join('')}
     <div class="gd-con"><span class="jc l"><i class="stick"></i><i class="dpad"></i></span><span class="scr"><i class="scr-card"></i><i class="scr-scan"></i></span><span class="jc r"><i class="btns"></i><i class="stick"></i></span></div>
     <i class="gd-ring r1"></i><i class="gd-ring r2"></i><i class="gd-shadow"></i></div>
+  <button class="btn gold deco-btn" data-a="decoOpen" data-id="${s.id}" title="가챠에서 뽑은 챔피언·스킨으로 꾸미기 (본인 PIN 필요)">${ic('star')}카드 꾸미기</button>
   <small class="mut">카드 위에서 마우스를 움직여 보세요 · <button class="lnk" data-a="pcReplay">다시 소환</button>${sig ? ` · <button class="lnk" data-a="skinPick" data-id="${s.id}" title="관리자 PIN 필요">스킨 변경</button>` : ''}</small></div>`;
 }
 

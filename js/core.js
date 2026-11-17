@@ -283,7 +283,7 @@ function skinAlias(name, num, sname) {
 function skinFor(s, name) {
   if (!S.champBy[name]) return name;
   const own = s.p.skin;
-  if (own && own.champ === name && !isBad(name, +own.num)) return skinAlias(name, +own.num || 0, own.name);
+  if (own && !own.pick && own.champ === name && !isBad(name, +own.num)) return skinAlias(name, +own.num || 0, own.name); // 가챠로 고른 것(pick)은 여기서 쓰지 않는다
   const pref = SKIN_PREF.find((x) => x.champ === name && s.name.includes(x.player)), list = skinList(name);
   if (!list) return pref && !isBad(name, pref.num) ? skinAlias(name, pref.num, `${pref.kw[0]} ${name}`) : name;
   const hit = pref && list.find((x) => pref.kw.some((k) => x[1].includes(k)));
@@ -307,8 +307,14 @@ export function lazyArt(root = document) {
 // 주라인에서 가장 많이 쓴 챔피언 → (기록이 없으면) 솔랭 모스트 → 내전 모스트
 const SIG_CHAMP_PREF = { 승정: '진' };
 const sigCache = new WeakMap();
+// 선수 카드·랭킹 전용 대표 일러스트: 가챠 보관함에서 본인이 고른 챔피언·스킨(skin.pick)이 있으면 그것, 없으면 sigChamp.
+// 홈·케미·경매 등 다른 화면은 sigChamp(경기 기록 기준)를 그대로 쓴다.
+export function cardChamp(s) {
+  const eq = s?.p?.skin;
+  if (eq?.pick && S.champBy[eq.champ]) return +eq.num ? skinAlias(eq.champ, +eq.num, eq.name) : eq.champ;
+  return sigChamp(s);
+}
 export function sigChamp(s) {
-  const eq = s.p.skin; if (eq?.pick && S.champBy[eq.champ]) return skinFor(s, eq.champ); // 가챠에서 본인이 고른 챔피언·스킨
   const preferred = SIG_CHAMP_PREF[s.name];
   if (preferred && S.champBy[preferred]) return skinFor(s, preferred);
   const st = S.st; let cnt = sigCache.get(st);
