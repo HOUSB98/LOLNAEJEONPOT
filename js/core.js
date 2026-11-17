@@ -401,12 +401,12 @@ export async function loadChamps() {
   } catch (e) { console.warn('챔피언 목록을 불러오지 못했습니다', e); }
 }
 let pickCb = null;
-export function pickChamp({ title, used = {}, current = '', onPick }) {
+export function pickChamp({ title, used = {}, current = '', onPick, noClear = false, note = '' }) {
   pickCb = onPick;
   const grid = S.champs.map((c) => `<button class="cp ${used[c.name] ? 'used' : ''} ${c.name === current ? 'cur' : ''}" data-a="cp" data-n="${esc(c.name)}" data-k="${esc(c.name.replace(/\s/g, '') + ' ' + cho(c.name.replace(/\s/g, '')))}" ${used[c.name] ? `disabled title="${esc(used[c.name])}"` : ''}><img src="${c.img}" loading="lazy" alt=""><span>${esc(c.name)}</span></button>`).join('');
   const el = modal(`${mh(esc(title))}
     <div class="row"><input id="cpq" class="inp grow" placeholder="챔피언 검색 (초성 가능: ㅇㄹ)" data-i="cpq" autocomplete="off">
-    <button class="btn" data-a="cp" data-n="">비우기</button></div>
+    ${noClear ? '' : '<button class="btn" data-a="cp" data-n="">비우기</button>'}</div>${note ? `<p class="mut sm">${note}</p>` : ''}
     ${S.champs.length ? `<div class="cpgrid" id="cpgrid">${grid}</div><p class="cp-empty mut" id="cp-empty" hidden>검색 결과가 없습니다.</p>` : `<p class="mut">챔피언 목록을 불러오지 못했습니다. 이름을 직접 입력하고 Enter를 누르세요.</p>`}`, 'tall cp-picker');
   const q = el.querySelector('#cpq');
   q.addEventListener('keydown', (e) => {
