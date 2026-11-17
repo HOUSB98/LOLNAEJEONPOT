@@ -170,12 +170,23 @@ function initPerf() {
 }
 act('liteToggle', () => { const on = !document.body.classList.contains('lite'); setLite(on); toast(on ? '가벼운 모드: 장식 효과를 줄였어요' : '가벼운 모드를 껐어요'); });
 const liteBtn = () => `<button class="btn ghost xs lite-btn ${document.body.classList.contains('lite') ? 'on' : ''}" data-a="liteToggle" title="장식 효과를 줄여 PC방·저사양 PC·게임과 함께 켜 둘 때 가볍게">${ic('bolt')}가벼운 모드 <u>${document.body.classList.contains('lite') ? 'ON' : 'OFF'}</u></button>`;
+const navFold = () => { try { return JSON.parse(localStorage.getItem('naejeon:navfold')) || []; } catch { return []; } };
+act('navGrp', (d) => {
+  const f = navFold(), on = !f.includes(d.g), next = on ? [...f, d.g] : f.filter((x) => x !== d.g);
+  try { localStorage.setItem('naejeon:navfold', JSON.stringify(next)); } catch {}
+  document.querySelectorAll(`#nav [data-g="${d.g}"]`).forEach((el) => el.classList.toggle('fold', on));
+  document.querySelector(`#nav .nav-h[data-g="${d.g}"]`)?.setAttribute('aria-expanded', String(!on));
+});
 export function initShell() {
   document.getElementById('brandlogo').innerHTML = logo(false, 40);
   initPerf();
   document.querySelector('.sidefoot')?.insertAdjacentHTML('beforeend', liteBtn());
   tabbar();
-  document.getElementById('nav').innerHTML = NAV.map(([p, t, soon]) => (p ? `<a href="#/${p}" data-p="${p}">${ic(p)}<span>${t}</span>${soon ? `<em>${soon}</em>` : ''}</a>` : `<h6>${t}</h6>`)).join('');
+  // 왼쪽 메뉴: 큰 분류(LEAGUE·ANALYSIS…) 제목을 누르면 접고 편다. 접은 분류도 지금 보고 있는 메뉴 하나는 보여 준다. 접은 상태는 이 브라우저에 기억
+  const fold = navFold();
+  let grp = '';
+  document.getElementById('nav').innerHTML = NAV.map(([p, t, soon]) => (p ? `<a href="#/${p}" data-p="${p}">${ic(p)}<span>${t}</span>${soon ? `<em>${soon}</em>` : ''}</a>`
+    : `${grp ? '</div>' : ''}<button type="button" class="nav-h ${fold.includes(t) ? 'fold' : ''}" data-a="navGrp" data-g="${(grp = t)}" aria-expanded="${!fold.includes(t)}"><h6>${t}</h6><i class="nav-chev"></i></button><div class="nav-g ${fold.includes(t) ? 'fold' : ''}" data-g="${t}">`)).join('') + '</div>';
   document.getElementById('mode').innerHTML = S.store.mode === 'local' ? '<span class="tag warn" title="이 브라우저에만 저장됩니다">체험 모드</span>' : '<span class="tag ok"><i class="live"></i>LIVE 동기화</span>';
   const on = (type, attr) => document.addEventListener(type, (e) => {
     const el = e.target.closest?.(`[${attr}]`);

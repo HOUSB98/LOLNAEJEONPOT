@@ -18,6 +18,37 @@ function ago(t) {
 }
 const posts = () => col('posts').filter((p) => !p.deleted && p.body).sort((a, b) => b.at - a.at);
 
+// ---------- 공감 / 비공감 ----------
+// 글 문서의 rx 에 { 표시값: 1 | -1 } 로 모은다. 표시값은 '글 id + 이 기기 id'의 해시 앞부분이라 누가 눌렀는지 알 수 없고, 한 기기는 글마다 한 번만 반영된다.
+// 내가 누른 것은 화면 강조용으로 이 브라우저에도 기억한다. 같은 버튼을 다시 누르면 취소, 반대 버튼을 누르면 바뀐다.
+const myRxKey = () => 'naejeon:rx:' + S.key;
+const myRx = () => { try { return JSON.parse(localStorage.getItem(myRxKey())) || {}; } catch { return {}; } };
+const rxCount = (p) => { const v = Object.values(p.rx || {}); return { up: v.filter((x) => x === 1).length, down: v.filter((x) => x === -1).length }; };
+const THUMB = (down) => `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"${down ? ' style="transform:scaleY(-1)"' : ''}><path d="M7 10v11H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h3Zm0 0 4-7.5a2 2 0 0 1 3.4 1.6L13.7 9H19a2 2 0 0 1 2 2.3l-1.3 7.5a2 2 0 0 1-2 1.7H7"/></svg>`;
+function rxBar(p) {
+  const c = rxCount(p), me = myRx()[p.id] || 0;
+  return `<div class="tk-rx"><button class="tk-rb up ${me === 1 ? 'on' : ''}" data-a="tkRx" data-id="${p.id}" data-v="1" aria-pressed="${me === 1}" title="공감">${THUMB(false)}<span>공감</span>${c.up ? `<b class="mono">${c.up}</b>` : ''}</button><button class="tk-rb down ${me === -1 ? 'on' : ''}" data-a="tkRx" data-id="${p.id}" data-v="-1" aria-pressed="${me === -1}" title="비공감">${THUMB(true)}${c.down ? `<b class="mono">${c.down}</b>` : ''}</button></div>`;
+}
+const rxBusy = new Set();
+act('tkRx', async (d) => {
+  if (rxBusy.has(d.id)) return;
+  const v = +d.v, mine = myRx(), was = mine[d.id] || 0, next = was === v ? 0 : v;
+  const cid = localStorage.getItem('naejeon:cid') || 'anon', h = (await sha(`rx:${d.id}:${cid}`)).slice(0, 16);
+  rxBusy.add(d.id);
+  try {
+    await S.store.tx('posts', d.id, (p) => {
+      if (!p || p.deleted) return null;
+      const rx = { ...(p.rx || {}) };
+      if (next) rx[h] = next; else delete rx[h];
+      return { ...p, rx };
+    });
+    if (next) mine[d.id] = next; else delete mine[d.id];
+    try { localStorage.setItem(myRxKey(), JSON.stringify(mine)); } catch {}
+    refresh();
+  } catch (e) { toast('반영 실패: ' + (e.code || e.message)); }
+  rxBusy.delete(d.id);
+});
+
 page('talk', {
   render() {
     const list = posts(), shown = list.slice(0, TK.shown);
@@ -39,6 +70,7 @@ page('talk', {
           <header><i class="tk-av">${ic('user')}</i><b>익명</b><small class="mut" title="${new Date(p.at).toLocaleString('ko')}">${ago(p.at)}</small><span class="grow"></span>
             <button class="btn ghost xs" data-a="tkDel" data-id="${p.id}" title="글 삭제">${ic('trash')}</button></header>
           ${p.title ? `<h3>${esc(p.title)}</h3>` : ''}<p class="tk-text">${esc(p.body)}</p>
+          ${rxBar(p)}
         </article>`).join('') || '<div class="panel empty">아직 글이 없어요. 첫 글을 남겨 보세요!</div>'}</div>
       ${list.length > TK.shown ? `<button class="btn block ghost" data-a="tkMore">이전 글 더 보기 (${list.length - TK.shown}개)</button>` : ''}`;
   },
