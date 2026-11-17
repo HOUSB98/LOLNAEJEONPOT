@@ -293,7 +293,7 @@ function play(k, res, dup) {
 act('gcMain', () => {
   if (!unlocked()) return; const pid = G.pid, s = S.st.P[pid]; if (!canPickChamp(s)) return;
   pickChamp({ title: `${s.name} · 기본 챔피언 고르기 (비우면 ${DEFAULT_CHAMP})`, current: sigChamp(s), onPick: async (name) => {
-    try { await S.store.patch('players', pid, { champ: name || '' }); toast(`기본 챔피언을 ${name || DEFAULT_CHAMP}(으)로 바꿨어요`); }
+    try { await S.store.patch('players', pid, { champ: name || '', skin: { champ: '', num: 0, name: '' } }); toast(`기본 챔피언을 ${name || DEFAULT_CHAMP}(으)로 바꿨어요`); }
     catch (e) { toast('저장 실패: ' + (e.code || e.message)); }
     refresh();
   } });
