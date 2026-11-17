@@ -1,5 +1,5 @@
 // 선수 카드(홀로 카드) / 솔랭 분석 / 케미 분석
-import { S, page, act, esc, pname, go, refresh, fmtDT, wrClass, wrBar, dots, streak, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, toast, ic, logo, countUp, burst, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct } from './core.js';
+import { S, page, act, esc, pname, go, refresh, fmtDT, wrClass, wrBar, dots, streak, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, baseChamp, skinList, skinBad, pickChamp, needAdmin, isAdmin, modal, closeModal, mh, toast, ic, logo, countUp, burst, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct } from './core.js';
 import { chem, playerLine, duoRank, CHEM_RULE } from './stats.js';
 import { cardChamp } from './core.js';
 
@@ -52,7 +52,7 @@ function holo(s, n) {
   <div class="gdeck" aria-hidden="true"><i class="gd-halo"></i><i class="gd-beam"></i><i class="gd-core"></i>${Array.from({ length: 14 }, (_, i) => `<u style="--i:${i}"></u>`).join('')}
     <div class="gd-con"><span class="jc l"><i class="stick"></i><i class="dpad"></i></span><span class="scr"><i class="scr-card"></i><i class="scr-scan"></i></span><span class="jc r"><i class="btns"></i><i class="stick"></i></span></div>
     <i class="gd-ring r1"></i><i class="gd-ring r2"></i><i class="gd-shadow"></i></div>
-  <small class="mut">카드 위에서 마우스를 움직여 보세요 · <button class="lnk" data-a="pcReplay">다시 소환</button></small></div>`;
+  <small class="mut">카드 위에서 마우스를 움직여 보세요 · <button class="lnk" data-a="pcReplay">다시 소환</button> · <button class="lnk" data-a="cardEdit" data-id="${s.id}" title="관리자 PIN 필요">카드 수정(관리자)</button></small></div>`;
 }
 
 // 리플레이로 쌓인 상세 지표. 여러 라인을 도는 선수가 불리하지 않도록 "맞라인 대비"와 "라인 평균=100 지수"를 함께 보여 준다
@@ -231,6 +231,36 @@ page('players', {
 });
 act('pvView', (d) => { PV.view = d.v; refresh(); });
 act('pvGr', (d) => { PV.gr = d.v; refresh(); });
+// 관리자 카드 수정: 챔피언(전체 중) → 그 챔피언의 스킨을 골라 players/{id}.champ·skin 에 저장한다(모든 화면에 반영)
+act('cardEdit', (d) => needAdmin(() => {
+  const s = S.st.P[d.id]; if (!s) return;
+  pickChamp({ title: `${s.name} · 카드 챔피언 고르기 (관리자)`, current: baseChamp(sigChamp(s)), onPick: (name) => {
+    if (!name) return saveCard(d.id, '', 0, '');
+    skinModal(s, name, 0);
+  } });
+}));
+function skinModal(s, name, tries) {
+  const c = S.champBy[name]; if (!c) return;
+  const list = skinList(name);
+  if (!list) { // 스킨 목록을 받는 중이면 잠시 기다렸다 다시 연다
+    if (tries === 0) modal(`${mh(`${esc(s.name)} · ${esc(name)} 스킨 선택`)}<p class="mut">스킨 목록을 불러오는 중…</p>`, 'tall');
+    return tries < 20 ? setTimeout(() => skinModal(s, name, tries + 1), 250) : toast('스킨 목록을 불러오지 못했어요. 잠시 뒤 다시 해 주세요');
+  }
+  const url = (n) => `https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/${c.id === 'Fiddlesticks' ? 'FiddleSticks' : c.id}_${n}.jpg`;
+  const cur = s.p.champ === name ? +s.p.skin?.num || 0 : -1;
+  modal(`${mh(`${esc(s.name)} · ${esc(name)} 스킨 선택`)}
+    <p class="mut sm">고른 챔피언·스킨이 선수 카드·랭킹·홈 등 이 선수가 나오는 모든 화면에 보여요. 선수가 가챠 페이지에서 기본 챔피언을 다시 고르면 기본 스킨으로 바뀌어요.</p>
+    <div class="skgrid">${[[0, '기본'], ...list].map(([n, nm]) => `<button class="skp ${n === cur ? 'on' : ''}" data-a="cardSkin" data-id="${s.id}" data-n="${n}" data-c="${esc(name)}" data-nm="${esc(nm)}"><img src="${url(n)}" alt=""><span>${esc(nm)}</span></button>`).join('')}</div>`, 'tall').querySelectorAll('.skp img').forEach((im) => {
+    const b = im.closest('.skp'), drop = () => { b.remove(); skinBad(name, +b.dataset.n); }; // 일러스트가 없는 스킨은 빼고 기록
+    if (+b.dataset.n) { im.onerror = drop; if (im.complete && !im.naturalWidth) drop(); }
+  });
+}
+async function saveCard(id, champ, num, nm) {
+  if (!isAdmin()) return toast('관리자만 바꿀 수 있어요');
+  try { await S.store.patch('players', id, { champ, skin: { champ, num: +num || 0, name: +num ? nm : '' } }); closeModal(); toast(champ ? '선수 카드를 바꿨어요' : '선수 카드를 기본으로 되돌렸어요'); refresh(); }
+  catch (e) { toast('저장 실패: ' + (e.code || e.message)); }
+}
+act('cardSkin', (d) => saveCard(d.id, d.c, d.n, d.nm));
 act('pvLane', (d) => { PV.dl = d.l; refresh(); });
 act('pcReplay', () => { const w = document.querySelector('.holo-wrap'); if (w?.summon && !w.classList.contains('intro')) w.summon(); });
 act('pcSel', (d, el) => go('#/players/' + el.value));

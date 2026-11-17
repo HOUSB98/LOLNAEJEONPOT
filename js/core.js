@@ -313,8 +313,11 @@ export const DEFAULT_CHAMP = '가렌';
 export const FREE_SIG = ['혜나'];
 export const canPickChamp = (s) => !!s && !FREE_SIG.some((n) => s.name?.includes(n));
 export const cardChamp = (s) => sigChamp(s); // 예전 이름 호환
+// players/{id}.skin = {champ, num, name}: 관리자가 "카드 수정"에서 고른 스킨. 그 챔피언이 대표일 때만 쓴다(선수가 직접 고르면 기본 스킨으로 초기화)
+const chosenSkin = (s, name) => { const k = s.p?.skin; return k && k.champ === name && +k.num && !isBad(name, +k.num) ? skinAlias(name, +k.num, k.name) : name; };
 export function sigChamp(s) {
-  if (canPickChamp(s)) return S.champBy[s.p?.champ] ? s.p.champ : DEFAULT_CHAMP;
+  if (S.champBy[s.p?.champ]) return chosenSkin(s, s.p.champ); // 선수(가챠 페이지)나 관리자가 고른 챔피언 — 혜나도 관리자가 정하면 따른다
+  if (canPickChamp(s)) return DEFAULT_CHAMP;
   const preferred = SIG_CHAMP_PREF[s.name];
   if (preferred && S.champBy[preferred]) return skinFor(s, preferred);
   const st = S.st; let cnt = sigCache.get(st);
