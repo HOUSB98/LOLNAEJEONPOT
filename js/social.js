@@ -233,7 +233,8 @@ function splash() {
   el.classList.add('on'); el.classList.remove('boot');
   splashScene(el); // 시즌 장식 기간이면 밤하늘·달·산타 썰매 배경
   nySplash(el); // 새해(1/1~1/15)면 불꽃놀이·풍등 배경
-  const stop = embers(el.querySelector('canvas'));
+  // 기본 불씨 캔버스는 시즌 배경(크리스마스·새해)에서는 가려지므로 아예 돌리지 않는다(보이지 않는 캔버스를 계속 그리면 인트로가 끊긴다)
+  const stop = el.classList.contains('xs') || el.classList.contains('ny') ? () => {} : embers(el.querySelector('canvas'));
   const close = () => { if (el.dataset.done) return; el.dataset.done = 1; sessionStorage.setItem('naejeon:welcomed', '1'); el.classList.add('out'); setTimeout(() => { stop(); el.remove(); }, 900); };
   if (first) {
     setTimeout(() => el.querySelector('#spn')?.focus(), 1900);
