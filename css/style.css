@@ -1185,7 +1185,7 @@ button,a,.slot{-webkit-tap-highlight-color:transparent}
   #chatfab:hover{transform:none}
   #chatbadge{top:-5px;right:-5px;min-width:17px;height:17px;font-size:10px}
   body.chat-closed #presence{margin-right:44px}
-  #toast{bottom:calc(var(--tb) + var(--safe) + 16px)}
+  #toast{bottom:calc(var(--tb) + var(--safe) + 10px);padding:8px 14px;font-size:13px;max-width:calc(100vw - 32px)}
   #joinfeed{bottom:calc(var(--tb) + var(--safe) + 76px)}
   #chat{width:100vw;padding-bottom:var(--safe)}
   /* iOS는 16px보다 작은 입력창에 포커스하면 화면을 확대한다 */
@@ -1776,7 +1776,11 @@ button.sticker.xmas:hover{background:linear-gradient(rgba(200,48,58,.22),rgba(31
 .gc-orb::after{content:"";position:absolute;left:0;right:0;top:50%;height:2px;background:rgba(0,0,0,.35)}
 .gc-go:not(:disabled) .gc-orb{animation:gcbob 2.4s ease-in-out infinite}
 @keyframes gcbob{50%{transform:translateY(-3px) rotate(-6deg)}}
-.gc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+.gc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}.gc-grid .gc-empty{grid-column:1/-1;margin:6px 0}
+.lnk:disabled{opacity:.4;cursor:not-allowed;text-decoration:none;color:var(--mut)}
+.gc-steps{display:flex;flex-wrap:wrap;gap:6px 18px;margin:4px 0 10px;padding-left:18px;font-size:12px;color:var(--text)}.gc-steps li::marker{color:var(--gold);font-weight:700}
+.gc-main.need{border-color:var(--gold);box-shadow:0 0 0 1px color-mix(in srgb,var(--gold) 40%,transparent),0 0 24px -10px var(--gold)}.gc-main-art.empty{display:grid;place-items:center;background:var(--panel2);border-style:dashed}.gc-main-art.empty i{font:800 28px var(--mono);color:var(--gold);font-style:normal}
+.gc-first{color:var(--gold);margin:0 0 6px}.gx-eq{margin-top:8px}.gx-need{display:block;margin-top:6px;font-size:12px;color:var(--mut)}
 .gc-it{--c:#aaa;position:relative;display:flex;flex-direction:column;gap:3px;padding:6px;border-radius:12px;border:1px solid color-mix(in srgb,var(--c) 45%,var(--line));background:var(--panel2);color:var(--text);font:inherit;text-align:left;cursor:pointer;transition:.15s}
 .gc-it:hover:not(:disabled){transform:translateY(-2px);border-color:var(--c)}.gc-it:disabled{opacity:.5;cursor:not-allowed}
 .gc-main{display:flex;align-items:center;gap:14px;padding:12px 14px;margin-bottom:12px;flex-wrap:wrap}.gc-main-art{flex:none;width:64px;height:64px;border-radius:14px;background:var(--img) center/cover,var(--panel2);border:1px solid var(--gold);box-shadow:0 0 18px -6px var(--gold)}.gc-main-tx{flex:1;min-width:180px;display:flex;flex-direction:column;gap:2px}.gc-main-tx small{font:700 10px var(--mono);letter-spacing:.14em;color:var(--gold)}.gc-main-tx b{font-size:18px}
