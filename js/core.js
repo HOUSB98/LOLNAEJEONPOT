@@ -322,7 +322,8 @@ export const cardChamp = (s) => sigChamp(s); // 예전 이름 호환
 const chosenSkin = (s, name) => { const k = s.p?.skin; return k && k.champ === name && +k.num && !isBad(name, +k.num) ? skinAlias(name, +k.num, k.name) : name; };
 export function sigChamp(s) {
   if (S.champBy[s.p?.champ]) return chosenSkin(s, s.p.champ); // 선수(가챠 페이지)나 관리자가 고른 챔피언 — 혜나도 관리자가 정하면 따른다
-  if (!presetCard(s)) return DEFAULT_CHAMP;
+  const pre = presetCard(s); if (!pre) return DEFAULT_CHAMP;
+  return +pre.num && !isBad(pre.champ, +pre.num) ? skinAlias(pre.champ, +pre.num, pre.name) : pre.champ; // 처음부터 가진 챔피언·스킨(혜나: 불꽃놀이 유미)
   const preferred = SIG_CHAMP_PREF[s.name];
   if (preferred && S.champBy[preferred]) return skinFor(s, preferred);
   const st = S.st; let cnt = sigCache.get(st);
