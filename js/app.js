@@ -12,7 +12,7 @@ import './auction.js';
 import './admin.js';
 import './maker.js';
 import { watchPosts } from './talk.js';
-import { initXmas } from './xmas.js';
+import { initXmas, xmasOn } from './xmas.js';
 import { initNewYear } from './newyear.js';
 
 const num = (v, cls = '') => `<td class="num ${cls}">${v}</td>`;
@@ -98,27 +98,56 @@ function noticeTick() {
   [...ol.children].forEach((li) => li.animate([{ transform: `translateY(-${h}px)` }, { transform: 'none' }], { duration: 900, easing: 'cubic-bezier(.3,.7,.15,1)' }));
   last.animate([{ opacity: 0 }, { opacity: 0, offset: 0.35 }, { opacity: 1 }], { duration: 900 });
 }
-// 홈 배너: 내전에 나온 챔피언(적으면 전체)의 일러스트를 순서를 섞어 차례로 보여 준다
-const HERO = { list: [], i: 0, t: 0, flip: 0 };
+// 홈 배너: 내전에 나온 챔피언(적으면 전체)의 일러스트를 순서를 섞어 차례로 보여 준다.
+// 크리스마스 시즌(시즌 장식 ON)에는 겨울·크리스마스 스킨 일러스트로 바꾼다. 항목: { url, cap }
+const HERO = { list: [], i: 0, t: 0, flip: 0, xm: false };
+const shuffle = (a) => a.map((x) => [Math.random(), x]).sort((p, q) => p[0] - q[0]).map((x) => x[1]);
+// 겨울 스킨이 있을 만한 챔피언 후보. 실제로는 패치 데이터에서 스킨 이름을 확인해 아래 낱말이 들어간 스킨만 쓴다(후보에 있어도 해당 스킨이 없으면 빠진다)
+const XMAS_IDS = ['Amumu', 'Anivia', 'Annie', 'Bard', 'Braum', 'Corki', 'Draven', 'Ezreal', 'Fiddlesticks', 'Gangplank', 'Gnar', 'Gragas', 'Graves', 'Heimerdinger', 'Ivern', 'Janna', 'Jinx', 'Karma', 'Katarina', 'Kayle', 'Kassadin', 'Kennen', 'Leona', 'Lissandra', 'Lulu', 'Lux', 'Malphite', 'MasterYi', 'Morgana', 'Neeko', 'Nidalee', 'Nunu', 'Orianna', 'Poppy', 'Rakan', 'Sett', 'Shaco', 'Singed', 'Sivir', 'Sona', 'Soraka', 'Syndra', 'Taliyah', 'Teemo', 'TwistedFate', 'Veigar', 'Yuumi', 'Ziggs', 'Zilean', 'Zoe'];
+const XMAS_KW = /눈 오는 날|겨울 동화|겨울 축제|산타|눈사람|고요한 밤|호두까기|썰매|눈토끼|루돌프|진저|크리스마스|성탄|선물|눈꽃|눈송이/;
+const XM = { list: null, busy: false };
+// 크리스마스 스킨 목록: 한 번 찾으면 패치 버전과 함께 기기에 저장해 다음부터는 바로 쓴다
+async function xmasSkins() {
+  if (XM.list || XM.busy || !S.ver || !S.champs.length) return XM.list;
+  try { const c = JSON.parse(localStorage.getItem('naejeon:xmasskins')); if (c?.ver === S.ver && c.list?.length) return (XM.list = c.list); } catch {}
+  XM.busy = true;
+  const byId = Object.fromEntries(S.champs.map((c) => [c.id, c.name])), ids = XMAS_IDS.filter((id) => byId[id]), found = [];
+  for (let i = 0; i < ids.length; i += 6) {
+    await Promise.all(ids.slice(i, i + 6).map(async (id) => {
+      try { const d = await (await fetch(`https://ddragon.leagueoflegends.com/cdn/${S.ver}/data/ko_KR/champion/${id}.json`)).json(); d.data[id].skins.filter((k) => k.num > 0 && XMAS_KW.test(k.name)).forEach((k) => found.push([byId[id], id, k.num, k.name])); } catch {}
+    }));
+  }
+  XM.busy = false;
+  if (found.length >= 3) { XM.list = found; try { localStorage.setItem('naejeon:xmasskins', JSON.stringify({ ver: S.ver, list: found })); } catch {} }
+  return XM.list;
+}
+const xmasArt = (id, num) => `https://ddragon.leagueoflegends.com/cdn/img/champion/centered/${id === 'Fiddlesticks' ? 'FiddleSticks' : id}_${num}.jpg`;
 function heroList() {
-  if (HERO.list.length || !S.champs.length) return HERO.list;
-  const played = S.st.champs.filter((c) => c.g && S.champBy[c.name]).map((c) => c.name);
-  const pool = played.length >= 6 ? played : S.champs.map((c) => c.name);
-  HERO.list = pool.map((n) => [Math.random(), n]).sort((a, b) => a[0] - b[0]).map((x) => x[1]).slice(0, 40);
+  const want = xmasOn() && !!XM.list;
+  if (HERO.list.length && HERO.xm === want) return HERO.list;
+  if (!S.champs.length) return HERO.list;
+  HERO.xm = want; HERO.i = 0;
+  if (want) HERO.list = shuffle(XM.list.map(([, id, num, name]) => ({ url: xmasArt(id, num), cap: name })));
+  else {
+    const played = S.st.champs.filter((c) => c.g && S.champBy[c.name]).map((c) => c.name);
+    const pool = played.length >= 6 ? played : S.champs.map((c) => c.name);
+    HERO.list = shuffle(pool).slice(0, 40).map((n) => ({ url: artUrl(n), cap: n }));
+  }
   return HERO.list;
 }
-function heroNext() {
+function heroNext(tries = 0) {
   const list = HERO.list, bgs = document.querySelectorAll('.hero-bg'); if (list.length < 2 || bgs.length < 2) return;
-  const name = list[(HERO.i + 1) % list.length], url = artUrl(name), img = new Image();
+  const it = list[(HERO.i + 1) % list.length], img = new Image();
   img.onload = () => {
     if (S.page !== 'home' || !document.body.contains(bgs[0])) return;
     HERO.i = (HERO.i + 1) % list.length; HERO.flip ^= 1;
     const show = bgs[HERO.flip], hide = bgs[HERO.flip ^ 1];
-    show.style.setProperty('--img', `url('${url}')`); show.classList.add('on'); hide.classList.remove('on');
+    show.style.setProperty('--img', `url('${it.url}')`); show.classList.add('on'); hide.classList.remove('on');
     const cap = document.getElementById('herocap');
-    if (cap) { cap.classList.remove('sw'); void cap.offsetWidth; cap.querySelector('b').textContent = name; cap.classList.add('sw'); }
+    if (cap) { cap.classList.remove('sw'); void cap.offsetWidth; cap.querySelector('em').textContent = HERO.xm ? 'HOLIDAY SKIN' : 'CHAMPION'; cap.querySelector('b').textContent = it.cap; cap.classList.add('sw'); }
   };
-  img.src = url;
+  img.onerror = () => { HERO.list.splice((HERO.i + 1) % list.length, 1); if (tries < 5) heroNext(tries + 1); }; // 일러스트가 없는 스킨은 빼고 다음으로
+  img.src = it.url;
 }
 // 라인별 챔피언 기록: 경기 기록의 챔피언 칸 순서(탑→서폿)로 라인을 나눈다
 function laneChamps() {
@@ -172,7 +201,7 @@ function formPanel() {
 page('home', {
   render() {
     const st = S.st, x = st.sum, now = new Date();
-    const hl = heroList(), hero = hl.length ? hl[HERO.i % hl.length] : '';
+    const hl = heroList(), hero = hl.length ? hl[HERO.i % hl.length] : null;
     const date = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')} ${'일월화수목금토'[now.getDay()]}요일`;
     const patch = S.ver ? S.ver.split('.').slice(0, 2).join('.') : '—';
     const hof = hofList(), top = st.list.filter((s) => s.g >= 3).sort((a, b) => b.ovr - a.ovr).slice(0, 3), nt0 = notices(), nt = nt0.map((_, i) => nt0[(i - (NT.off % nt0.length) + nt0.length) % nt0.length]);
@@ -180,14 +209,14 @@ page('home', {
     HERO.flip = 0;
     return `
     <section class="hero">
-      <div class="hero-bg on" style="--img:url('${artUrl(hero)}')"></div><div class="hero-bg alt"></div>
+      <div class="hero-bg on" style="--img:url('${hero?.url || ''}')"></div><div class="hero-bg alt"></div>
       <div class="hero-in">
         <div class="hero-logo">${logo(true, 92)}<div><div class="word"><span>NAEJEON</span><i>POT</i></div><p>${esc(settings().leagueName || '친구 내전 리그')} · IN-HOUSE LEAGUE</p></div></div>
         <h1 class="hero-h" aria-label="우리들의 협곡, 모든 기록이 여기에.">${typed('우리들의 협곡,')}<br><em>${typed('모든 기록이 여기에.')}</em></h1>
         <div class="hero-meta"><span>${ic('cal')}${date}</span><span class="patch">PATCH ${patch}</span><span>${ic('today')}누적 ${x.n}경기</span></div>
         <div class="hero-cta"><a class="btn pri" href="#/today">${ic('today')}오늘의 내전 시작</a><a class="btn" href="#/rank">${ic('rank')}랭킹 보기</a></div>
       </div>
-      ${hero ? `<span class="hero-cap" id="herocap">CHAMPION · <b>${esc(hero)}</b></span>` : ''}
+      ${hero ? `<span class="hero-cap" id="herocap"><em>${HERO.xm ? 'HOLIDAY SKIN' : 'CHAMPION'}</em> · <b>${esc(hero.cap)}</b></span>` : ''}
     </section>
     <div class="stats">
       ${stat('today', '총 경기', x.n, `내전 ${x.days}일`, 'gold')}
@@ -223,6 +252,8 @@ page('home', {
     else if (TY.timer) typeTick(); else document.querySelector('.hero-h')?.classList.add('typed');
     HM.t = setInterval(() => { if (S.page !== 'home') return clearInterval(HM.t); if (!document.querySelector('#car:hover')) carMove(1); }, 4200);
     HERO.t = setInterval(() => { if (S.page !== 'home') return clearInterval(HERO.t); if (document.visibilityState === 'visible') heroNext(); }, 6500);
+    // 크리스마스 시즌: 겨울 스킨 목록을 (처음 한 번) 찾아오면 바로 스킨 일러스트로 넘긴다
+    if (xmasOn() && !XM.list) xmasSkins().then((l) => { if (l && S.page === 'home' && xmasOn()) { heroList(); HERO.i = -1; heroNext(); } });
   },
 });
 act('homeLane', (d) => { HM.lane = d.l; refresh(); });
