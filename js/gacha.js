@@ -134,25 +134,26 @@ function lockHTML() {
       <button class="btn pri" ${sel && !wait ? '' : 'disabled'}>${sel && !wait && !has ? 'PIN 정하고 시작' : '열기'}</button></form>
     ${sel && has ? '<p class="hint">PIN을 잊었다면 관리자에게 초기화를 부탁하세요. <button class="lnk" data-a="gcReset">관리자: PIN 초기화</button></p>' : ''}</div></div>`;
 }
-function itemTile(src, name, sub, color) {
-  return `<div class="gc-it" style="--c:${color}"><span class="gc-it-art" style="--img:url('${src}')"></span><b>${esc(name)}</b>${sub ? `<small>${sub}</small>` : ''}</div>`;
+function itemTile(src, name, sub, color, on, attrs) {
+  return `<button class="gc-it ${on ? 'on' : ''}" style="--c:${color}" ${attrs}><span class="gc-it-art" style="--img:url('${src}')"></span><b>${esc(name)}</b>${sub ? `<small>${sub}</small>` : ''}${on ? '<em>적용 중</em>' : ''}</button>`;
 }
-// 보관함(챔피언·스킨 탭): 뽑은 것을 모아 보여 준다. 선수 카드 일러스트는 "대표 챔피언 고르기"에서 따로 정한다
+// 보관함(챔피언·스킨 탭): 누르면 내 선수 카드에 적용. 가챠 페이지와 선수 카드의 "카드 꾸미기" 창에서 같이 쓴다
 function colHTML() {
-  const d = G.doc, by = champById();
+  const d = G.doc, by = champById(), p = S.st.P[G.pid]?.p || {}, curNum = p.skin?.champ === p.champ ? +p.skin?.num || 0 : 0;
   const champs = Object.entries(d.champs || {}).map(([id, n]) => ({ id, n, c: by[id] })).filter((x) => x.c).sort((a, b) => a.c.name.localeCompare(b.c.name, 'ko'));
   const skins = Object.entries(d.skins || {}).map(([sid, x]) => ({ sid, ...x })).sort((a, b) => TIER_META.findIndex((q) => q.k === b.tier) - TIER_META.findIndex((q) => q.k === a.tier) || a.name.localeCompare(b.name, 'ko'));
   return `<div class="ph"><b>${ic('star')}내 보관함</b><span class="grow"></span><div class="seg"><button class="${G.tab === 'champ' ? 'on' : ''}" data-a="gcTab" data-t="champ">챔피언 ${champs.length}</button><button class="${G.tab === 'skin' ? 'on' : ''}" data-a="gcTab" data-t="skin">스킨 ${skins.length}</button></div></div>
-      <p class="hint">선수 카드에 보일 챔피언은 위의 <b>기본 챔피언 고르기</b>에서 전체 챔피언 중 자유롭게 정할 수 있어요.</p>
+      <p class="hint">누르면 내 선수 카드에 적용돼요(랭킹·홈 등 모든 화면, 모두에게 보여요). 챔피언은 기본 스킨으로, 스킨은 그 스킨으로 바뀌어요.</p>
       <div class="gc-grid">${G.tab === 'champ'
-        ? champs.map((x) => itemTile(tileOf(x.id), x.c.name, x.n > 1 ? `×${x.n}` : '', CHAMP_COLOR)).join('') || '<p class="mut sm">아직 뽑은 챔피언이 없어요.</p>'
-        : skins.map((x) => itemTile(tileOf(x.c, x.num), x.name, `${TIER[x.tier]?.name || ''}${x.n > 1 ? ` · ×${x.n}` : ''}`, TIER[x.tier]?.c || '#aaa')).join('') || '<p class="mut sm">아직 뽑은 스킨이 없어요.</p>'}</div>`;
+        ? champs.map((x) => itemTile(tileOf(x.id), x.c.name, x.n > 1 ? `×${x.n}` : '', CHAMP_COLOR, p.champ === x.c.name && !curNum, `data-a="gcEquip" data-t="champ" data-id="${x.id}"`)).join('') || '<p class="mut sm">아직 뽑은 챔피언이 없어요.</p>'
+        : skins.map((x) => itemTile(tileOf(x.c, x.num), x.name, `${TIER[x.tier]?.name || ''}${x.n > 1 ? ` · ×${x.n}` : ''}`, TIER[x.tier]?.c || '#aaa', p.champ === by[x.c]?.name && curNum === +x.num, `data-a="gcEquip" data-t="skin" data-id="${x.sid}"`)).join('') || '<p class="mut sm">아직 뽑은 스킨이 없어요.</p>'}</div>`;
 }
+const mainRow = (s) => { const main = sigChamp(s); return `<div class="panel gc-main"><span class="gc-main-art" style="--img:url('${main ? tileUrl(main) : ''}')"></span><div class="gc-main-tx"><small>MY CHAMPION</small><b>${esc(main || DEFAULT_CHAMP)}</b><span class="mut sm">선수 카드·랭킹·홈 등 내 선수가 나오는 모든 화면에 보여요. 전체 챔피언 중 기본 스킨으로 고르거나, 아래 보관함에서 뽑은 챔피언·스킨을 눌러 적용해요.</span></div><button class="btn gold" data-a="gcMain">${ic('star')}기본 챔피언 고르기</button></div>`; };
 function mineHTML() {
-  const d = G.doc, s = S.st.P[G.pid], t = tickets(G.pid, d), main = s && sigChamp(s);
+  const d = G.doc, s = S.st.P[G.pid], t = tickets(G.pid, d);
   const ready = S.champs.length > 0, c = gcfg(), SHOP = c.shop;
   return `<div class="gc-who"><span>${ic('user')}<b>${esc(s?.name || '?')}</b> 님의 가챠</span><span class="grow"></span><button class="btn ghost xs" data-a="gcLock">${ic('lock')}잠그기</button></div>
-    ${canPickChamp(s) ? `<div class="panel gc-main"><span class="gc-main-art" style="--img:url('${main ? tileUrl(main) : ''}')"></span><div class="gc-main-tx"><small>MY CHAMPION</small><b>${esc(main || DEFAULT_CHAMP)}</b><span class="mut sm">선수 카드·랭킹·홈 등 내 선수가 나오는 모든 화면에 보이는 기본 챔피언이에요. 전체 챔피언 중 자유롭게 고를 수 있어요(기본 스킨).</span></div><button class="btn gold" data-a="gcMain">${ic('star')}기본 챔피언 고르기</button></div>` : ''}
+    ${canPickChamp(s) ? mainRow(s) : ''}
     <div class="gc-tix">
       <div class="gc-tk ch"><small>CHAMPION TICKET</small><b class="mono">${t.left.champ}</b><span>챔피언 뽑기권</span><em>다음까지 ${t.next.champ}판 · 희생 보너스 ${t.sac - t.next.sac}/${t.sac}</em></div>
       <div class="gc-tk sk"><small>SKIN TICKET</small><b class="mono">${t.left.skin}</b><span>스킨 뽑기권</span><em>다음까지 ${t.next.skin}판</em></div>
@@ -179,7 +180,8 @@ page('gacha', {
 // ---------- 동작 ----------
 act('gcPick', async (d, el) => { G.pid = el.value; G.doc = null; G.docFor = null; G.h = ''; refresh(); });
 document.addEventListener('submit', async (e) => {
-  if (e.target.id !== 'gcf') return;
+  if (e.target.id !== 'gcf' && e.target.id !== 'gcdf') return;
+  const inDeco = e.target.id === 'gcdf';
   e.preventDefault();
   const pin = (e.target.querySelector('input[type=password]')?.value || '').trim();
   if (!G.pid) return toast('선수를 먼저 골라 주세요');
@@ -196,14 +198,14 @@ document.addEventListener('submit', async (e) => {
   await loadDoc();
   if (G.doc?.pinHash !== h) return toast(res ? 'PIN 저장에 실패했어요' : 'PIN이 맞지 않아요');
   G.h = h; saveMe(); toast(res ? 'PIN을 정했어요. 이 기기에서는 다시 묻지 않아요' : '열었어요');
-  refresh();
+  if (inDeco) renderDeco(); else refresh();
 });
 act('gcLock', () => { G.h = ''; saveMe(); refresh(); });
 act('gcReset', () => needAdmin(async () => {
   if (!G.pid || !confirm(`${S.st.P[G.pid]?.name} 선수의 가챠 PIN을 초기화할까요? (뽑기권·보관함은 그대로)`)) return;
   await S.store.patch('gacha', G.pid, { pinHash: '' }); await loadDoc(); toast('PIN을 초기화했어요. 새 PIN을 정해 주세요');
 }));
-act('gcTab', (d) => { G.tab = d.t; refresh(); });
+act('gcTab', (d) => { G.tab = d.t; if (document.querySelector('#modal.on .deco-in')) renderDeco(); else refresh(); });
 
 // 조각 → 뽑기권
 act('gcBuy', async (d) => {
@@ -302,6 +304,40 @@ act('gcMain', () => {
     refresh();
   } });
 });
+
+// 보관함에서 적용: players/{id}.champ + skin{champ,num,name}
+act('gcEquip', async (d) => {
+  if (!unlocked()) return; const pid = G.pid; if (!canPickChamp(S.st.P[pid])) return toast('이 선수는 카드 챔피언이 고정이에요');
+  const by = champById(); let champ, num = 0, name = '';
+  if (d.t === 'champ') { const c = by[d.id]; if (!c || !G.doc.champs?.[d.id]) return; champ = c.name; }
+  else { const x = G.doc.skins?.[d.id], c = x && by[x.c]; if (!c) return; champ = c.name; num = +x.num; name = x.name; }
+  try { await S.store.patch('players', pid, { champ, skin: { champ, num, name } }); toast(`내 선수 카드에 ${name || champ}을(를) 적용했어요`); }
+  catch (e) { return toast('실패: ' + (e.code || e.message)); }
+  refresh(); if (document.querySelector('#modal.on .deco-in')) setTimeout(renderDeco, 60); // 통계가 다시 계산된 뒤 창을 새로 그린다
+});
+
+// ---------- 선수 카드의 "카드 꾸미기" 창: 본인 PIN 확인 → 기본 챔피언 고르기 + 보관함 ----------
+export async function openDeco(pid) {
+  const s = S.st.P[pid]; if (!canPickChamp(s)) return;
+  if (G.pid !== pid) {
+    let me = null; try { me = JSON.parse(localStorage.getItem(meKey()) || 'null'); } catch {}
+    G.pid = pid; G.h = me?.pid === pid ? me.h : ''; G.doc = null; G.docFor = null;
+  }
+  modal(`<div class="deco-in">${mh(`${ic('star')}${esc(s.name)} 카드 꾸미기`)}<p class="mut">불러오는 중…</p></div>`, 'tall deco');
+  if (G.docFor !== pid) await loadDoc();
+  renderDeco();
+}
+function renderDeco() {
+  const box = document.querySelector('#modal.on .deco-in'); if (!box) return;
+  const s = S.st.P[G.pid], head = mh(`${ic('star')}${esc(s?.name || '')} 카드 꾸미기`);
+  if (!G.doc?.pinHash) box.innerHTML = `${head}<p>본인만 꾸밀 수 있도록 가챠 페이지에서 먼저 PIN을 정해 주세요. 정한 뒤에는 여기서 바로 꾸밀 수 있어요.</p><button class="btn pri" data-a="decoGo">${ic('gacha')}가챠로 가기</button>`;
+  else if (!unlocked()) box.innerHTML = `${head}<p class="mut sm">본인 확인을 위해 가챠 PIN을 입력해 주세요. 이 기기에서는 다시 묻지 않아요.</p>
+    <form id="gcdf" class="gc-lock-f"><input class="inp" type="password" inputmode="numeric" maxlength="8" placeholder="PIN 입력" autocomplete="off"><button class="btn pri">확인</button></form>`;
+  else box.innerHTML = `${head}${mainRow(s)}<div class="gc-col">${colHTML()}</div><p class="hint">더 뽑으려면 <button class="lnk" data-a="decoGo">가챠 페이지</button>로 가세요.</p>`;
+  box.querySelector('input[type=password]')?.focus();
+}
+act('decoOpen', (d) => openDeco(d.id));
+act('decoGo', () => { closeModal(); location.hash = '#/gacha'; });
 
 // ---------- 관리 화면: 가챠 설정(확률·지급 기준) ----------
 const NUM = (n, v, step = 'any', w = '') => `<input class="inp mono gcf-n" name="${n}" type="number" min="0" step="${step}" value="${v}" ${w}>`;
