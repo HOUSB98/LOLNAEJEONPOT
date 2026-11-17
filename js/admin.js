@@ -39,6 +39,7 @@ page('admin', {
     return `<h1>${ic('admin')}관리</h1>
     <div class="panel"><div class="ph"><b>${ic('save')}내보내기 · 백업</b></div>
       <div class="row wrapr"><button class="btn" data-a="exportCsv">⬇ 경기 기록 CSV</button><button class="btn" data-a="exportPlayers">⬇ 선수 CSV</button><button class="btn" data-a="backup">⬇ 전체 백업 (JSON)</button><button class="btn ghost" data-a="restore">⬆ 백업 복원</button></div>
+      <div class="row wrapr"><span class="mut sm">로고 내려받기</span><a class="btn xs" href="brand/naejeonpot-logo-1024.png" download>⬇ PNG 1024</a><a class="btn xs" href="brand/naejeonpot-logo-512.png" download>⬇ PNG 512</a><a class="btn xs" href="brand/naejeonpot-icon-512.png" download title="아래 MAISON 글씨 없는 아이콘">⬇ 아이콘 PNG</a><a class="btn xs ghost" href="brand/naejeonpot-logo.svg" download title="확대해도 깨지지 않는 벡터 파일">⬇ SVG</a></div>
       <p class="hint">${S.store.mode === 'local' ? `${ic('alert')}` + ' 지금은 체험 모드라 데이터가 이 브라우저에만 저장됩니다. Firebase를 연결하면 친구들과 실시간으로 공유됩니다(README 참고).' : '데이터는 Firebase에 저장됩니다. Firestore 무료 요금제는 오래 안 써도 일시정지되지 않지만, 가끔 전체 백업을 내려받아 두세요.'}</p></div>
 
     <div class="panel"><div class="ph"><b>${ic('bolt')}Firebase 사용량</b><small class="mut">무료 한도 대비 오늘 사용량</small><span class="grow"></span>${hookOn() && !/billing/i.test(USAGE.err) ? '<button class="btn xs" data-a="uzLoad">새로고침</button>' : ''}</div>
