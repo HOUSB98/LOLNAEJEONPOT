@@ -62,7 +62,11 @@ page('maker', {
       </div>
     </section>`;
   },
-  after() { rain(document.getElementById('mkcv')); },
+  after() {
+    // 코드 글꼴(JetBrains Mono)은 이 화면에서만 쓰므로 처음 들어올 때 받는다
+    if (!document.getElementById('f-jbm')) document.head.insertAdjacentHTML('beforeend', '<link id="f-jbm" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap">');
+    rain(document.getElementById('mkcv'));
+  },
 });
 
 // 배경: 여러 색의 기호·수식이 세로로 흘러내린다. 다른 화면으로 가면 스스로 멈춘다.

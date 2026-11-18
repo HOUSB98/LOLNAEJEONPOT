@@ -98,6 +98,20 @@ export function logo(anim = false, size = 44) {
 const pages = {}, acts = {};
 export const page = (id, def) => (pages[id] = def);
 export const act = (name, fn) => (acts[name] = fn);
+// 자주 안 쓰는 화면은 처음 들어갈 때 코드를 받는다(첫 접속 용량 절약). 다른 화면에서 쓰는 버튼(actNames)은 누를 때 받는다.
+const LAZY = {};
+export function lazyPage(id, load, actNames = []) {
+  const get = () => (LAZY[id] ||= load().catch((e) => { delete LAZY[id]; throw e; }));
+  const stub = pages[id] = {
+    render: () => '<div class="panel empty lazy-wait">불러오는 중…</div>',
+    after() {
+      get().then(() => { if (S.page === id && pages[id] !== stub) { lastRoute = ''; render(); } })
+        .catch(() => { if (S.page === id) document.getElementById('main').innerHTML = '<div class="panel empty">화면을 불러오지 못했어요. 새로고침해 주세요.</div>'; });
+    },
+  };
+  actNames.forEach((n) => { const f = (...a) => get().then(() => acts[n] !== f && acts[n](...a)).catch(() => toast('잠시 뒤 다시 눌러 주세요')); acts[n] = f; });
+  return get;
+}
 export const NAV = [
   ['', 'LEAGUE'], ['home', '홈'], ['rank', '랭킹'], ['matches', '경기 기록'], ['players', '선수 카드'],
   ['', 'ANALYSIS'], ['champs', '챔피언'], ['chem', '케미'],

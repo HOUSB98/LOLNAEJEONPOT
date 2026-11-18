@@ -318,11 +318,11 @@ page('chem', {
       <div class="cbox"><div class="cbh"><small>RIVALRY</small><h2>${pname(cur)}가 상대했을 때</h2><span>상대 전적 · 높은 순</span></div>${bars(c.vs)}</div></div>
     <details class="panel"><summary><b>전체 매트릭스 펼치기</b><small class="mut"> 세로 선수 기준 · 큰 숫자는 승률(%), 작은 숫자는 판수</small></summary>
       <div class="row"><div class="seg"><button class="${CM.mode === 'duo' ? 'on' : ''}" data-a="cmMode" data-v="duo">같은 팀(듀오)</button><button class="${CM.mode === 'vs' ? 'on' : ''}" data-a="cmMode" data-v="vs">상대 전적</button></div></div>
-      <div class="tw"><table class="tbl mx"><thead><tr><th class="l">선수</th>${on.map((s) => `<th>${esc(s.name)}</th>`).join('')}</tr></thead>
-      <tbody>${on.map((a) => `<tr><td class="l nm">${esc(a.name)}</td>${on.map((b) => cell(a.id, b.id)).join('')}</tr>`).join('')}</tbody></table></div></details>`;
+      ${CM.open ? `<div class="tw"><table class="tbl mx"><thead><tr><th class="l">선수</th>${on.map((s) => `<th>${esc(s.name)}</th>`).join('')}</tr></thead>
+      <tbody>${on.map((a) => `<tr><td class="l nm">${esc(a.name)}</td>${on.map((b) => cell(a.id, b.id)).join('')}</tr>`).join('')}</tbody></table></div>` : ''}</details>`;
   },
   after() {
-    const d = document.querySelector('details.panel'); if (d) { d.open = !!CM.open; d.ontoggle = () => (CM.open = d.open); }
+    const d = document.querySelector('details.panel'); if (d) { d.open = !!CM.open; d.ontoggle = () => { if (CM.open === d.open) return; CM.open = d.open; if (d.open) refresh(); }; } // 매트릭스 표는 펼칠 때만 그린다
     clearInterval(CM.t); // 듀오 순위 자동 넘김(6초). 마우스를 올려 두면 멈춘다
     CM.t = setInterval(() => {
       if (S.page !== 'chem') return clearInterval(CM.t);
