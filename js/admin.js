@@ -50,7 +50,7 @@ page('admin', {
       <div class="row wrapr"><button class="btn" data-a="hkTest">디스코드 테스트 알림</button><button class="btn" data-a="hkRiot">라이엇 전적 지금 갱신</button><button class="btn" data-a="hkWeekly" title="매주 금요일 저녁 8시에 자동으로 올라가는 결산을 지금 미리 보내 봅니다">주간 결산 지금 보내기</button></div>
       ${UZ.riot ? `<p class="sm">${esc(UZ.riot)}</p>` : ''}<p class="hint">라인 지원이 열릴 때와 경기 결과를 저장할 때 디스코드 채널에 알림이 올라갑니다. 라이엇 갱신은 선수의 라이엇 ID(이름#태그)로 솔랭 티어·전적을 채우며, 한 사람은 하루 한 번만 갱신됩니다.</p>` : ''}</div>
 
-    <div class="panel"><div class="ph"><b>${ic('users')}선수 관리</b><span class="tag">${st.list.length}명</span><span class="grow"></span><button class="btn xs" data-a="scOut" title="점수 조정을 맡길 사람에게 줄 파일(이름·라인 점수만 들어 있음)">⬇ 점수표 파일</button><button class="btn xs" data-a="scIn" title="조정자가 고친 점수표 파일을 올려 반영(관리자 PIN 필요)">⬆ 점수표 올리기</button><button class="btn pri xs" data-a="plEdit" data-id="">＋ 선수 추가</button></div>
+    <div class="panel"><div class="ph"><b>${ic('users')}선수 관리</b><span class="tag">${st.list.length}명</span><span class="grow"></span><button class="btn xs" data-a="scOut" title="점수 조정을 맡길 사람에게 줄 파일(이름·라인 점수만 들어 있음)">⬇ 점수표 파일</button><button class="btn xs" data-a="scIn" title="조정자가 고친 점수표 파일을 올려 반영(관리자 PIN 필요)">⬆ 점수표 올리기</button><button class="btn xs" data-a="slOpen" title="최근 라인 점수 변경을 익명 게시판 댓글·단톡방에 붙여 넣을 글로 정리">📋 변경 내역 복사</button><button class="btn pri xs" data-a="plEdit" data-id="">＋ 선수 추가</button></div>
       <div class="lockbar ${adm ? 'open' : ''}">${adm ? `${ic('shield')}<b>관리자 모드</b><span>점수와 주라인을 칸에서 바로 고치면 즉시 저장됩니다. 이 창을 닫기 전까지 유지됩니다.</span><button class="btn xs" data-a="admLock">잠그기</button>` : `${ic('shield')}<b>잠겨 있음</b><span>관리자 PIN을 한 번 입력하면 모든 선수의 점수를 바로 수정할 수 있습니다.</span><button class="btn gold xs" data-a="admUnlock">관리자 PIN 입력</button>`}</div>
       <div class="tw scw"><table class="tbl edit score ${adm ? '' : 'locked'}"><thead><tr><th class="no">#</th><th class="l">이름</th>${LANES.map((l) => `<th class="lh l-${l}">${LANE_ICON[l]}${LANE_NAME[l]}</th>`).join('')}<th>평균</th><th>주라인</th><th class="l">솔랭 티어</th><th>시작 MMR</th><th></th></tr></thead>
       <tbody>${st.list.map((s, i) => `<tr><td class="no mono">${i + 1}</td><td class="l nm"><span class="nmc">${LANE_ICON[s.mainLane]}${esc(s.name)}</span></td>${LANES.map((l) => `<td class="scd l-${l} ${s.mainLane === l ? 'main' : ''}" style="--v:${Math.min(100, (+s.p.scores?.[l] || 0) * 5)}%"><input id="sc-${s.id}-${l}" class="inp cell mono" type="number" min="0" max="20" step="0.5" value="${s.p.scores?.[l] ?? 0}" data-c="plScore" data-id="${s.id}" data-l="${l}" ${adm ? '' : 'disabled'}></td>`).join('')}<td class="num mono avg"><b>${s.avg.toFixed(1)}</b></td><td><select class="inp cell" data-c="plMain" data-id="${s.id}" ${adm ? '' : 'disabled'}>${LANES.map((l) => `<option value="${l}" ${s.mainLane === l ? 'selected' : ''}>${LANE_NAME[l]}</option>`).join('')}</select></td><td class="l tier">${esc(s.p.soloTier || '-')}</td><td class="num mono">${s.mmrInit}</td><td><button class="btn xs" data-a="plEdit" data-id="${s.id}">상세</button></td></tr>`).join('') || '<tr><td colspan="11" class="empty">선수가 없습니다.</td></tr>'}</tbody></table></div>
@@ -252,6 +252,55 @@ act('plEdit', (d) => needAdmin(() => {
     await S.store.patch('players', p.id, { deleted: true }); closeModal(); toast('숨겼습니다');
   };
 }));
+// ---------- 라인 점수 변경 내역 → 붙여 넣을 글 ----------
+// meta/scorelog 기록을 선수·라인별로 묶는다. 같은 라인을 여러 번 바꿨으면 처음 값 → 지금 값 하나로, 결국 그대로면 뺀다.
+// 지금 값은 선수 문서의 실제 점수. 익명 게시판 댓글은 500자까지라 넘으면 여러 개로 나눈다.
+const SL = { range: 7 };
+const SL_MAX = 500;
+const fmtSc = (v) => String(Math.round(v * 10) / 10);
+function scoreChanges(days) {
+  const now = Date.now(), since = days ? now - days * 864e5 : 0, P = S.st.P;
+  const items = (S.store.data.meta?.scorelog?.items || []).filter((x) => x && +x.at >= since && P[x.pid] && LANES.includes(x.lane)).sort((a, b) => a.at - b.at);
+  const by = new Map();
+  for (const x of items) if (!by.has(x.pid + '|' + x.lane)) by.set(x.pid + '|' + x.lane, { pid: x.pid, lane: x.lane, from: +x.from || 0 });
+  const rows = [...by.values()].map((r) => ({ ...r, to: +P[r.pid].p.scores?.[r.lane] || 0 })).filter((r) => r.to !== r.from);
+  const per = new Map();
+  for (const r of rows) (per.get(r.pid) || per.set(r.pid, []).get(r.pid)).push(r);
+  const md = (t) => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()}`; };
+  const first = items[0]?.at;
+  const lines = [...per.entries()].sort((a, b) => P[a[0]].name.localeCompare(P[b[0]].name, 'ko', { numeric: true })).map(([pid, rs]) =>
+    `${P[pid].name} — ` + rs.sort((a, b) => LANES.indexOf(a.lane) - LANES.indexOf(b.lane)).map((r) => `${LANE_NAME[r.lane]} ${fmtSc(r.from)}→${fmtSc(r.to)}${r.to > r.from ? '▲' : '▼'}`).join(', '));
+  const all = S.store.data.meta?.scorelog?.items || [];
+  return { lines, n: rows.length, up: rows.filter((r) => r.to > r.from).length, period: first ? `${md(first)} ~ ${md(now)}` : '', full: all.length >= 80 && +all[0]?.at >= since, oldest: +all[0]?.at };
+}
+function scoreText(days) {
+  const c = scoreChanges(days);
+  if (!c.lines.length) return { c, parts: [] };
+  const head = (i, n) => `📊 라인 점수 변경 (${c.period})${n > 1 ? ` ${i}/${n}` : ''}`;
+  const foot = `총 ${c.lines.length}명 · ${c.n}건 (▲${c.up} ▼${c.n - c.up})`;
+  const chunks = []; let cur = [];
+  const fits = (arr, last) => [head(9, 9), ...arr, ...(last ? ['', foot] : [])].join('\n').length <= SL_MAX;
+  for (const l of c.lines) { if (cur.length && !fits([...cur, l], false)) { chunks.push(cur); cur = []; } cur.push(l); }
+  if (cur.length) { if (!fits(cur, true) && cur.length > 1) { const last = cur.pop(); chunks.push(cur); cur = [last]; } chunks.push(cur); }
+  return { c, parts: chunks.map((ls, i) => [head(i + 1, chunks.length), ...ls, ...(i === chunks.length - 1 ? ['', foot] : [])].join('\n')) };
+}
+function slDraw() {
+  const { c, parts } = scoreText(SL.range);
+  const old = c.full ? `<p class="hint">점수 변경 기록은 최근 80건까지만 남아서, ${fmtDT(c.oldest)} 이전 변경은 빠져 있을 수 있어요.</p>` : '';
+  return `${mh('라인 점수 변경 내역 복사')}
+    <div class="seg sl-seg">${[[7, '최근 7일'], [30, '최근 30일'], [0, '남은 기록 전체']].map(([v, t]) => `<button class="${SL.range === v ? 'on' : ''}" data-a="slRange" data-v="${v}">${t}</button>`).join('')}</div>
+    ${parts.length ? parts.map((t, i) => `<div class="sl-part"><div class="sl-ph"><b>${parts.length > 1 ? `댓글 ${i + 1}/${parts.length}` : '붙여 넣을 글'}</b><small class="mono">${t.length}/${SL_MAX}자</small><span class="grow"></span><button class="btn xs pri" data-a="slCopy" data-i="${i}">복사</button></div><textarea class="inp sl-ta" readonly rows="${Math.min(12, t.split('\n').length + 1)}">${esc(t)}</textarea></div>`).join('')
+      : '<div class="panel empty">이 기간에는 바뀐 라인 점수가 없어요.</div>'}
+    <p class="hint">같은 라인을 여러 번 바꿨으면 처음 점수 → 지금 점수로 한 번만 적고, 결국 그대로인 라인은 뺐어요. 익명 게시판 댓글은 ${SL_MAX}자까지라 길면 여러 개로 나눠요.</p>${old}`;
+}
+act('slOpen', () => modal(`<div class="sl-in">${slDraw()}</div>`, 'tall'));
+act('slRange', (d) => { SL.range = +d.v; const el = document.querySelector('#modal.on .sl-in'); if (el) el.innerHTML = slDraw(); });
+act('slCopy', async (d) => {
+  const t = scoreText(SL.range).parts[+d.i]; if (!t) return;
+  try { await navigator.clipboard.writeText(t); toast('복사했어요. 익명 게시판 댓글에 붙여 넣으세요'); }
+  catch { const ta = document.querySelectorAll('#modal.on .sl-ta')[+d.i]; ta?.select(); toast('글을 길게 눌러 복사해 주세요'); }
+});
+
 // 라인 점수 변경 기록(홈 공지에 쓴다): meta/scorelog.items 에 최근 80건만 남긴다
 async function logScores(list) {
   if (!list.length) return;
