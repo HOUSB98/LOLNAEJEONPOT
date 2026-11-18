@@ -398,7 +398,7 @@ async function finishRun(d) { // 'play'→'done'을 먼저 바꾼 한 사람만 
 }
 
 // ---------- 다른 사람의 게시판 받기 ----------
-let bseen = null, docWatch = false;
+let bseen = null;
 function onBoard(d) {
   const k = d ? d.rid + d.status : '';
   if (bseen === null) { bseen = k; return; }
@@ -415,10 +415,7 @@ export function watchBoard(initial) {
   const d = cur();
   if (initial) { if (bseen === null) bseen = d ? d.rid + d.status : ''; }
   else onBoard(d);
-  if (!docWatch && S.store.mode === 'firebase') {
-    docWatch = true;
-    S.store.watchDoc('meta', 'board', (doc) => onBoard(doc && doc.rid ? doc : null), (e) => console.error('[board] listener', e));
-  }
+  // 문서를 따로 구독하지 않는다: meta 컬렉션 구독(app.js)이 바뀔 때마다 이 함수를 불러 준다(같은 변경을 두 번 읽지 않게)
 }
 // 열어 둔 화면에서도 시간이 지나 만료되면 '라인 지원 중' 버튼 표시를 끈다(1분마다 확인)
 let liveWas = null;

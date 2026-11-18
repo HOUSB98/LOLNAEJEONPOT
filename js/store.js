@@ -3,6 +3,7 @@
 //   put / patch / tx : 쓰기. 삭제는 없다(문서에 deleted:true 를 표시하는 방식).
 import { FIREBASE_CONFIG } from './config.js';
 
+// 읽기 줄이기: 경기 기록은 바뀐 것만(upd), 접속 표시는 최근 하루, 채팅 30·게시판 10개만 실시간, 라인 지원·주사위는 meta 구독 하나로.
 // reveals(승률 공개 이벤트)는 계속 쌓이는 기록이라 전체를 구독하지 않고 watchCollection으로 최근 것만 따로 듣는다.
 const WATCHED = ['players', 'matches', 'auctions', 'meta', 'presence', 'chat', 'posts'];
 const CHAT_LIMIT = 30; // 채팅은 문서가 계속 쌓이므로 최근 30개만 구독한다(기록 자체는 DB에 남는다)
@@ -110,28 +111,51 @@ async function firebaseStore(key, onChange) {
   const cached = {};
   setTimeout(() => WATCHED.forEach((col) => cached[col] && mark(col)), 4000); // 캐시가 있으면 4초, 없으면(첫 방문·빈 컬렉션) 12초까지 서버를 기다린다
   setTimeout(() => WATCHED.forEach(mark), 12000);
-  WATCHED.forEach((col) => {
+  // 경기 기록: 기기에 저장된 기록(Firestore 로컬 캐시)을 먼저 쓰고, 서버에서는 마지막 수정 시각(upd) 이후에 바뀐 경기만 받는다.
+  // 하루에 한 번은 전체를 다시 받아 혹시 빠진 것을 맞추고, upd 가 없는 예전 기록에는 이때 upd 를 채워 넣는다.
+  const FULL_KEY = 'naejeon:mfull:' + key;
+  async function matchesQuery(src) {
+    const base = {};
+    try { (await fs.getDocsFromCache(src)).forEach((d) => (base[d.id] = { ...d.data(), id: d.id })); } catch {}
+    const docs = Object.values(base), ups = docs.map((d) => d.upd?.toMillis?.()).filter(Number.isFinite);
+    const lastFull = +localStorage.getItem(FULL_KEY) || 0;
+    const inc = docs.length > 0 && ups.length > 0 && docs.every((d) => d.upd) && Date.now() - lastFull < 24 * 3600e3;
+    return inc ? { q: fs.query(src, fs.where('upd', '>=', fs.Timestamp.fromMillis(Math.max(...ups)))), base, inc } : { q: src, base: {}, inc };
+  }
+  let backfilled = false;
+  const backfill = (m) => { // upd 가 없는 예전 경기 기록에 수정 시각을 한 번 채운다(한 번만, 쓰기 = 그 경기 수)
+    if (backfilled || !Object.values(m).some((d) => !d.upd)) return; backfilled = true;
+    // 여러 사람이 동시에 채우지 않게 잠시(3~30초) 기다렸다가, 그때도 비어 있는 것만 채운다
+    setTimeout(() => Object.values(data.matches || {}).filter((d) => !d.upd).forEach((d) => fs.setDoc(ref('matches', d.id), { upd: fs.serverTimestamp() }, { merge: true }).catch(() => {})), 3000 + Math.random() * 27000);
+  };
+  WATCHED.forEach(async (col) => {
     data[col] = {};
     const src = fs.collection(db, 'leagues', key, col);
     const lim = col === 'chat' ? CHAT_LIMIT : col === 'posts' ? POST_LIMIT : 0;
-    fs.onSnapshot(lim ? fs.query(src, fs.orderBy('at', 'desc'), fs.limit(lim)) : src, { includeMetadataChanges: true }, (snap) => {
+    let q = lim ? fs.query(src, fs.orderBy('at', 'desc'), fs.limit(lim)) : src, base = null, inc = false;
+    if (col === 'presence') q = fs.query(src, fs.where('at', '>', Date.now() - 24 * 3600e3)); // 접속 표시는 최근 하루 안의 기록만(표시는 원래 12분 안의 사람만)
+    if (col === 'matches') { ({ q, base, inc } = await matchesQuery(src)); if (inc) { data[col] = { ...base }; cached[col] = true; } }
+    fs.onSnapshot(q, { includeMetadataChanges: true }, (snap) => {
       const fromServer = !snap.metadata.fromCache, first = !seen[col];
       if (!first && !snap.docChanges().length) return; // 내용은 그대로이고 상태 표시만 바뀐 알림은 무시(다시 그리지 않음)
-      const m = {};
+      const m = base ? { ...base } : {};
       snap.forEach((d) => (m[d.id] = { ...d.data(), id: d.id }));
       data[col] = m;
       if (first && !fromServer) { cached[col] = snap.size > 0 || cached[col]; return; } // 캐시 값: 담아만 두고 서버 확인을 기다린다
+      if (col === 'matches' && !inc && fromServer && first) { try { localStorage.setItem(FULL_KEY, String(Date.now())); } catch {} backfill(m); }
       mark(col);
       onChange(col);
     }, (err) => { console.error(err); mark(col); onChange('error', err); });
   });
+  // 경기 기록을 쓸 때는 항상 서버 시각으로 upd 를 붙인다(다른 기기가 '바뀐 경기'로 알아보는 기준)
+  const stamp = (col, o) => (col === 'matches' ? { ...o, upd: fs.serverTimestamp() } : o);
   return {
     mode: 'firebase', data, ready,
     serverNow,
     serverClockReady: () => !!clockSyncedAt && performance.now() - clockSyncedAt < 5 * 60e3,
     syncServerClock,
     watchDoc: (col, id, onData, onError) => fs.onSnapshot(ref(col, id), (snap) => {
-      if (snap.metadata.fromCache) return; // 캐시의 옛 값은 건너뛴다(주사위·라인 지원이 지난 일을 다시 띄우지 않게). 처음 상태는 위 구독에서 이미 받았다
+      if (snap.metadata.fromCache) return; // 캐시의 옛 값은 건너뛴다
       onData(snap.exists() ? { ...snap.data(), id: snap.id } : null, snap);
     }, onError),
     watchCollection: (col, onSnap, onError) => {
@@ -155,12 +179,12 @@ async function firebaseStore(key, onChange) {
     older: async (col, before, n) => (await fs.getDocs(fs.query(fs.collection(db, 'leagues', key, col), fs.orderBy('at', 'desc'), fs.startAfter(before), fs.limit(n)))).docs.map((d) => ({ ...d.data(), id: d.id })),
     // 조건에 맞는 문서 수(문서를 내려받지 않음, 1,000개당 읽기 1번으로 계산)
     count: async (col, field, value) => (await fs.getCountFromServer(fs.query(fs.collection(db, 'leagues', key, col), fs.where(field, '==', value)))).data().count,
-    put: (col, id, doc) => fs.setDoc(ref(col, id), clean({ ...doc, id })),
-    patch: (col, id, part) => fs.setDoc(ref(col, id), clean(part), { merge: true }),
+    put: (col, id, doc) => fs.setDoc(ref(col, id), stamp(col, clean({ ...doc, id }))),
+    patch: (col, id, part) => fs.setDoc(ref(col, id), stamp(col, clean(part)), { merge: true }),
     tx: (col, id, fn) => fs.runTransaction(db, async (t) => {
       const s = await t.get(ref(col, id));
       const next = fn(s.exists() ? { ...s.data(), id } : null);
-      if (next) t.set(ref(col, id), clean({ ...next, id }));
+      if (next) t.set(ref(col, id), stamp(col, clean({ ...next, id })));
       return next ? { ...next, id } : null;
     }),
   };
