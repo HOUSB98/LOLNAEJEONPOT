@@ -22,28 +22,13 @@ export function dayKey(at) {
   const d = new Date(at - 6 * 3600e3); // 새벽 6시 전 경기는 전날 내전으로 묶는다
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-// ---------- 시즌(한 달) ----------
-// 시즌 = 한국 시간 매달 1일 새벽 6시 ~ 다음 달 1일 새벽 6시(내전 날짜 묶음과 같은 기준: 새벽 6시 전 경기는 전날).
-// 순위 = 그 달 경기에서 오르내린 MMR 의 합(시즌 점수). SEASON_MIN 판 이상 뛴 선수만 순위에 오른다. 같으면 승률 → 판수.
-export const SEASON_MIN = 6;
-export const seasonKey = (at) => new Date(at + 3 * 3600e3).toISOString().slice(0, 7); // KST(+9) - 6시간
-export const seasonName = (k) => `${+k.slice(5)}월`;
-export const seasonFull = (k) => `${k.slice(0, 4)}년 ${+k.slice(5)}월`;
-export const seasonEnd = (k) => Date.UTC(+k.slice(0, 4), +k.slice(5), 1) - 3 * 3600e3; // 다음 달 1일 06:00 KST
-export function seasonTable(st, k) {
-  const rows = Object.entries(st.seasons[k] || {}).filter(([id]) => st.P[id]).map(([id, r]) => ({ s: st.P[id], id, g: r.g, w: r.w, pts: r.pts, wr: pct(r.w, r.g) }));
-  const ranked = rows.filter((r) => r.g >= SEASON_MIN).sort((a, b) => b.pts - a.pts || b.wr - a.wr || b.g - a.g);
-  ranked.forEach((r, i) => (r.rank = i + 1));
-  const rest = rows.filter((r) => r.g < SEASON_MIN).sort((a, b) => b.g - a.g || b.pts - a.pts);
-  return { ranked, rest, n: rows.reduce((a, r) => a + r.g, 0) / 10 };
-}
 const pk = (a, b) => (a < b ? a + '|' + b : b + '|' + a);
 const blank = () => ({ g: 0, w: 0 });
 const add = (o, win) => { o.g++; if (win) o.w++; };
 // 리플레이에서 읽는 확장 지표(경기별 stats에 v:2와 함께 저장). 뜻은 js/replay.js의 toRows 참고
 export const XKEYS = ['mk', 'jk', 'pd', 'md', 'td', 'obj', 'tur', 'heal', 'healT', 'shT', 'mit', 'cc', 'wk', 'cw', 'dk', 'tk', 'qk', 'pk', 'spree', 'tw', 'spent', 'dead', 'crit'];
 
-export function compute(playerList, matchList, settings, seasonDoc) {
+export function compute(playerList, matchList, settings) {
   const cfg = { ...DEFAULTS, ...settings };
   const players = playerList.filter((p) => !p.deleted);
   const matches = matchList.filter((m) => !m.deleted && m.winner).sort((a, b) => a.at - b.at || (a.seq || 0) - (b.seq || 0));
@@ -58,7 +43,7 @@ export function compute(playerList, matchList, settings, seasonDoc) {
       mainLane: p.mainLane || LANES.reduce((a, l) => ((p.scores?.[l] || 0) > (p.scores?.[a] || 0) ? l : a), 'top'),
     };
   }
-  const together = {}, versus = {}, laneVs = {}, champs = {}, MI = {}, dayCount = {}, seriesMap = {}, seasons = {};
+  const together = {}, versus = {}, laneVs = {}, champs = {}, MI = {}, dayCount = {}, seriesMap = {};
   let blueW = 0, hit = 0, hitN = 0, gapSum = 0, devSum = 0, upsets = 0, maxUpset = null, hof = { n: 0, ids: [] };
 
   matches.forEach((m, idx) => {
@@ -81,7 +66,6 @@ export function compute(playerList, matchList, settings, seasonDoc) {
     gapSum += Math.abs(bs - rs); devSum += Math.abs(pBlue - 0.5);
     if (upset) { upsets++; if (!maxUpset || pWin < maxUpset.p) maxUpset = { p: pWin, m }; }
     const hour = new Date(m.at).getHours();
-    const SE = (seasons[seasonKey(m.at)] ||= {});
 
     for (const side of ['blue', 'red']) {
       const ids = m[side], win = m.winner === side, opp = m[side === 'blue' ? 'red' : 'blue'];
@@ -93,7 +77,6 @@ export function compute(playerList, matchList, settings, seasonDoc) {
         if (lane !== s.mainLane) add(s.off, win);
         s.results.push(win); s.lastAt = m.at; s.pSum += myP;
         s.mmrLast = side === 'blue' ? delta : -delta; s.mmr += s.mmrLast;
-        { const r = (SE[id] ||= { g: 0, w: 0, pts: 0 }); r.g++; if (win) r.w++; r.pts += s.mmrLast; }
         s.hist.push({ at: m.at, mmr: s.mmr, g: s.g, w: s.w, win }); // 성장 그래프용(경기마다 MMR·누적 승률)
         if (hour < 5) s.dawn++;
         if (myP < 0.5 && win) s.dogWins++;
@@ -198,22 +181,13 @@ export function compute(playerList, matchList, settings, seasonDoc) {
   const dx3 = list.filter((s) => s.dx && s.dx.g >= 3), topOf = (k) => [...dx3].sort((a, b) => b.dx[k] - a.dx[k])[0];
   const ctx = { q15, maxG, todayTopW, top: byOvr[0], together, versus, topVis: topOf('vpm'), topTank: topOf('taken'), topScore: [...dx3].sort((a, b) => b.dx.score - a.dx.score)[0] };
   for (const s of list) s.titles = TITLES.filter((t) => { try { return t.test(s, ctx); } catch { return false; } });
-  // 명예의 전당(meta/seasons): 역대 시즌 1~3위는 칭호를 맨 앞에, 가장 최근 시즌 1~3위는 카드 테두리(medal)
-  const hall = Object.entries(seasonDoc?.list || {}).sort((a, b) => (a[0] < b[0] ? 1 : -1));
-  const MEDAL = ['🥇', '🥈', '🥉'];
-  hall.forEach(([k, h], hi) => (h.top || []).slice(0, 3).forEach((t, i) => {
-    const s = P[t.id]; if (!s) return;
-    s.titles.unshift({ e: MEDAL[i], n: `${seasonName(k)} 시즌 ${i + 1}위`, d: `${seasonFull(k)} 시즌 ${i + 1}위 · 시즌 점수 ${t.pts >= 0 ? '+' : ''}${(+t.pts).toFixed(1)} (${t.g}판 ${t.w}승)`, season: k });
-    if (hi === 0) s.medal = i + 1;
-  }));
-  for (const s of list) s.titles.sort((a, b) => (b.season ? 1 : 0) - (a.season ? 1 : 0) || (b.season || '').localeCompare(a.season || '')); // 시즌 칭호는 최근 것부터 맨 앞
 
   const best10 = list.filter((s) => s.g >= 10).sort((a, b) => b.wr - a.wr)[0];
   const best5 = list.filter((s) => s.g >= 5).sort((a, b) => b.wr - a.wr)[0];
   const n = matches.length;
   const series = Object.entries(seriesMap).map(([id, ms]) => ({ id, ms, day: dayKey(ms[0].at), at: ms[0].at })).sort((a, b) => a.at - b.at);
   return {
-    cfg, P, list, byOvr, matches, MI, seasons, seasonNow: seasonKey(Date.now()), hall, together, versus, laneVs, laneAvg, laneRank, series, days, lastDay,
+    cfg, P, list, byOvr, matches, MI, together, versus, laneVs, laneAvg, laneRank, series, days, lastDay,
     champs: Object.values(champs).sort((a, b) => b.g - a.g || b.w - a.w),
     sum: {
       n, blueW, redW: n - blueW, days: days.length, lastDayN: lastDay ? dayCount[lastDay] : 0,

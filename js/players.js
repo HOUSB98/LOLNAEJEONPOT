@@ -35,8 +35,7 @@ function listView() {
 }
 
 // 가챠 스킨 등급(전설 이상)을 적용하면 카드 테두리가 그 등급 색으로 빛난다
-// 가장 최근 시즌 1~3위는 금·은·동 테두리(다음 시즌 결과가 기록될 때까지)
-const skinTier = (s) => { const k = s.p?.skin; return (k && k.champ === s.p.champ && +k.num && ['legendary', 'ultimate', 'mythic', 'transcendent'].includes(k.tier) ? 'gt gt-' + k.tier : '') + (s.medal ? ` sm sm${s.medal}` : ''); };
+const skinTier = (s) => { const k = s.p?.skin; return k && k.champ === s.p.champ && +k.num && ['legendary', 'ultimate', 'mythic', 'transcendent'].includes(k.tier) ? 'gt gt-' + k.tier : ''; };
 function holo(s, n) {
   const p = s.p, r = rarity(s, n), sc = LANES.map((l) => [l, +p.scores?.[l] || 0]).sort((a, b) => b[1] - a[1]);
   const weak = sc[4][0], sig = cardChamp(s), line = playerLine(s, S.st).split('. ')[0].replace(/\.$/, '') + '.';

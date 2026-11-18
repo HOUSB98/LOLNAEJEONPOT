@@ -14,7 +14,7 @@
 //   RATE_READ / RATE_WRITE / RATE_DELETE  (선택) 무료 한도를 넘었을 때 10만 건당 요금(달러). 기본값은 서울 리전 추정치
 //   USD_KRW          (선택) 원화 환산 환율. 기본값 1400
 // 예약 실행(Cron) 두 개: '0,10,20 19 * * *' = 라이엇 갱신(매일 새벽 4시), '*/30 * * * *' = 사용량 감시(무료 한도 근접·요금 디스코드 알림)
-//   + 주간 결산(매주 금요일 저녁 8시)·시즌 결산(매달 1일 낮 12시)도 30분 예약 실행에서 시간이 됐는지 확인해 보낸다(Cron 추가 설정 필요 없음)
+//   + 주간 결산(매주 금요일 저녁 8시)도 30분 예약 실행에서 시간이 됐는지 확인해 보낸다(Cron 추가 설정 필요 없음)
 
 const PROJECT = 'lolnaejeonpot';
 const API_KEY = 'AIzaSyBx9DdwpagQTZqFqkISJLPpRe7zHYKOgC0'; // Firebase 웹 API 키(공개값). 접근 권한은 LEAGUE_KEY와 Firestore 규칙이 정한다
@@ -355,75 +355,46 @@ async function watchUsage(env) {
   return { sent: msgs.length };
 }
 
-// ---------- 주간 결산 · 시즌 결산 ----------
-// 사이트(js/stats.js)와 같은 방식으로 MMR 을 처음부터 다시 계산해 시즌 점수(그 달 MMR 오르내림의 합)를 낸다.
-// 보낸 기록은 ops/reports 문서에 둔다(같은 주·같은 시즌을 두 번 보내지 않게).
-const WEEKLY_DAY = 5, WEEKLY_HOUR = 20, SEASON_POST_HOUR = 12; // 금요일 20시 주간 결산, 매달 1일 12시 시즌 결산(한국 시간)
-const SEASON_MIN = 6, SEASON_FROM = '2026-11';
-const seasonKey = (at) => new Date(at + 3 * 3600e3).toISOString().slice(0, 7); // 한국 시간 새벽 6시 기준
-const seasonEnd = (k) => Date.UTC(+k.slice(0, 4), +k.slice(5), 1) - 3 * 3600e3;
-const seasonFull = (k) => `${k.slice(0, 4)}년 ${+k.slice(5)}월`;
-const sgn = (v) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}`;
+// ---------- 주간 결산 ----------
+// 지난 7일 경기만 골라 읽어(at 범위 질의) 가볍게 계산한다. 보낸 기록은 ops/reports 문서에 둔다(같은 주를 두 번 보내지 않게).
+const WEEKLY_DAY = 5, WEEKLY_HOUR = 20; // 금요일 20시(한국 시간)
 const GACHA_RANK = ['transcendent', 'mythic', 'ultimate', 'legendary', 'epic', 'common'];
 const GACHA_NAME = { transcendent: '초월', mythic: '신화', ultimate: '궁극', legendary: '전설', epic: '에픽', common: '일반' };
 async function reports(env) {
   if (!env.DISCORD_WEBHOOK) return { skipped: true };
-  const kst = new Date(Date.now() + 9 * 3600e3), day = kst.toISOString().slice(0, 10), h = kst.getUTCHours();
-  const weekly = kst.getUTCDay() === WEEKLY_DAY && h >= WEEKLY_HOUR;
-  const seasonDay = kst.getUTCDate() === 1 && h >= SEASON_POST_HOUR;
-  if (!weekly && !seasonDay) return { skipped: 'not time' }; // 시간이 아닐 때는 아무것도 읽지 않는다
-  const st = (await getDoc(env, 'ops', 'reports')) || {}, out = {};
-  if (weekly && st.week !== day) { out.weekly = await weeklyReport(env); await commit(env, [patchWriteAny(env, 'ops', 'reports', { week: day })]); }
-  const prev = seasonKey(Date.now() - 2 * 86400e3);
-  if (seasonDay && st.season !== prev && prev >= SEASON_FROM) { out.season = await seasonReport(env, prev); await commit(env, [patchWriteAny(env, 'ops', 'reports', { season: prev })]); }
+  const kst = new Date(Date.now() + 9 * 3600e3), day = kst.toISOString().slice(0, 10);
+  if (kst.getUTCDay() !== WEEKLY_DAY || kst.getUTCHours() < WEEKLY_HOUR) return { skipped: 'not time' }; // 시간이 아닐 때는 아무것도 읽지 않는다
+  const st = (await getDoc(env, 'ops', 'reports')) || {};
+  if (st.week === day) return { skipped: 'sent' };
+  const out = await weeklyReport(env);
+  await commit(env, [{ update: { name: docName(env, 'ops', 'reports'), fields: enc({ week: day }).mapValue.fields }, updateMask: { fieldPaths: ['week'] } }]);
   return out;
 }
-const patchWriteAny = (env, col, id, fields) => ({ update: { name: docName(env, col, id), fields: enc(fields).mapValue.fields }, updateMask: { fieldPaths: Object.keys(fields) } }); // 문서가 없으면 만든다
-async function leagueData(env) {
-  const [{ docs: players }, { docs: matches }, settings] = await Promise.all([
-    listDocs(env, 'players', { fields: ['name', 'deleted', 'mmrInit', 'soloTier', 'scores'] }),
-    listDocs(env, 'matches', { fields: ['at', 'seq', 'winner', 'blue', 'red', 'deleted', 'champs'], max: 20 }),
-    getDoc(env, 'meta', 'settings').catch(() => null),
-  ]);
-  const k = +settings?.k || 12, P = {};
-  for (const p of players) if (!p.deleted) P[p.id] = { id: p.id, name: p.name || '?', mmr: initMmr(p) };
-  const list = matches.filter((m) => !m.deleted && m.winner && Array.isArray(m.blue) && Array.isArray(m.red)).sort((a, b) => a.at - b.at || (a.seq || 0) - (b.seq || 0));
-  const seasons = {}, rows = []; // rows: 선수별 경기 한 판씩(주간 집계용)
-  for (const m of list) {
-    const avg = (ids) => ids.reduce((s, id) => s + (P[id]?.mmr || 1200), 0) / ids.length;
-    const eb = 1 / (1 + Math.pow(10, (avg(m.red) - avg(m.blue)) / 400)), delta = k * ((m.winner === 'blue' ? 1 : 0) - eb);
-    const SE = (seasons[seasonKey(m.at)] ||= {});
-    for (const side of ['blue', 'red']) m[side].forEach((id) => {
-      const s = P[id]; if (!s) return;
-      const d = side === 'blue' ? delta : -delta, win = m.winner === side; s.mmr += d;
-      const r = (SE[id] ||= { g: 0, w: 0, pts: 0 }); r.g++; if (win) r.w++; r.pts += d;
-      rows.push({ m, id, d, win, side });
-    });
-  }
-  return { P, list, seasons, rows };
-}
-function seasonRank(D, k) {
-  return Object.entries(D.seasons[k] || {}).filter(([id, r]) => D.P[id] && r.g >= SEASON_MIN)
-    .map(([id, r]) => ({ id, name: D.P[id].name, ...r, wr: Math.round((r.w / r.g) * 100) }))
-    .sort((a, b) => b.pts - a.pts || b.wr - a.wr || b.g - a.g);
+// at >= from 인 문서만 필요한 필드로 읽는다(단일 필드 색인으로 되는 질의)
+async function docsSince(env, col, from, fields) {
+  const r = await fetch(`${docBase(env)}:runQuery?key=${API_KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ structuredQuery: {
+    from: [{ collectionId: col }], select: { fields: fields.map((f) => ({ fieldPath: f })) },
+    where: { fieldFilter: { field: { fieldPath: 'at' }, op: 'GREATER_THAN_OR_EQUAL', value: { integerValue: String(Math.floor(from)) } } }, limit: 500,
+  } }) });
+  if (!r.ok) throw new Error(`Firestore 질의 실패 (${r.status}) ${(await r.text()).slice(0, 200)}`);
+  return (await r.json()).filter((x) => x.document).map((x) => ({ ...decFields(x.document.fields), id: x.document.name.split('/').pop() }));
 }
 async function weeklyReport(env) {
-  const D = await leagueData(env), now = Date.now(), from = now - 7 * 86400e3;
-  const ms = D.list.filter((m) => m.at >= from && m.at <= now), wk = D.rows.filter((r) => r.m.at >= from && r.m.at <= now);
+  const now = Date.now(), from = now - 7 * 86400e3;
+  const [{ docs: players }, raw] = await Promise.all([listDocs(env, 'players', { fields: ['name', 'deleted'] }), docsSince(env, 'matches', from, ['at', 'winner', 'blue', 'red', 'deleted', 'champs'])]);
+  const NM = Object.fromEntries(players.filter((p) => !p.deleted).map((p) => [p.id, p.name || '?']));
+  const ms = raw.filter((m) => !m.deleted && m.winner && Array.isArray(m.blue) && Array.isArray(m.red) && m.at <= now);
   const md = (t) => { const d = new Date(t + 9 * 3600e3); return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`; };
   const fields = [];
   if (ms.length) {
     const bw = ms.filter((m) => m.winner === 'blue').length, days = new Set(ms.map((m) => new Date(m.at + 3 * 3600e3).toISOString().slice(0, 10))).size;
     fields.push({ name: '🎮 이번 주 내전', value: `**${ms.length}경기** · 내전 ${days}일\n🔵 블루 ${bw}승 / 🔴 레드 ${ms.length - bw}승`, inline: true });
-    const per = {}; for (const r of wk) { const o = (per[r.id] ||= { g: 0, w: 0, d: 0 }); o.g++; if (r.win) o.w++; o.d += r.d; }
-    const ppl = Object.entries(per).map(([id, o]) => ({ id, name: D.P[id]?.name || '?', ...o }));
-    const mw = [...ppl].sort((a, b) => b.w - a.w || a.g - b.g)[0];
-    if (mw?.w) fields.push({ name: '🏅 주간 최다승', value: `**${mw.name}** ${mw.w}승 ${mw.g - mw.w}패`, inline: true });
-    const up = [...ppl].sort((a, b) => b.d - a.d)[0];
-    if (up && up.d > 0) fields.push({ name: '📈 MMR 상승 1위', value: `**${up.name}** ${sgn(up.d)}`, inline: true });
-    const duo = {}; for (const m of ms) for (const side of ['blue', 'red']) { const ids = m[side].filter((id) => D.P[id]); for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) { const key = [ids[i], ids[j]].sort().join('|'), o = (duo[key] ||= { g: 0, w: 0 }); o.g++; if (m.winner === side) o.w++; } }
+    const per = {}; for (const m of ms) for (const side of ['blue', 'red']) m[side].forEach((id) => { if (!NM[id]) return; const o = (per[id] ||= { g: 0, w: 0 }); o.g++; if (m.winner === side) o.w++; });
+    const mw = Object.entries(per).sort((a, b) => b[1].w - a[1].w || a[1].g - b[1].g)[0];
+    if (mw?.[1].w) fields.push({ name: '🏅 주간 최다승', value: `**${NM[mw[0]]}** ${mw[1].w}승 ${mw[1].g - mw[1].w}패`, inline: true });
+    const duo = {}; for (const m of ms) for (const side of ['blue', 'red']) { const ids = m[side].filter((id) => NM[id]); for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) { const key = [ids[i], ids[j]].sort().join('|'), o = (duo[key] ||= { g: 0, w: 0 }); o.g++; if (m.winner === side) o.w++; } }
     const bd = Object.entries(duo).filter(([, o]) => o.g >= 2).sort((a, b) => b[1].w / b[1].g - a[1].w / a[1].g || b[1].w - a[1].w)[0];
-    if (bd) { const [a, b] = bd[0].split('|'); fields.push({ name: '🤝 베스트 듀오', value: `**${D.P[a].name} & ${D.P[b].name}**\n함께 ${bd[1].g}판 ${bd[1].w}승 (${Math.round((bd[1].w / bd[1].g) * 100)}%)`, inline: true }); }
+    if (bd) { const [a, b] = bd[0].split('|'); fields.push({ name: '🤝 베스트 듀오', value: `**${NM[a]} & ${NM[b]}**\n함께 ${bd[1].g}판 ${bd[1].w}승 (${Math.round((bd[1].w / bd[1].g) * 100)}%)`, inline: true }); }
     const ch = {}; for (const m of ms) for (const side of ['blue', 'red']) (m.champs?.[side] || []).forEach((c) => { if (c) ch[c] = (ch[c] || 0) + 1; });
     const tc = Object.entries(ch).sort((a, b) => b[1] - a[1]).slice(0, 3);
     if (tc.length) fields.push({ name: '⚔️ 많이 쓴 챔피언', value: tc.map(([c, n], i) => `${i + 1}. ${c} (${n}회)`).join('\n'), inline: true });
@@ -437,35 +408,13 @@ async function weeklyReport(env) {
       const r = GACHA_RANK.indexOf(l.t);
       if (!best || r < best.r || (r === best.r && +l.at > best.at)) best = { r, at: +l.at, t: l.t, n: l.n, pid: d.id };
     }
-    if (best) fields.push({ name: '🎰 이번 주 최고 뽑기', value: `**${D.P[best.pid]?.name || '누군가'}** · [${GACHA_NAME[best.t]}] ${best.n}`, inline: true });
+    if (best) fields.push({ name: '🎰 이번 주 최고 뽑기', value: `**${NM[best.pid] || '누군가'}** · [${GACHA_NAME[best.t]}] ${best.n}`, inline: true });
   } catch (e) { console.warn('[weekly gacha]', e); }
-  // 현재 시즌 순위
-  const k = seasonKey(now), rank = seasonRank(D, k), left = Math.max(0, Math.ceil((seasonEnd(k) - now) / 86400e3));
-  const M = ['🥇', '🥈', '🥉'];
-  fields.push({ name: `🏆 ${+k.slice(5)}월 시즌 순위 · 종료까지 ${left}일`, value: rank.length ? rank.slice(0, 3).map((r, i) => `${M[i]} **${r.name}** ${sgn(r.pts)} (${r.g}판 ${r.wr}%)`).join('\n') + (rank.length > 3 ? `\n외 ${rank.length - 3}명 순위 진입` : '') : `아직 순위 진입자가 없어요 (${SEASON_MIN}판 이상)`, inline: false });
   await discord(env, { embeds: [{
-    title: `📅 주간 내전 결산 (${md(from)} ~ ${md(now)})`, url: env.SITE_URL ? env.SITE_URL + '#/rank' : undefined, color: 0xd9a441,
+    title: `📅 주간 내전 결산 (${md(from)} ~ ${md(now)})`, url: env.SITE_URL ? env.SITE_URL + '#/matches' : undefined, color: 0xd9a441,
     description: ms.length ? '' : '이번 주에는 내전이 없었어요. 다음 주에 만나요!', fields, timestamp: new Date(now).toISOString(),
-    footer: { text: `시즌 점수 = 그 달 MMR 오르내림의 합 · ${SEASON_MIN}판 이상 순위 진입` },
   }] });
   return { ok: true, games: ms.length, fields: fields.length };
-}
-async function seasonReport(env, k) {
-  const hall = await getDoc(env, 'meta', 'seasons').catch(() => null);
-  let top = hall?.list?.[k]?.top, n = hall?.list?.[k]?.ranked, games = hall?.list?.[k]?.games;
-  if (!top) { // 사이트에서 아직 기록하지 않았으면 같은 방식으로 직접 계산
-    const D = await leagueData(env), rank = seasonRank(D, k);
-    top = rank.slice(0, 3); n = rank.length; games = D.list.filter((m) => seasonKey(m.at) === k).length;
-  }
-  if (!games) return { skipped: '경기 없음' };
-  const M = ['🥇', '🥈', '🥉'];
-  await discord(env, { embeds: [{
-    title: `🏆 ${seasonFull(k)} 시즌 최종 결과`, url: env.SITE_URL ? env.SITE_URL + '#/rank' : undefined, color: 0xf2cf7a,
-    description: (top.length ? top.map((t, i) => `${M[i]} **${t.name}** ${sgn(+t.pts)} · ${t.g}판 ${t.w}승`).join('\n') : `${SEASON_MIN}판 이상 뛴 선수가 없어 순위가 없어요.`)
-      + `\n\n총 ${games}경기 · 순위 진입 ${n || 0}명${top.length ? '\n1~3위는 명예의 전당에 올라 칭호와 카드 테두리를 받아요 🎉' : ''}\n새 시즌이 시작됐어요. 모두 같은 출발선에서 다시 시작!`,
-    timestamp: new Date().toISOString(),
-  }] });
-  return { ok: true };
 }
 
 // ---------- 라이엇 솔랭 자동 갱신 ----------
