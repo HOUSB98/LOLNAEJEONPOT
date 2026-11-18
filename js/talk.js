@@ -30,6 +30,31 @@ function recount(force) {
 export const postsChanged = () => { CNT.at = 0; }; // 새 글·삭제가 생기면 다음 화면에서 다시 센다
 async function syncOld(id) { if (OLD[id]) { const p = await S.store.get('posts', id).catch(() => null); if (p) OLD[id] = p; } }
 
+// ---------- 내가 쓴 글의 새 댓글(내 페이지) ----------
+// 이 기기에서 쓴 글 id와 '마지막으로 본 댓글 수'만 이 브라우저에 기억한다(서버에는 글쓴이 정보를 저장하지 않는 원칙 그대로).
+const myKey = () => 'naejeon:myposts:' + S.key;
+const myPosts = () => { try { return JSON.parse(localStorage.getItem(myKey())) || {}; } catch { return {}; } };
+const saveMy = (m) => { const keep = Object.keys(m).sort().slice(-20); try { localStorage.setItem(myKey(), JSON.stringify(Object.fromEntries(keep.map((k) => [k, m[k]])))); } catch {} };
+export function markPostSeen(id, cn) { const m = myPosts(); if (!(id in m)) return; m[id] = Math.max(0, +cn || 0); saveMy(m); }
+const MP = {}; // 실시간 목록(최근 10개)에 없는 내 글은 2분에 한 번만 직접 읽는다
+export function myPostAlerts(onLoad) {
+  const m = myPosts(), ids = Object.keys(m).sort().reverse().slice(0, 5), live = Object.fromEntries(allLoaded().map((p) => [p.id, p]));
+  const out = [];
+  for (const id of ids) {
+    let p = live[id];
+    if (!p) {
+      const c = MP[id];
+      if (!c || (!c.busy && Date.now() - c.at > 120e3)) { MP[id] = { busy: true, at: 0, p: c?.p }; S.store.get('posts', id).catch(() => undefined).then((x) => { MP[id] = { at: Date.now(), p: x === undefined ? c?.p : x }; onLoad?.(); }); }
+      p = MP[id].p;
+      if (p === undefined) continue;
+    }
+    if (!p || p.deleted) { delete m[id]; saveMy(m); continue; }
+    const cn = cmCount(p);
+    out.push({ id, title: p.title || String(p.body || '').slice(0, 30), at: +p.at || 0, cn, fresh: Math.max(0, cn - (+m[id] || 0)) });
+  }
+  return out;
+}
+
 // ---------- 공감 / 비공감 ----------
 // 글 문서의 rx 에 { 표시값: 1 | -1 } 로 모은다. 표시값은 '글 id + 이 기기 id'의 해시 앞부분이라 누가 눌렀는지 알 수 없고, 한 기기는 글마다 한 번만 반영된다.
 // 내가 누른 것은 화면 강조용으로 이 브라우저에도 기억한다. 같은 버튼을 다시 누르면 취소, 반대 버튼을 누르면 바뀐다.
@@ -98,7 +123,7 @@ function cmBox(p) {
       </form></div>`;
   return { btn, box };
 }
-act('cmToggle', (d) => { const c = cmOf(d.id); c.open = !c.open; refresh(); if (c.open && !c.list.length && !c.done) cmLoad(d.id, CM_FIRST); });
+act('cmToggle', (d) => { const c = cmOf(d.id); c.open = !c.open; if (c.open) { const p = allLoaded().find((x) => x.id === d.id); if (p) markPostSeen(d.id, cmCount(p)); } refresh(); if (c.open && !c.list.length && !c.done) cmLoad(d.id, CM_FIRST); });
 act('cmMore', (d) => cmLoad(d.id, CM_STEP));
 act('cmT', (d, el) => { cmOf(d.id).text = el.value; });
 act('cmP', (d, el) => { cmOf(d.id).pw = el.value; });
@@ -117,6 +142,7 @@ act('cmPost', async (d) => {
     await S.store.put('comments', id, doc);
     await S.store.tx('posts', pid, (p) => (p ? { ...p, cn: cmCount(p) + 1 } : null)).catch(() => {});
     await syncOld(pid);
+    { const m = myPosts(); if (pid in m) { m[pid] = (+m[pid] || 0) + 1; saveMy(m); } } // 내 글에 내가 단 댓글은 새 댓글로 치지 않는다
     localStorage.setItem(cmLast(), String(Date.now()));
     c.list = [...c.list, { ...doc, id }]; c.text = '';
     toast('익명으로 댓글을 달았어요');
@@ -205,6 +231,7 @@ act('tkPost', async () => {
   try {
     const id = Date.now().toString(36) + uid();
     TK.mine.add(id); // 내가 쓴 글은 나에게 알리지 않는다
+    { const m = myPosts(); m[id] = 0; saveMy(m); }
     await S.store.put('posts', id, { at: S.store.serverNow?.() || Date.now(), title, body, pw: await hashPw(id, pw), deleted: false });
     localStorage.setItem(lastKey(), String(Date.now()));
     Object.assign(TK, { title: '', body: '', pw: '', open: false });
