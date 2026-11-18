@@ -1871,6 +1871,20 @@ body.gx-shake #gx{animation:gxquake .45s linear}
 .tk-rb.up.on{color:var(--gold2);border-color:rgba(217,164,65,.6);background:rgba(217,164,65,.1)}
 .tk-rb.down.on{color:#b8c2d6;border-color:#4a5a78;background:rgba(145,157,178,.1)}
 .tk-rb:active .ic{transform:scale(.85)}
+.tk-foot{display:flex;align-items:center;gap:6px;margin-top:10px}.tk-foot .tk-rx{margin:0 0 0 auto;order:2}
+.tk-cb{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px;border-radius:99px;border:1px solid var(--line2);background:transparent;color:var(--mut);font:600 12px var(--sans);cursor:pointer;transition:color .15s,border-color .15s,background .15s}
+.tk-cb .ic{width:14px;height:14px}.tk-cb b{font-size:13px;color:inherit}.tk-cb:hover{color:var(--text);border-color:#3a4a64}
+.tk-cb.on{color:var(--teal);border-color:rgba(63,208,224,.5);background:rgba(63,208,224,.08)}
+/* 익명 게시판 댓글 */
+.tk-cm{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line2);display:flex;flex-direction:column;gap:8px}
+.tk-c{display:flex;gap:9px;align-items:flex-start}.tk-cav{flex:none;display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--panel2);border:1px solid var(--line2);color:var(--mut)}.tk-cav .ic{width:14px;height:14px}
+.tk-cb2{flex:1;min-width:0;background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:10px;padding:7px 10px}
+.tk-ch{display:flex;align-items:center;gap:7px;font-size:12.5px}.tk-ch .btn.xs{padding:2px 6px;min-height:0;opacity:.6}.tk-ch .btn.xs:hover{opacity:1}
+.tk-cb2 p{margin:3px 0 0;white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.55}
+.tk-cl{margin:2px 0;text-align:center}
+.tk-cf{display:flex;gap:6px;align-items:flex-start}.tk-cf textarea{flex:1;min-height:36px;resize:vertical;font-size:14px;padding:8px 10px}
+.tk-cf .tk-cpw{width:110px;flex:none;padding:8px 10px}.tk-cf .btn{flex:none;height:36px}
+@media (max-width:600px){.tk-cf{flex-wrap:wrap}.tk-cf textarea{flex-basis:100%}.tk-cf .tk-cpw{flex:1 1 0;width:0;min-width:0}#main .tk-ch .btn.xs{height:26px;min-height:0;padding:0 7px}#main .tk-ch .btn.xs .ic{width:13px;height:13px}.tk-cb2 p{font-size:14px}}
 
 /* 예상 요금 (관리 > Firebase 사용량) */
 .uz-cost{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:10px;margin:0 0 12px}
@@ -1940,3 +1954,16 @@ body.gx-shake #gx{animation:gxquake .45s linear}
   .lp-act{justify-content:stretch}.lp-act>.btn{flex:1}
   .lp-own{width:100%;padding:6px 0 0;border-left:0;border-top:1px solid var(--line2);justify-content:flex-end}
 }
+
+/* 시즌: 순위표·명예의 전당·카드 메달 테두리 */
+.sn-sel{width:auto;min-width:150px}
+.sn-tbl .sn-pts{font-size:15px}.sn-tbl tr.sn-out td{opacity:.62}.sn-tbl tr.sn-out:hover td{opacity:1}
+.sn-need{display:block;font-size:11px;color:var(--mut);font-weight:400}
+.sn-hall{margin-top:16px}.sn-hrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:10px 2px;border-top:1px solid var(--line)}
+.sn-hrow:first-of-type{border-top:0}.sn-hk{min-width:110px;color:var(--gold2);font-weight:700}
+.sn-hp{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:99px;border:1px solid var(--line2);background:var(--panel2);color:var(--text);font-size:13px}
+.sn-hp small{color:var(--mut)}.sn-hp.p1{border-color:color-mix(in srgb,#f2cf7a 60%,var(--line2))}.sn-hp:hover{border-color:var(--gold)}
+.sm1{--sm:#f2cf7a}.sm2{--sm:#d9e2ee}.sm3{--sm:#d39a63}
+.pcard.sm{box-shadow:0 0 0 2px var(--sm),0 0 20px -6px var(--sm)}.pcard.gt.sm{box-shadow:0 0 0 2px var(--gt),0 0 0 4px var(--sm),0 0 22px -4px var(--gt)}
+.holo-wrap.sm .holo{box-shadow:0 0 0 3px var(--sm),0 30px 60px -20px rgba(0,0,0,.7)}.holo-wrap.gt.sm .holo{box-shadow:0 0 0 3px var(--gt),0 0 0 6px var(--sm),0 30px 60px -20px rgba(0,0,0,.7)}
+@media (max-width:600px){.sn-hk{min-width:0;width:100%}}

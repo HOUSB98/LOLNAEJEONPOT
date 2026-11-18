@@ -62,6 +62,91 @@ act('tkRx', async (d) => {
   rxBusy.delete(d.id);
 });
 
+// ---------- 댓글 ----------
+// comments/{id} = { pid(글 id), at, body, pw(해시), deleted }. 글쓴이 정보는 저장하지 않는다(모두 '익명').
+// 댓글 수는 글 문서의 cn 에 같이 적어 두어, 목록에서는 댓글을 읽지 않고 숫자만 보여 준다.
+// 댓글은 펼칠 때 처음 5개, '댓글 더 보기'로 10개씩 읽는다(읽은 만큼만 읽기 사용량). 문서 id 가 시간 순이라 id 순서 = 작성 순서.
+const CM_MAX = 500, CM_COOL = 10e3, CM_FIRST = 5, CM_STEP = 10;
+const CM = {}; // 글 id → { open, list: [], done, loading, text, pw, busy }
+const cmOf = (pid) => (CM[pid] ||= { open: false, list: [], done: false, loading: false, text: '', pw: '', busy: false });
+const cmCount = (p) => Math.max(0, +p.cn || 0);
+const cmPw = (id, pw) => sha(`comment:${id}:${pw}`);
+async function cmLoad(pid, n) {
+  const c = cmOf(pid); if (c.loading || c.done) return;
+  c.loading = true; refresh();
+  try {
+    const after = c.list.length ? c.list[c.list.length - 1].id : '';
+    const docs = await S.store.byField('comments', 'pid', pid, after, n);
+    const ids = new Set(c.list.map((x) => x.id));
+    c.list = [...c.list, ...docs.filter((d) => !ids.has(d.id))].sort((a, b) => (a.id < b.id ? -1 : 1));
+    if (docs.length < n) c.done = true;
+  } catch (e) { toast('댓글을 불러오지 못했어요: ' + (e.code || e.message)); }
+  c.loading = false; refresh();
+}
+function cmBox(p) {
+  const c = cmOf(p.id), n = cmCount(p), shown = c.list.filter((x) => !x.deleted), left = Math.max(0, n - shown.length);
+  const btn = `<button class="tk-cb ${c.open ? 'on' : ''}" data-a="cmToggle" data-id="${p.id}" aria-expanded="${c.open}">${ic('talk')}<span>댓글</span>${n ? `<b class="mono">${n}</b>` : ''}</button>`;
+  if (!c.open) return { btn, box: '' };
+  const box = `<div class="tk-cm">
+      ${shown.map((x) => `<div class="tk-c"><i class="tk-cav">${ic('user')}</i><div class="tk-cb2"><div class="tk-ch"><b>익명</b><small class="mut" title="${new Date(x.at).toLocaleString('ko')}">${ago(x.at)}</small><span class="grow"></span><button class="btn ghost xs" data-a="cmDel" data-pid="${p.id}" data-id="${x.id}" title="댓글 삭제">${ic('trash')}</button></div><p>${esc(x.body)}</p></div></div>`).join('')}
+      ${c.loading ? '<p class="mut sm tk-cl">불러오는 중…</p>' : !c.done && left > 0 ? `<button class="btn ghost xs block tk-cmore" data-a="cmMore" data-id="${p.id}">댓글 더 보기 (${left}개)</button>` : ''}
+      ${!shown.length && c.done ? '<p class="mut sm tk-cl">첫 댓글을 남겨 보세요.</p>' : ''}
+      <form class="tk-cf" data-pid="${p.id}" onsubmit="return false">
+        <textarea class="inp" id="cmt-${p.id}" maxlength="${CM_MAX}" rows="1" placeholder="익명으로 댓글 달기" data-i="cmT" data-id="${p.id}">${esc(c.text)}</textarea>
+        <input class="inp tk-cpw" id="cmp-${p.id}" type="password" maxlength="20" placeholder="비밀번호" value="${esc(c.pw)}" data-i="cmP" data-id="${p.id}" autocomplete="new-password">
+        <button type="button" class="btn pri xs" data-a="cmPost" data-id="${p.id}" ${c.busy ? 'disabled' : ''}>${ic('send')}등록</button>
+      </form></div>`;
+  return { btn, box };
+}
+act('cmToggle', (d) => { const c = cmOf(d.id); c.open = !c.open; refresh(); if (c.open && !c.list.length && !c.done) cmLoad(d.id, CM_FIRST); });
+act('cmMore', (d) => cmLoad(d.id, CM_STEP));
+act('cmT', (d, el) => { cmOf(d.id).text = el.value; });
+act('cmP', (d, el) => { cmOf(d.id).pw = el.value; });
+const cmLast = () => 'naejeon:cmlast:' + S.key;
+act('cmPost', async (d) => {
+  const pid = d.id, c = cmOf(pid), body = c.text.trim().slice(0, CM_MAX), pw = c.pw;
+  const post = S.store.data.posts?.[pid] || OLD[pid];
+  if (!post || post.deleted) return toast('지워진 글이에요');
+  if (!body) return toast('댓글 내용을 적어 주세요');
+  if (pw.length < 4) return toast('삭제용 비밀번호를 4자 이상 정해 주세요');
+  const wait = +localStorage.getItem(cmLast()) + CM_COOL - Date.now();
+  if (wait > 0) return toast(`${Math.ceil(wait / 1000)}초 뒤에 다시 달 수 있어요`);
+  c.busy = true; refresh();
+  try {
+    const id = Date.now().toString(36) + uid(), doc = { pid, at: S.store.serverNow?.() || Date.now(), body, pw: await cmPw(id, pw), deleted: false };
+    await S.store.put('comments', id, doc);
+    await S.store.tx('posts', pid, (p) => (p ? { ...p, cn: cmCount(p) + 1 } : null)).catch(() => {});
+    await syncOld(pid);
+    localStorage.setItem(cmLast(), String(Date.now()));
+    c.list = [...c.list, { ...doc, id }]; c.text = '';
+    toast('익명으로 댓글을 달았어요');
+  } catch (e) { toast('댓글 등록 실패: ' + (e.code || e.message)); }
+  c.busy = false; refresh();
+});
+async function cmRemove(pid, id, by) {
+  try {
+    await S.store.patch('comments', id, { deleted: true, deletedBy: by, deletedAt: Date.now() });
+    await S.store.tx('posts', pid, (p) => (p ? { ...p, cn: Math.max(0, cmCount(p) - 1) } : null)).catch(() => {});
+    await syncOld(pid);
+    const c = cmOf(pid); c.list = c.list.filter((x) => x.id !== id);
+    closeModal(); toast('댓글을 지웠어요'); refresh();
+  } catch (e) { toast('삭제 실패: ' + (e.code || e.message)); }
+}
+act('cmDel', (d) => {
+  const x = cmOf(d.pid).list.find((y) => y.id === d.id); if (!x) return;
+  const el = modal(`${mh(`${ic('trash')}댓글 삭제`)}
+    <p class="mut">댓글을 달 때 정한 비밀번호를 입력하세요.</p>
+    <form class="row" id="cmdf"><input class="inp grow" id="cmdp" type="password" autocomplete="off" placeholder="비밀번호"><button class="btn pri">삭제</button></form>
+    <p class="hint">비밀번호를 잊었다면 관리자에게 부탁하세요. <button class="btn ghost xs" data-a="cmAdminDel" data-pid="${d.pid}" data-id="${x.id}">관리자로 삭제</button></p>`);
+  const inp = el.querySelector('#cmdp'); inp.focus();
+  el.querySelector('#cmdf').onsubmit = async (e) => {
+    e.preventDefault(); if (!inp.value) return;
+    if ((await cmPw(x.id, inp.value)) !== x.pw) { inp.value = ''; inp.focus(); return toast('비밀번호가 맞지 않아요'); }
+    cmRemove(d.pid, x.id, 'author');
+  };
+});
+act('cmAdminDel', (d) => needAdmin(() => { if (confirm('관리자 권한으로 이 댓글을 지울까요?')) cmRemove(d.pid, d.id, 'admin'); }));
+
 page('talk', {
   render() {
     const list = posts(), shown = list;
@@ -85,7 +170,7 @@ page('talk', {
           <header><i class="tk-av">${ic('user')}</i><b>익명</b><small class="mut" title="${new Date(p.at).toLocaleString('ko')}">${ago(p.at)}</small><span class="grow"></span>
             <button class="btn ghost xs" data-a="tkDel" data-id="${p.id}" title="글 삭제">${ic('trash')}</button></header>
           ${p.title ? `<h3>${esc(p.title)}</h3>` : ''}<p class="tk-text">${esc(p.body)}</p>
-          ${rxBar(p)}
+          ${(() => { const c = cmBox(p); return `<div class="tk-foot">${rxBar(p)}${c.btn}</div>${c.box}`; })()}
         </article>`).join('') || '<div class="panel empty">아직 글이 없어요. 첫 글을 남겨 보세요!</div>'}</div>
       ${more > 0 ? `<button class="btn block ghost" data-a="tkMore" ${TK.loading ? 'disabled' : ''}>${TK.loading ? '불러오는 중…' : `이전 글 더 보기 (${more}개)`}</button>` : ''}`;
   },

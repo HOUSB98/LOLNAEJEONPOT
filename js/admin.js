@@ -46,7 +46,7 @@ page('admin', {
     <div class="panel"><div class="ph"><b>${ic('bolt')}Firebase 사용량</b><small class="mut">무료 한도 대비 오늘 사용량</small><span class="grow"></span>${hookOn() && !/billing/i.test(USAGE.err) ? '<button class="btn xs" data-a="uzLoad">새로고침</button>' : ''}</div>
       <div id="uzbox">${usageHTML()}</div>
       ${hookOn() ? `<div class="ph"><b>연동</b><small class="mut">디스코드 알림 · 라이엇 솔랭 자동 갱신(매일 새벽 4시)</small></div>
-      <div class="row wrapr"><button class="btn" data-a="hkTest">디스코드 테스트 알림</button><button class="btn" data-a="hkRiot">라이엇 전적 지금 갱신</button></div>
+      <div class="row wrapr"><button class="btn" data-a="hkTest">디스코드 테스트 알림</button><button class="btn" data-a="hkRiot">라이엇 전적 지금 갱신</button><button class="btn" data-a="hkWeekly" title="매주 금요일 저녁 8시에 자동으로 올라가는 결산을 지금 미리 보내 봅니다">주간 결산 지금 보내기</button></div>
       ${UZ.riot ? `<p class="sm">${esc(UZ.riot)}</p>` : ''}<p class="hint">라인 지원이 열릴 때와 경기 결과를 저장할 때 디스코드 채널에 알림이 올라갑니다. 라이엇 갱신은 선수의 라이엇 ID(이름#태그)로 솔랭 티어·전적을 채우며, 한 사람은 하루 한 번만 갱신됩니다.</p>` : ''}</div>
 
     <div class="panel"><div class="ph"><b>${ic('users')}선수 관리</b><span class="tag">${st.list.length}명</span><span class="grow"></span><button class="btn pri xs" data-a="plEdit" data-id="">＋ 선수 추가</button></div>
@@ -82,6 +82,7 @@ page('admin', {
 
 act('uzLoad', () => { loadUsage(true); const el = document.getElementById('uzbox'); if (el) el.innerHTML = usageHTML(); });
 act('hkTest', async (d, btn) => { btn.disabled = true; const r = await callWorker('/test'); btn.disabled = false; toast(r.error ? '실패: ' + r.error : '디스코드에 테스트 알림을 보냈어요'); });
+act('hkWeekly', (d, btn) => needAdmin(async () => { btn.disabled = true; const r = await callWorker('/weekly'); btn.disabled = false; toast(r.error ? '실패: ' + r.error : '디스코드에 주간 결산을 보냈어요'); }));
 act('hkRiot', (d, btn) => needAdmin(async () => {
   btn.disabled = true; toast('라이엇 전적을 불러오는 중…');
   const r = await callWorker('/riot'); btn.disabled = false;

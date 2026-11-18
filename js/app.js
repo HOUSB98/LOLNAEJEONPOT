@@ -4,7 +4,7 @@ import { createStore } from './store.js';
 import { cardChamp } from './core.js';
 import { S, page, act, ddMenu, cho, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, toast, download, csv, needAdmin, history, modal, mh, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
 import { initSocial, renderChat, renderPresence, onMeta } from './social.js';
-import { duoRank } from './stats.js';
+import { duoRank, SEASON_MIN, seasonTable, seasonName, seasonFull, seasonEnd, seasonKey } from './stats.js';
 import { watchDice } from './dice.js';
 import { watchBoard } from './board.js';
 import './players.js';
@@ -273,7 +273,7 @@ act('carGo', (d) => carMove(+d.d));
 act('carSet', (d) => carMove(0, +d.i));
 
 // ---------- 랭킹 ----------
-const LB = { view: 'all', sort: 'ovr', dir: -1, min: 1 }; // 기본: 1판 이상 뛴 선수만
+const LB = { view: 'season', sort: 'ovr', dir: -1, min: 1, season: '' }; // 기본: 이번 시즌. 종합 보기는 1판 이상 뛴 선수만
 const COLS = {
   all: [
     ['g', '판', (s) => s.g, (s) => `<span class="mono">${s.g}</span>`],
@@ -289,9 +289,65 @@ const COLS = {
     ['avg', '평균', (s) => s.avg, (s) => `<b class="mono">${s.avg.toFixed(1)}</b>`]],
   lane: LANES.map((l) => [l, `${LANE_ICON[l]}${LANE_NAME[l]}`, (s) => (s.lanes[l].g ? s.lanes[l].w / s.lanes[l].g : -1), (s) => `<span class="mono ${wrClass(pct(s.lanes[l].w, s.lanes[l].g))}">${wr(s.lanes[l])}</span>`]),
 };
+// ---------- 시즌 순위(한 달) ----------
+const SEASON_FROM = () => settings().seasonFrom || '2026-11'; // 첫 시즌. 이전 달 기록은 '종합'에만 쓴다
+const seasonKeys = (st) => [...new Set([st.seasonNow, ...Object.keys(st.seasons)])].filter((k) => k >= SEASON_FROM() && k <= st.seasonNow).sort().reverse();
+const sgn = (v) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}`;
+function seasonView(st, viewSeg) {
+  const keys = seasonKeys(st), k = keys.includes(LB.season) ? LB.season : st.seasonNow, cur = k === st.seasonNow;
+  const { ranked, rest, n } = seasonTable(st, k), sig = cardChamp;
+  const left = Math.max(0, Math.ceil((seasonEnd(k) - Date.now()) / 86400e3));
+  const medal = ['CHAMPION', 'RUNNER-UP', 'THIRD'];
+  const spot = ranked.slice(0, 3).map((r, i) => `<a class="spot s${i + 1}" href="#/players/${r.id}" style="--img:url('${artUrl(sig(r.s))}');--d:${i}">
+      <span class="sp-rk mono">${i + 1}</span><small>${medal[i]}</small><b>${esc(r.s.name)}</b>
+      <span class="sp-meta">${LANE_ICON[r.s.mainLane]}${LANE_NAME[r.s.mainLane]}<i></i>${r.wr}% · ${r.g}판</span>
+      <span class="sp-val"><em class="mono">${sgn(r.pts)}</em><small>시즌 점수</small></span></a>`).join('');
+  const row = (r, i, ok) => `<tr class="${ok && i < 3 ? 'top t' + (i + 1) : ''} ${ok ? '' : 'sn-out'}" data-a="goPlayer" data-id="${r.id}" style="--d:${Math.min(i, 14)}">
+      <td class="rk mono">${ok ? `<span class="rkb r${i + 1}">${i + 1}</span>` : '<span class="mut">-</span>'}</td><td class="l nm">${esc(r.s.name)}${ok ? '' : `<small class="sn-need">${SEASON_MIN - r.g}판 더 하면 순위 진입</small>`}</td>
+      <td><b class="mono sn-pts ${r.pts >= 0 ? 'good' : 'bad'}">${sgn(r.pts)}</b></td><td><span class="mono">${r.g}</span></td><td>${wrBar(r.w, r.g)}</td><td><span class="mono">${Math.round(r.s.mmr).toLocaleString()}</span></td>
+      <td class="art"><u class="rowfx"></u><i data-art="${artUrl(sig(r.s))}" title="${esc(sig(r.s))}"></i></td></tr>`;
+  const hall = st.hall.filter(([hk]) => hk >= SEASON_FROM());
+  const hallHTML = hall.length ? `<div class="panel sn-hall"><div class="ph"><b>🏛️ 명예의 전당</b><small class="mut">시즌이 끝나면 1~3위가 기록됩니다</small></div>
+      ${hall.map(([hk, h]) => `<div class="sn-hrow"><span class="sn-hk mono">${seasonFull(hk)}</span>${(h.top || []).length ? h.top.slice(0, 3).map((t, i) => `<a href="#/players/${t.id}" class="sn-hp p${i + 1}">${['🥇', '🥈', '🥉'][i]} <b>${esc(st.P[t.id]?.name || t.name || '?')}</b><small class="mono">${sgn(+t.pts)}</small></a>`).join('') : '<span class="mut sm">순위 진입자 없음</span>'}</div>`).join('')}</div>` : '';
+  return `<div class="h2row"><h1>${ic('rank')}랭킹</h1><span class="tag gold">SEASON LADDER</span><span class="grow"></span>${viewSeg}
+      ${keys.length > 1 ? `<select class="inp xs sn-sel" data-c="lbSeason">${keys.map((x) => `<option value="${x}" ${x === k ? 'selected' : ''}>${seasonFull(x)}${x === st.seasonNow ? ' (진행 중)' : ''}</option>`).join('')}</select>` : ''}</div>
+    <div class="stats">
+      ${stat('cal', cur ? '이번 시즌' : '지난 시즌', `${seasonName(k)} 시즌`, cur ? `종료까지 ${left}일 · 매달 1일 새로 시작` : '종료된 시즌', 'gold')}
+      ${stat('today', '시즌 경기', Math.round(n), `순위 진입 ${SEASON_MIN}판 이상`, 'teal')}
+      ${stat('users', '순위 진입', ranked.length, `참가 ${ranked.length + rest.length}명`, 'purple')}
+      ${stat('flame', '1위 점수', ranked[0] ? sgn(ranked[0].pts) : '-', ranked[0] ? esc(ranked[0].s.name) : `${SEASON_MIN}판부터 순위에 올라요`, 'red')}
+    </div>
+    ${ranked.length >= 3 ? `<div class="spots">${spot}</div>` : ''}
+    <div class="tw lbw"><table class="tbl lb sn-tbl">
+      <thead><tr><th>#</th><th class="l">소환사</th><th>시즌 점수</th><th>판</th><th>승률</th><th>MMR</th><th class="art"></th></tr></thead>
+      <tbody>${ranked.map((r, i) => row(r, i, true)).join('')}${rest.map((r, i) => row(r, ranked.length + i, false)).join('')}${ranked.length + rest.length ? '' : `<tr><td colspan="7" class="empty">${cur ? '이번 시즌 경기가 아직 없어요. 첫 경기를 기록해 보세요!' : '이 시즌에는 경기가 없어요.'}</td></tr>`}</tbody>
+    </table></div>
+    <p class="hint">시즌 점수 = 이번 달 경기에서 오르내린 MMR의 합(강한 팀을 이기면 더 많이 오르고, 약한 팀에게 지면 더 많이 내려가요). ${SEASON_MIN}판 이상 뛴 선수만 순위에 오르고, 점수가 같으면 승률 → 판수 순입니다. 시즌은 매달 1일 새벽 6시에 새로 시작하고 전체 MMR은 그대로 이어집니다.</p>
+    ${hallHTML}`;
+}
+
+// 끝난 시즌의 1~3위를 명예의 전당(meta/seasons)에 한 번만 기록한다. 먼저 접속한 사람의 화면이 기록하고(트랜잭션이라 겹쳐도 한 번),
+// 기록한 뒤에는 경기 기록을 고쳐도 지난 결과는 바뀌지 않는다. 디스코드 시즌 결산(Worker)도 이 기록을 쓴다.
+export async function archiveSeasons() {
+  const st = S.st; if (!st || !S.store) return;
+  const have = S.store.data.meta?.seasons?.list || {};
+  const due = seasonKeys(st).filter((k) => k !== st.seasonNow && Date.now() >= seasonEnd(k) && !have[k]);
+  for (const k of due) {
+    const { ranked, rest, n } = seasonTable(st, k);
+    const top = ranked.slice(0, 3).map((r) => ({ id: r.id, name: r.s.name, pts: Math.round(r.pts * 10) / 10, g: r.g, w: r.w }));
+    await S.store.tx('meta', 'seasons', (d) => {
+      const list = { ...(d?.list || {}) }; if (list[k]) return null;
+      list[k] = { top, ranked: ranked.length, players: ranked.length + rest.length, games: Math.round(n), at: Date.now() };
+      return { ...(d || {}), list };
+    }).catch((e) => console.warn('[season]', e));
+  }
+}
+
 page('rank', {
   render() {
     const st = S.st, x = st.sum;
+    const viewSeg = `<div class="seg">${[['season', '이번 시즌'], ['all', '종합'], ['score', '라인 점수'], ['lane', '라인별 승률']].map(([k, t]) => `<button class="${LB.view === k ? 'on' : ''}" data-a="lbView" data-v="${k}">${t}</button>`).join('')}</div>`;
+    if (LB.view === 'season') return seasonView(st, viewSeg);
     const cols = COLS[LB.view], sortCol = cols.find((c) => c[0] === LB.sort) || cols[0];
     const sig = cardChamp; // 선수가 고른 대표 챔피언
     const rows = st.list.filter((s) => s.g >= LB.min).sort((a, b) => LB.dir * (sortCol[2](a) - sortCol[2](b)) || b.ovr - a.ovr);
@@ -302,7 +358,7 @@ page('rank', {
       <span class="sp-meta">${LANE_ICON[s.mainLane]}${LANE_NAME[s.mainLane]}<i></i>${s.g ? `${s.wr}% · ${s.g}판` : '출전 없음'}${s.titles[0] ? `<i></i>${s.titles[0].e} ${s.titles[0].n}` : ''}</span>
       <span class="sp-val"><em class="mono">${s.ovr}</em><small>OVR</small></span></a>`).join('');
     return `<div class="h2row"><h1>${ic('rank')}랭킹</h1><span class="tag gold">SEASON LADDER</span><span class="grow"></span>
-      <div class="seg">${[['all', '종합'], ['score', '라인 점수'], ['lane', '라인별 승률']].map(([k, t]) => `<button class="${LB.view === k ? 'on' : ''}" data-a="lbView" data-v="${k}">${t}</button>`).join('')}</div>
+      ${viewSeg}
       <label class="mini">최소 <input class="inp xs" type="number" min="0" value="${LB.min}" data-c="lbMin"> 판</label></div>
     <div class="stats">
       ${stat('today', '총 경기', x.n, `내전 ${x.days}일 · 참가 ${x.active}명`, 'gold')}
@@ -322,6 +378,7 @@ page('rank', {
 act('lbView', (d) => { LB.view = d.v; LB.sort = d.v === 'all' ? 'ovr' : d.v === 'score' ? 'avg' : 'top'; LB.dir = -1; refresh(); });
 act('lbSort', (d) => { if (LB.sort === d.k) LB.dir *= -1; else { LB.sort = d.k; LB.dir = -1; } refresh(); });
 act('lbMin', (d, el) => { LB.min = +el.value || 0; refresh(); });
+act('lbSeason', (d, el) => { LB.season = el.value; refresh(); });
 act('goPlayer', (d) => go('#/players/' + d.id));
 act('copyLink', async () => {
   const url = location.origin + location.pathname + location.search;
@@ -583,6 +640,7 @@ function onStore(c) {
     if (ch.dice) watchDice();
     if (ch.board) watchBoard();
     if (ch.settings || ch.kicks) onMeta();
+    if (ch.seasons) refresh(true); // 명예의 전당이 바뀌면 칭호·테두리 다시 계산
     if (ch.settings) refresh(true); else if (ch.todayDraft && S.page === 'today') refresh();
     if (ch.scorelog && S.page === 'home') refresh();
     return;
@@ -619,4 +677,5 @@ function onStore(c) {
   } catch (e) { document.getElementById('splash')?.remove(); main.innerHTML = `<div class="panel landing"><h1>연결 실패</h1><p>${esc(e.message || e)}</p><p class="hint">js/config.js 의 Firebase 설정과 Firestore 규칙을 확인하세요.</p></div>`; return; }
   await SEASON.ready; // 시즌이 아니면 바로 끝난다. 시즌이면 시작 화면 장식 전에 받아 둔다(DB 연결과 동시에 받으므로 보통 기다리지 않는다)
   metaDiff(); up = true; watchDice(true); watchBoard(true); watchPosts(true); initShell(); initSocial(); SEASON.x?.initXmas(); SEASON.n?.initNewYear(); loadChamps();
+  setTimeout(archiveSeasons, 8000); setInterval(archiveSeasons, 30 * 60e3); // 끝난 시즌 기록(시즌이 바뀌는 순간 접속해 있어도 기록되게)
 })();
