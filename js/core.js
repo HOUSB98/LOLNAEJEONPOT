@@ -130,7 +130,7 @@ export function refresh(dataChanged) {
   if (!raf) raf = requestAnimationFrame(() => { raf = 0; render(); });
 }
 export function render() {
-  if (S.dirty) { S.st = compute(col('players'), col('matches'), settings(), S.store.data.meta?.seasons); S.dirty = false; }
+  if (S.dirty) { S.st = compute(col('players'), col('matches'), settings()); S.dirty = false; }
   const main = document.getElementById('main');
   const f = document.activeElement, fid = f && main.contains(f) ? f.id : '', sel = fid && f.selectionStart;
   document.querySelectorAll('#nav a').forEach((a) => a.classList.toggle('on', a.dataset.p === S.page));

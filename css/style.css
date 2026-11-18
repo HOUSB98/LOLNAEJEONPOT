@@ -1955,15 +1955,3 @@ body.gx-shake #gx{animation:gxquake .45s linear}
   .lp-own{width:100%;padding:6px 0 0;border-left:0;border-top:1px solid var(--line2);justify-content:flex-end}
 }
 
-/* 시즌: 순위표·명예의 전당·카드 메달 테두리 */
-.sn-sel{width:auto;min-width:150px}
-.sn-tbl .sn-pts{font-size:15px}.sn-tbl tr.sn-out td{opacity:.62}.sn-tbl tr.sn-out:hover td{opacity:1}
-.sn-need{display:block;font-size:11px;color:var(--mut);font-weight:400}
-.sn-hall{margin-top:16px}.sn-hrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:10px 2px;border-top:1px solid var(--line)}
-.sn-hrow:first-of-type{border-top:0}.sn-hk{min-width:110px;color:var(--gold2);font-weight:700}
-.sn-hp{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:99px;border:1px solid var(--line2);background:var(--panel2);color:var(--text);font-size:13px}
-.sn-hp small{color:var(--mut)}.sn-hp.p1{border-color:color-mix(in srgb,#f2cf7a 60%,var(--line2))}.sn-hp:hover{border-color:var(--gold)}
-.sm1{--sm:#f2cf7a}.sm2{--sm:#d9e2ee}.sm3{--sm:#d39a63}
-.pcard.sm{box-shadow:0 0 0 2px var(--sm),0 0 20px -6px var(--sm)}.pcard.gt.sm{box-shadow:0 0 0 2px var(--gt),0 0 0 4px var(--sm),0 0 22px -4px var(--gt)}
-.holo-wrap.sm .holo{box-shadow:0 0 0 3px var(--sm),0 30px 60px -20px rgba(0,0,0,.7)}.holo-wrap.gt.sm .holo{box-shadow:0 0 0 3px var(--gt),0 0 0 6px var(--sm),0 30px 60px -20px rgba(0,0,0,.7)}
-@media (max-width:600px){.sn-hk{min-width:0;width:100%}}
