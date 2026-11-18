@@ -11,7 +11,7 @@ const base = () => WORKER_URL.replace(/\/+$/, '');
 export function notify(type, id) {
   if (!hookOn()) return;
   try {
-    fetch(base() + '/notify', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ key: S.key, type, id, cid: localStorage.getItem('naejeon:cid') || '' }) }).catch(() => {}); // cid: 보낸 기기에는 휴대폰 알림을 보내지 않는다
+    fetch(base() + '/notify', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ key: S.key, type, id }) }).catch(() => {});
   } catch {}
 }
 

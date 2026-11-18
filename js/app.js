@@ -4,7 +4,6 @@ import { createStore } from './store.js';
 import { cardChamp } from './core.js';
 import { S, page, act, ddMenu, cho, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, toast, download, csv, needAdmin, history, modal, mh, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
 import { initSocial, renderChat, renderPresence, onMeta } from './social.js';
-import { initPush } from './push.js';
 import { duoRank } from './stats.js';
 import { watchDice } from './dice.js';
 import { watchBoard } from './board.js';
@@ -577,11 +576,7 @@ function onStore(c) {
   if (c === 'players' || c === 'matches') refresh(true);
 }
 (async () => {
-  const qs = new URLSearchParams(location.search);
-  // 홈 화면 앱으로 열었는데 주소에 리그 코드가 없으면 이 기기에 기억해 둔 코드로 다시 연다
-  if (FIREBASE_CONFIG && !qs.has('demo') && !qs.get('k')) { try { const last = localStorage.getItem('naejeon:lastkey'); if (last) { location.replace('?k=' + encodeURIComponent(last) + location.hash); return; } } catch {} }
-  const key = qs.has('demo') ? 'local' : qs.get('k');
-  if (key && key !== 'local') try { localStorage.setItem('naejeon:lastkey', key); } catch {}
+  const qs = new URLSearchParams(location.search), key = qs.has('demo') ? 'local' : qs.get('k');
   const main = document.getElementById('main');
   if (FIREBASE_CONFIG && !key) {
     document.body.classList.add('bare');
@@ -605,5 +600,5 @@ function onStore(c) {
     });
     await S.store.ready;
   } catch (e) { document.getElementById('splash')?.remove(); main.innerHTML = `<div class="panel landing"><h1>연결 실패</h1><p>${esc(e.message || e)}</p><p class="hint">js/config.js 의 Firebase 설정과 Firestore 규칙을 확인하세요.</p></div>`; return; }
-  metaDiff(); up = true; watchDice(true); watchBoard(true); watchPosts(true); initShell(); initSocial(); initXmas(); initNewYear(); initPush(); loadChamps();
+  metaDiff(); up = true; watchDice(true); watchBoard(true); watchPosts(true); initShell(); initSocial(); initXmas(); initNewYear(); loadChamps();
 })();

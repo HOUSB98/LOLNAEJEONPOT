@@ -1934,11 +1934,3 @@ body.gx-shake #gx{animation:gxquake .45s linear}
   .lp-act{justify-content:stretch}.lp-act>.btn{flex:1}
   .lp-own{width:100%;padding:6px 0 0;border-left:0;border-top:1px solid var(--line2);justify-content:flex-end}
 }
-
-/* 알림 · 앱으로 쓰기 */
-.pu h4{margin:14px 0 8px;font-size:14px}.pu h4:first-child{margin-top:0}
-.pu-state{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line2);border-radius:12px;background:var(--panel2)}.pu-state>span{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:#1a2536;color:var(--mut);flex:none}.pu-state.on>span{background:color-mix(in srgb,var(--gold) 25%,transparent);color:var(--gold2)}.pu-state>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
-.pu-types{display:flex;flex-direction:column;gap:6px}.pu-t{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line2);border-radius:10px;background:var(--panel2);cursor:pointer;font-size:14px}.pu-t input{width:18px;height:18px;accent-color:var(--gold)}
-.pu-guide{padding:12px 14px;border:1px solid var(--gold);border-radius:12px;background:color-mix(in srgb,var(--gold) 8%,var(--panel2))}.pu-guide ol{margin:8px 0;padding-left:20px;display:flex;flex-direction:column;gap:4px;font-size:14px}
-.pu-key{margin-top:12px;padding:12px;border:1px dashed var(--gold);border-radius:12px}.pu-key textarea{width:100%;font-size:11px;margin:8px 0;word-break:break-all}
-@media (max-width:860px){.pu-state{flex-wrap:wrap}.pu-state .btn{width:100%;min-height:46px}.pu-t{min-height:48px}}
