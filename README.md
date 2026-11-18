@@ -71,6 +71,7 @@ GitHub 저장소가 원본이다. 집 PC에서 저장소를 내려받아(Downloa
 ## 데이터 모델 (Firestore: `leagues/{코드}/...`)
 - `players/{id}`: name, scores{top,jg,mid,adc,sup}, mainLane, soloTier, riotId, mmrInit, solo{record,peak,most,pos,comment,asOf}, riot{id,puuid,tier,rank,lp,w,l,at | err,errAt}(연동 서버가 적음), deleted
 - `matches/{id}`: at, seriesId, blue[5], red[5] (탑→서폿 순서의 선수 id), winner, champs{blue[5],red[5]}, bans, kda{선수id:[k,d,a]}, snap{bs,rs,pBlue}(기록 당시 점수·예상승률), deleted
+- **웹앱·휴대폰 알림(2026-11-18)**: `manifest.webmanifest`(시작 주소는 설치할 때의 주소 = 초대 링크 ?k= 포함, 주소에 코드가 없으면 `naejeon:lastkey`로 다시 염), 아이콘 `icons/`. `sw.js`(fetch 가로채지 않음)가 푸시를 받으면 `ops/push`(최근 알림 10개)를 읽어 켜 둔 종류만 표시. 알림 켜기는 사이드바/더보기의 "알림" 창(`js/push.js`), 구독은 `push/{기기id}`(구독 안 함). Worker가 라인 지원·경기 결과·가챠 전설·게시판 새 글을 디스코드와 함께 내용 없는 웹 푸시(VAPID 서명)로 보냄, 보낸 기기 제외, 404·410은 deleted. 알림 키: 공개키 `meta/settings.push.pub`, 비밀키 Worker `VAPID_KEY`(관리 화면에서 생성). 아이폰은 홈 화면에 추가한 뒤에만 알림 가능(iOS 16.4+).
 - 읽기 절감: `matches`는 Firestore 로컬 캐시 + 마지막 수정 시각(`upd`, 서버 시각) 이후 바뀐 경기만 구독(하루 1회 전체, `upd` 없는 예전 기록은 자동으로 채움). 경기 쓰기는 store.js가 항상 `upd`를 붙인다. `presence`는 최근 하루, `chat` 30·`posts` 10개만 실시간, 라인 지원·주사위는 meta 컬렉션 구독 하나로.
 - `gacha/{선수id}`: pinHash, used{champ,skin}, bought{champ,skin}, shards, champs{챔피언id:개수}, skins{스킨id:{n,c,num,name,tier}}, log[] (구독하지 않음, 가챠 화면에서만 읽음)
 - `auctions/{id}`: 경매 방 상태(`cfg.mode`에 실시간/일괄 방식, 일괄 입찰 제출과 동점 재입찰 포함) · `meta/settings`: leagueName, scale, k, pinHash · `history/*`: 수정·삭제 전 원본
