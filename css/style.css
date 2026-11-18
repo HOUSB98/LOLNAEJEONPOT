@@ -1985,7 +1985,7 @@ body.gx-shake #gx{animation:gxquake .45s linear}
 .lk-it{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:4px 8px;border-radius:9px;border:1px solid var(--line);font-size:13px}.lk-it.on{border-color:rgba(217,164,65,.5);background:rgba(217,164,65,.06)}.lk-it select{width:auto}
 
 /* ---------- 내 페이지 (js/me.js) ---------- */
-.me{display:flex;flex-direction:column;gap:14px;max-width:1180px}
+.me-pg{display:flex;flex-direction:column;gap:14px;max-width:1180px}
 .me-hero{position:relative;overflow:hidden;isolation:isolate;border:1px solid var(--line2);border-radius:16px;padding:22px 24px 20px;min-height:216px;display:flex;flex-direction:column;
   background:linear-gradient(90deg,#05070d 0,rgba(5,7,13,.94) 34%,rgba(5,7,13,.55) 66%,rgba(5,7,13,.25)),var(--img) 78% 22%/cover no-repeat,var(--panel)}
 .me-hero::before{content:"";position:absolute;inset:0 0 auto;height:2px;background:linear-gradient(90deg,var(--tc),transparent 70%);z-index:1}
@@ -2078,7 +2078,7 @@ a.me-ch[href]:hover{background:rgba(255,255,255,.05)}
 .me-pick .lic{color:var(--lc)}.me-pick button:hover{border-color:var(--lc)}.me-pick button.on{border-color:var(--gold);background:rgba(217,164,65,.1)}
 .me-sheet .me-pick{max-height:60vh;overflow:auto;padding:2px}
 @media (max-width:860px){
-  .me{gap:12px}
+  .me-pg{gap:12px}
   .me-hero{padding:16px 16px 16px;min-height:0;background:linear-gradient(180deg,rgba(5,7,13,.3),rgba(5,7,13,.86) 55%,#05070d),var(--img) 50% 20%/cover no-repeat,var(--panel)}
   .me-lane{width:42px;height:42px}.me-nm h1{font-size:26px}
   .me-sw span{display:none}.me-sw{min-width:40px;min-height:40px!important;justify-content:center}

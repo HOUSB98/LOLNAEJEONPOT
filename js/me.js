@@ -151,7 +151,7 @@ page('me', {
     const s = st.P[id], d = derived(st), games = myGames(st, id), r = d.rank[id];
     const sig = cardChamp(s), l = s.g - s.w, last = games[games.length - 1];
     const streakTxt = s.cur >= 2 ? `${s.cur}연승` : s.cur <= -2 ? `${-s.cur}연패` : FORM[s.cond];
-    return `<div class="me" style="--tc:${LANE_COLOR[s.mainLane]}">
+    return `<div class="me-pg" style="--tc:${LANE_COLOR[s.mainLane]}">
     <section class="me-hero" style="--img:url('${artUrl(sig)}')">
       <div class="me-id"><span class="me-lane">${LANE_ICON[s.mainLane]}</span>
         <div class="me-nm"><small>MY PAGE · 주라인 ${LANE_NAME[s.mainLane]}${sig ? ` · ${esc(sig)}` : ''}</small><h1>${esc(s.name)}</h1></div>
