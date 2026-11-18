@@ -3,6 +3,7 @@
 // 지운 글은 문서를 없애지 않고 deleted:true 로 표시한다(사이트 공통 규칙).
 import { S, page, act, esc, uid, col, refresh, toast, modal, closeModal, mh, ic, sha, needAdmin } from './core.js';
 import { sysChat } from './social.js';
+import { notify as hookNotify } from './hook.js';
 
 const MAX_TITLE = 60, MAX_BODY = 2000, PAGE = 30, COOLDOWN = 20e3;
 const TK = { title: '', body: '', pw: '', open: false, shown: PAGE, busy: false, seen: null, mine: new Set() };
@@ -97,6 +98,7 @@ act('tkPost', async () => {
     Object.assign(TK, { title: '', body: '', pw: '', open: false });
     toast('익명으로 글을 올렸어요');
     sysChat('익명 게시판에 새 글이 올라왔어요');
+    hookNotify('post', id); // 디스코드 알림(글쓴이 정보 없이 제목·앞부분만, 연동 서버가 글을 직접 확인)
   } catch (e) { toast('올리기 실패: ' + (e.code || e.message)); }
   TK.busy = false; refresh();
 });

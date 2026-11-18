@@ -158,6 +158,7 @@ async function notify(env, { type, id }) {
   if (type === 'board') return boardMessage(env, id);
   if (type === 'match') return matchMessage(env, id);
   if (type === 'gacha') return gachaMessage(env, id);
+  if (type === 'post') return postMessage(env, id);
   throw new Error('알 수 없는 알림 종류');
 }
 
@@ -195,6 +196,21 @@ async function gachaMessage(env, id) {
       description: `**${l.n}**\n${tn} · ${price}${env.SITE_URL ? `\n\n👉 [나도 뽑으러 가기](${env.SITE_URL}#/gacha)` : ''}`,
       image: img ? { url: img } : undefined,
       timestamp: new Date(+at).toISOString(),
+    }],
+  });
+}
+
+// 익명 게시판 새 글: posts/{id} 를 읽어 30분 이내의 지워지지 않은 글만 보낸다. 글쓴이 정보는 원래 저장되지 않는다
+async function postMessage(env, id) {
+  const p = await getDoc(env, 'posts', id);
+  if (!p || p.deleted || Date.now() - (+p.at || 0) > 30 * 60e3) return { ok: true, skipped: '글 없음' };
+  const cut = (t, n) => { t = String(t || '').trim(); return t.length > n ? t.slice(0, n) + '…' : t; };
+  return discord(env, {
+    embeds: [{
+      title: '📝 익명 게시판에 새 글이 올라왔어요', url: env.SITE_URL ? env.SITE_URL + '#/talk' : undefined, color: 0x9b8cff,
+      description: `${p.title ? `**${cut(p.title, 80)}**\n` : ''}${cut(p.body, 200) || '-'}${env.SITE_URL ? `\n\n👉 [게시판에서 보기](${env.SITE_URL}#/talk)` : ''}`,
+      footer: { text: '글쓴이는 누구도 알 수 없어요' },
+      timestamp: new Date(+p.at || Date.now()).toISOString(),
     }],
   });
 }
