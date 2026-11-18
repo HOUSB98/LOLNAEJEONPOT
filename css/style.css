@@ -2105,3 +2105,8 @@ a.me-ch[href]:hover{background:rgba(255,255,255,.05)}
   .pl a{padding-block:7px;margin-block:-7px}
 }
 .me-c>header .lnk{padding:8px 2px;margin:-8px 0}
+
+/* 라인 점수 변경 내역 복사(관리) */
+.sl-seg{margin:4px 0 12px}
+.sl-part{margin:0 0 12px}.sl-ph{display:flex;align-items:center;gap:8px;margin-bottom:6px}.sl-ph small{color:var(--mut)}
+.sl-ta{width:100%;resize:vertical;font:13px/1.6 var(--sans);white-space:pre-wrap}
