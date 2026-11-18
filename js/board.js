@@ -38,6 +38,10 @@ const prefs = (d, id) => { const v = d.picks?.[id]; return Array.isArray(v) ? v.
 const RANK = ['1지망', '2지망', '3지망'];
 // 완료: done[선수] = true. 모두 완료하면 마지막으로 누른 사람의 쓰기에서 바로 추첨 단계로 넘어간다.
 const isDone = (d, id) => !!d.done?.[id];
+// 라인 고정: fixed[선수] = 'adc'. 고정한 사람은 지망 없이 완료로 치고, 추첨 전에 그 라인에 먼저 배치한다(한 라인 최대 2명).
+// 지원 화면의 라인 카드에는 고정 인원 수만 보여 준다(누가 고정했는지는 최종 라인업에서만 보인다).
+const fixOf = (d, id) => (LANES.includes(d.fixed?.[id]) && d.ids.includes(id) ? d.fixed[id] : '');
+const fixN = (d, l) => d.ids.filter((id) => fixOf(d, id) === l).length;
 const allDone = (d) => d.ids.length > 0 && d.ids.every((id) => isDone(d, id));
 
 // ---------- 효과음(파일 없이 Web Audio로, 부드러운 전자음만) ----------
@@ -62,33 +66,38 @@ function sfx(kind) {
 
 // ---------- 지원 화면 ----------
 function card(d, o) {
-  const rankN = [0, 1, 2].map((r) => d.ids.filter((id) => prefs(d, id)[r] === o).length), n = rankN[0];
+  const rankN = [0, 1, 2].map((r) => d.ids.filter((id) => !fixOf(d, id) && prefs(d, id)[r] === o).length), n = rankN[0];
+  const fx = o === 'any' ? 0 : fixN(d, o), cap = 2 - fx, full = o !== 'any' && cap <= 0;
   const prevN = Object.values(BD.prev).filter((v) => (Array.isArray(v) ? v[0] : v) === o).length;
   const myRank = BD.me ? prefs(d, BD.me).indexOf(o) : -1;
-  const state = o === 'any' ? '' : n > 2 ? `<span class="lp-st hot">1지망 ${n - 2}명 초과 · 추첨</span>` : n === 2 ? '<span class="lp-st ok">딱 맞음</span>' : `<span class="lp-st low">${2 - n}자리 남음</span>`;
-  return `<button class="lp-card ${myRank >= 0 ? 'mine' : ''} ${o === 'any' ? 'any' : ''}" data-a="bdPick" data-o="${o}" style="--lc:${COLOR[o]}" ${d.status !== 'open' || (BD.me && isDone(d, BD.me)) ? 'disabled' : ''}>
+  const state = o === 'any' ? '' : full ? '<span class="lp-st fix">고정으로 마감</span>' : n > cap ? `<span class="lp-st hot">1지망 ${n - cap}명 초과 · 추첨</span>` : n === cap ? '<span class="lp-st ok">딱 맞음</span>' : `<span class="lp-st low">${cap - n}자리 남음</span>`;
+  return `<button class="lp-card ${myRank >= 0 ? 'mine' : ''} ${o === 'any' ? 'any' : ''} ${full ? 'full' : ''}" data-a="bdPick" data-o="${o}" style="--lc:${COLOR[o]}" ${d.status !== 'open' || (BD.me && isDone(d, BD.me)) ? 'disabled' : ''}>
     <span class="lp-ch"><i class="lp-ico">${icon(o)}</i><b>${NAME[o]}</b>${myRank >= 0 ? `<em class="r${myRank + 1}">${RANK[myRank]}</em>` : ''}</span>
-    <span class="lp-meta">${o === 'any' ? '빈 자리에 배치' : '모집 2명'}${state}</span>
-    <span class="lp-bar"><i style="width:${o === 'any' ? 0 : Math.min(100, n * 50)}%"></i></span>
-    <span class="lp-cnt ${n !== prevN ? 'bump' : ''}"><small>1지망</small><b class="mono">${n}</b>명<i class="lp-dots">${Array.from({ length: Math.max(n, o === 'any' ? 0 : 2) }, (_, i) => `<u class="${i < n ? 'on' : ''}"></u>`).join('')}</i></span>
+    <span class="lp-meta">${o === 'any' ? '빈 자리에 배치' : '모집 2명'}${fx ? `<span class="lp-fx">🔒 고정 ${fx}</span>` : ''}${state}</span>
+    <span class="lp-bar"><i style="width:${o === 'any' ? 0 : Math.min(100, (fx + n) * 50)}%"></i></span>
+    <span class="lp-cnt ${n !== prevN ? 'bump' : ''}"><small>1지망</small><b class="mono">${n}</b>명<i class="lp-dots">${Array.from({ length: fx }, () => '<u class="fx" title="고정"></u>').join('')}${Array.from({ length: Math.max(n, o === 'any' ? 0 : cap) }, (_, i) => `<u class="${i < n ? 'on' : ''}"></u>`).join('')}</i></span>
     <span class="lp-sub">2지망 <b>${rankN[1]}</b> · 3지망 <b>${rankN[2]}</b></span>
   </button>`;
 }
 function openHTML(d) {
   const doneN = d.ids.filter((id) => isDone(d, id)).length, isMe = d.ids.includes(BD.me), mine = isMe ? prefs(d, BD.me) : [], meDone = isMe && isDone(d, BD.me), own = isOwner(d);
+  const myFix = isMe ? fixOf(d, BD.me) : '';
   const mem = (id) => {
     const p = prefs(d, id)[0], me = id === BD.me, ok = isDone(d, id);
     const st = ok ? 'done' : p ? 'ok' : '';
     return `<button class="lp-mem ${me ? 'me' : ''} ${st}" data-a="bdMe" data-id="${id}" style="--lc:${ok ? '#4fd08b' : p ? '#d9a441' : '#5a6a84'}" title="${ok ? '선택 완료' : p ? '고르는 중 (아직 완료 안 누름)' : '아직 안 고름'}">${ok ? '<i>✓</i>' : p ? `<i>${me ? icon(p) : '…'}</i>` : '<i class="dot"></i>'}${esc(nm(id))}</button>`;
   };
   const myBtn = !isMe ? '<span class="lp-wait">본인 이름을 먼저 눌러 주세요</span>'
+    : myFix ? `<button class="btn ghost" data-a="bdUnfix">🔓 고정 해제</button>`
     : meDone ? `<button class="btn ghost" data-a="bdUndo">${ic('edit')}다시 고르기</button>`
     : `<button class="btn pri lp-done" data-a="bdDone" ${mine.length ? '' : 'disabled title="라인을 하나 이상 고르세요 (상관없음도 가능)"'}>✓ 선택 완료</button>`;
   const ownBtns = own ? `<div class="lp-own"><button class="btn ghost xs" data-a="bdShut">취소하기</button><button class="btn ghost xs" data-a="bdGo" ${d.ids.some((id) => prefs(d, id).length) ? '' : 'disabled'}>${ic('dice')}강제 마감</button></div>` : '';
   return `<div class="lp-h"><div><small><i class="live"></i>LIVE · 모두 같은 화면</small><h2>${ic('users')}라인 지원</h2></div><span class="grow"></span>
       <button class="btn ghost xs" data-a="bdMute" title="효과음">${ic(BD.muted ? 'mute' : 'sound')}</button><button class="btn ghost xs" data-a="bdHide" title="닫기 (라인 지원은 계속 열려 있음)">${ic('x')}</button></div>
     <ol class="lp-steps"><li class="${isMe ? 'done' : 'on'}">내 이름 선택</li><li class="${isMe ? (mine.length ? 'done' : 'on') : ''}">라인 1~3지망 선택</li><li class="${meDone ? 'done' : isMe && mine.length ? 'on' : ''}">선택 완료 누르기</li><li>모두 완료 → 자동 추첨</li></ol>
-    ${isMe ? `<div class="lp-my ${meDone ? 'locked' : ''}"><b>${esc(nm(BD.me))}</b>의 지망${[0, 1, 2].map((r) => `<span class="lp-rk ${mine[r] ? 'on' : ''}" style="--lc:${mine[r] ? COLOR[mine[r]] : '#3a4a64'}"><small>${RANK[r]}</small>${mine[r] ? `${icon(mine[r])}${NAME[mine[r]]}` : '—'}</span>`).join('')}<small class="mut">${meDone ? '완료했어요 · 바꾸려면 아래 \'다시 고르기\'' : '카드를 누른 순서대로 1·2·3지망 · 다시 누르면 빠져요'}</small></div>` : ''}
+    ${isMe && myFix ? `<div class="lp-my locked"><b>${esc(nm(BD.me))}</b><span class="lp-rk on" style="--lc:${COLOR[myFix]}"><small>🔒 고정</small>${icon(myFix)}${NAME[myFix]}</span><small class="mut">이 라인으로 고정돼 추첨 없이 배치돼요 · 다른 사람에게는 '고정 1'처럼 숫자만 보여요</small></div>` : ''}
+    ${isMe && !myFix && !meDone ? `<div class="lp-fixrow">${BD.fixing ? `<span class="lp-fxq">🔒 고정할 라인</span>${LANES.map((l) => `<button class="btn xs lp-fxb" data-a="bdFix" data-o="${l}" style="--lc:${COLOR[l]}" ${fixN(d, l) >= 2 ? 'disabled title="이미 2명이 고정했어요"' : ''}>${icon(l)}${NAME[l]}</button>`).join('')}<button class="btn ghost xs" data-a="bdFixOpen">취소</button>` : '<button class="btn ghost xs lp-fxopen" data-a="bdFixOpen" title="오늘 이 라인으로 가기로 정해졌으면 고정하세요">🔒 라인 고정</button>'}</div>` : ''}
+    ${isMe && !myFix ? `<div class="lp-my ${meDone ? 'locked' : ''}"><b>${esc(nm(BD.me))}</b>의 지망${[0, 1, 2].map((r) => `<span class="lp-rk ${mine[r] ? 'on' : ''}" style="--lc:${mine[r] ? COLOR[mine[r]] : '#3a4a64'}"><small>${RANK[r]}</small>${mine[r] ? `${icon(mine[r])}${NAME[mine[r]]}` : '—'}</span>`).join('')}<small class="mut">${meDone ? '완료했어요 · 바꾸려면 아래 \'다시 고르기\'' : '카드를 누른 순서대로 1·2·3지망 · 다시 누르면 빠져요'}</small></div>` : ''}
     ${isMe && !BD.roster ? `<div class="lp-sec lp-mini"><span>${ic('user')}<b>${esc(nm(BD.me))}</b>(으)로 지원 중</span><button class="btn ghost xs" data-a="bdRoster">참가자 현황 · 대리 지원</button></div>`
       : `<div class="lp-sec"><div class="lp-sh"><b>참가자</b><small>${isMe ? `<b>${esc(nm(BD.me))}</b>(으)로 지원 중 · 다른 이름을 누르면 대리 지원` : '본인 이름을 눌러 주세요'}</small></div>
       <div class="lp-roster">${d.ids.map(mem).join('')}</div></div>`}
@@ -99,13 +108,13 @@ function openHTML(d) {
 function finalHTML(d) {
   const rk = d.rankOf || {};
   const drawn = new Set((d.steps || []).filter((s) => s.kind === 'roll' && !s.fill).flatMap((s) => s.pick));
-  const tag = (id) => (rk[id] ? `<em class="r${rk[id]}">${RANK[rk[id] - 1]}${drawn.has(id) ? '·추첨' : ''}</em>` : '<em>배치</em>');
+  const tag = (id) => (fixOf(d, id) && d.result?.[fixOf(d, id)]?.includes(id) ? '<em class="fx">🔒 고정</em>' : rk[id] ? `<em class="r${rk[id]}">${RANK[rk[id] - 1]}${drawn.has(id) ? '·추첨' : ''}</em>` : '<em>배치</em>');
   const cell = (id, side, i) => (id ? `<span class="lf-n ${side}" style="--i:${i}">${esc(nm(id))}${tag(id)}</span>` : '<span class="lf-n empty">빈 자리</span>');
   return `<div class="lp-h"><div><small>RESULT</small><h2>${ic('today')}최종 라인업</h2></div><span class="grow"></span><button class="btn ghost xs" data-a="bdClose" title="닫기">${ic('x')}</button></div>
     <div class="lf"><span></span><b class="blue">BLUE</b><b class="red">RED</b>
       ${LANES.map((l, i) => `<span class="lf-l" style="--lc:${COLOR[l]}">${LANE_ICON[l]}${LANE_NAME[l]}</span>${cell(d.result?.[l]?.[0], 'blue', i * 2)}${cell(d.result?.[l]?.[1], 'red', i * 2 + 1)}`).join('')}</div>
     ${d.left?.length ? `<p class="mut center">대기: ${d.left.map((x) => esc(nm(x))).join(', ')}</p>` : ''}
-    <p class="hint center"><em class="lf-tag">N지망</em> 몇 지망으로 들어갔는지 (·추첨: 몰려서 뽑힘) · <em class="lf-tag">배치</em> 상관없음·지망 실패·미지원으로 빈 자리에 들어감 · 진영·자리 교체는 라인업에서 끌어다 놓으면 됩니다</p>
+    <p class="hint center"><em class="lf-tag">N지망</em> 몇 지망으로 들어갔는지 (·추첨: 몰려서 뽑힘) · <em class="lf-tag">배치</em> 상관없음·지망 실패·미지원으로 빈 자리에 들어감 · <em class="lf-tag">🔒 고정</em> 라인 고정으로 추첨 없이 배치 · 진영·자리 교체는 라인업에서 끌어다 놓으면 됩니다</p>
     ${d.ai ? `<p class="lf-ai center">${ic('bolt')}AI 추천 배치 · 점수 <b class="blue">${(+d.ai.bs).toFixed(1)}</b> : <b class="red">${(+d.ai.rs).toFixed(1)}</b> (차이 ${(+d.ai.diff).toFixed(1)})</p>` : ''}
     <div class="lp-foot center">${isOwner(d) ? '' : '<span class="mut sm">AI 추천은 연 사람만 쓸 수 있어요</span>'}${isOwner(d) ? `<button class="btn gold" data-a="bdAi" ${LANES.every((l) => d.result?.[l]?.[0] && d.result?.[l]?.[1]) ? '' : 'disabled title="빈 자리가 있으면 쓸 수 없어요"'}>${ic('bolt')}AI 추천</button>` : ''}<button class="btn pri" data-a="bdLineup">${ic('today')}라인업 확인</button><button class="btn ghost" data-a="bdClose">닫기</button></div>`;
 }
@@ -152,13 +161,15 @@ act('bdOpen', async () => {
   notify('board', d.rid); // 디스코드 알림
   sfx('start'); openBoard();
 });
-act('bdMe', (x) => { BD.me = x.id; BD.roster = false; localStorage.setItem('naejeon:bdme:' + S.key, x.id); draw(); });
+act('bdMe', (x) => { BD.me = x.id; BD.roster = false; BD.fixing = false; localStorage.setItem('naejeon:bdme:' + S.key, x.id); draw(); });
 act('bdRoster', () => { BD.roster = true; draw(); });
 act('bdPick', async (x) => {
   const d = cur(); if (!d || d.status !== 'open') return;
   if (!live(d)) { toast('2시간 동안 움직임이 없어 라인 지원이 닫혔어요. 다시 열어 주세요'); closeModal(); if (S.page === 'today') refresh(); return; }
   if (!d.ids.includes(BD.me)) { toast('위쪽 참가자 목록에서 본인 이름을 먼저 눌러 주세요'); view()?.querySelector('.lp-roster')?.classList.add('nudge'); setTimeout(() => view()?.querySelector('.lp-roster')?.classList.remove('nudge'), 900); return; }
+  if (fixOf(d, BD.me)) { toast('라인 고정 중이에요. 고정을 풀면 지망을 고를 수 있어요'); return; }
   if (isDone(d, BD.me)) { toast("완료한 뒤에는 바꿀 수 없어요. '다시 고르기'를 누른 뒤 고쳐 주세요"); return; }
+  if (x.o !== 'any' && fixN(d, x.o) >= 2 && !prefs(d, BD.me).includes(x.o)) { toast(`${NAME[x.o]} 자리는 고정한 사람으로 이미 꽉 찼어요`); return; }
   const me = BD.me, rid = d.rid;
   sfx('pick');
   try {
@@ -198,6 +209,41 @@ act('bdDone', async () => {
   sfx('lock');
   if (r?.status === 'play' && r.rid === d.rid) { BD.runner = r.rid; bseen = r.rid + r.status; play(r); }
 });
+// 라인 고정/해제: 고정하면 지망을 지우고 완료로 친다(모두 완료되면 바로 추첨). 해제하면 미완료로 돌아간다.
+act('bdFixOpen', () => { BD.fixing = !BD.fixing; draw(); });
+act('bdFix', async (x) => {
+  const d = cur(); if (!d || d.status !== 'open' || !LANES.includes(x.o)) return;
+  if (!live(d)) { toast('2시간 동안 움직임이 없어 라인 지원이 닫혔어요. 다시 열어 주세요'); closeModal(); if (S.page === 'today') refresh(); return; }
+  const me = BD.me; if (!d.ids.includes(me)) return toast('위쪽 참가자 목록에서 본인 이름을 먼저 눌러 주세요');
+  await S.store.syncServerClock?.();
+  let res = null, full = false;
+  try {
+    res = await S.store.tx('meta', 'board', (r) => {
+      if (!r || r.rid !== d.rid || r.status !== 'open' || !r.ids.includes(me)) return null;
+      if (fixN(r, x.o) >= 2 && fixOf(r, me) !== x.o) { full = true; return null; }
+      const picks = { ...(r.picks || {}) }; delete picks[me];
+      const next = { ...r, picks, fixed: { ...(r.fixed || {}), [me]: x.o }, done: { ...(r.done || {}), [me]: true }, upd: S.store.serverNow() };
+      if (!allDone(next)) return next;
+      return { ...next, status: 'play', startAt: S.store.serverNow() + 1800, ...plan(next), runner: nick() || '익명' };
+    });
+  } catch (e) { return toast('고정 실패: ' + (e.code || e.message)); }
+  if (full) return toast(`${NAME[x.o]} 자리는 이미 2명이 고정했어요`);
+  if (!res) return;
+  BD.fixing = false; sfx('lock'); toast(`${NAME[x.o]} 라인으로 고정했어요`);
+  const r = S.store.mode === 'local' ? cur() : res;
+  if (r?.status === 'play' && r.rid === d.rid) { BD.runner = r.rid; bseen = r.rid + r.status; play(r); } else draw();
+});
+act('bdUnfix', async () => {
+  const d = cur(); if (!d || d.status !== 'open') return;
+  const me = BD.me;
+  try {
+    await S.store.tx('meta', 'board', (r) => {
+      if (!r || r.rid !== d.rid || r.status !== 'open' || !fixOf(r, me)) return null;
+      const fixed = { ...(r.fixed || {}) }, done = { ...(r.done || {}) }; delete fixed[me]; delete done[me];
+      return { ...r, fixed, done, upd: S.store.serverNow() };
+    });
+  } catch (e) { toast('실패: ' + (e.code || e.message)); }
+});
 act('bdUndo', async () => {
   const d = cur(); if (!d || d.status !== 'open') return;
   const me = BD.me;
@@ -229,6 +275,8 @@ function plan(d) {
   const P = Object.fromEntries(d.ids.map((id) => [id, prefs(d, id)]));
   const slots = Object.fromEntries(LANES.map((l) => [l, []])), steps = [], rankOf = {};
   let left = [...d.ids];
+  // 고정한 사람은 추첨 없이 먼저 그 라인에(한 라인 최대 2명, 넘치면 남는 사람은 일반 배치로)
+  for (const id of shuffle(d.ids)) { const l = fixOf(d, id); if (l && slots[l].length < 2) { slots[l].push(id); left = left.filter((x) => x !== id); } }
   for (let r = 0; r < 3; r++) {
     for (const l of shuffle(LANES)) {
       const free = 2 - slots[l].length; if (free <= 0) continue;
