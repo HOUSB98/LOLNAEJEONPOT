@@ -576,6 +576,8 @@ function onStore(c) {
   if (c === 'players' || c === 'matches') refresh(true);
 }
 (async () => {
+  // 잠깐 배포됐던 웹앱 알림용 서비스 워커가 남아 있으면 지운다(웹앱 기능은 쓰지 않기로 함)
+  try { navigator.serviceWorker?.getRegistrations().then((rs) => rs.forEach((r) => r.unregister())).catch(() => {}); } catch {}
   const qs = new URLSearchParams(location.search), key = qs.has('demo') ? 'local' : qs.get('k');
   const main = document.getElementById('main');
   if (FIREBASE_CONFIG && !key) {
