@@ -33,7 +33,7 @@ export default {
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
     if (req.method === 'GET' && url.pathname === '/') {
       // 설정 확인용: 어떤 값이 들어 있는지만 알려 준다(값 자체는 절대 내보내지 않음)
-      return json({ ok: true, set: { LEAGUE_KEY: !!env.LEAGUE_KEY, DISCORD_WEBHOOK: !!env.DISCORD_WEBHOOK, RIOT_KEY: !!env.RIOT_KEY, GCP_SA: !!env.GCP_SA, SITE_URL: !!env.SITE_URL } }, 200, cors);
+      return json({ ok: true, set: { LEAGUE_KEY: !!env.LEAGUE_KEY, DISCORD_WEBHOOK: !!env.DISCORD_WEBHOOK, RIOT_KEY: !!env.RIOT_KEY, GCP_SA: !!env.GCP_SA, SITE_URL: !!env.SITE_URL, VAPID_KEY: !!env.VAPID_KEY } }, 200, cors);
     }
     if (req.method !== 'POST') return json({ error: 'not found' }, 404, cors);
     if (!cors['Access-Control-Allow-Origin']) return json({ error: '허용되지 않은 사이트에서 온 요청입니다' }, 403, cors);
@@ -43,6 +43,7 @@ export default {
     try {
       if (url.pathname === '/notify') return json(await notify(env, body), 200, cors);
       if (url.pathname === '/test') return json(await testMessage(env), 200, cors);
+      if (url.pathname === '/pushtest') return json(await pushTest(env, body), 200, cors);
       if (url.pathname === '/usage') return json(await usage(env), 200, cors);
       if (url.pathname === '/watch') return json(await watchUsage(env), 200, cors); // 사용량 감시를 지금 한 번 실행(설정 확인용)
       if (url.pathname === '/riot') {
@@ -152,24 +153,25 @@ const mentionPayload = (env) => {
   return { content: m, allowed_mentions: { parse: m.includes('@everyone') || m.includes('@here') ? ['everyone'] : [], roles: [...m.matchAll(/<@&(\d+)>/g)].map((x) => x[1]), users: [...m.matchAll(/<@!?(\d+)>/g)].map((x) => x[1]) } };
 };
 
-async function notify(env, { type, id }) {
+async function notify(env, { type, id, cid }) {
   if (typeof id !== 'string' || !/^[\w-]{1,64}$/.test(id)) throw new Error('잘못된 id');
   if (!once(type + ':' + id)) return { ok: true, skipped: '이미 보낸 알림' };
-  if (type === 'board') return boardMessage(env, id);
-  if (type === 'match') return matchMessage(env, id);
-  if (type === 'gacha') return gachaMessage(env, id);
-  if (type === 'post') return postMessage(env, id);
+  const skip = typeof cid === 'string' && /^[\w-]{1,64}$/.test(cid) ? cid : ''; // 보낸 기기에는 휴대폰 알림을 보내지 않는다
+  if (type === 'board') return boardMessage(env, id, skip);
+  if (type === 'match') return matchMessage(env, id, skip);
+  if (type === 'gacha') return gachaMessage(env, id, skip);
+  if (type === 'post') return postMessage(env, id, skip);
   throw new Error('알 수 없는 알림 종류');
 }
 
 // 라인 지원 열림: meta/board 문서를 직접 읽어 정말 열렸는지 확인하고 보낸다
-async function boardMessage(env, rid) {
+async function boardMessage(env, rid, skip) {
   const d = await getDoc(env, 'meta', 'board');
   if (!d || d.rid !== rid || d.status !== 'open') return { ok: true, skipped: '열린 라인 지원이 없음' };
   const { docs } = await listDocs(env, 'players');
   const nm = Object.fromEntries(docs.map((p) => [p.id, p.name]));
   const names = (d.ids || []).map((x) => nm[x] || '?');
-  return discord(env, {
+  return deliver(env, skip, { id: 'board:' + rid, type: 'board', title: '📣 라인 지원이 열렸어요!', body: `참가자 ${names.length}명 · 원하는 라인을 골라 주세요`, url: '#/today' }, {
     ...mentionPayload(env),
     embeds: [{
       title: '📣 라인 지원이 열렸어요!', url: env.SITE_URL || undefined, color: 0xd9a441,
@@ -183,14 +185,14 @@ async function boardMessage(env, rid) {
 
 // 가챠 전설 이상 스킨: id = "선수id-뽑은시각". gacha/{선수id} 의 기록에 정말 있는지(30분 이내) 확인하고 보낸다
 const GACHA_TIER = { legendary: ['전설', 0xffb347, '1820 RP'], ultimate: ['궁극', 0xff5d8f, '3250 RP'], mythic: ['신화', 0xff4fd8, '신화 정수'], transcendent: ['초월', 0x7ff3ff, '한정·최고가'] };
-async function gachaMessage(env, id) {
+async function gachaMessage(env, id, skip) {
   const m = id.match(/^(.+)-(\d{12,14})$/); if (!m) throw new Error('잘못된 id');
   const [, pid, at] = m, d = await getDoc(env, 'gacha', pid);
   const l = (d?.log || []).find((x) => +x.at === +at && x.k === 'skin' && GACHA_TIER[x.t]);
   if (!l || Date.now() - +at > 30 * 60e3) return { ok: true, skipped: '해당 기록 없음' };
   const p = await getDoc(env, 'players', pid), [tn, color, price] = GACHA_TIER[l.t];
   const img = l.c ? `https://ddragon.leagueoflegends.com/cdn/img/champion/splash/${l.c === 'Fiddlesticks' ? 'FiddleSticks' : l.c}_${+l.num || 0}.jpg` : undefined;
-  return discord(env, {
+  return deliver(env, skip, { id: 'gacha:' + id, type: 'gacha', title: `🎉 ${p?.name || '누군가'}님이 [${tn}] 스킨을 뽑았어요!`, body: `${l.n} · ${price}`, url: '#/gacha' }, {
     embeds: [{
       title: `🎉 ${p?.name || '누군가'}님이 [${tn}] 스킨을 뽑았어요!`, url: env.SITE_URL || undefined, color,
       description: `**${l.n}**\n${tn} · ${price}${env.SITE_URL ? `\n\n👉 [나도 뽑으러 가기](${env.SITE_URL}#/gacha)` : ''}`,
@@ -201,11 +203,11 @@ async function gachaMessage(env, id) {
 }
 
 // 익명 게시판 새 글: posts/{id} 를 읽어 30분 이내의 지워지지 않은 글만 보낸다. 글쓴이 정보는 원래 저장되지 않는다
-async function postMessage(env, id) {
+async function postMessage(env, id, skip) {
   const p = await getDoc(env, 'posts', id);
   if (!p || p.deleted || Date.now() - (+p.at || 0) > 30 * 60e3) return { ok: true, skipped: '글 없음' };
   const cut = (t, n) => { t = String(t || '').trim(); return t.length > n ? t.slice(0, n) + '…' : t; };
-  return discord(env, {
+  return deliver(env, skip, { id: 'post:' + id, type: 'post', title: '📝 익명 게시판에 새 글이 올라왔어요', body: cut(p.title || p.body, 80), url: '#/talk' }, {
     embeds: [{
       title: '📝 익명 게시판에 새 글이 올라왔어요', url: env.SITE_URL ? env.SITE_URL + '#/talk' : undefined, color: 0x9b8cff,
       description: `${p.title ? `**${cut(p.title, 80)}**\n` : ''}${cut(p.body, 200) || '-'}${env.SITE_URL ? `\n\n👉 [게시판에서 보기](${env.SITE_URL}#/talk)` : ''}`,
@@ -216,7 +218,7 @@ async function postMessage(env, id) {
 }
 
 // 경기 결과: matches 문서를 읽어서 보낸다
-async function matchMessage(env, id) {
+async function matchMessage(env, id, skip) {
   const m = await getDoc(env, 'matches', id);
   if (!m || m.deleted || !m.winner) return { ok: true, skipped: '경기 없음' };
   const { docs } = await listDocs(env, 'players');
@@ -227,7 +229,8 @@ async function matchMessage(env, id) {
     return `\`${LANE_NAME[LANES[i]]}\` **${nm[pid] || '?'}**${ch ? ` · ${ch}` : ''}${Array.isArray(k) ? ` · ${k.join('/')}` : ''}`;
   }).join('\n') || '-';
   const score = (s) => (typeof m.snap?.[s] === 'number' ? ` · ${m.snap[s].toFixed(1)}점` : '');
-  return discord(env, {
+  const roster = (s) => (m[s] || []).map((pid) => nm[pid] || '?').join(', ');
+  return deliver(env, skip, { id: 'match:' + id, type: 'match', title: `${bw ? '🔵 블루' : '🔴 레드'} 승리!${pWin < 0.4 ? ' 🐶 업셋!' : ''}`, body: `블루: ${roster('blue')}\n레드: ${roster('red')}`, url: '#/matches' }, {
     embeds: [{
       title: `${bw ? '🔵 블루' : '🔴 레드'} 승리!${pWin < 0.4 ? ' 🐶 업셋!' : ''}`, url: env.SITE_URL || undefined, color: bw ? 0x3b82f6 : 0xef4444,
       fields: [
@@ -238,6 +241,59 @@ async function matchMessage(env, id) {
       timestamp: new Date(m.at || Date.now()).toISOString(),
     }],
   });
+}
+
+// ---------- 휴대폰 알림(웹 푸시) ----------
+// 디스코드와 휴대폰 알림을 함께 보낸다. 한쪽이 실패해도 다른 쪽은 보낸다.
+async function deliver(env, skip, item, payload) {
+  const [d, p] = await Promise.allSettled([discord(env, payload), pushAll(env, item, { skip })]);
+  return { ok: d.status === 'fulfilled' || (p.status === 'fulfilled' && p.value.push > 0), discord: d.status === 'fulfilled' ? 'ok' : String(d.reason?.message || d.reason), ...(p.status === 'fulfilled' ? p.value : { push: 'error: ' + String(p.reason?.message || p.reason) }) };
+}
+// 알림 키(VAPID) 서명: 받는 서버(구글·애플·모질라)마다 12시간짜리 서명 하나를 만들어 재사용한다
+const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+async function vapid(env, aud) {
+  const c = (MEM.vapid ||= {})[aud]; if (c && c.exp - 600 > Date.now() / 1000) return c;
+  let jwk; try { jwk = JSON.parse(env.VAPID_KEY); } catch { throw new Error('VAPID_KEY 값이 올바르지 않아요(관리 화면에서 만든 값을 그대로 붙여 넣어 주세요)'); }
+  const key = await crypto.subtle.importKey('jwk', { kty: 'EC', crv: 'P-256', x: jwk.x, y: jwk.y, d: jwk.d, ext: true }, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+  const exp = Math.floor(Date.now() / 1000) + 12 * 3600, te = new TextEncoder();
+  let sub = 'mailto:naejeonpot@example.com'; try { if (env.SITE_URL) sub = new URL(env.SITE_URL).origin; } catch {}
+  const unsigned = b64u(te.encode(JSON.stringify({ typ: 'JWT', alg: 'ES256' }))) + '.' + b64u(te.encode(JSON.stringify({ aud, exp, sub })));
+  const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key, te.encode(unsigned));
+  const raw = new Uint8Array(65); raw[0] = 4;
+  const xy = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (s.length % 4)) % 4)), (ch) => ch.charCodeAt(0));
+  raw.set(xy(jwk.x), 1); raw.set(xy(jwk.y), 33);
+  return (MEM.vapid[aud] = { jwt: unsigned + '.' + b64u(sig), pub: b64u(raw), exp });
+}
+// 알림 내용은 ops/push(최근 10개)에 적고, 기기에는 내용 없는 '깨우기' 신호만 보낸다(암호화가 필요 없어 무료 플랜 CPU 한도에 넉넉하다).
+// 기기의 서비스 워커가 깨어나 ops/push 를 읽고 알림을 띄운다. 구독이 끝난 기기(404·410)는 deleted 로 표시한다.
+async function pushAll(env, item, { skip = '', only = '' } = {}) {
+  if (!env.VAPID_KEY) return { push: 'VAPID_KEY 없음' };
+  const { docs } = await listDocs(env, 'push');
+  const subs = docs.filter((d) => !d.deleted && d.sub?.endpoint && (only ? d.id === only : d.id !== skip && (!Array.isArray(d.prefs) || d.prefs.includes(item.type)))).slice(0, 40);
+  if (!subs.length) return { push: 0 };
+  const cur = await getDoc(env, 'ops', 'push').catch(() => null);
+  const items = [{ ...item, at: Date.now() }, ...(Array.isArray(cur?.items) ? cur.items : [])].slice(0, 10);
+  await commit(env, [{ update: { name: docName(env, 'ops', 'push'), fields: enc({ items }).mapValue.fields } }]);
+  const gone = []; let sent = 0;
+  await Promise.all(subs.map(async (d) => {
+    try {
+      const v = await vapid(env, new URL(d.sub.endpoint).origin);
+      const r = await fetch(d.sub.endpoint, { method: 'POST', headers: { TTL: '86400', Urgency: 'high', Authorization: `vapid t=${v.jwt}, k=${v.pub}` } });
+      if (r.status === 404 || r.status === 410) gone.push(d.id); else if (r.ok) sent++;
+      else console.warn('[push]', r.status, (await r.text()).slice(0, 200));
+    } catch (e) { console.warn('[push]', e); }
+  }));
+  if (gone.length) await commit(env, gone.map((id) => patchWrite(env, 'push', id, { deleted: true }))).catch(() => {});
+  return { push: sent, gone: gone.length };
+}
+// 관리 화면·알림 창의 "시험 알림": 누른 기기에만 보낸다
+async function pushTest(env, { cid }) {
+  if (typeof cid !== 'string' || !/^[\w-]{1,64}$/.test(cid)) throw new Error('잘못된 기기');
+  if (Date.now() - (MEM.pushTestAt || 0) < 10e3) throw new Error('10초 뒤에 다시 눌러 주세요');
+  MEM.pushTestAt = Date.now();
+  const r = await pushAll(env, { id: 'test:' + Date.now(), type: 'test', to: cid, title: '🔔 시험 알림', body: '이 기기로 알림이 잘 와요!', url: '#/home' }, { only: cid });
+  if (typeof r.push === 'string') throw new Error(r.push === 'VAPID_KEY 없음' ? 'Worker에 VAPID_KEY 비밀값이 없어요(관리 화면 > 휴대폰 알림 참고)' : r.push);
+  return { ok: true, sent: r.push };
 }
 
 async function testMessage(env) {
