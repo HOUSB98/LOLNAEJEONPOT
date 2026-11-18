@@ -5,6 +5,7 @@ import { exportMatches } from './app.js';
 import { callWorker, hookOn, USAGE, loadUsage, won } from './hook.js';
 import { WORKER_URL } from './config.js';
 import { gachaAdminHTML } from './gacha.js';
+import { missOf, weightOf, LUCK_MAX } from './board.js';
 
 // ---------- 연동 서버: Firebase 사용량 · 디스코드 테스트 · 라이엇 갱신 ----------
 const UZ = { riot: null };
@@ -55,6 +56,8 @@ page('admin', {
       <tbody>${st.list.map((s, i) => `<tr><td class="no mono">${i + 1}</td><td class="l nm"><span class="nmc">${LANE_ICON[s.mainLane]}${esc(s.name)}</span></td>${LANES.map((l) => `<td class="scd l-${l} ${s.mainLane === l ? 'main' : ''}" style="--v:${Math.min(100, (+s.p.scores?.[l] || 0) * 5)}%"><input id="sc-${s.id}-${l}" class="inp cell mono" type="number" min="0" max="20" step="0.5" value="${s.p.scores?.[l] ?? 0}" data-c="plScore" data-id="${s.id}" data-l="${l}" ${adm ? '' : 'disabled'}></td>`).join('')}<td class="num mono avg"><b>${s.avg.toFixed(1)}</b></td><td><select class="inp cell" data-c="plMain" data-id="${s.id}" ${adm ? '' : 'disabled'}>${LANES.map((l) => `<option value="${l}" ${s.mainLane === l ? 'selected' : ''}>${LANE_NAME[l]}</option>`).join('')}</select></td><td class="l tier">${esc(s.p.soloTier || '-')}</td><td class="num mono">${s.mmrInit}</td><td><button class="btn xs" data-a="plEdit" data-id="${s.id}">상세</button></td></tr>`).join('') || '<tr><td colspan="11" class="empty">선수가 없습니다.</td></tr>'}</tbody></table></div>
       ${gone.length ? `<p class="sm mut">숨긴 선수: ${gone.map((p) => `${esc(p.name)} <button class="btn xs ghost" data-a="plRestore" data-id="${p.id}">복구</button>`).join(' ')}</p>` : ''}</div>
 
+    ${luckAdminHTML(st)}
+
     ${gachaAdminHTML()}
 
     <div class="panel"><div class="ph"><b>${ic('admin')}설정</b></div>
@@ -94,6 +97,27 @@ act('exportPlayers', () => {
   const rows = S.st.list.map((s) => [s.name, ...LANES.map((l) => s.p.scores?.[l] ?? 0), LANE_NAME[s.mainLane], s.p.soloTier || '', s.p.riotId || '', s.g, s.w, s.g - s.w, s.g ? s.wr + '%' : '', s.mmrInit, Math.round(s.mmr), s.ovr, s.titles.map((t) => t.n).join(' ')]);
   download(`내전_선수_${new Date().toISOString().slice(0, 10)}.csv`, csv([['이름', ...LANES.map((l) => LANE_NAME[l]), '주라인', '솔랭 티어', '롤 닉네임', '판', '승', '패', '승률', '시작 MMR', '현재 MMR', 'OVR', '칭호'], ...rows]));
 });
+// ---------- 라인 지원 1지망 보정 (관리자가 직접 고치기) ----------
+function luckAdminHTML(st) {
+  const L = S.store.data.meta?.luck || {}, on = st.list.filter((s) => missOf(s.id, L));
+  return `<div class="panel"><div class="ph"><b>${ic('target')}라인 지원 1지망 보정</b><small class="mut">1지망 추첨에서 떨어진 횟수 · 떨어질 때마다 가중치 +50% (최대 ${LUCK_MAX}번 · ×${weightOf(LUCK_MAX)}) · 1지망에 들어가면 0</small><span class="grow"></span>${on.length ? '<button class="btn xs ghost" data-a="lkReset">모두 0으로</button>' : ''}</div>
+    <div class="lk-grid">${st.list.map((s) => { const m = missOf(s.id, L); return `<label class="lk-it ${m ? 'on' : ''}"><span>${esc(s.name)}</span><select class="inp xs" data-c="lkSet" data-id="${s.id}">${Array.from({ length: LUCK_MAX + 1 }, (_, i) => `<option value="${i}" ${i === m ? 'selected' : ''}>${i}번 · ×${weightOf(i)}</option>`).join('')}</select></label>`; }).join('')}</div>
+    <p class="hint">라인 지원 추첨이 끝나면 자동으로 바뀝니다. 잘못 반영됐을 때만 고쳐 주세요(관리자 PIN 필요).</p></div>`;
+}
+act('lkSet', (d, el) => needAdmin(async () => {
+  const v = Math.max(0, Math.min(LUCK_MAX, +el.value || 0));
+  try {
+    await S.store.tx('meta', 'luck', (x) => { const miss = { ...(x?.miss || {}) }; if (v) miss[d.id] = v; else delete miss[d.id]; return { ...(x || {}), miss }; });
+    toast(`${S.st.P[d.id]?.name || ''} 1지망 보정 ${v}번(×${weightOf(v)})으로 저장`);
+  } catch (e) { toast('저장 실패: ' + (e.code || e.message)); }
+  refresh();
+}));
+act('lkReset', () => needAdmin(async () => {
+  if (!confirm('모든 선수의 1지망 보정을 0으로 되돌릴까요?')) return;
+  try { await S.store.tx('meta', 'luck', (x) => ({ ...(x || {}), miss: {} })); toast('1지망 보정을 모두 초기화했어요'); } catch (e) { toast('실패: ' + (e.code || e.message)); }
+  refresh();
+}));
+
 // ---------- 점수표 파일 (조정자에게 맡기기) ----------
 // 내려받기: 번호·이름·라인 점수만 든 CSV(엑셀·구글 시트에서 열림). 올리기: 바뀐 점수만 미리 보여 주고 '적용'하면 저장 + 점수 변경 기록.
 // 번호(선수 id)로 맞추고, 번호가 없거나 못 찾으면 이름으로 맞춘다. 점수는 0~20, 0.5 단위만 받는다.
