@@ -49,7 +49,7 @@ page('admin', {
       <div class="row wrapr"><button class="btn" data-a="hkTest">디스코드 테스트 알림</button><button class="btn" data-a="hkRiot">라이엇 전적 지금 갱신</button><button class="btn" data-a="hkWeekly" title="매주 금요일 저녁 8시에 자동으로 올라가는 결산을 지금 미리 보내 봅니다">주간 결산 지금 보내기</button></div>
       ${UZ.riot ? `<p class="sm">${esc(UZ.riot)}</p>` : ''}<p class="hint">라인 지원이 열릴 때와 경기 결과를 저장할 때 디스코드 채널에 알림이 올라갑니다. 라이엇 갱신은 선수의 라이엇 ID(이름#태그)로 솔랭 티어·전적을 채우며, 한 사람은 하루 한 번만 갱신됩니다.</p>` : ''}</div>
 
-    <div class="panel"><div class="ph"><b>${ic('users')}선수 관리</b><span class="tag">${st.list.length}명</span><span class="grow"></span><button class="btn pri xs" data-a="plEdit" data-id="">＋ 선수 추가</button></div>
+    <div class="panel"><div class="ph"><b>${ic('users')}선수 관리</b><span class="tag">${st.list.length}명</span><span class="grow"></span><button class="btn xs" data-a="scOut" title="점수 조정을 맡길 사람에게 줄 파일(이름·라인 점수만 들어 있음)">⬇ 점수표 파일</button><button class="btn xs" data-a="scIn" title="조정자가 고친 점수표 파일을 올려 반영(관리자 PIN 필요)">⬆ 점수표 올리기</button><button class="btn pri xs" data-a="plEdit" data-id="">＋ 선수 추가</button></div>
       <div class="lockbar ${adm ? 'open' : ''}">${adm ? `${ic('shield')}<b>관리자 모드</b><span>점수와 주라인을 칸에서 바로 고치면 즉시 저장됩니다. 이 창을 닫기 전까지 유지됩니다.</span><button class="btn xs" data-a="admLock">잠그기</button>` : `${ic('shield')}<b>잠겨 있음</b><span>관리자 PIN을 한 번 입력하면 모든 선수의 점수를 바로 수정할 수 있습니다.</span><button class="btn gold xs" data-a="admUnlock">관리자 PIN 입력</button>`}</div>
       <div class="tw scw"><table class="tbl edit score ${adm ? '' : 'locked'}"><thead><tr><th class="no">#</th><th class="l">이름</th>${LANES.map((l) => `<th class="lh l-${l}">${LANE_ICON[l]}${LANE_NAME[l]}</th>`).join('')}<th>평균</th><th>주라인</th><th class="l">솔랭 티어</th><th>시작 MMR</th><th></th></tr></thead>
       <tbody>${st.list.map((s, i) => `<tr><td class="no mono">${i + 1}</td><td class="l nm"><span class="nmc">${LANE_ICON[s.mainLane]}${esc(s.name)}</span></td>${LANES.map((l) => `<td class="scd l-${l} ${s.mainLane === l ? 'main' : ''}" style="--v:${Math.min(100, (+s.p.scores?.[l] || 0) * 5)}%"><input id="sc-${s.id}-${l}" class="inp cell mono" type="number" min="0" max="20" step="0.5" value="${s.p.scores?.[l] ?? 0}" data-c="plScore" data-id="${s.id}" data-l="${l}" ${adm ? '' : 'disabled'}></td>`).join('')}<td class="num mono avg"><b>${s.avg.toFixed(1)}</b></td><td><select class="inp cell" data-c="plMain" data-id="${s.id}" ${adm ? '' : 'disabled'}>${LANES.map((l) => `<option value="${l}" ${s.mainLane === l ? 'selected' : ''}>${LANE_NAME[l]}</option>`).join('')}</select></td><td class="l tier">${esc(s.p.soloTier || '-')}</td><td class="num mono">${s.mmrInit}</td><td><button class="btn xs" data-a="plEdit" data-id="${s.id}">상세</button></td></tr>`).join('') || '<tr><td colspan="11" class="empty">선수가 없습니다.</td></tr>'}</tbody></table></div>
@@ -94,6 +94,89 @@ act('exportPlayers', () => {
   const rows = S.st.list.map((s) => [s.name, ...LANES.map((l) => s.p.scores?.[l] ?? 0), LANE_NAME[s.mainLane], s.p.soloTier || '', s.p.riotId || '', s.g, s.w, s.g - s.w, s.g ? s.wr + '%' : '', s.mmrInit, Math.round(s.mmr), s.ovr, s.titles.map((t) => t.n).join(' ')]);
   download(`내전_선수_${new Date().toISOString().slice(0, 10)}.csv`, csv([['이름', ...LANES.map((l) => LANE_NAME[l]), '주라인', '솔랭 티어', '롤 닉네임', '판', '승', '패', '승률', '시작 MMR', '현재 MMR', 'OVR', '칭호'], ...rows]));
 });
+// ---------- 점수표 파일 (조정자에게 맡기기) ----------
+// 내려받기: 번호·이름·라인 점수만 든 CSV(엑셀·구글 시트에서 열림). 올리기: 바뀐 점수만 미리 보여 주고 '적용'하면 저장 + 점수 변경 기록.
+// 번호(선수 id)로 맞추고, 번호가 없거나 못 찾으면 이름으로 맞춘다. 점수는 0~20, 0.5 단위만 받는다.
+const SC_HEAD = ['번호', '이름', ...LANES.map((l) => LANE_NAME[l])];
+act('scOut', () => {
+  const list = S.st.list;
+  download(`내전_점수표_${new Date().toISOString().slice(0, 10)}.csv`, csv([
+    ['※ 라인 점수만 고쳐 주세요(0~20점, 0.5점 단위). 번호·이름 칸과 이 줄은 그대로 두고, 저장할 때 CSV 형식을 유지해 주세요.'],
+    SC_HEAD, ...list.map((s) => [s.id, s.name, ...LANES.map((l) => s.p.scores?.[l] ?? 0)]),
+  ]));
+  toast(`점수표 파일을 내려받았어요 (${list.length}명)`);
+});
+// 따옴표·쉼표·줄바꿈을 지원하는 간단한 CSV 읽기
+function parseCsv(text) {
+  const rows = []; let row = [], cell = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += c; }
+    else if (c === '"') q = true;
+    else if (c === ',' || c === '\t' || c === ';') { row.push(cell); cell = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
+    else cell += c;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  return rows.map((r) => r.map((v) => v.trim()));
+}
+// 엑셀이 한글을 EUC-KR(ANSI)로 저장하는 경우가 많아 UTF-8 이 아니면 EUC-KR 로 다시 읽는다
+function decodeText(buf) {
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(buf).replace(/^\uFEFF/, ''); } catch { return new TextDecoder('euc-kr').decode(buf); }
+}
+function scorePlan(rows) {
+  const hi = rows.findIndex((r) => r.includes('이름') && LANES.every((l) => r.includes(LANE_NAME[l])));
+  if (hi < 0) throw new Error('점수표 머리줄(이름·탑·정글·미드·원딜·서폿)을 찾지 못했어요. 내려받은 파일 형식 그대로 저장했는지 확인해 주세요.');
+  const H = rows[hi], ci = (n) => H.indexOf(n), players = S.store.data.players || {};
+  const live = Object.values(players).filter((p) => !p.deleted), byName = {};
+  for (const p of live) (byName[p.name] ||= []).push(p);
+  const changes = [], bad = [], unknown = [], seen = new Set();
+  for (const r of rows.slice(hi + 1)) {
+    const name = r[ci('이름')] || '', id = ci('번호') >= 0 ? r[ci('번호')] : '';
+    if (!name && !id) continue;
+    let p = id && players[id] && !players[id].deleted ? players[id] : null;
+    if (!p && byName[name]?.length === 1) p = byName[name][0];
+    if (!p) { unknown.push(name || id); continue; }
+    if (seen.has(p.id)) continue; seen.add(p.id);
+    for (const l of LANES) {
+      const raw = (r[ci(LANE_NAME[l])] ?? '').replace(/점$/, '').trim();
+      if (raw === '') continue;
+      const v = Number(raw), from = +p.scores?.[l] || 0;
+      if (!Number.isFinite(v) || v < 0 || v > 20 || Math.round(v * 2) !== v * 2) { bad.push({ name: p.name, lane: l, raw }); continue; }
+      if (v !== from) changes.push({ pid: p.id, name: p.name, lane: l, from, to: v });
+    }
+  }
+  return { changes, bad, unknown, matched: seen.size };
+}
+act('scIn', () => needAdmin(() => {
+  const inp = Object.assign(document.createElement('input'), { type: 'file', accept: '.csv,text/csv' });
+  inp.onchange = async () => {
+    const f = inp.files[0]; if (!f) return;
+    let plan;
+    try { plan = scorePlan(parseCsv(decodeText(await f.arrayBuffer()))); } catch (e) { return toast(e.message || '파일을 읽지 못했어요'); }
+    const { changes, bad, unknown, matched } = plan;
+    const by = {}; for (const c of changes) (by[c.pid] ||= []).push(c);
+    const el = modal(`${mh(`${ic('users')}점수표 반영 미리보기`)}
+      <p class="mut sm">${esc(f.name)} · 선수 ${matched}명 확인 · 바뀌는 점수 <b>${changes.length}칸</b></p>
+      ${changes.length ? `<div class="sc-plan">${Object.values(by).map((cs) => `<div class="sc-pr"><b>${esc(cs[0].name)}</b>${cs.map((c) => `<span class="sc-ch">${LANE_ICON[c.lane]}${LANE_NAME[c.lane]} <s class="mono">${c.from}</s> → <em class="mono ${c.to > c.from ? 'good' : 'bad'}">${c.to}</em></span>`).join('')}</div>`).join('')}</div>` : '<p class="panel empty">바뀌는 점수가 없어요.</p>'}
+      ${bad.length ? `<p class="sm sc-bad">${ic('alert')}잘못된 값이라 반영하지 않는 칸 ${bad.length}개: ${bad.map((b) => `${esc(b.name)} ${LANE_NAME[b.lane]} "${esc(b.raw)}"`).join(', ')} <small>(0~20점, 0.5점 단위만)</small></p>` : ''}
+      ${unknown.length ? `<p class="sm mut">사이트에 없는 선수라 건너뜀: ${unknown.map(esc).join(', ')}</p>` : ''}
+      <div class="row"><span class="grow"></span><button class="btn ghost" data-a="close">취소</button>${changes.length ? `<button class="btn pri" id="scApply">적용 (${changes.length}칸)</button>` : ''}</div>`);
+    el.querySelector('#scApply')?.addEventListener('click', async (e) => {
+      e.target.disabled = true;
+      try {
+        for (const [pid, cs] of Object.entries(by)) {
+          const p = S.store.data.players[pid]; if (!p) continue;
+          const scores = { ...p.scores }; cs.forEach((c) => (scores[c.lane] = c.to));
+          await S.store.patch('players', pid, { scores });
+        }
+        await logScores(changes);
+        closeModal(); toast(`점수 ${changes.length}칸을 반영했어요`);
+      } catch (err) { e.target.disabled = false; toast('반영 실패: ' + (err.code || err.message)); }
+    });
+  };
+  inp.click();
+}));
 act('backup', () => download(`내전_백업_${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ at: Date.now(), players: col('players'), matches: col('matches'), auctions: col('auctions'), meta: col('meta') }), 'application/json'));
 act('restore', () => needAdmin(() => {
   const inp = Object.assign(document.createElement('input'), { type: 'file', accept: '.json' });
