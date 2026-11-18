@@ -64,7 +64,7 @@ GitHub 저장소가 원본이다. 집 PC에서 저장소를 내려받아(Downloa
 - `index.html`, `css/style.css`
 - `js/config.js` Firebase 설정 · `js/store.js` 데이터 계층(Firestore/체험 모드) · `js/stats.js` 모든 통계·MMR·칭호 계산
 - `js/core.js` 공통(라우터·모달·챔피언 선택) · `js/app.js` 리더보드·기록·챔피언·피어리스 · `js/today.js` 입력 · `js/players.js` 선수·케미 · `js/auction.js` 경매 · `js/board.js` 길드 의뢰 게시판 · `js/admin.js` 관리
-- `js/hook.js` 연동 서버 호출(디스코드 알림·관리 화면) · `worker/worker.js` 연동 서버 코드(Cloudflare 대시보드에 붙여 넣음) · `worker/README.md` 설정 순서
+- `js/hook.js` 연동 서버 호출(디스코드 알림: 라인 지원·경기 결과·가챠 전설 이상·익명 게시판 새 글, 관리 화면) · `worker/worker.js` 연동 서버 코드(Cloudflare 대시보드에 붙여 넣음) · `worker/README.md` 설정 순서
 - `og.png` 링크 미리보기 이미지
 - `data/seed.js` 시트 스냅샷(2026-11-12)
 
