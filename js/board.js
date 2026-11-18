@@ -42,6 +42,55 @@ const isDone = (d, id) => !!d.done?.[id];
 // 지원 화면의 라인 카드에는 고정 인원 수만 보여 준다(누가 고정했는지는 최종 라인업에서만 보인다).
 const fixOf = (d, id) => (LANES.includes(d.fixed?.[id]) && d.ids.includes(id) ? d.fixed[id] : '');
 const fixN = (d, l) => d.ids.filter((id) => fixOf(d, id) === l).length;
+
+// ---------- 1지망 추첨 보정 ----------
+// meta/luck.miss[선수] = 1지망 추첨에서 떨어진 횟수(최대 3). 떨어질 때마다 1지망 추첨 가중치 +50%(1 → 1.5 → 2 → 2.5배),
+// 1지망에 뽑히면(추첨 당첨이든 경쟁 없이 바로 들어가든) 0으로 초기화. 2·3지망 추첨과 빈 자리 배치는 모두 같은 확률.
+export const LUCK_STEP = 0.5, LUCK_MAX = 3;
+const luckDoc = () => S.store?.data?.meta?.luck || {};
+export const missOf = (id, L = luckDoc()) => Math.max(0, Math.min(LUCK_MAX, Math.floor(+L.miss?.[id] || 0)));
+export const weightOf = (n) => 1 + LUCK_STEP * Math.max(0, Math.min(LUCK_MAX, n));
+const xw = (w) => `×${+w.toFixed(1)}`;
+// 가중치 순차 추첨(뽑힌 사람은 빠지고 남은 사람끼리 다시 가중치 비율로)에서 k명 안에 들 확률을 정확히 계산한다(후보 20명까지).
+export function inclusion(ws, k) {
+  const n = ws.length;
+  if (k >= n) return ws.map(() => 1);
+  if (k <= 0) return ws.map(() => 0);
+  const memo = new Map();
+  const rec = (mask, r) => {
+    if (r === 0 || !mask) return null;
+    const key = mask * 32 + r; if (memo.has(key)) return memo.get(key);
+    let tot = 0; for (let i = 0; i < n; i++) if (mask >> i & 1) tot += ws[i];
+    const out = new Array(n).fill(0);
+    for (let i = 0; i < n; i++) {
+      if (!(mask >> i & 1)) continue;
+      const p = ws[i] / tot; out[i] += p;
+      const sub = rec(mask & ~(1 << i), r - 1);
+      if (sub) for (let j = 0; j < n; j++) out[j] += p * sub[j];
+    }
+    memo.set(key, out); return out;
+  };
+  return rec((1 << n) - 1, k);
+}
+// 실제 추첨: 남은 후보 가중치 합 안에서 무작위 지점을 골라 한 명씩 뽑는다(암호학적 난수)
+export function weightedPick(ids, ws, k) {
+  const pool = ids.map((id, i) => ({ id, w: ws[i] })), got = [];
+  while (got.length < k && pool.length) {
+    const tot = pool.reduce((a, x) => a + x.w, 0);
+    let t = (crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32) * tot, i = 0;
+    for (; i < pool.length - 1; i++) { t -= pool[i].w; if (t < 0) break; }
+    got.push(pool.splice(i, 1)[0].id);
+  }
+  return got;
+}
+// 지원 중인 판에서 이 선수가 1지망에 들어갈 확률(1지망 라운드는 라인끼리 서로 영향이 없어서 정확히 계산된다)
+function firstChance(d, id) {
+  const l = prefs(d, id)[0]; if (!LANES.includes(l) || fixOf(d, id)) return null;
+  const c = d.ids.filter((x) => !fixOf(d, x) && prefs(d, x)[0] === l), free = Math.max(0, 2 - fixN(d, l));
+  const L = luckDoc(), ws = c.map((x) => weightOf(missOf(x, L)));
+  return { lane: l, n: c.length, free, p: inclusion(ws, free)[c.indexOf(id)] };
+}
+const pctTxt = (p) => (p >= 0.9995 ? '100%' : p <= 0.0005 ? '0%' : `${(p * 100).toFixed(p < 0.1 ? 1 : 0)}%`);
 const allDone = (d) => d.ids.length > 0 && d.ids.every((id) => isDone(d, id));
 
 // ---------- 효과음(파일 없이 Web Audio로, 부드러운 전자음만) ----------
@@ -79,13 +128,28 @@ function card(d, o) {
     <span class="lp-sub">2지망 <b>${rankN[1]}</b> · 3지망 <b>${rankN[2]}</b></span>
   </button>`;
 }
+// 내 1지망 당첨 확률(나에게만 보인다): 지금 그 라인 1지망 인원·보정 기준, 누가 고르거나 바꿀 때마다 다시 계산
+function chanceHTML(d, id) {
+  const m = missOf(id), w = weightOf(m), c = firstChance(d, id);
+  const boost = m ? `보정 ${m}단계 · 가중치 ${xw(w)}` : '보정 없음';
+  if (!c) return `<span class="lp-chance"><b>${boost}</b><small>${prefs(d, id)[0] === 'any' ? '1지망이 상관없음이라 1지망 추첨이 없어요' : '1지망을 고르면 당첨 확률이 보여요'}</small></span>`;
+  const tag = c.n <= c.free ? '경쟁 없음 · 확정' : `${c.n}명 중 ${c.free}명`;
+  return `<span class="lp-chance" style="--lc:${COLOR[c.lane]}">1지망 ${icon(c.lane)}${NAME[c.lane]} 당첨 확률 <b class="mono">${pctTxt(c.p)}</b><small>${tag} · ${boost}</small></span>`;
+}
+// 보정 현황(모두에게 보인다): 누가 어느 라인을 골랐는지는 없고 떨어진 횟수와 가중치만
+function luckTable() {
+  const L = luckDoc(), rows = Object.keys(L.miss || {}).filter((id) => missOf(id, L) && S.st.P[id]).sort((a, b) => missOf(b, L) - missOf(a, L) || nm(a).localeCompare(nm(b), 'ko'));
+  return `<details class="lp-luckt"><summary>${ic('target')}<b>1지망 보정 현황</b><small>${rows.length ? `${rows.length}명 보정 중` : '보정 중인 사람 없음'}</small></summary>
+    <p class="hint">1지망 추첨에서 떨어질 때마다 다음 1지망 추첨 가중치가 +50%씩 올라가요(최대 3번 · ×2.5). 1지망에 들어가면 0으로 돌아가요. 2·3지망 추첨과 빈 자리 배치는 모두 같은 확률이에요.</p>
+    ${rows.length ? `<div class="lp-lrows">${rows.map((id) => `<span class="lp-lr"><b>${esc(nm(id))}</b><small>${missOf(id, L)}번 떨어짐</small><em class="mono">${xw(weightOf(missOf(id, L)))}</em></span>`).join('')}</div>` : ''}</details>`;
+}
 function openHTML(d) {
   const doneN = d.ids.filter((id) => isDone(d, id)).length, isMe = d.ids.includes(BD.me), mine = isMe ? prefs(d, BD.me) : [], meDone = isMe && isDone(d, BD.me), own = isOwner(d);
   const myFix = isMe ? fixOf(d, BD.me) : '';
   const mem = (id) => {
     const p = prefs(d, id)[0], me = id === BD.me, ok = isDone(d, id);
     const st = ok ? 'done' : p ? 'ok' : '';
-    return `<button class="lp-mem ${me ? 'me' : ''} ${st}" data-a="bdMe" data-id="${id}" style="--lc:${ok ? '#4fd08b' : p ? '#d9a441' : '#5a6a84'}" title="${ok ? '선택 완료' : p ? '고르는 중 (아직 완료 안 누름)' : '아직 안 고름'}">${ok ? '<i>✓</i>' : p ? `<i>${me ? icon(p) : '…'}</i>` : '<i class="dot"></i>'}${esc(nm(id))}</button>`;
+    return `<button class="lp-mem ${me ? 'me' : ''} ${st}" data-a="bdMe" data-id="${id}" style="--lc:${ok ? '#4fd08b' : p ? '#d9a441' : '#5a6a84'}" title="${ok ? '선택 완료' : p ? '고르는 중 (아직 완료 안 누름)' : '아직 안 고름'}">${ok ? '<i>✓</i>' : p ? `<i>${me ? icon(p) : '…'}</i>` : '<i class="dot"></i>'}${esc(nm(id))}${missOf(id) ? `<b class="lp-luck" title="1지망 추첨에서 ${missOf(id)}번 연속 떨어져 1지망 당첨 가중치 ${xw(weightOf(missOf(id)))}">${xw(weightOf(missOf(id)))}</b>` : ''}</button>`;
   };
   const myBtn = !isMe ? '<span class="lp-wait">본인 이름을 먼저 눌러 주세요</span>'
     : myFix ? `<button class="btn ghost" data-a="bdUnfix">🔓 고정 해제</button>`
@@ -97,11 +161,12 @@ function openHTML(d) {
     <ol class="lp-steps"><li class="${isMe ? 'done' : 'on'}">내 이름 선택</li><li class="${isMe ? (mine.length ? 'done' : 'on') : ''}">라인 1~3지망 선택</li><li class="${meDone ? 'done' : isMe && mine.length ? 'on' : ''}">선택 완료 누르기</li><li>모두 완료 → 자동 추첨</li></ol>
     ${isMe && myFix ? `<div class="lp-my locked"><b>${esc(nm(BD.me))}</b><span class="lp-rk on" style="--lc:${COLOR[myFix]}"><small>🔒 고정</small>${icon(myFix)}${NAME[myFix]}</span><small class="mut">이 라인으로 고정돼 추첨 없이 배치돼요 · 다른 사람에게는 '고정 1'처럼 숫자만 보여요</small></div>` : ''}
     ${isMe && !myFix && !meDone ? `<div class="lp-fixrow">${BD.fixing ? `<span class="lp-fxq">🔒 고정할 라인</span>${LANES.map((l) => `<button class="btn xs lp-fxb" data-a="bdFix" data-o="${l}" style="--lc:${COLOR[l]}" ${fixN(d, l) >= 2 ? 'disabled title="이미 2명이 고정했어요"' : ''}>${icon(l)}${NAME[l]}</button>`).join('')}<button class="btn ghost xs" data-a="bdFixOpen">취소</button>` : '<button class="btn ghost xs lp-fxopen" data-a="bdFixOpen" title="오늘 이 라인으로 가기로 정해졌으면 고정하세요">🔒 라인 고정</button>'}</div>` : ''}
-    ${isMe && !myFix ? `<div class="lp-my ${meDone ? 'locked' : ''}"><b>${esc(nm(BD.me))}</b>의 지망${[0, 1, 2].map((r) => `<span class="lp-rk ${mine[r] ? 'on' : ''}" style="--lc:${mine[r] ? COLOR[mine[r]] : '#3a4a64'}"><small>${RANK[r]}</small>${mine[r] ? `${icon(mine[r])}${NAME[mine[r]]}` : '—'}</span>`).join('')}<small class="mut">${meDone ? '완료했어요 · 바꾸려면 아래 \'다시 고르기\'' : '카드를 누른 순서대로 1·2·3지망 · 다시 누르면 빠져요'}</small></div>` : ''}
+    ${isMe && !myFix ? `<div class="lp-my ${meDone ? 'locked' : ''}"><b>${esc(nm(BD.me))}</b>의 지망${[0, 1, 2].map((r) => `<span class="lp-rk ${mine[r] ? 'on' : ''}" style="--lc:${mine[r] ? COLOR[mine[r]] : '#3a4a64'}"><small>${RANK[r]}</small>${mine[r] ? `${icon(mine[r])}${NAME[mine[r]]}` : '—'}</span>`).join('')}<small class="mut">${meDone ? '완료했어요 · 바꾸려면 아래 \'다시 고르기\'' : '카드를 누른 순서대로 1·2·3지망 · 다시 누르면 빠져요'}</small>${chanceHTML(d, BD.me)}</div>` : ''}
     ${isMe && !BD.roster ? `<div class="lp-sec lp-mini"><span>${ic('user')}<b>${esc(nm(BD.me))}</b>(으)로 지원 중</span><button class="btn ghost xs" data-a="bdRoster">참가자 현황 · 대리 지원</button></div>`
       : `<div class="lp-sec"><div class="lp-sh"><b>참가자</b><small>${isMe ? `<b>${esc(nm(BD.me))}</b>(으)로 지원 중 · 다른 이름을 누르면 대리 지원` : '본인 이름을 눌러 주세요'}</small></div>
       <div class="lp-roster">${d.ids.map(mem).join('')}</div></div>`}
     <div class="lp-grid">${OPTS.map((o) => card(d, o)).join('')}</div>
+    ${luckTable()}
     <div class="lp-foot"><div class="lp-count"><b class="mono">${doneN}</b> / <span class="mono">${d.ids.length}</span> 완료<span class="lp-prog"><i style="width:${d.ids.length ? (doneN / d.ids.length) * 100 : 0}%"></i></span><small class="lp-ttl">모두 완료하면 자동으로 추첨이 시작돼요${d.by ? ` · 연 사람 ${esc(d.by)}` : ''}</small></div>
       <div class="lp-act">${myBtn}${ownBtns}</div></div>`;
 }
@@ -114,6 +179,7 @@ function finalHTML(d) {
     <div class="lf"><span></span><b class="blue">BLUE</b><b class="red">RED</b>
       ${LANES.map((l, i) => `<span class="lf-l" style="--lc:${COLOR[l]}">${LANE_ICON[l]}${LANE_NAME[l]}</span>${cell(d.result?.[l]?.[0], 'blue', i * 2)}${cell(d.result?.[l]?.[1], 'red', i * 2 + 1)}`).join('')}</div>
     ${d.left?.length ? `<p class="mut center">대기: ${d.left.map((x) => esc(nm(x))).join(', ')}</p>` : ''}
+    ${(() => { const { win, lose } = luckDelta(d.steps), reset = win.filter((id) => (luckDoc().rid === d.rid ? (luckDoc().last || []).some((c) => c.id === id && c.to === 0) : missOf(id) > 0)); return lose.length || reset.length ? `<p class="lf-luck center">${ic('target')}1지망 보정 · ${lose.length ? `다음 1지망 확률 증가: ${lose.map((x) => { const L = luckDoc(), applied = L.rid === d.rid, c = applied ? (L.last || []).find((y) => y.id === x) : null, max = applied ? c && c.from >= LUCK_MAX : missOf(x) >= LUCK_MAX; return esc(nm(x)) + (max ? '(최대 유지)' : ''); }).join(', ')}` : ''}${lose.length && reset.length ? ' · ' : ''}${reset.length ? `초기화: ${reset.map((x) => esc(nm(x))).join(', ')}` : ''}</p>` : ''; })()}
     <p class="hint center"><em class="lf-tag">N지망</em> 몇 지망으로 들어갔는지 (·추첨: 몰려서 뽑힘) · <em class="lf-tag">배치</em> 상관없음·지망 실패·미지원으로 빈 자리에 들어감 · <em class="lf-tag">🔒 고정</em> 라인 고정으로 추첨 없이 배치 · 진영·자리 교체는 라인업에서 끌어다 놓으면 됩니다</p>
     ${d.ai ? `<p class="lf-ai center">${ic('bolt')}AI 추천 배치 · 점수 <b class="blue">${(+d.ai.bs).toFixed(1)}</b> : <b class="red">${(+d.ai.rs).toFixed(1)}</b> (차이 ${(+d.ai.diff).toFixed(1)})</p>` : ''}
     <div class="lp-foot center">${isOwner(d) ? '' : '<span class="mut sm">AI 추천은 연 사람만 쓸 수 있어요</span>'}${isOwner(d) ? `<button class="btn gold" data-a="bdAi" ${LANES.every((l) => d.result?.[l]?.[0] && d.result?.[l]?.[1]) ? '' : 'disabled title="빈 자리가 있으면 쓸 수 없어요"'}>${ic('bolt')}AI 추천</button>` : ''}<button class="btn pri" data-a="bdLineup">${ic('today')}라인업 확인</button><button class="btn ghost" data-a="bdClose">닫기</button></div>`;
@@ -273,7 +339,7 @@ act('bdLineup', () => { closeModal(); location.hash = '#/today'; });
 // 블루·레드는 무작위. 이후 교체는 라인업에서 직접 한다.
 function plan(d) {
   const P = Object.fromEntries(d.ids.map((id) => [id, prefs(d, id)]));
-  const slots = Object.fromEntries(LANES.map((l) => [l, []])), steps = [], rankOf = {};
+  const slots = Object.fromEntries(LANES.map((l) => [l, []])), steps = [], rankOf = {}, L = luckDoc();
   let left = [...d.ids];
   // 고정한 사람은 추첨 없이 먼저 그 라인에(한 라인 최대 2명, 넘치면 남는 사람은 일반 배치로)
   for (const id of shuffle(d.ids)) { const l = fixOf(d, id); if (l && slots[l].length < 2) { slots[l].push(id); left = left.filter((x) => x !== id); } }
@@ -281,8 +347,11 @@ function plan(d) {
     for (const l of shuffle(LANES)) {
       const free = 2 - slots[l].length; if (free <= 0) continue;
       const c = left.filter((id) => P[id][r] === l); if (!c.length) continue;
-      const pre = [...slots[l]], got = c.length <= free ? c : shuffle(c).slice(0, free);
-      steps.push({ round: r + 1, lane: l, kind: c.length > free ? 'roll' : 'direct', cands: c, pick: got, pre });
+      const pre = [...slots[l]];
+      // 1지망 라운드만 보정 가중치를 쓴다. 쓴 가중치는 단계 기록(w)에 남겨 추첨 장면에서 그대로 보여 준다
+      const ws = r === 0 ? c.map((id) => weightOf(missOf(id, L))) : c.map(() => 1);
+      const got = c.length <= free ? c : r === 0 ? weightedPick(c, ws, free) : shuffle(c).slice(0, free);
+      steps.push({ round: r + 1, lane: l, kind: c.length > free ? 'roll' : 'direct', cands: c, pick: got, pre, ...(r === 0 ? { w: ws } : {}) });
       got.forEach((id) => { slots[l].push(id); rankOf[id] = r + 1; });
       left = left.filter((id) => !got.includes(id));
     }
@@ -329,10 +398,10 @@ function clearTimers() { BD.timers.forEach(clearTimeout); BD.timers = []; }
 function drawHTML(steps) {
   return `<div class="lp-h"><div><small><i class="live"></i>LIVE · 추첨 중</small><h2>${ic('dice')}라인 추첨</h2></div><span class="grow"></span>
       <button class="btn ghost xs" data-a="bdMute" title="효과음">${ic(BD.muted ? 'mute' : 'sound')}</button><button class="btn xs" data-a="bdSkip">건너뛰기 ▸▸</button></div>
-    <p class="lp-cap">지망 순서대로, 자리보다 지원자가 많은 라인만 추첨합니다 · 라인 순서는 무작위</p>
+    <p class="lp-cap">지망 순서대로, 자리보다 지원자가 많은 라인만 추첨합니다 · 라인 순서는 무작위 · 이름 옆 숫자는 뽑힐 확률(1지망은 보정 반영)</p>
     <div class="ld">${steps.map((s) => `<div class="ld-row" data-lane="${s.lane}" style="--lc:${COLOR[s.lane]}">
       <div class="ld-lane"><i class="lp-ico">${LANE_ICON[s.lane]}</i><b>${LANE_NAME[s.lane]}</b><small>${RANK[(s.round || 1) - 1]} · ${s.cands.length}명 중 ${s.pick.length}명</small></div>
-      <div class="ld-cands">${(s.pre || []).map((id) => `<span class="ld-c won pre" title="앞 라운드에서 확정">${esc(nm(id))}</span>`).join('')}${s.cands.map((id) => `<span class="ld-c" data-id="${id}">${esc(nm(id))}</span>`).join('')}</div></div>`).join('')}</div>`;
+      <div class="ld-cands">${(s.pre || []).map((id) => `<span class="ld-c won pre" title="이미 확정(라인 고정 또는 앞 라운드)">${esc(nm(id))}</span>`).join('')}${(() => { const ws = Array.isArray(s.w) && s.w.length === s.cands.length ? s.w : s.cands.map(() => 1), pr = inclusion(ws, s.pick.length); return s.cands.map((id, i) => `<span class="ld-c" data-id="${id}">${esc(nm(id))}<small class="ld-p">${pctTxt(pr[i])}${ws[i] > 1 ? ` · ${xw(ws[i])}` : ''}</small></span>`).join(''); })()}</div></div>`).join('')}</div>`;
 }
 function finish(el, d) {
   clearTimers();
@@ -433,6 +502,30 @@ act('bdAi', async () => {
 });
 act('bdSkip', () => { BD.skipped = true; finish(view(), BD.d || cur()); });
 act('bdClose', () => closeModal());
+// 1지망 결과로 보정 횟수를 고친다: 1지망 라인에 들어간 사람 → 0, 1지망 추첨에서 떨어진 사람 → +1(최대 3).
+// 같은 판을 두 번 반영하지 않게 meta/luck.rid 에 마지막으로 반영한 판을 적는다. 고정·상관없음·1지망 없음은 그대로.
+export function luckDelta(steps) {
+  const win = new Set(), lose = new Set();
+  for (const s of steps || []) {
+    if (s.round !== 1 || s.fill) continue;
+    s.pick.forEach((id) => win.add(id));
+    s.cands.filter((id) => !s.pick.includes(id)).forEach((id) => lose.add(id));
+  }
+  return { win: [...win], lose: [...lose].filter((id) => !win.has(id)) };
+}
+async function applyLuck(d) {
+  const { win, lose } = luckDelta(d.steps);
+  if (!win.length && !lose.length) return;
+  try {
+    await S.store.tx('meta', 'luck', (x) => {
+      if (x?.rid === d.rid) return null;
+      const miss = { ...(x?.miss || {}) }, changes = [];
+      for (const id of win) { const from = missOf(id, x || {}); if (from) changes.push({ id, from, to: 0 }); delete miss[id]; }
+      for (const id of lose) { const from = missOf(id, x || {}), to = Math.min(LUCK_MAX, from + 1); miss[id] = to; changes.push({ id, from, to }); }
+      return { ...(x || {}), miss, rid: d.rid, at: S.store.serverNow(), last: changes };
+    });
+  } catch (e) { console.warn('[luck]', e); }
+}
 async function finishRun(d) { // 'play'→'done'을 먼저 바꾼 한 사람만 라인업에 반영한다(중복 반영·중복 채팅 방지)
   let ok = false;
   try { ok = await S.store.tx('meta', 'board', (r) => (r && r.rid === d.rid && r.status === 'play' ? { ...r, status: 'done' } : null)); } catch { return; }
@@ -442,6 +535,7 @@ async function finishRun(d) { // 'play'→'done'을 먼저 바꾼 한 사람만 
   const blue = LANES.map((l) => d.result[l]?.[0] || ''), red = LANES.map((l) => d.result[l]?.[1] || '');
   setDraftTeams(blue, red);
   if (S.page === 'today') refresh();
+  await applyLuck(d);
   sysChat('라인 지원 결과 · ' + LANES.map((l) => `${LANE_NAME[l]} ${d.result[l].map(nm).join('/') || '-'}`).join(' · '));
 }
 

@@ -581,7 +581,8 @@ function onStore(c) {
   if (c === 'meta') {
     const ch = metaDiff();
     if (ch.dice) watchDice();
-    if (ch.board) watchBoard();
+    if (ch.board || ch.luck) watchBoard(); // 1지망 보정이 바뀌면 열려 있는 라인 지원 화면의 확률도 다시 그린다
+    if (ch.luck && S.page === 'admin') refresh();
     if (ch.settings || ch.kicks) onMeta();
     if (ch.settings) refresh(true); else if (ch.todayDraft && S.page === 'today') refresh();
     if (ch.scorelog && S.page === 'home') refresh();

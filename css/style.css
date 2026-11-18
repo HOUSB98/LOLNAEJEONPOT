@@ -1970,3 +1970,16 @@ body.gx-shake #gx{animation:gxquake .45s linear}
 .lp-fixrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px}.lp-fxq{font-size:12px;font-weight:700;color:var(--gold2)}
 .lp-fxb{border-color:color-mix(in srgb,var(--lc) 55%,var(--line2))}.lp-fxb .lic{width:14px;height:14px;color:var(--lc)}
 .lf-n em.fx{background:rgba(217,164,65,.22);color:#ffe09a}
+
+/* 라인 지원: 1지망 보정 */
+.lp-luck{margin-left:4px;padding:0 5px;border-radius:99px;font:700 10px var(--mono);color:#1a1205;background:linear-gradient(135deg,#ffe09a,#d9a441)}
+.lp-chance{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin-top:2px;padding:7px 10px;border-radius:10px;background:rgba(255,255,255,.035);border:1px solid var(--line);font-size:13px;font-weight:600}
+.lp-chance .lic{width:14px;height:14px;color:var(--lc)}.lp-chance b{font-size:17px;color:var(--gold2)}.lp-chance small{flex-basis:100%;font-size:11.5px;color:var(--mut);font-weight:500}
+.lp-luckt{margin-top:10px;padding:8px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.02)}
+.lp-luckt summary{cursor:pointer;display:flex;align-items:center;gap:7px;font-size:13px;list-style:none}.lp-luckt summary::-webkit-details-marker{display:none}.lp-luckt summary small{color:var(--mut)}.lp-luckt summary .ic{width:15px;height:15px;color:var(--gold2)}
+.lp-luckt .hint{margin:8px 0}.lp-lrows{display:flex;flex-wrap:wrap;gap:6px}
+.lp-lr{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:99px;border:1px solid rgba(217,164,65,.35);background:rgba(217,164,65,.07);font-size:12.5px}.lp-lr small{color:var(--mut)}.lp-lr em{font-style:normal;font-weight:700;color:var(--gold2)}
+.ld-c .ld-p{display:block;font:600 10.5px var(--mono);color:var(--mut);margin-top:1px}.ld-c.won .ld-p,.ld-c.hl .ld-p{color:inherit;opacity:.85}
+.lf-luck{font-size:12.5px;color:var(--gold2)}.lf-luck .ic{width:14px;height:14px;vertical-align:-2px}
+.lk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px 10px}
+.lk-it{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:4px 8px;border-radius:9px;border:1px solid var(--line);font-size:13px}.lk-it.on{border-color:rgba(217,164,65,.5);background:rgba(217,164,65,.06)}.lk-it select{width:auto}
