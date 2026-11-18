@@ -16,6 +16,7 @@ const LAZY_GET = [
   lazyPage('auction', () => import('./auction.js')),
   lazyPage('admin', () => import('./admin.js')),
   lazyPage('maker', () => import('./maker.js')),
+  lazyPage('me', () => import('./me.js')),
 ];
 setTimeout(() => (window.requestIdleCallback || setTimeout)(() => LAZY_GET.forEach((g) => g().catch(() => {}))), 6000);
 import { watchPosts, postsChanged } from './talk.js';
@@ -340,7 +341,7 @@ export function matchCard(m, tools = true) {
     ${(m.bans?.[side] || []).some(Boolean) ? `<div class="bans">BAN ${m.bans[side].filter(Boolean).map((b) => champIcon(b, 'sm')).join('')}</div>` : ''}
   </div>`;
   return `<div class="mcard">
-    <div class="mhd"><b class="mono">#${mi.no}</b><span>${fmtDT(m.at)}</span><span class="mut">예상 블루 ${Math.round(mi.pBlue * 100)}%</span>${mi.upset ? '<span class="tag bad">UPSET</span>' : ''}
+    <div class="mhd"><b class="mono">#${mi.no}</b><span>${fmtDT(m.at)}</span><span class="mut"><em class="m-hide">예상 </em>블루 ${Math.round(mi.pBlue * 100)}%</span>${mi.upset ? '<span class="tag bad">UPSET</span>' : ''}
       ${m.stats ? '<span class="tag gold">REPLAY</span>' : ''}<span class="grow"></span><button class="btn xs" data-a="matchDetail" data-id="${m.id}">상세</button>${tools && !m.stats ? `<button class="btn xs gold" data-a="matchReplay" data-id="${m.id}" title="이 경기의 .rofl 파일을 넣으면 상세 기록이 채워집니다">리플레이</button>` : ''}
       ${tools ? ddMenu(`<button data-a="editMatch" data-id="${m.id}">${ic('edit')}수정</button><button class="danger" data-a="delMatch" data-id="${m.id}">${ic('trash')}삭제</button>`, 'xs') : ''}</div>
     <div class="vs">${team('blue')}${team('red')}</div></div>`;

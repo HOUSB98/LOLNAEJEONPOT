@@ -16,6 +16,8 @@ export function tierToMmr(t) {
 }
 export const avgScore = (p) => LANES.reduce((s, l) => s + (+p.scores?.[l] || 0), 0) / 5;
 export const initMmr = (p) => +p.mmrInit || tierToMmr(p.soloTier) || Math.round(900 + 40 * avgScore(p));
+// OVR = 내전 MMR 50% + 상위 3개 라인 점수 50% (내 페이지의 '지난 내전 전 순위'도 같은 식으로 계산)
+export const ovrOf = (p, mmr) => { const t = LANES.map((l) => +p.scores?.[l] || 0).sort((a, b) => b - a); return Math.round(0.5 * Math.max(0, Math.min(100, (mmr - 900) / 7)) + 0.5 * ((t[0] + t[1] + t[2]) / 3) * 5); };
 export const winProb = (diff, scale) => 1 / (1 + Math.pow(10, -diff / scale));
 export const pct = (w, g) => (g ? Math.round((w / g) * 100) : null);
 export function dayKey(at) {
@@ -160,9 +162,8 @@ export function compute(playerList, matchList, settings) {
     const r = s.recent.length ? s.recent.filter(Boolean).length / s.recent.length : null;
     s.cond = r === null ? '➖' : r >= 0.8 ? '⬆️' : r >= 0.6 ? '↗️' : r === 0.5 ? '➡️' : r >= 0.2 ? '↘️' : '⬇️';
     s.rel = s.g === 0 ? ['⚪', '미검증'] : s.g < 5 ? ['🔴', '낮음'] : s.g < 15 ? ['🟡', '보통'] : ['🟢', '높음'];
-    const top3 = LANES.map((l) => +s.p.scores?.[l] || 0).sort((a, b) => b - a).slice(0, 3);
     s.avg = avgScore(s.p);
-    s.ovr = Math.round(0.5 * Math.max(0, Math.min(100, (s.mmr - 900) / 7)) + 0.5 * ((top3[0] + top3[1] + top3[2]) / 3) * 5);
+    s.ovr = ovrOf(s.p, s.mmr);
     s.today = lastDay ? s.days[lastDay] || blank() : blank();
     s.lanesPlayed = LANES.filter((l) => s.lanes[l].g).length;
     s.champKinds = Object.keys(s.champs).length;

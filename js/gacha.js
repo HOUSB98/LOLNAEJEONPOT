@@ -70,6 +70,18 @@ function tickets(pid, doc) {
   return { g, off, sac: SAC, earned, today, daily, stock, left: { champ: stock.champ + daily.champ, skin: stock.skin + daily.skin }, next: { champ: E.champ - (g % E.champ), skin: E.skin - (g % E.skin), sac: SAC - (off % SAC) } };
 }
 
+// 내 페이지용: 뽑기권 수(가챠 문서는 선수마다 한 번 읽고 2분 동안 다시 쓴다. 뽑기·적용 뒤에는 가챠 화면이 새로 읽는다)
+const TK_CACHE = {};
+export function ticketInfo(pid, onLoad) {
+  const c = TK_CACHE[pid];
+  if (c && !c.busy && Date.now() - c.at < 120e3) return tickets(pid, c.doc);
+  if (!c?.busy) {
+    TK_CACHE[pid] = { busy: true, at: 0, doc: c?.doc ?? null };
+    S.store.get('gacha', pid).catch(() => null).then((doc) => { TK_CACHE[pid] = { at: Date.now(), doc }; onLoad?.(); });
+  }
+  return c?.at ? tickets(pid, c.doc) : null;
+}
+
 // ---------- 스킨 목록 (가격 등급 포함) ----------
 // 커뮤니티 데이터(CommunityDragon)의 스킨 등급을 받아 [스킨id, 챔피언id, 번호, 이름, 등급]으로 줄여 기기에 저장한다(패치마다 갱신).
 // 받지 못하면 라이엇 기본 데이터로 목록만 만들고 모두 '일반'으로 계산한다(표에 안내).
@@ -118,7 +130,7 @@ async function loadDoc() {
   G.loading = true;
   const pid = G.pid;
   delete CNT[pid];
-  try { G.doc = (await S.store.get('gacha', pid)) || null; } catch (e) { toast('가챠 정보를 불러오지 못했어요: ' + (e.code || e.message)); }
+  try { G.doc = (await S.store.get('gacha', pid)) || null; TK_CACHE[pid] = { at: Date.now(), doc: G.doc }; } catch (e) { toast('가챠 정보를 불러오지 못했어요: ' + (e.code || e.message)); }
   G.docFor = pid; G.loading = false;
   if (S.page === 'gacha') refresh();
 }

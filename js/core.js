@@ -56,6 +56,7 @@ const I = {
   talk: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12.500h5"/>',
   gacha: '<circle cx="12" cy="12" r="8"/><path d="M4 12h16"/><circle cx="12" cy="12" r="2.600"/><path d="M9.500 6.500a6 6 0 0 1 3-.900" opacity=".5"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M4.500 21c.8-4.200 3.800-7 7.500-7s6.700 2.800 7.500 7"/>',
+  me: '<circle cx="12" cy="8" r="4"/><path d="M4.500 21c.8-4.200 3.800-7 7.500-7s6.700 2.800 7.500 7"/>',
   more: '<circle cx="5" cy="12" r="1.300" fill="currentColor"/><circle cx="12" cy="12" r="1.300" fill="currentColor"/><circle cx="19" cy="12" r="1.300" fill="currentColor"/>',
   replay: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8h18M7 4l2 4M12 4l2 4M17 4l2 4M10 11.500v5l4.500-2.500z"/>',
 };
@@ -113,7 +114,7 @@ export function lazyPage(id, load, actNames = []) {
   return get;
 }
 export const NAV = [
-  ['', 'LEAGUE'], ['home', '홈'], ['rank', '랭킹'], ['matches', '경기 기록'], ['players', '선수 카드'],
+  ['', 'LEAGUE'], ['home', '홈'], ['me', '내 페이지'], ['rank', '랭킹'], ['matches', '경기 기록'], ['players', '선수 카드'],
   ['', 'ANALYSIS'], ['champs', '챔피언'], ['chem', '케미'],
   ['', 'PLAY'], ['today', '오늘의 내전'], ['gacha', '가챠'], ['auction', '팀 경매'], ['replay', '리플레이 분석'], ['admin', '관리'],
   ['', 'COMMUNITY'], ['talk', '익명 게시판'],
