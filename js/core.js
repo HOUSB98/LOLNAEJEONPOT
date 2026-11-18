@@ -107,7 +107,7 @@ export function lazyPage(id, load, actNames = []) {
     render: () => '<div class="panel empty lazy-wait">불러오는 중…</div>',
     after() {
       get().then(() => { if (S.page === id && pages[id] !== stub) { lastRoute = ''; render(); } })
-        .catch(() => { if (S.page === id) document.getElementById('main').innerHTML = '<div class="panel empty">화면을 불러오지 못했어요. 새로고침해 주세요.</div>'; });
+        .catch(() => { if (window.NP_HEAL?.()) return; if (S.page === id) document.getElementById('main').innerHTML = '<div class="panel empty">화면을 불러오지 못했어요. 새로고침해 주세요.</div>'; }); // 업데이트 직후 파일이 섞였으면 한 번 자동 복구
     },
   };
   actNames.forEach((n) => { const f = (...a) => get().then(() => acts[n] !== f && acts[n](...a)).catch(() => toast('잠시 뒤 다시 눌러 주세요')); acts[n] = f; });

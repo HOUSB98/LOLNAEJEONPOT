@@ -595,6 +595,7 @@ function onStore(c) {
   if (c === 'posts') { watchPosts(); postsChanged(); if (S.page === 'talk') refresh(); return; }
   if (c === 'players' || c === 'matches') refresh(true);
 }
+window.NP_OK = 1; // index.html의 시작 확인(이 줄까지 왔다면 모든 JS 파일이 문제없이 이어진 것)
 (async () => {
   // 잠깐 배포됐던 웹앱 알림용 서비스 워커가 남아 있으면 지운다(웹앱 기능은 쓰지 않기로 함)
   try { navigator.serviceWorker?.getRegistrations().then((rs) => rs.forEach((r) => r.unregister())).catch(() => {}); } catch {}
