@@ -2093,7 +2093,7 @@ a.me-ch[href]:hover{background:rgba(255,255,255,.05)}
 
 /* ---------- 화면 다듬기(2026-11-19): 누름 영역·키보드 초점 ---------- */
 /* 키보드(Tab)로 움직일 때만 금색 테두리로 지금 위치를 보여 준다(마우스·터치로 누를 때는 안 보임) */
-:focus-visible{outline:2px solid var(--gold2);outline-offset:2px;border-radius:6px}
+:focus-visible{outline:2px solid var(--gold2);outline-offset:2px}
 .inp:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline-offset:0}
 /* 홈 명예의 전당 점: 보이는 크기는 그대로, 누르는 범위만 넓힘 */
 .car-dots i{position:relative}.car-dots i::before{content:"";position:absolute;inset:-12px -4px}
