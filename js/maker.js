@@ -42,7 +42,7 @@ page('maker', {
     <section class="mk">
       <div class="mk-top"><small>// CREDITS · WHO BUILT THIS</small>
         <h1 class="mk-decl"><span class="mk-type"><span class="k">const</span> <span class="v">제작자</span> <span class="o">=</span> <span class="s">"${MAKER}"</span><span class="o">;</span></span><i class="mk-caret"></i></h1>
-        <p><span class="c">/* NAEJEONPOT — designed &amp; coded by</span> <b>${MAKER}</b> <span class="c">*/</span></p></div>
+        <p><span class="c">/* NAEJEONPOT — designed &amp; coded by</span> <span class="mk-nw"><b>${MAKER}</b> <span class="c">*/</span></span></p></div>
       <div class="mk-grid">
         <div class="mk-win"><div class="mk-bar"><i></i><i></i><i></i><span>${ic('maker')}naejeonpot / creator.ts</span><em>TypeScript</em></div>
           <pre class="mk-code">${lines.map((l, i) => `<div style="--d:${i}"><u>${i + 1}</u><span>${hl(l) || ' '}</span></div>`).join('')}</pre></div>
