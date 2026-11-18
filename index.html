@@ -26,14 +26,15 @@
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
 <!-- 글꼴은 화면 그리기를 막지 않도록 비동기로 불러온다(처음 잠깐은 기본 글꼴, 로딩창이 덮고 있다) -->
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Cinzel:wght@600;800&family=JetBrains+Mono:wght@400;600;700&family=Rajdhani:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Cinzel:wght@600;800&family=Rajdhani:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" media="print" onload="this.media='all'">
 <!-- 모듈을 한꺼번에 미리 받아 연쇄 다운로드(폭포) 지연을 줄인다 -->
 <link rel="modulepreload" href="js/app.js"><link rel="modulepreload" href="js/core.js"><link rel="modulepreload" href="js/stats.js"><link rel="modulepreload" href="js/store.js"><link rel="modulepreload" href="js/config.js">
-<link rel="modulepreload" href="js/social.js"><link rel="modulepreload" href="js/xmas.js"><link rel="modulepreload" href="js/newyear.js"><link rel="modulepreload" href="js/today.js"><link rel="modulepreload" href="js/board.js">
-<link rel="modulepreload" href="js/dice.js"><link rel="modulepreload" href="js/talk.js"><link rel="modulepreload" href="js/players.js"><link rel="modulepreload" href="js/admin.js">
-<link rel="modulepreload" href="js/auction.js"><link rel="modulepreload" href="js/replay.js"><link rel="modulepreload" href="js/maker.js"><link rel="modulepreload" href="js/hook.js"><link rel="modulepreload" href="js/gacha.js">
-<link rel="stylesheet" href="css/style.css?v=20261118c">
+<link rel="modulepreload" href="js/social.js"><link rel="modulepreload" href="js/season.js"><link rel="modulepreload" href="js/today.js"><link rel="modulepreload" href="js/board.js">
+<link rel="modulepreload" href="js/dice.js"><link rel="modulepreload" href="js/talk.js"><link rel="modulepreload" href="js/players.js">
+<link rel="modulepreload" href="js/hook.js"><link rel="modulepreload" href="js/gacha.js">
+<script>/* 시즌 장식 코드는 시즌 기간에만 미리 받는다 */(function () { var d = new Date(), md = (d.getMonth() + 1) * 100 + d.getDate(), f = md >= 1116 && md <= 1226 ? 'xmas' : md <= 115 ? 'newyear' : ''; if (f) { var l = document.createElement('link'); l.rel = 'modulepreload'; l.href = 'js/' + f + '.js'; document.head.appendChild(l); } })();</script>
+<link rel="stylesheet" href="css/style.css?v=20261118d">
 </head>
 <body>
 <div id="splash"></div>

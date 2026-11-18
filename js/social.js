@@ -1,7 +1,6 @@
 // 환영 인트로, 닉네임, 접속자 표시, 공용 채팅
 import { S, act, esc, uid, col, settings, toast, modal, closeModal, mh, ic, logo, needAdmin, LANE_ICON, LANE_COLOR, LANE_NAME } from './core.js';
-import { splashScene, xmasOn, xmasFace, inSeason } from './xmas.js';
-import { nySplash } from './newyear.js';
+import { xmasOn, inSeason, SEASON } from './season.js'; // 장식 모듈(SEASON.x·n)은 시즌에만 받아진다
 import { hookOn, USAGE, loadUsage, won, kfmt } from './hook.js';
 
 // 채팅창 머리의 남은 무료 한도·이번 달 요금(연동 서버가 있고 Blaze 요금제일 때만 보인다)
@@ -27,7 +26,7 @@ function playerOf(nick) {
   const k = squash(nick), list = S.st?.list || [];
   return list.find((s) => squash(s.name) === k) || list.find((s) => squash(String(s.p.riotId || '').split('#')[0]) === k) || list.find((s) => s.name.length >= 2 && k.includes(squash(s.name)));
 }
-const face = (nick) => { const l = playerOf(nick)?.mainLane, c = LANE_COLOR[l]; if (xmasOn()) return xmasFace(nick, l ? LANE_NAME[l] : ''); return `<i class="face" style="--lc:${c || `hsl(${hue(nick)} 45% 62%)`}" title="${l ? LANE_NAME[l] : ''}">${c ? LANE_ICON[l] : ic('user')}</i>`; };
+const face = (nick) => { const l = playerOf(nick)?.mainLane, c = LANE_COLOR[l]; if (xmasOn() && SEASON.x) return SEASON.x.xmasFace(nick, l ? LANE_NAME[l] : ''); return `<i class="face" style="--lc:${c || `hsl(${hue(nick)} 45% 62%)`}" title="${l ? LANE_NAME[l] : ''}">${c ? LANE_ICON[l] : ic('user')}</i>`; };
 
 // ---------- 접속자 ----------
 // 강퇴: meta/kicks 문서에 { 접속기기id: 해제시각 } 으로 적는다. 가벼운 잠금이라 브라우저 저장소를 지우면 다시 들어올 수 있다.
@@ -236,8 +235,8 @@ function splash() {
       ${first ? `<form id="spf"><input id="spn" class="inp" maxlength="12" placeholder="닉네임을 입력하세요" autocomplete="off"><button class="btn pri">입장</button></form>` : '<div class="sp-bar"><i></i></div>'}
     </div><small class="sp-skip">${first ? '닉네임은 접속자 목록과 채팅에 표시됩니다' : '화면을 누르면 바로 입장합니다'}</small>`;
   el.classList.add('on'); el.classList.remove('boot');
-  splashScene(el); // 시즌 장식 기간이면 밤하늘·달·산타 썰매 배경
-  nySplash(el); // 새해(1/1~1/15)면 불꽃놀이·풍등 배경
+  SEASON.x?.splashScene(el); // 시즌 장식 기간이면 밤하늘·달·산타 썰매 배경
+  SEASON.n?.nySplash(el); // 새해(1/1~1/15)면 불꽃놀이·풍등 배경
   // 기본 불씨 캔버스는 시즌 배경(크리스마스·새해)에서는 가려지므로 아예 돌리지 않는다(보이지 않는 캔버스를 계속 그리면 인트로가 끊긴다)
   const stop = el.classList.contains('xs') || el.classList.contains('ny') ? () => {} : embers(el.querySelector('canvas'));
   const close = () => { if (el.dataset.done) return; el.dataset.done = 1; sessionStorage.setItem('naejeon:welcomed', '1'); el.classList.add('out'); setTimeout(() => { stop(); el.remove(); }, 850); };

@@ -5,9 +5,10 @@
 // 가벼운 모드·창 비활성일 때는 움직임을 멈춘다. 끄기: '시즌 장식' 버튼(naejeon:newyear = '0').
 import { act, toast, moreHooks } from './core.js';
 
+import { nySeason, nyOn } from './season.js';
+export { nySeason, nyOn };
+
 const KEY = 'naejeon:newyear';
-export const nySeason = (d = new Date()) => d.getMonth() === 0 && d.getDate() <= 15;
-export const nyOn = () => nySeason() && localStorage.getItem(KEY) !== '0';
 const quiet = () => { const b = document.body.classList; return b.contains('lite') || b.contains('idle') || document.hidden; };
 const calm = () => document.body.classList.contains('lite') || matchMedia('(prefers-reduced-motion: reduce)').matches;
 

@@ -7,15 +7,19 @@ import { initSocial, renderChat, renderPresence, onMeta } from './social.js';
 import { duoRank } from './stats.js';
 import { watchDice } from './dice.js';
 import { watchBoard } from './board.js';
-import './replay.js';
 import './players.js';
-import './auction.js';
-import './admin.js';
-import './maker.js';
 import './gacha.js';
+import { lazyPage } from './core.js';
+// 자주 안 쓰는 화면은 들어갈 때 받는다. 접속 후 한가할 때 미리 받아 두므로 보통은 기다림 없이 열린다.
+const LAZY_GET = [
+  lazyPage('replay', () => import('./replay.js'), ['matchReplay']),
+  lazyPage('auction', () => import('./auction.js')),
+  lazyPage('admin', () => import('./admin.js')),
+  lazyPage('maker', () => import('./maker.js')),
+];
+setTimeout(() => (window.requestIdleCallback || setTimeout)(() => LAZY_GET.forEach((g) => g().catch(() => {}))), 6000);
 import { watchPosts, postsChanged } from './talk.js';
-import { initXmas, xmasOn } from './xmas.js';
-import { initNewYear } from './newyear.js';
+import { xmasOn, SEASON } from './season.js'; // 크리스마스·새해 장식 코드는 시즌에만 받는다
 
 const num = (v, cls = '') => `<td class="num ${cls}">${v}</td>`;
 export function stat(icon, label, value, sub, tone = '') {
@@ -340,8 +344,9 @@ export function matchCard(m, tools = true) {
 }
 // 경기 기록: 날짜별로 접어 두고(가장 최근 날짜만 펼침), 선수 필터와 검색으로 원하는 경기만 본다.
 // 페이지에 들어올 때마다 필터·검색·펼침 상태는 처음 상태로 돌아간다.
-const MF = { sel: [], q: '', mode: 'all', open: null, chips: false };
-const resetMF = () => { MF.sel = []; MF.q = ''; MF.mode = 'all'; MF.open = null; MF.chips = false; };
+const MF = { sel: [], q: '', mode: 'all', open: null, chips: false, lim: 30, key: '' };
+const MF_STEP = 30; // '더 보기' 한 번에 펼친 경기 카드 30개 · 날짜 15개씩
+const resetMF = () => { MF.sel = []; MF.q = ''; MF.mode = 'all'; MF.open = null; MF.chips = false; MF.lim = MF_STEP; };
 addEventListener('hashchange', () => { if (/^#\/matches\/?$/.test(location.hash)) resetMF(); });
 const squash = (s) => String(s || '').replace(/\s/g, '').toLowerCase();
 function matchHit(m) {
@@ -378,14 +383,23 @@ page('matches', {
       <div class="mf-chips">${shown.map(chip).join('')}${played.length > 12 ? `<button class="mf-more" data-a="mfChips">${MF.chips ? '접기' : `+${played.length - 12}명 더`}</button>` : ''}</div>
       ${MF.sel.length > 1 ? `<div class="seg mf-mode">${[['all', '모두 출전'], ['with', '같은 팀'], ['vs', '맞대결']].map(([k, t]) => `<button class="${MF.mode === k ? 'on' : ''}" data-a="mfMode" data-m="${k}">${t}</button>`).join('')}</div>` : ''}
     </div>`;
-    const dayBlock = (d) => {
-      const all = st.matches.filter((m) => st.MI[m.id].day === d), ms = (filtering ? all.filter(matchHit) : all).reverse();
-      if (!ms.length) return '';
-      const bw = ms.filter((m) => m.winner === 'blue').length, open = filtering || MF.open.has(d);
-      return `<h3 class="day mf-day ${open ? 'open' : ''}" data-a="mfDay" data-d="${d}"><span class="mono">${fmtDay(d)}</span><small>${ms.length}경기 · 블루 ${bw}승 / 레드 ${ms.length - bw}승</small><span class="grow"></span>${filtering ? '' : `<i class="mf-tg">${open ? '접기' : '펼치기'}${ic('down')}</i>`}</h3>
-        ${open ? `<div class="mlist">${ms.map((m) => matchCard(m)).join('')}</div>` : ''}`;
-    };
-    const body = days.map(dayBlock).join('');
+    const key = [MF.sel.join(','), MF.q.trim(), MF.mode].join('|');
+    if (key !== MF.key) { MF.key = key; MF.lim = MF_STEP; } // 검색 조건이 바뀌면 처음 30개부터
+    const byDay = {}; for (const m of hits) (byDay[st.MI[m.id].day] ||= []).push(m);
+    // 한 번에 날짜 15개 · 펼친 경기 카드 30개까지만 그리고 맨 아래 '더 보기'를 단다(경기가 쌓여도 화면이 느려지지 않게)
+    let left = MF.lim, dleft = MF.lim / 2, rest = 0, stop = false; const parts = [];
+    for (const d of days) {
+      const ms = byDay[d]; if (!ms) continue;
+      const open = filtering || MF.open.has(d);
+      if (stop || dleft <= 0 || (open && left <= 0)) { rest += ms.length; stop = true; continue; }
+      const list = ms.slice().reverse(), cut = open ? list.slice(0, left) : [];
+      dleft--;
+      if (open) { left -= cut.length; if (cut.length < list.length) { rest += list.length - cut.length; stop = true; } }
+      const bw = list.filter((m) => m.winner === 'blue').length;
+      parts.push(`<h3 class="day mf-day ${open ? 'open' : ''}" data-a="mfDay" data-d="${d}"><span class="mono">${fmtDay(d)}</span><small>${list.length}경기 · 블루 ${bw}승 / 레드 ${list.length - bw}승</small><span class="grow"></span>${filtering ? '' : `<i class="mf-tg">${open ? '접기' : '펼치기'}${ic('down')}</i>`}</h3>
+        ${open ? `<div class="mlist">${cut.map((m) => matchCard(m)).join('')}</div>` : ''}`);
+    }
+    const body = parts.join('') + (rest > 0 ? `<button class="btn block mf-lim" data-a="mfMore">더 보기 · 남은 ${rest}경기</button>` : '');
     return `<div class="h2row"><h1>${ic('matches')}경기 기록</h1><span class="tag">${st.matches.length}경기</span><span class="grow"></span>
       ${filtering ? '' : `<button class="btn ghost" data-a="mfAll">${MF.open.size >= days.length ? '모두 접기' : '모두 펼치기'}</button>`}<button class="btn" data-a="exportCsv">${ic('down')}CSV 내보내기</button></div>
     ${filters}
@@ -400,6 +414,7 @@ document.addEventListener('compositionend', (e) => { if (e.target.id === 'mfq') 
 act('mfMode', (d) => { MF.mode = d.m; refresh(); });
 act('mfClear', () => { MF.sel = []; MF.q = ''; MF.mode = 'all'; refresh(); });
 act('mfChips', () => { MF.chips = !MF.chips; refresh(); });
+act('mfMore', () => { MF.lim += MF_STEP; refresh(); });
 act('mfDay', (d, el, e) => { if (e.target.closest('button,a') && !e.target.closest('.mf-day > button')) return; MF.open.has(d.d) ? MF.open.delete(d.d) : MF.open.add(d.d); refresh(); });
 act('mfAll', () => { const days = S.st.days; MF.open = MF.open.size >= days.length ? new Set() : new Set(days); refresh(); });
 // 경기 상세: 리플레이로 입력한 경기는 피해량·골드·CS·시야·아이템까지, 손으로 입력한 경기는 라인업과 KDA만 보여 준다
@@ -602,5 +617,6 @@ function onStore(c) {
     });
     await S.store.ready;
   } catch (e) { document.getElementById('splash')?.remove(); main.innerHTML = `<div class="panel landing"><h1>연결 실패</h1><p>${esc(e.message || e)}</p><p class="hint">js/config.js 의 Firebase 설정과 Firestore 규칙을 확인하세요.</p></div>`; return; }
-  metaDiff(); up = true; watchDice(true); watchBoard(true); watchPosts(true); initShell(); initSocial(); initXmas(); initNewYear(); loadChamps();
+  await SEASON.ready; // 시즌이 아니면 바로 끝난다. 시즌이면 시작 화면 장식 전에 받아 둔다(DB 연결과 동시에 받으므로 보통 기다리지 않는다)
+  metaDiff(); up = true; watchDice(true); watchBoard(true); watchPosts(true); initShell(); initSocial(); SEASON.x?.initXmas(); SEASON.n?.initNewYear(); loadChamps();
 })();

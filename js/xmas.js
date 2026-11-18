@@ -6,11 +6,11 @@
 // 장식이 싫으면 사이드바(모바일은 더보기)의 '시즌 장식' 버튼으로 끈다(naejeon:xmas = '0').
 import { act, toast, moreHooks } from './core.js';
 
-const START = [11, 16], STAR_DAY = [12, 25], END = [12, 26];
+import { inSeason, xmasOn } from './season.js';
+export { inSeason, xmasOn };
+
+const START = [11, 16], STAR_DAY = [12, 25], END = [12, 26]; // 기간 판단은 season.js(여기 날짜와 맞춰 둘 것)
 const KEY = 'naejeon:xmas';
-const md = (d) => (d.getMonth() + 1) * 100 + d.getDate();
-export const inSeason = (d = new Date()) => md(d) >= START[0] * 100 + START[1] && md(d) <= END[0] * 100 + END[1];
-export const xmasOn = () => inSeason() && localStorage.getItem(KEY) !== '0';
 const calm = () => document.body.classList.contains('lite') || matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function progress(now = new Date()) {
