@@ -50,7 +50,6 @@ act('dcRoll', async () => {
 // 주의: 저장할 때 문서의 id 필드는 항상 문서 이름('dice')으로 덮어써지므로, 굴림마다 달라지는 값은 rid에 둔다.
 // (예전에는 id로 비교해서 값이 늘 'dice'였고, 그래서 다른 사람 화면에서는 새 굴림으로 인식되지 않았다)
 const rollKey = (d) => (d ? String(d.rid || d.at || '') : '');
-let docWatch = false;
 function onDice(d) {
   if (seen === null) { seen = rollKey(d); return; } // 접속했을 때 이미 있던 결과는 기준점으로만 삼는다
   if (!d || !rollKey(d) || rollKey(d) === seen) return;
@@ -62,10 +61,7 @@ export function watchDice(initial) {
   const d = S.store.data.meta?.dice;
   if (initial) { if (seen === null) seen = rollKey(d); }
   else onDice(d);
-  if (!docWatch && S.store.mode === 'firebase') {
-    docWatch = true;
-    S.store.watchDoc('meta', 'dice', (doc) => onDice(doc), (e) => console.error('[dice] listener', e));
-  }
+  // 문서를 따로 구독하지 않는다: meta 컬렉션 구독(app.js)이 바뀔 때마다 이 함수를 불러 준다(같은 변경을 두 번 읽지 않게)
 }
 
 // 주사위 이펙트: 구르는 동안 주사위 위아래로 불티가 튀고, 멈추는 순간 사방으로 터진다
