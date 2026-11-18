@@ -159,23 +159,27 @@ function buildChat() {
   // 넓은 화면은 지난번 상태를 기억하고, 좁은 화면은 접힌 채로 시작한다
   if (!matchMedia('(min-width: 1281px)').matches || localStorage.getItem('naejeon:chatclosed') === '1') document.body.classList.add('chat-closed');
 }
+// 새로 도착한 메시지만 떠오르는 효과를 준다(다시 그릴 때마다 전체가 다시 떠오르며 깜빡이지 않게)
+let renderedAt = 0;
 export function renderChat(force) {
   const log = document.getElementById('chatlog'); if (!log) return;
   const list = msgs(), atBottom = force || log.scrollHeight - log.scrollTop - log.clientHeight < 80;
+  const since = force ? Infinity : renderedAt, fresh = (m) => renderedAt && m.at > since;
   let prevDay = '', prevWho = '', html = '';
   for (const m of list) {
     const d = new Date(m.at), day = `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}`, tm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     if (day !== prevDay) { html += `<div class="cday"><span>${day}</span></div>`; prevDay = day; prevWho = ''; }
-    if (m.k === 'sys') { html += `<div class="csys">${esc(m.t)}<small>${tm}</small></div>`; prevWho = ''; continue; }
+    if (m.k === 'sys') { html += `<div class="csys ${fresh(m) ? 'new' : ''}">${esc(m.t)}<small>${tm}</small></div>`; prevWho = ''; continue; }
     const me = m.cid === cid, who = m.cid + m.nick, head = who !== prevWho;
     prevWho = who;
     const linkedText = esc(m.t).replace(/https?:\/\/[^\s<]+/g, (url) => `<a class="chatlink" href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
     const body = m.k === 's' && STK[m.t] ? `<span class="sticker big ${STK[m.t][2]}">${esc(STK[m.t][1])}</span>` : m.k === 'r' ? `<span class="croll">${ic('dice')}<b>${esc(m.t)}</b><small>1~100</small></span>` : `<span class="cb ${/^\p{Extended_Pictographic}{1,3}$/u.test(m.t) ? 'emo' : ''}">${linkedText}</span>`;
-    html += `<div class="cm ${me ? 'me' : ''} ${head ? 'head' : ''}">${head && !me ? `<b class="cn" style="--h:${hue(m.nick)}">${esc(m.nick)}</b>` : ''}<div class="cl">${body}<small>${tm}</small>${me ? `<button class="cdel" data-a="chatDel" data-id="${m.id}" title="내 메시지 지우기" aria-label="메시지 지우기">${ic('x')}</button>` : ''}</div></div>`;
+    html += `<div class="cm ${me ? 'me' : ''} ${head ? 'head' : ''} ${fresh(m) ? 'new' : ''}">${head && !me ? `<b class="cn" style="--h:${hue(m.nick)}">${esc(m.nick)}</b>` : ''}<div class="cl">${body}<small>${tm}</small>${me ? `<button class="cdel" data-a="chatDel" data-id="${m.id}" title="내 메시지 지우기" aria-label="메시지 지우기">${ic('x')}</button>` : ''}</div></div>`;
   }
   log.innerHTML = html || `<div class="cempty">${ic('chat')}<p>첫 메시지를 남겨 보세요.<br>스티커와 주사위도 있어요.</p></div>`;
   if (atBottom) log.scrollTop = log.scrollHeight;
   const last = list[list.length - 1]?.at || 0;
+  renderedAt = Math.max(renderedAt, last, 1);
   if (isOpen()) { lastSeenAt = last; localStorage.setItem('naejeon:chatseen', last); unread = 0; }
   else unread = list.filter((m) => m.at > lastSeenAt && m.cid !== cid).length;
   const b = document.getElementById('chatbadge'); if (b) { b.hidden = !unread; b.textContent = unread > 99 ? '99+' : unread; }
@@ -186,14 +190,15 @@ act('chatToggle', () => {
   const b = document.body, chat = document.getElementById('chat'), lz = document.getElementById('chatlaser');
   const closing = isOpen(), reduce = matchMedia('(prefers-reduced-motion: reduce)').matches, T = reduce ? 0 : closing ? 560 : 760;
   clearTimeout(chatAnim); chat.classList.remove('opening', 'closing'); lz.classList.remove('opening', 'closing');
-  const done = () => { chat.classList.remove('opening', 'closing'); lz.classList.remove('opening', 'closing'); if (closing) b.classList.add('chat-closed'); else renderChat(true); };
-  if (!closing) b.classList.remove('chat-closed');
+  const done = () => { chat.classList.remove('opening', 'closing'); lz.classList.remove('opening', 'closing'); b.classList.remove('chat-closing'); if (closing) b.classList.add('chat-closed'); };
+  if (!closing) b.classList.remove('chat-closed', 'chat-closing');
+  else b.classList.add('chat-closing'); // 채팅창이 접히는 동안 본문도 함께 넓어진다(끝난 뒤 한 번에 튀지 않게)
   if (matchMedia('(min-width: 1281px)').matches) localStorage.setItem('naejeon:chatclosed', closing ? '1' : '0');
   if (!T) return done();
+  if (!closing) renderChat(true); // 펼치기 전에 내용을 먼저 그려 둔다(펼쳐진 뒤 다시 그리지 않음)
   void chat.offsetWidth;
   chat.classList.add(closing ? 'closing' : 'opening'); lz.classList.add(closing ? 'closing' : 'opening');
   chatAnim = setTimeout(done, T);
-  if (!closing) renderChat(true);
 });
 act('chatTray', () => { tray = !tray; document.getElementById('chattray').hidden = !tray; renderChat(true); });
 act('chatStk', (d) => send('s', d.k));

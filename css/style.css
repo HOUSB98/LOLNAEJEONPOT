@@ -439,8 +439,8 @@ details.panel summary{cursor:pointer;list-style:none}details.panel summary::befo
 #chatlog{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
 .cday{text-align:center;margin:12px 0 8px;position:relative}.cday::before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:var(--line)}
 .cday span{position:relative;background:#070b13;padding:0 10px;font:500 11px var(--mono);color:var(--mut)}
-.csys{align-self:center;max-width:94%;text-align:center;font-size:11px;color:var(--gold2);background:rgba(217,164,65,.08);border:1px solid #3a2f14;border-radius:8px;padding:5px 10px;margin:6px 0;animation:rise .35s}.csys small{margin-left:6px}
-.cm{display:flex;flex-direction:column;align-items:flex-start;animation:rise .28s}.cm.head{margin-top:9px}.cm.me{align-items:flex-end}
+.csys{align-self:center;max-width:94%;text-align:center;font-size:11px;color:var(--gold2);background:rgba(217,164,65,.08);border:1px solid #3a2f14;border-radius:8px;padding:5px 10px;margin:6px 0}.csys small{margin-left:6px}
+.cm{display:flex;flex-direction:column;align-items:flex-start}.cm.new,.csys.new{animation:rise .28s}.cm.head{margin-top:9px}.cm.me{align-items:flex-end}
 .cn{font-size:11px;color:hsl(var(--h) 80% 72%);margin:0 0 3px 4px}
 .cl{display:flex;align-items:flex-end;gap:6px;max-width:92%}.cm.me .cl{flex-direction:row-reverse}.cl small{font:500 11px var(--mono);opacity:0;transition:.15s;white-space:nowrap}.cm:hover .cl small{opacity:1}
 .cb{background:var(--panel2);border:1px solid var(--line2);border-radius:4px 14px 14px 14px;padding:7px 11px;font-size:13px;line-height:1.45;overflow-wrap:anywhere;word-break:break-word}
@@ -1083,11 +1083,12 @@ p.bad{color:var(--red)}
 /* --- 채팅창 접기 · 펼치기 (레이저) --- */
 .chatx{display:inline-flex}
 #main{transition:margin-right .5s cubic-bezier(.2,.8,.2,1)}
-body.chat-closed #main{margin-right:0}
+body.chat-closed #main,body.chat-closing #main{margin-right:0}
 body.chat-closed #chat{visibility:hidden;pointer-events:none}
 #chat.closing{animation:chatclose .56s cubic-bezier(.5,0,.3,1) both}#chat.opening{animation:chatopen .76s cubic-bezier(.5,0,.3,1) both}
-@keyframes chatclose{0%{clip-path:inset(0)}68%{clip-path:inset(calc(50% - 1px) 0);filter:brightness(1.7)}100%{clip-path:inset(calc(50% - 1px) 0 calc(50% - 1px) 100%);filter:brightness(2.2)}}
-@keyframes chatopen{0%{clip-path:inset(calc(50% - 1px) 0 calc(50% - 1px) 100%);filter:brightness(2.2)}34%{clip-path:inset(calc(50% - 1px) 0);filter:brightness(1.7)}100%{clip-path:inset(0);filter:none}}
+@keyframes chatclose{0%{clip-path:inset(0)}68%{clip-path:inset(calc(50% - 1px) 0)}100%{clip-path:inset(calc(50% - 1px) 0 calc(50% - 1px) 100%)}}
+@keyframes chatopen{0%{clip-path:inset(calc(50% - 1px) 0 calc(50% - 1px) 100%)}34%{clip-path:inset(calc(50% - 1px) 0)}100%{clip-path:inset(0)}}
+#chat.opening,#chat.closing{will-change:clip-path} /* 밝기 필터는 빼고(큰 화면 전체를 매 프레임 다시 그려 끊김) 레이저 선이 빛을 담당한다 */
 #chatlaser{position:fixed;inset:0 0 0 auto;width:min(var(--cw),100vw);z-index:9;pointer-events:none;overflow:hidden;visibility:hidden}
 #chatlaser.opening,#chatlaser.closing{visibility:visible}
 #chatlaser i{position:absolute;left:0;right:0;top:50%;height:2px;margin-top:-1px;background:linear-gradient(90deg,transparent,var(--gold2) 10%,#fff 50%,var(--gold2) 90%,transparent);box-shadow:0 0 12px 2px var(--gold),0 0 34px 8px rgba(63,208,224,.45);transform-origin:100% 50%}
