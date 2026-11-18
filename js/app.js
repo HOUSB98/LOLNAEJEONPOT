@@ -128,16 +128,19 @@ async function xmasSkins() {
   return XM.list;
 }
 const xmasArt = (id, num) => `https://ddragon.leagueoflegends.com/cdn/img/champion/centered/${id === 'Fiddlesticks' ? 'FiddleSticks' : id}_${num}.jpg`;
+// 휴대폰·가벼운 모드·데이터 절약 모드에서는 배너 그림(장당 100~200KB)을 10장만 돌린다. 한 번 받은 그림은 브라우저에 남아 다시 받지 않는다.
+const heroSmall = () => matchMedia('(max-width: 860px), (pointer: coarse)').matches || document.body.classList.contains('lite') || !!navigator.connection?.saveData;
+const HERO_N = () => (heroSmall() ? 10 : 40), HERO_MS = () => (navigator.connection?.saveData ? 13000 : 6500);
 function heroList() {
   const want = xmasOn() && !!XM.list;
   if (HERO.list.length && HERO.xm === want) return HERO.list;
   if (!S.champs.length) return HERO.list;
   HERO.xm = want; HERO.i = 0;
-  if (want) HERO.list = shuffle(XM.list.map(([, id, num, name]) => ({ url: xmasArt(id, num), cap: name })));
+  if (want) HERO.list = shuffle(XM.list.map(([, id, num, name]) => ({ url: xmasArt(id, num), cap: name }))).slice(0, HERO_N());
   else {
     const played = S.st.champs.filter((c) => c.g && S.champBy[c.name]).map((c) => c.name);
     const pool = played.length >= 6 ? played : S.champs.map((c) => c.name);
-    HERO.list = shuffle(pool).slice(0, 40).map((n) => ({ url: artUrl(n), cap: n }));
+    HERO.list = shuffle(pool).slice(0, HERO_N()).map((n) => ({ url: artUrl(n), cap: n }));
   }
   return HERO.list;
 }
@@ -257,7 +260,7 @@ page('home', {
     if (entering) { TY.t0 = performance.now(); clearInterval(TY.timer); TY.timer = setInterval(typeTick, 45); }
     else if (TY.timer) typeTick(); else document.querySelector('.hero-h')?.classList.add('typed');
     HM.t = setInterval(() => { if (S.page !== 'home') return clearInterval(HM.t); if (!document.querySelector('#car:hover')) carMove(1); }, 4200);
-    HERO.t = setInterval(() => { if (S.page !== 'home') return clearInterval(HERO.t); if (document.visibilityState === 'visible') heroNext(); }, 6500);
+    HERO.t = setInterval(() => { if (S.page !== 'home') return clearInterval(HERO.t); if (document.visibilityState === 'visible') heroNext(); }, HERO_MS());
     // 크리스마스 시즌: 겨울 스킨 목록을 (처음 한 번) 찾아오면 바로 스킨 일러스트로 넘긴다
     if (xmasOn() && !XM.list) xmasSkins().then((l) => { if (l && S.page === 'home' && xmasOn()) { heroList(); HERO.i = -1; heroNext(); } });
   },
