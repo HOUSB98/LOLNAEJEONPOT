@@ -13,7 +13,7 @@ import './auction.js';
 import './admin.js';
 import './maker.js';
 import './gacha.js';
-import { watchPosts } from './talk.js';
+import { watchPosts, postsChanged } from './talk.js';
 import { initXmas, xmasOn } from './xmas.js';
 import { initNewYear } from './newyear.js';
 
@@ -572,7 +572,7 @@ function onStore(c) {
     if (ch.scorelog && S.page === 'home') refresh();
     return;
   }
-  if (c === 'posts') { watchPosts(); if (S.page === 'talk') refresh(); return; }
+  if (c === 'posts') { watchPosts(); postsChanged(); if (S.page === 'talk') refresh(); return; }
   if (c === 'players' || c === 'matches') refresh(true);
 }
 (async () => {

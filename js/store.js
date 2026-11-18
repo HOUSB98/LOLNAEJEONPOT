@@ -6,6 +6,7 @@ import { FIREBASE_CONFIG } from './config.js';
 // reveals(승률 공개 이벤트)는 계속 쌓이는 기록이라 전체를 구독하지 않고 watchCollection으로 최근 것만 따로 듣는다.
 const WATCHED = ['players', 'matches', 'auctions', 'meta', 'presence', 'chat', 'posts'];
 const CHAT_LIMIT = 30; // 채팅은 문서가 계속 쌓이므로 최근 30개만 구독한다(기록 자체는 DB에 남는다)
+const POST_LIMIT = 10; // 익명 게시판도 최근 10개만 실시간으로 받고, 이전 글은 '더 보기'를 누를 때 10개씩 한 번만 읽는다
 const clean = (o) => JSON.parse(JSON.stringify(o)); // Firestore는 undefined를 받지 않는다
 const FB ='https://www.gstatic.com/firebasejs/10.12.5/';
 
@@ -46,6 +47,8 @@ function localStore(key, onChange) {
     },
     bye() {},
     async get(col, id) { data[col] = load(col); return data[col][id] ? { ...data[col][id] } : null; },
+    async older(col, before, n) { return Object.values(data[col] || {}).filter((d) => d.at < before).sort((a, b) => b.at - a.at).slice(0, n); },
+    async count(col, field, value) { return Object.values(data[col] || {}).filter((d) => d[field] === value).length; },
     async put(col, id, doc) { (data[col] ||= {})[id] = { ...doc, id }; save(col, id); },
     async patch(col, id, part) { data[col][id] = { ...(data[col][id] || { id }), ...part }; save(col); },
     async tx(col, id, fn) {
@@ -110,7 +113,8 @@ async function firebaseStore(key, onChange) {
   WATCHED.forEach((col) => {
     data[col] = {};
     const src = fs.collection(db, 'leagues', key, col);
-    fs.onSnapshot(col === 'chat' ? fs.query(src, fs.orderBy('at', 'desc'), fs.limit(CHAT_LIMIT)) : src, { includeMetadataChanges: true }, (snap) => {
+    const lim = col === 'chat' ? CHAT_LIMIT : col === 'posts' ? POST_LIMIT : 0;
+    fs.onSnapshot(lim ? fs.query(src, fs.orderBy('at', 'desc'), fs.limit(lim)) : src, { includeMetadataChanges: true }, (snap) => {
       const fromServer = !snap.metadata.fromCache, first = !seen[col];
       if (!first && !snap.docChanges().length) return; // 내용은 그대로이고 상태 표시만 바뀐 알림은 무시(다시 그리지 않음)
       const m = {};
@@ -147,6 +151,10 @@ async function firebaseStore(key, onChange) {
       } catch {}
     },
     get: async (col, id) => { const d = await fs.getDoc(ref(col, id)); return d.exists() ? { ...d.data(), id } : null; }, // 구독하지 않는 문서(가챠 등)를 필요할 때 한 번 읽는다
+    // at 이 before 보다 오래된 문서 n개를 한 번 읽는다(게시판 '더 보기'). 읽은 문서 수만큼만 읽기로 계산된다
+    older: async (col, before, n) => (await fs.getDocs(fs.query(fs.collection(db, 'leagues', key, col), fs.orderBy('at', 'desc'), fs.startAfter(before), fs.limit(n)))).docs.map((d) => ({ ...d.data(), id: d.id })),
+    // 조건에 맞는 문서 수(문서를 내려받지 않음, 1,000개당 읽기 1번으로 계산)
+    count: async (col, field, value) => (await fs.getCountFromServer(fs.query(fs.collection(db, 'leagues', key, col), fs.where(field, '==', value)))).data().count,
     put: (col, id, doc) => fs.setDoc(ref(col, id), clean({ ...doc, id })),
     patch: (col, id, part) => fs.setDoc(ref(col, id), clean(part), { merge: true }),
     tx: (col, id, fn) => fs.runTransaction(db, async (t) => {
