@@ -50,8 +50,10 @@ function localStore(key, onChange) {
     async get(col, id) { data[col] = load(col); return data[col][id] ? { ...data[col][id] } : null; },
     async older(col, before, n) { return Object.values(data[col] || {}).filter((d) => d.at < before).sort((a, b) => b.at - a.at).slice(0, n); },
     async count(col, field, value) { return Object.values(data[col] || {}).filter((d) => d[field] === value).length; },
-    async put(col, id, doc) { (data[col] ||= {})[id] = { ...doc, id }; save(col, id); },
-    async patch(col, id, part) { data[col][id] = { ...(data[col][id] || { id }), ...part }; save(col); },
+    async byField(col, field, value, after, n) { return Object.entries(load(col)).map(([id, d]) => ({ ...d, id })).filter((d) => d[field] === value && !d.deleted && (!after || d.id > after)).sort((a, b) => (a.id < b.id ? -1 : 1)).slice(0, n); },
+    // 미리 불러 두지 않은 컬렉션(댓글 등)은 저장 전에 기존 내용을 먼저 읽는다(덮어쓰지 않게)
+    async put(col, id, doc) { (data[col] ||= load(col))[id] = { ...doc, id }; save(col, id); },
+    async patch(col, id, part) { data[col] ||= load(col); data[col][id] = { ...(data[col][id] || { id }), ...part }; save(col); },
     async tx(col, id, fn) {
       data[col] = load(col);
       const next = fn(data[col][id] || null);
@@ -177,6 +179,8 @@ async function firebaseStore(key, onChange) {
     get: async (col, id) => { const d = await fs.getDoc(ref(col, id)); return d.exists() ? { ...d.data(), id } : null; }, // 구독하지 않는 문서(가챠 등)를 필요할 때 한 번 읽는다
     // at 이 before 보다 오래된 문서 n개를 한 번 읽는다(게시판 '더 보기'). 읽은 문서 수만큼만 읽기로 계산된다
     older: async (col, before, n) => (await fs.getDocs(fs.query(fs.collection(db, 'leagues', key, col), fs.orderBy('at', 'desc'), fs.startAfter(before), fs.limit(n)))).docs.map((d) => ({ ...d.data(), id: d.id })),
+    // field == value 이고 지우지 않은 문서를 문서 id 순서로 n개(after 다음부터) 한 번 읽는다(게시판 댓글). 단일 필드 색인만으로 되는 질의
+    byField: async (col, field, value, after, n) => (await fs.getDocs(fs.query(fs.collection(db, 'leagues', key, col), fs.where(field, '==', value), fs.where('deleted', '==', false), fs.orderBy(fs.documentId()), ...(after ? [fs.startAfter(after)] : []), fs.limit(n)))).docs.map((d) => ({ ...d.data(), id: d.id })),
     // 조건에 맞는 문서 수(문서를 내려받지 않음, 1,000개당 읽기 1번으로 계산)
     count: async (col, field, value) => (await fs.getCountFromServer(fs.query(fs.collection(db, 'leagues', key, col), fs.where(field, '==', value)))).data().count,
     put: (col, id, doc) => fs.setDoc(ref(col, id), stamp(col, clean({ ...doc, id }))),
