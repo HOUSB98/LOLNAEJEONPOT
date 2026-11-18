@@ -5,8 +5,8 @@ import { S, page, act, esc, uid, col, refresh, toast, modal, closeModal, mh, ic,
 import { sysChat } from './social.js';
 import { notify as hookNotify } from './hook.js';
 
-const MAX_TITLE = 60, MAX_BODY = 2000, PAGE = 30, COOLDOWN = 20e3;
-const TK = { title: '', body: '', pw: '', open: false, shown: PAGE, busy: false, seen: null, mine: new Set() };
+const MAX_TITLE = 60, MAX_BODY = 2000, COOLDOWN = 20e3;
+const TK = { title: '', body: '', pw: '', open: false, loading: false, busy: false, seen: null, mine: new Set() };
 const lastKey = () => 'naejeon:talklast:' + S.key;
 const hashPw = (id, pw) => sha(`post:${id}:${pw}`);
 function ago(t) {
@@ -17,7 +17,18 @@ function ago(t) {
   if (s < 86400 * 7) return `${Math.floor(s / 86400)}일 전`;
   const d = new Date(t); return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
 }
-const posts = () => col('posts').filter((p) => !p.deleted && p.body).sort((a, b) => b.at - a.at);
+// 실시간으로는 최근 10개만 받는다(store.js POST_LIMIT). '더 보기'로 읽은 이전 글은 OLD 에 따로 둔다
+const OLD = {};
+const CNT = { n: null, at: 0, busy: false }; // 전체 글 수(서버에서 세기, 1분에 한 번까지)
+const posts = () => { const live = col('posts'), ids = new Set(live.map((p) => p.id)); return [...live, ...Object.values(OLD).filter((p) => !ids.has(p.id))].filter((p) => !p.deleted && p.body).sort((a, b) => b.at - a.at); };
+const allLoaded = () => { const live = col('posts'), ids = new Set(live.map((p) => p.id)); return [...live, ...Object.values(OLD).filter((p) => !ids.has(p.id))]; };
+function recount(force) {
+  if (CNT.busy || (!force && Date.now() - CNT.at < 60e3)) return;
+  CNT.busy = true; CNT.at = Date.now();
+  S.store.count('posts', 'deleted', false).then((n) => { CNT.n = n; }).catch(() => {}).finally(() => { CNT.busy = false; if (S.page === 'talk') refresh(); });
+}
+export const postsChanged = () => { CNT.at = 0; }; // 새 글·삭제가 생기면 다음 화면에서 다시 센다
+async function syncOld(id) { if (OLD[id]) { const p = await S.store.get('posts', id).catch(() => null); if (p) OLD[id] = p; } }
 
 // ---------- 공감 / 비공감 ----------
 // 글 문서의 rx 에 { 표시값: 1 | -1 } 로 모은다. 표시값은 '글 id + 이 기기 id'의 해시 앞부분이라 누가 눌렀는지 알 수 없고, 한 기기는 글마다 한 번만 반영된다.
@@ -43,6 +54,7 @@ act('tkRx', async (d) => {
       if (next) rx[h] = next; else delete rx[h];
       return { ...p, rx };
     });
+    await syncOld(d.id);
     if (next) mine[d.id] = next; else delete mine[d.id];
     try { localStorage.setItem(myRxKey(), JSON.stringify(mine)); } catch {}
     refresh();
@@ -52,7 +64,9 @@ act('tkRx', async (d) => {
 
 page('talk', {
   render() {
-    const list = posts(), shown = list.slice(0, TK.shown);
+    const list = posts(), shown = list;
+    recount(false);
+    const total = CNT.n ?? list.length, more = Math.max(0, total - list.length);
     const fresh = (p) => TK.seen && !TK.seen.has(p.id); // 처음 연 화면 이후에 새로 올라온 글만 떠오르는 효과
     const form = TK.open ? `<form class="panel tk-form" id="tkf" onsubmit="return false">
         <div class="tk-who">${ic('user')}<b>익명</b><small>글쓴이는 항상 '익명'으로 표시됩니다</small></div>
@@ -64,7 +78,7 @@ page('talk', {
         <p class="hint">비밀번호는 글을 지울 때 필요해요. 잊어버리면 지울 수 없으니 기억해 두세요.</p>
       </form>`
       : `<button class="panel tk-open" data-a="tkOpen">${ic('user')}<span>익명으로 글 쓰기…</span>${ic('edit')}</button>`;
-    return `<div class="h2row"><h1>${ic('talk')}익명 게시판</h1><span class="tag">${list.length}개</span></div>
+    return `<div class="h2row"><h1>${ic('talk')}익명 게시판</h1><span class="tag">${total}개</span></div>
       <p class="hint">누가 썼는지 아무도 모릅니다. 글쓴이 정보는 저장되지 않고 모두 <b>익명</b>으로 보입니다.</p>
       ${form}
       <div class="tk-list">${shown.map((p) => `<article class="panel tk-post ${fresh(p) ? 'new' : ''}">
@@ -73,7 +87,7 @@ page('talk', {
           ${p.title ? `<h3>${esc(p.title)}</h3>` : ''}<p class="tk-text">${esc(p.body)}</p>
           ${rxBar(p)}
         </article>`).join('') || '<div class="panel empty">아직 글이 없어요. 첫 글을 남겨 보세요!</div>'}</div>
-      ${list.length > TK.shown ? `<button class="btn block ghost" data-a="tkMore">이전 글 더 보기 (${list.length - TK.shown}개)</button>` : ''}`;
+      ${more > 0 ? `<button class="btn block ghost" data-a="tkMore" ${TK.loading ? 'disabled' : ''}>${TK.loading ? '불러오는 중…' : `이전 글 더 보기 (${more}개)`}</button>` : ''}`;
   },
   after() { TK.seen = new Set(posts().map((p) => p.id)); },
 });
@@ -82,7 +96,20 @@ act('tkCancel', () => { TK.open = false; refresh(); });
 act('tkT', (d, el) => { TK.title = el.value; });
 act('tkB', (d, el) => { TK.body = el.value; const n = document.querySelector('.tk-len'); if (n) n.textContent = `${el.value.length}/${MAX_BODY}`; });
 act('tkP', (d, el) => { TK.pw = el.value; });
-act('tkMore', () => { TK.shown += PAGE; refresh(); });
+// 이전 글 10개씩: 지금까지 받은 글 중 가장 오래된 것보다 전 글을 한 번 읽는다(지운 글이 섞이면 조금 더 읽음)
+act('tkMore', async () => {
+  if (TK.loading) return; TK.loading = true; refresh();
+  try {
+    let got = 0;
+    for (let i = 0; i < 4 && got < 10; i++) {
+      const oldest = Math.min(...allLoaded().map((p) => +p.at || Infinity));
+      const docs = await S.store.older('posts', Number.isFinite(oldest) ? oldest : Date.now() + 1, 10);
+      docs.forEach((p) => { OLD[p.id] = p; if (!p.deleted && p.body) got++; });
+      if (docs.length < 10) break;
+    }
+  } catch (e) { toast('불러오기 실패: ' + (e.code || e.message)); }
+  TK.loading = false; refresh();
+});
 act('tkPost', async () => {
   const title = TK.title.trim().slice(0, MAX_TITLE), body = TK.body.trim().slice(0, MAX_BODY), pw = TK.pw;
   if (!body) return toast('내용을 적어 주세요');
@@ -103,11 +130,11 @@ act('tkPost', async () => {
   TK.busy = false; refresh();
 });
 async function remove(id, by) {
-  try { await S.store.patch('posts', id, { deleted: true, deletedBy: by, deletedAt: Date.now() }); closeModal(); toast('글을 지웠어요'); }
+  try { await S.store.patch('posts', id, { deleted: true, deletedBy: by, deletedAt: Date.now() }); if (OLD[id]) OLD[id] = { ...OLD[id], deleted: true }; recount(true); closeModal(); toast('글을 지웠어요'); }
   catch (e) { toast('삭제 실패: ' + (e.code || e.message)); }
 }
 act('tkDel', (d) => {
-  const p = S.store.data.posts?.[d.id]; if (!p) return;
+  const p = S.store.data.posts?.[d.id] || OLD[d.id]; if (!p) return;
   const el = modal(`${mh(`${ic('trash')}글 삭제`)}
     <p class="mut">글을 쓸 때 정한 비밀번호를 입력하세요.</p>
     <form class="row" id="tkdf"><input class="inp grow" id="tkdp" type="password" autocomplete="off" placeholder="비밀번호"><button class="btn pri">삭제</button></form>
