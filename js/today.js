@@ -1,7 +1,7 @@
 // 오늘의 내전: 라인업 보드(점수·예상승률·해설) + 경기 결과 입력/수정
 import { S, page, act, esc, uid, pname, go, refresh, ddMenu, champIcon, artUrl, toast, pickChamp, pickPlayer, history, ic, dots, burst, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
 import { evalLineup, commentary, bestDuo, aiBalance } from './stats.js';
-import { notify } from './hook.js';
+import { notify, hookOn } from './hook.js';
 import { seriesUsed, matchCard } from './app.js';
 import { sysChat } from './social.js';
 import { boardLive } from './board.js';
@@ -202,6 +202,7 @@ page('today', {
     <div class="sec-h"><h2>${ic('rank')}경기 결과 기록</h2>${edit ? '' : sr ? `<span class="tag ok">시리즈 ${sr.ms.length + 1}번째 판</span><span class="mut sm">피어리스: 사용된 챔피언 ${Object.keys(seriesUsed(sid)).length}개 잠김</span><label class="mini"><input type="checkbox" data-c="tNew" ${d.newSeries ? 'checked' : ''}> 새 시리즈로 시작</label>` : '<span class="tag">새 시리즈 1번째 판</span>'}</div>
     <div class="panel">
       <div class="winrow"><button class="wbtn blue ${d.winner === 'blue' ? 'on' : ''}" data-a="tWin" data-w="blue"><small>BLUE</small>블루 승리</button><button class="wbtn red ${d.winner === 'red' ? 'on' : ''}" data-a="tWin" data-w="red"><small>RED</small>레드 승리</button></div>
+      ${hookOn() && !edit ? liveBar(full) : ''}
       <button class="btn block ghost" data-a="tMore">${d.more ? '밴 · KDA · 시간 접기' : '밴 · KDA · 경기 시간 입력 (선택)'}</button>
       ${d.more ? `<div class="more">
         ${['blue', 'red'].map((s) => `<div class="banrow"><small>${s === 'blue' ? 'BLUE BAN' : 'RED BAN'}</small>${d.bans[s].map((b, i) => `<button class="sl-champ" data-a="tBan" data-s="${s}" data-i="${i}">${b ? champIcon(b) : `<span class="ci plus">${ic('plus')}</span>`}</button>`).join('')}</div>`).join('')}
@@ -271,6 +272,53 @@ act('tKda', (d, el) => {
   D().kda[d.id] = el.value.trim();
   if (!edit) keep();
 });
+// ---------- 게임에서 챔피언·밴 불러오기(연동 서버 /live → js/live.js 가 자리 맞추기) ----------
+// 밴픽 정보는 라이엇 API에 없어서 로딩 화면(게임 시작)부터 찾을 수 있다. 먼저 눌러 두면 30초마다 다시 확인해 최대 6분 동안 기다린다
+// (기다리는 동안 라이엇 호출은 30초에 2~6번, Firestore 읽기·쓰기 없음). 찾으면 라인업 동기화(meta/todayDraft)로 모두의 화면에 반영된다.
+const LV = { busy: false, until: 0, t: 0, start: 0, note: '', bad: false };
+const LIVE_WAIT = 6 * 60e3, LIVE_EVERY = 30e3;
+function liveBar(full) {
+  const btn = LV.until
+    ? `<div class="lv-wait">${ic('eye')}<p><b>게임 시작을 기다리는 중…</b><small>로딩 화면이 뜨면 자동으로 채워요 · 최대 6분</small></p><button class="btn ghost xs" data-a="tLiveStop">그만</button></div>`
+    : `<button class="btn block gold" data-a="tLive" ${full && !LV.busy ? '' : 'disabled'} title="${full ? '진행 중인 롤 게임에서 10명의 챔피언과 밴을 가져와 채웁니다' : '10명을 모두 배치하면 쓸 수 있어요'}">${ic('eye')}${LV.busy ? '게임을 찾는 중…' : '게임에서 챔피언 · 밴 불러오기'}</button>`;
+  const note = LV.note || (LV.until ? '' : '밴픽이 끝나고 로딩 화면이 뜨면 눌러 주세요. 미리 눌러 두면 게임이 시작될 때 자동으로 채워요.');
+  return `${btn}${note ? `<p class="sm lv-note ${LV.bad ? 'bad' : 'mut'}">${esc(note)}</p>` : '<div class="lv-gap"></div>'}`;
+}
+const liveStop = () => { clearTimeout(LV.t); LV.t = 0; LV.until = 0; };
+act('tLive', () => {
+  if (LV.busy || LV.until) return;
+  if (!isFull(D())) return toast('양 팀 10명을 모두 배치해 주세요');
+  LV.start = 0; LV.note = ''; LV.bad = false;
+  liveTry(false);
+});
+act('tLiveStop', () => { liveStop(); LV.note = '기다리기를 멈췄어요'; LV.bad = false; refresh(); });
+async function liveTry(quick) {
+  LV.t = 0; LV.busy = true; refresh();
+  let res;
+  try { const { liveRequest } = await import('./live.js'); res = await liveRequest(draft || D(), quick ? 3 : 0, LV.start); }
+  catch (e) { res = { error: e.message || String(e) }; }
+  LV.busy = false;
+  if (S.page === 'today' && S.arg[0] === 'edit') { liveStop(); LV.note = ''; return refresh(); } // 지난 경기 수정 화면으로 옮겼으면 그만
+  // 처음 누른 때의 오류는 바로 알리고, 기다리는 중의 잠깐 오류(연결·호출 한도)는 다음 확인에서 다시 시도한다. 키·닉네임 문제는 기다려도 안 되니 멈춘다
+  if (res.error && (!LV.until || /키|닉네임/.test(res.error))) { liveStop(); LV.note = '불러오기 실패: ' + res.error; LV.bad = true; return refresh(); }
+  if (!res.found) {
+    if (!LV.until) { LV.until = Date.now() + LIVE_WAIT; toast('아직 게임이 시작되지 않았어요. 로딩 화면이 뜨면 자동으로 채울게요'); }
+    if (Date.now() + LIVE_EVERY > LV.until) { liveStop(); LV.note = '6분 동안 진행 중인 게임을 찾지 못했어요. 게임이 시작된 뒤 다시 눌러 주세요'; LV.bad = true; }
+    else { LV.start += 3; LV.t = setTimeout(() => liveTry(true), LIVE_EVERY); }
+    return refresh();
+  }
+  liveStop();
+  const { planLive } = await import('./live.js');
+  const dr = D(), plan = planLive(dr, res);
+  if (plan.error) { LV.note = plan.error; LV.bad = true; return refresh(); }
+  dr.blue = plan.blue; dr.red = plan.red; dr.champs = plan.champs; dr.winner = plan.winner;
+  if (plan.bans) dr.bans = plan.bans;
+  if (plan.nb) dr.more = true; // 밴을 채웠으면 밴 입력 칸을 펼쳐서 보여 준다
+  const msg = `챔피언 ${plan.filled}명${plan.nb ? ` · 밴 ${plan.nb}개` : ''}를 불러왔어요${plan.swap ? ' · 게임 진영에 맞춰 블루/레드를 바꿨어요' : ''}`;
+  LV.note = [msg, ...plan.notes].join(' · '); LV.bad = false;
+  keep(); toast(msg);
+}
+
 // AI 추천: 라인별 두 사람은 그대로, 블루/레드만 다시 나눈다(챔피언 선택도 사람을 따라간다)
 act('tAi', () => {
   const dr = D(); if (!isFull(dr)) return toast('양 팀 10명을 모두 배치해 주세요');

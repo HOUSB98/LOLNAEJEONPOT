@@ -2122,3 +2122,11 @@ a.me-ch[href]:hover{background:rgba(255,255,255,.05)}
 #fuse>svg{flex:none;width:22px;height:22px;color:var(--gold2)}
 #fuse p{margin:0;flex:1;display:flex;flex-direction:column;gap:3px;min-width:0}#fuse b{color:var(--gold2)}#fuse small{color:var(--mut);line-height:1.5}
 #fuse .btn{flex:none;padding:7px 14px;min-height:34px}
+/* 오늘의 내전: 게임에서 챔피언·밴 불러오기(today.js liveBar) */
+.lv-wait{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--gold);border-radius:var(--r);background:rgba(217,164,65,.08)}
+.lv-wait>svg{flex:none;width:20px;height:20px;color:var(--gold2);animation:lvPulse 1.6s ease-in-out infinite}
+.lv-wait p{margin:0;flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}.lv-wait b{color:var(--gold2);font-size:13.5px}.lv-wait small{color:var(--mut);font-size:12px}
+.lv-wait .btn{flex:none}
+.lv-note{margin:6px 2px 10px;line-height:1.5;font-size:12px}.lv-note.bad{color:var(--red)}.lv-gap{height:10px}
+@keyframes lvPulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.lv-wait>svg{animation:none}}

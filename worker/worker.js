@@ -1,5 +1,6 @@
 // 내전 기록실 연동 서버 (Cloudflare Worker, 무료 플랜)
 // 하는 일: ① 디스코드 알림(라인 지원 열림·경기 결과) ② Firebase 사용량 조회 ③ 라이엇 솔랭 티어·전적 자동 갱신(하루 한 번)
+//          ④ 진행 중인 내전 게임의 챔피언·밴 불러오기(라이엇 관전 API, /live)
 // 설치·설정 방법은 같은 폴더의 README.md 참고. 이 파일을 Cloudflare 대시보드의 Worker 편집기에 통째로 붙여 넣으면 된다.
 //
 // 비밀값(Settings > Variables and Secrets 에서 "Secret"으로 추가):
@@ -51,6 +52,11 @@ export default {
         if (Date.now() - (MEM.weeklyAt || 0) < 60e3) return json({ error: '1분 뒤에 다시 눌러 주세요' }, 429, cors);
         MEM.weeklyAt = Date.now();
         return json(await weeklyReport(env), 200, cors);
+      }
+      if (url.pathname === '/live') { // 오늘의 내전 '게임에서 챔피언·밴 불러오기'(라이엇 관전 API, Firestore는 읽지 않음)
+        if (Date.now() - (MEM.liveAt || 0) < 2000) return json({ error: '방금 다른 사람이 불러오는 중이에요. 잠시 뒤 다시 눌러 주세요' }, 429, cors);
+        MEM.liveAt = Date.now();
+        return json(await liveGame(env, body), 200, cors);
       }
       if (url.pathname === '/riot') {
         if (Date.now() - (MEM.riotAt || 0) < 60e3) return json({ error: '1분 뒤에 다시 눌러 주세요' }, 429, cors);
@@ -492,5 +498,62 @@ async function riotUpdate(env, manual) {
     }
   }
   if (writes.length) await commit(env, writes);
+  return out;
+}
+
+// ---------- 진행 중인 게임 불러오기(오늘의 내전 '게임에서 챔피언·밴 불러오기') ----------
+// 사이트가 라인업 10명의 롤 닉네임(쉼표로 적은 부계정·리플레이로 배운 닉네임 포함)과 저장된 puuid 를 보낸다.
+// 한 명씩 라이엇 관전 API(진행 중인 게임)를 확인하다가, 보낸 계정이 6명 이상 들어 있는 게임을 찾으면 그 게임의 참가자·챔피언·밴을 돌려준다.
+// (한 명이 솔랭 같은 다른 게임 중이면 건너뛰고 계속 찾는다.) 선수와 자리 맞추기·진영 판단·저장은 사이트(js/live.js)가 한다.
+// 밴픽 단계는 라이엇 API에 없어서, 로딩 화면이 뜬 뒤(게임 시작)부터 찾을 수 있다.
+// quick: 기다리는 동안 30초마다 다시 확인할 때는 주계정 몇 명(start 부터 돌아가며)만 본다(라이엇 호출 한도 절약).
+const nid = (s) => String(s || '').replace(/[\u200e\u200f\u2066-\u2069\s]/g, '').toLowerCase();
+async function liveGame(env, body) {
+  if (!env.RIOT_KEY) throw new Error('RIOT_KEY 가 설정되지 않았어요');
+  const list = (Array.isArray(body.players) ? body.players : []).slice(0, 10).map((p) => ({
+    pid: String(p?.pid || '').slice(0, 40),
+    ids: [...new Set((Array.isArray(p?.ids) ? p.ids : []).map((x) => String(x).trim().slice(0, 60)).filter((x) => x.includes('#')))].slice(0, 4),
+    puuid: /^[\w-]{20,100}$/.test(String(p?.puuid || '')) ? p.puuid : '',
+  })).filter((p) => p.pid && (p.ids.length || p.puuid));
+  if (list.length < 6) throw new Error('라인업 선수들의 롤 닉네임(이름#태그)이 6명 이상 등록돼 있어야 찾을 수 있어요');
+  const knownId = new Set(list.flatMap((p) => p.ids.map(nid))), knownPu = new Set(list.map((p) => p.puuid).filter(Boolean));
+  const hits = (g) => (g.participants || []).filter((x) => (x.puuid && knownPu.has(x.puuid)) || knownId.has(nid(x.riotId))).length;
+  // 확인 순서: 각 선수의 주계정(저장된 puuid 가 있는 사람 먼저) → 부계정
+  const mains = list.map((p) => ({ p, id: p.ids[0] || '', puuid: p.puuid })).sort((a, b) => !!b.puuid - !!a.puuid);
+  const alts = list.flatMap((p) => p.ids.slice(1).map((id) => ({ p, id, puuid: '' })));
+  const quick = Math.max(0, Math.min(4, +body.quick || 0));
+  let order = mains.concat(alts);
+  if (quick) { const st = Math.max(0, +body.start || 0) % mains.length; order = mains.slice(st).concat(mains.slice(0, st)).slice(0, quick); }
+  let budget = quick ? quick * 2 : 40; // 무료 플랜은 한 번 실행에 외부 요청 50회까지
+  const skip = new Set(); // 이미 본 '내전이 아닌 게임'에 있던 계정
+  const out = { found: false, checked: 0 };
+  MEM.pu ||= new Map(); // 롤 닉네임 → puuid (같은 서버 인스턴스 안에서만 기억)
+  for (const c of order) {
+    if (budget <= 0) { out.partial = true; break; }
+    try {
+      let puuid = c.puuid || MEM.pu.get(nid(c.id)) || '';
+      if (!puuid) {
+        if (!c.id) continue;
+        const at = c.id.lastIndexOf('#');
+        budget--; puuid = (await riotGet(env, `https://asia.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(c.id.slice(0, at).trim())}/${encodeURIComponent(c.id.slice(at + 1).trim())}`)).puuid;
+        MEM.pu.set(nid(c.id), puuid);
+      }
+      if (skip.has(puuid)) continue;
+      budget--; out.checked++;
+      const g = await riotGet(env, `https://kr.api.riotgames.com/lol/spectator/v5/active-games/by-summoner/${puuid}`);
+      if (hits(g) < 6) { (g.participants || []).forEach((x) => x.puuid && skip.add(x.puuid)); continue; }
+      return {
+        found: true, via: c.p.pid,
+        game: { id: g.gameId, type: g.gameType || '', mode: g.gameMode || '', queue: g.gameQueueConfigId ?? null, map: g.mapId ?? null, start: g.gameStartTime || 0, length: g.gameLength || 0 },
+        participants: (g.participants || []).map((x) => ({ teamId: x.teamId, championId: x.championId, riotId: x.riotId || '', puuid: x.puuid || '' })),
+        bans: (g.bannedChampions || []).map((b) => ({ teamId: b.teamId, championId: b.championId, pickTurn: b.pickTurn })),
+      };
+    } catch (e) {
+      if (e.status === 401 || e.status === 403) throw new Error('라이엇 API 키가 만료됐거나 잘못됐어요');
+      if (e.status === 429) { out.limited = true; break; } // 호출 한도: 사이트가 잠시 뒤 다시 확인
+      if (e.status === 404) continue; // 게임 중이 아님 · 없는 닉네임
+      throw e;
+    }
+  }
   return out;
 }
