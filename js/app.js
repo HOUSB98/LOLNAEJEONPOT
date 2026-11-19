@@ -639,6 +639,15 @@ act('pauseResume', () => needAdmin(async () => {
   catch (e) { toast('실패: ' + (e.code || e.message)); }
 }));
 
+// 쓰기 안전장치가 작동하면(store.js guard: 한 화면에서 1분에 저장 100번 초과) 화면 위에 알림을 띄운다. 보기는 계속 되고 저장만 멈춘 상태
+function showFuse() {
+  if (document.getElementById('fuse')) return;
+  const el = document.createElement('div'); el.id = 'fuse'; el.setAttribute('role', 'alert');
+  el.innerHTML = `${ic('alert')}<p><b>저장을 잠시 멈췄어요</b><small>이 화면에서 저장이 너무 많이 반복돼서, 사용량이 늘지 않도록 멈췄어요. 새로고침하면 다시 정상으로 돌아와요.</small></p><button class="btn gold" data-a="fuseReload">새로고침</button>`;
+  document.body.appendChild(el);
+}
+act('fuseReload', () => location.reload());
+
 window.NP_OK = 1; // index.html의 시작 확인(이 줄까지 왔다면 모든 JS 파일이 문제없이 이어진 것)
 (async () => {
   // 잠깐 배포됐던 웹앱 알림용 서비스 워커가 남아 있으면 지운다(웹앱 기능은 쓰지 않기로 함)
@@ -662,6 +671,7 @@ window.NP_OK = 1; // index.html의 시작 확인(이 줄까지 왔다면 모든 
   try {
     S.store = await createStore(S.key, (c, err) => {
       if (c === 'error') return toast('DB 연결 오류: ' + (err?.code || err));
+      if (c === 'fuse') return showFuse();
       if (!up) return;
       onStore(c);
     });

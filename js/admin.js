@@ -189,11 +189,13 @@ act('scIn', () => needAdmin(() => {
     el.querySelector('#scApply')?.addEventListener('click', async (e) => {
       e.target.disabled = true;
       try {
-        for (const [pid, cs] of Object.entries(by)) {
-          const p = S.store.data.players[pid]; if (!p) continue;
-          const scores = { ...p.scores }; cs.forEach((c) => (scores[c.lane] = c.to));
-          await S.store.patch('players', pid, { scores });
-        }
+        await S.store.bulk(async () => { // 한 번에 여러 명을 고치므로 쓰기 안전장치 횟수에 넣지 않는다
+          for (const [pid, cs] of Object.entries(by)) {
+            const p = S.store.data.players[pid]; if (!p) continue;
+            const scores = { ...p.scores }; cs.forEach((c) => (scores[c.lane] = c.to));
+            await S.store.patch('players', pid, { scores });
+          }
+        });
         await logScores(changes);
         closeModal(); toast(`점수 ${changes.length}칸을 반영했어요`);
       } catch (err) { e.target.disabled = false; toast('반영 실패: ' + (err.code || err.message)); }
@@ -210,7 +212,7 @@ act('restore', () => needAdmin(() => {
       const o = JSON.parse((await inp.files[0].text()).replace(/^﻿/, ''));
       const n = (o.players?.length || 0) + (o.matches?.length || 0);
       if (!n || !confirm(`선수 ${o.players?.length || 0}명, 경기 ${o.matches?.length || 0}판을 복원합니다. 같은 항목은 덮어씁니다. 계속할까요?`)) return;
-      for (const c of ['players', 'matches', 'auctions', 'meta']) for (const d of o[c] || []) await S.store.put(c, d.id, d);
+      await S.store.bulk(async () => { for (const c of ['players', 'matches', 'auctions', 'meta']) for (const d of o[c] || []) await S.store.put(c, d.id, d); });
       toast('복원했습니다');
     } catch (e) { toast('복원 실패: ' + e.message); }
   };
@@ -356,21 +358,23 @@ act('seed', () => needAdmin(async () => {
   const ids = {};
   toast('가져오는 중…');
   try {
-    for (const [i, r] of SEED_PLAYERS.entries()) {
-      const [name, top, jg, mid, adc, sup, mainLane, soloTier, riotId, record, peak, most, pos, comment] = r;
-      const id = (ids[name] = 'p' + String(i + 1).padStart(2, '0'));
-      await S.store.put('players', id, { id, name, scores: { top, jg, mid, adc, sup }, mainLane, soloTier, riotId, mmrInit: 0, solo: { record, peak, most, pos, comment, asOf: '2026.11.03' }, order: i, deleted: false });
-    }
-    let prev = null, sid = '';
-    for (const [i, r] of SEED_MATCHES.entries()) {
-      const [dt, line, bs, rs, p, winner, bc, rc] = r, id = 'm' + String(i + 1).padStart(3, '0');
-      const [blue, red] = line.split('|').map((t) => t.split(',').map((n) => ids[n]));
-      const day = dt.slice(0, 10);
-      if (!prev || prev.line !== line || new Date(dt) - new Date(prev.dt) > 8 * 3600e3) sid = id;
-      prev = { line, dt, day };
-      const ch = (s) => (s ? s.split(',') : ['', '', '', '', '']);
-      await S.store.put('matches', id, { id, at: new Date(dt).getTime(), seq: i + 1, seriesId: sid, blue, red, winner, champs: { blue: ch(bc), red: ch(rc) }, bans: { blue: [], red: [] }, kda: {}, snap: { bs, rs, pBlue: p / 100 }, deleted: false });
-    }
+    await S.store.bulk(async () => {
+      for (const [i, r] of SEED_PLAYERS.entries()) {
+        const [name, top, jg, mid, adc, sup, mainLane, soloTier, riotId, record, peak, most, pos, comment] = r;
+        const id = (ids[name] = 'p' + String(i + 1).padStart(2, '0'));
+        await S.store.put('players', id, { id, name, scores: { top, jg, mid, adc, sup }, mainLane, soloTier, riotId, mmrInit: 0, solo: { record, peak, most, pos, comment, asOf: '2026.11.03' }, order: i, deleted: false });
+      }
+      let prev = null, sid = '';
+      for (const [i, r] of SEED_MATCHES.entries()) {
+        const [dt, line, bs, rs, p, winner, bc, rc] = r, id = 'm' + String(i + 1).padStart(3, '0');
+        const [blue, red] = line.split('|').map((t) => t.split(',').map((n) => ids[n]));
+        const day = dt.slice(0, 10);
+        if (!prev || prev.line !== line || new Date(dt) - new Date(prev.dt) > 8 * 3600e3) sid = id;
+        prev = { line, dt, day };
+        const ch = (s) => (s ? s.split(',') : ['', '', '', '', '']);
+        await S.store.put('matches', id, { id, at: new Date(dt).getTime(), seq: i + 1, seriesId: sid, blue, red, winner, champs: { blue: ch(bc), red: ch(rc) }, bans: { blue: [], red: [] }, kda: {}, snap: { bs, rs, pBlue: p / 100 }, deleted: false });
+      }
+    });
     toast('가져오기 완료!');
   } catch (e) { toast('가져오기 실패: ' + (e.code || e.message)); }
 }));

@@ -124,9 +124,23 @@ let unread = 0, lastSeenAt = +localStorage.getItem('naejeon:chatseen') || 0, las
 let chatQ = Promise.resolve(); // 채팅 전송 순서 유지용(서버 시각을 맞추는 동안 다음 메시지가 앞지르지 않게)
 const isOpen = () => !document.body.classList.contains('chat-closed');
 const msgs = () => col('chat').filter((m) => !m.deleted && m.at > (+settings().chatClearedAt || 0)).sort((a, b) => a.at - b.at || a.id.localeCompare(b.id));
+// 도배 막기: 3초에 3개, 1분에 20개까지(스티커·주사위 포함). 넘으면 보내지 않고 입력한 글은 그대로 둔다(자동 알림 sysChat 은 제외).
+// 메시지 하나마다 접속한 모든 사람에게 읽기가 생기므로, 엔터를 꾹 누르거나 장난으로 도배해도 사용량이 튀지 않게 한다.
+const sentAt = [];
+function chatWait() {
+  const n = performance.now();
+  while (sentAt.length && sentAt[0] <= n - 60e3) sentAt.shift();
+  const in3 = sentAt.filter((t) => t > n - 3e3);
+  if (in3.length >= 3) return in3[0] + 3e3 - n;
+  if (sentAt.length >= 20) return sentAt[0] + 60e3 - n;
+  return 0;
+}
 function send(kind, text) {
   if (isKicked()) { toast('강퇴 상태에서는 채팅을 보낼 수 없습니다'); return false; }
   if (!nick()) { askNick(true); return false; }
+  const wait = chatWait();
+  if (wait > 0) { toast(`채팅이 너무 빨라요. ${Math.ceil(wait / 1000)}초 뒤에 다시 보내 주세요`); return false; }
+  sentAt.push(performance.now());
   // 기기 시계 차이로 메시지 순서가 뒤섞이지 않게 서버 시각을 기준으로 하고,
   // 같은 기기에서 연속 전송해도 타임스탬프가 겹치지 않게 한다.
   // 서버 시각은 필요할 때만 맞춘다(30분 안에 맞췄으면 바로, 아니면 최대 2.5초 기다림). 보내는 순서는 그대로 지킨다.
@@ -164,7 +178,7 @@ function buildChat() {
     e.preventDefault();
     const inp = document.getElementById('chatinp'), v = inp.value.trim();
     if (!v) return;
-    send('m', v); inp.value = '';
+    if (send('m', v)) inp.value = '';
   };
   const fab = document.getElementById('chatfab');
   fab.title = '채팅창 펼치기';
