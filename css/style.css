@@ -894,7 +894,7 @@ canvas.fx{position:fixed;inset:0;pointer-events:none;z-index:70}
 
 /* ---------- 채팅 말풍선 새 디자인 ---------- */
 .cl{gap:7px;max-width:88%}
-.cb{position:relative;border:1px solid transparent;border-radius:4px 16px 16px 16px;padding:9px 13px;font-size:13.500px;line-height:1.5;color:#e8ecf4;
+.cb{position:relative;border:1px solid transparent;border-radius:4px 16px 16px 16px;padding:8px 12px;font-size:13px;line-height:1.45;color:#e8ecf4;
   background:linear-gradient(180deg,rgba(24,34,53,.96),rgba(13,20,33,.96)) padding-box,linear-gradient(140deg,rgba(255,255,255,.22),rgba(255,255,255,.04) 40%,rgba(63,208,224,.28)) border-box;
   box-shadow:0 10px 22px -14px #000,inset 0 1px 0 rgba(255,255,255,.07)}
 .cm.head:not(.me) .cb::before{content:"";position:absolute;left:-1px;top:8px;bottom:8px;width:2px;border-radius:2px;background:linear-gradient(180deg,var(--teal),transparent)}
