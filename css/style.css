@@ -2110,3 +2110,10 @@ a.me-ch[href]:hover{background:rgba(255,255,255,.05)}
 .sl-seg{margin:4px 0 12px}
 .sl-part{margin:0 0 12px}.sl-ph{display:flex;align-items:center;gap:8px;margin-bottom:6px}.sl-ph small{color:var(--mut)}
 .sl-ta{width:100%;resize:vertical;font:13px/1.6 var(--sans);white-space:pre-wrap}
+
+/* 사용량 자동 쉬기 화면(app.js checkPause). 관리자 PIN 창(#modal, z 20)은 이 위에 뜬다 */
+#pause{position:fixed;inset:0;z-index:19;display:grid;place-items:center;padding:16px;text-align:center;background:radial-gradient(700px 500px at 50% 40%,rgba(16,26,46,.97),rgba(3,5,10,.985));animation:fade .3s}
+.pz-in{max-width:440px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.pz-in>b{font:800 26px/1.2 var(--sans);color:var(--gold2)}.pz-in p{margin:0;color:var(--text);line-height:1.6}
+.pz-why{font-size:12.5px;color:var(--mut)!important}.pz-at em{font-style:normal;font-weight:800;color:var(--gold2)}
+.pz-in .btn{margin-top:8px}.pz-in small{max-width:320px}

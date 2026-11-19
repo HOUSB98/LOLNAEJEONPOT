@@ -41,6 +41,7 @@ function localStore(key, onChange) {
     syncServerClock: async () => 0,
     clockSoon: async () => 0,
     need: async () => {}, unneed() {}, loaded: () => true, // 체험 모드는 모든 컬렉션을 이미 들고 있다
+    pause() {}, isPaused: () => false, // 체험 모드는 사용량이 없으니 쉬지 않는다
     watchDoc: (col, id, onData) => {
       onData(data[col]?.[id] || null);
       return () => {};
@@ -110,15 +111,22 @@ async function firebaseStore(key, onChange) {
     : Promise.race([syncServerClock(), new Promise((r) => setTimeout(() => r(clockOffset), ms))]));
 
   const data = { history: {} };
-  let pending = WATCHED.length, done;
+  // 사용량 자동 쉬기(meta/pause): 이 기기가 오늘 쉬는 중이라고 알고 있으면 meta 만 구독해서 시작한다(쉬는 동안 읽기 거의 0).
+  // 쉬는 중이 아니었으면(관리자가 풀었거나 날이 바뀜) app.js 가 새로고침해서 정상으로 시작한다.
+  const ptDay = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  let isPaused = (() => { try { return localStorage.getItem('naejeon:pause:' + key) === ptDay(); } catch { return false; } })();
+  const UNSUB = {};
+  const startCols = isPaused ? ['meta'] : WATCHED;
+  WATCHED.forEach((c) => { if (!startCols.includes(c)) data[c] = {}; });
+  let pending = startCols.length, done;
   const ready = new Promise((r) => (done = r));
   const seen = {};
   const mark = (col) => { if (!seen[col]) { seen[col] = 1; if (--pending === 0) done(); } };
   // 처음 화면은 서버 확인이 끝난 값으로 그린다(캐시의 옛 값으로 시작하면 주사위·라인 지원·입장 알림이 '새로 생긴 일'로 오해할 수 있어서).
   // 그래서 캐시에서 온 첫 결과는 담아만 두고, 서버 확인 결과가 오면 준비 완료로 본다. 오프라인이면 4초 뒤 캐시 값으로 시작한다.
   const cached = {};
-  setTimeout(() => WATCHED.forEach((col) => cached[col] && mark(col)), 4000); // 캐시가 있으면 4초, 없으면(첫 방문·빈 컬렉션) 12초까지 서버를 기다린다
-  setTimeout(() => WATCHED.forEach(mark), 12000);
+  setTimeout(() => startCols.forEach((col) => cached[col] && mark(col)), 4000); // 캐시가 있으면 4초, 없으면(첫 방문·빈 컬렉션) 12초까지 서버를 기다린다
+  setTimeout(() => startCols.forEach(mark), 12000);
   // 경기 기록: 기기에 저장된 기록(Firestore 로컬 캐시)을 먼저 쓰고, 서버에서는 마지막 수정 시각(upd) 이후에 바뀐 경기만 받는다.
   // 하루에 한 번은 전체를 다시 받아 혹시 빠진 것을 맞추고, upd 가 없는 예전 기록에는 이때 upd 를 채워 넣는다.
   const FULL_KEY = 'naejeon:mfull:' + key;
@@ -136,14 +144,15 @@ async function firebaseStore(key, onChange) {
     // 여러 사람이 동시에 채우지 않게 잠시(3~30초) 기다렸다가, 그때도 비어 있는 것만 채운다
     setTimeout(() => Object.values(data.matches || {}).filter((d) => !d.upd).forEach((d) => fs.setDoc(ref('matches', d.id), { upd: fs.serverTimestamp() }, { merge: true }).catch(() => {})), 3000 + Math.random() * 27000);
   };
-  WATCHED.forEach(async (col) => {
+  startCols.forEach(async (col) => {
     data[col] = {};
     const src = fs.collection(db, 'leagues', key, col);
     const lim = col === 'chat' ? CHAT_LIMIT : col === 'posts' ? POST_LIMIT : 0;
     let q = lim ? fs.query(src, fs.orderBy('at', 'desc'), fs.limit(lim)) : src, base = null, inc = false;
     if (col === 'presence') q = fs.query(src, fs.where('at', '>', Date.now() - PRESENCE_MS)); // 그 뒤에 들어오는 신호는 at 이 더 크므로 계속 받는다
     if (col === 'matches') { ({ q, base, inc } = await matchesQuery(src)); if (inc) { data[col] = { ...base }; cached[col] = true; } }
-    fs.onSnapshot(q, { includeMetadataChanges: true }, (snap) => {
+    if (isPaused && col !== 'meta') return; // 경기 기록 준비 중에 쉬기가 시작됐으면 구독하지 않는다
+    UNSUB[col] = fs.onSnapshot(q, { includeMetadataChanges: true }, (snap) => {
       const fromServer = !snap.metadata.fromCache, first = !seen[col];
       if (!first && !snap.docChanges().length) return; // 내용은 그대로이고 상태 표시만 바뀐 알림은 무시(다시 그리지 않음)
       const m = base ? { ...base } : {};
@@ -177,6 +186,9 @@ async function firebaseStore(key, onChange) {
     serverClockReady: () => !!clockSyncedAt && performance.now() - clockSyncedAt < 5 * 60e3,
     syncServerClock, clockSoon,
     need, unneed, loaded: (col) => WATCHED.includes(col) || !!LZ[col]?.got,
+    // 쉬기 시작: meta 외 모든 실시간 구독을 끊는다(화면에 이미 받은 기록은 그대로 둔다). 다시 열 때는 새로고침으로 처음부터 시작
+    pause() { isPaused = true; for (const [c, u] of Object.entries(UNSUB)) if (c !== 'meta') { try { u(); } catch {} delete UNSUB[c]; } Object.keys(LZ).forEach(unneed); },
+    isPaused: () => isPaused,
     watchDoc: (col, id, onData, onError) => fs.onSnapshot(ref(col, id), (snap) => {
       if (snap.metadata.fromCache) return; // 캐시의 옛 값은 건너뛴다
       onData(snap.exists() ? { ...snap.data(), id: snap.id } : null, snap);

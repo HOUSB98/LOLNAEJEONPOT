@@ -25,6 +25,7 @@ const LIMITS = { read: 50000, write: 20000, delete: 20000 }; // Firestore 무료
 const RATES = { read: 0.038, write: 0.115, delete: 0.013 };
 const RIOT_CRON = '0,10,20 19 * * *';
 const NEAR = 0.8; // 하루 무료 한도의 80%를 넘으면 디스코드로 미리 알린다
+const PAUSE_AT = 0.95; // 하루 무료 한도의 95%를 넘으면 그날은 사이트를 쉬게 한다(meta/pause, 다음 날 자동으로 풀림)
 const REPORT_HOUR = 9; // 요금 누적 알림은 한국 시간 오전 9시 이후 하루 한 번
 
 export default {
@@ -349,6 +350,18 @@ async function watchUsage(env) {
     msgs.push({ title: '🧾 Firebase 요금이 늘었어요', color: 0x9b8cff,
       description: `이번 달 누적 **${money(u.month.usd, krw)}**\n어제(${y.date.slice(5).replace('-', '/')}) ${money(y.usd, krw)} · 오늘 지금까지 ${money(t.usd, krw)}`,
       footer: { text: '사용량으로 계산한 예상 금액이라 실제 청구서와 조금 다를 수 있어요' } });
+  }
+  // ④ 자동 쉬기: 읽기·쓰기·삭제 중 하나라도 오늘 무료 한도의 95%를 넘으면 meta/pause 를 켠다(그날 한 번).
+  //    사이트는 태평양 날짜(day)가 오늘일 때만 쉬므로 다음 날(한국 오후 4~5시)엔 저절로 풀린다. 관리자가 오늘 다시 열었으면(resumeDay) 그날은 다시 켜지 않는다.
+  const over = ['read', 'write', 'delete'].filter((k) => t[k] >= LIMITS[k] * PAUSE_AT);
+  if (over.length) {
+    const pz = (await getDoc(env, 'meta', 'pause')) || {};
+    if (!(pz.on && pz.day === t.date) && pz.resumeDay !== t.date) {
+      const reason = over.map((k) => `${NAME3[k]} ${t[k].toLocaleString('ko-KR')} / ${LIMITS[k].toLocaleString('ko-KR')} (${Math.round((t[k] / LIMITS[k]) * 100)}%)`).join(' · ');
+      await commit(env, [{ update: { name: docName(env, 'meta', 'pause'), fields: enc({ on: true, day: t.date, at: Date.now(), by: 'auto', reason }).mapValue.fields } }]);
+      msgs.push({ title: '⏸️ 오늘 무료 사용량이 95%를 넘어 사이트를 잠시 쉬게 했어요', color: 0x5b8cff,
+        description: `${reason}\n\n데이터는 그대로예요. 한국 시간 오후 4~5시(구글 한도 초기화)에 자동으로 다시 열려요.\n바로 열려면 사이트 화면의 **관리자: 지금 다시 열기**를 눌러 주세요(그날은 다시 쉬지 않아요).` });
+    }
   }
   if (msgs.length) await discord(env, { embeds: msgs.map((e) => ({ url: env.SITE_URL || undefined, timestamp: new Date().toISOString(), ...e })) });
   if (JSON.stringify(next) !== JSON.stringify(prev)) await commit(env, [{ update: { name: docName(env, 'ops', 'alerts'), fields: enc(next).mapValue.fields } }]);
