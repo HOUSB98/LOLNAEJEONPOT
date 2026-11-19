@@ -2,7 +2,7 @@
 // 라인 지원 상태, 뽑기권, 내가 쓴 익명 글의 새 댓글을 한 화면에 모은다.
 // 숫자는 모두 다른 화면과 같은 계산을 그대로 쓴다(랭킹 = 1판 이상·OVR 순, 뽑기권 = 가챠 화면 계산, 보정 = 라인 지원 계산).
 // 무거운 계산은 통계(S.st)가 바뀔 때만 다시 하고, DB 읽기는 가챠 문서 1건(2분 캐시)과 실시간 목록에 없는 내 글뿐이다.
-import { S, page, act, esc, ic, refresh, modal, closeModal, mh, champIcon, artUrl, cardChamp, fmtDT, fmtDay, dots, titleChips, countUp, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct } from './core.js';
+import { S, page, act, esc, ic, refresh, modal, closeModal, mh, toast, champIcon, artUrl, cardChamp, fmtDT, fmtDay, dots, titleChips, countUp, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct } from './core.js';
 import { chem, dayKey, ovrOf } from './stats.js';
 import { missOf, weightOf, LUCK_MAX, boardLive } from './board.js';
 import { ticketInfo } from './gacha.js';
@@ -137,6 +137,30 @@ function postHTML() {
     <p class="me-foot">이 기기에서 쓴 글만 보여요. 게시판에서 댓글을 펼치면 '새 댓글' 표시가 사라져요.</p>`, fresh ? `<span class="me-badge">${fresh}</span>` : '');
 }
 
+// ---------- 롤 계정(솔랭·부계정): 창 없이 바로 입력하고 저장 ----------
+// players.riotId = '솔랭#태그,부계정1#태그,부계정2#태그' (첫 번째가 솔랭 계정, 나머지가 부계정. 라이엇 갱신·게임 불러오기·리플레이가 모두 이 값을 쓴다)
+const splitIds = (v) => String(v || '').split(/[,/\n]/).map((x) => x.trim()).filter(Boolean);
+function acctHTML(s) {
+  const [main = '', ...subs] = splitIds(s.p.riotId);
+  return `<form class="me-acct" onsubmit="return false" autocomplete="off">
+    <label><span>솔랭 아이디</span><input class="inp" id="meMain" value="${esc(main)}" placeholder="이름#태그" spellcheck="false"></label>
+    <label><span>부계정</span><input class="inp" id="meSubs" value="${esc(subs.join(', '))}" placeholder="부계정#태그, 부계정2#태그" spellcheck="false"></label>
+    <button class="btn pri xs" type="submit" data-a="meAcct" data-id="${s.id}">${ic('save')}저장</button>
+  </form>`;
+}
+act('meAcct', async (d, btn) => {
+  const f = btn.closest('.me-acct'), main = f.querySelector('#meMain').value.trim(), subs = splitIds(f.querySelector('#meSubs').value);
+  const bad = [main, ...subs].filter((x) => x && !/^[^#]+#[^#]+$/.test(x));
+  if (bad.length) return toast(`'이름#태그' 형식으로 입력해 주세요: ${bad.join(', ')}`);
+  if (!main && subs.length) return toast('솔랭 아이디를 먼저 입력해 주세요');
+  const riotId = [...new Set([main, ...subs].filter(Boolean))].join(',');
+  if (riotId === String(S.store.data.players[d.id]?.riotId || '')) return toast('바뀐 내용이 없어요');
+  btn.disabled = true;
+  try { await S.store.patch('players', d.id, { riotId }); toast('롤 계정을 저장했어요'); }
+  catch (e) { toast('저장 실패: ' + (e.code || e.message)); }
+  btn.disabled = false;
+});
+
 // ---------- 화면 ----------
 function picker(cur) {
   const list = [...S.st.list].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
@@ -156,6 +180,7 @@ page('me', {
       <div class="me-id"><span class="me-lane">${LANE_ICON[s.mainLane]}</span>
         <div class="me-nm"><small>MY PAGE · 주라인 ${LANE_NAME[s.mainLane]}${sig ? ` · ${esc(sig)}` : ''}</small><h1>${esc(s.name)}</h1></div>
         <button class="btn ghost xs me-sw" data-a="meSwitch" aria-label="선수 바꾸기">${ic('swap')}<span>선수 바꾸기</span></button></div>
+      ${acctHTML(s)}
       <div class="me-rk">
         <div class="me-rank"><small>랭킹</small>${r ? `<b class="mono">${r}<i>위</i></b><span class="mono">/ ${d.n}명</span>${rankPill(id, d)}` : '<b class="me-na">1판부터 집계</b>'}</div>
         <div class="me-ovr"><small>OVR</small><b class="mono">${s.ovr}</b></div>

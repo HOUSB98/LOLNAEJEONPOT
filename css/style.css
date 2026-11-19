@@ -2156,3 +2156,12 @@ a.me-ch[href]:hover{background:rgba(255,255,255,.05)}
 /* 휴대폰 머리 줄: 로고 글자(NAEJEONPOT)가 접속자 칸에 밀려 잘리지 않게. 430px 미만에서는 접속자 칸의 'ONLINE' 글자만 숨기고(얼굴·숫자는 그대로), 로고 글자는 줄어들지 않게 */
 @media (max-width:429px){#side .pcount small{display:none}#side .pcount{gap:5px;padding:3px 8px}}
 @media (max-width:860px){#side .brand .bt{flex:none}#side #presence{min-width:0}}
+/* 내 페이지: 롤 계정 바로 수정 (선수 바꾸기 아래 빈자리) */
+.me-acct{position:absolute;right:24px;top:62px;z-index:2;width:min(360px,44%);display:grid;grid-template-columns:auto 1fr;align-items:center;gap:6px 8px;padding:8px 10px;border-radius:12px;border:1px solid var(--line2);background:rgba(5,7,13,.62);backdrop-filter:blur(6px)}
+.me-acct label{display:contents}
+.me-acct label span{font:700 11px var(--sans);color:var(--gold2);white-space:nowrap}
+.me-acct label small{display:none}
+.me-acct .inp{min-height:30px;padding:4px 9px;font-size:13px;min-width:0}
+.me-acct .btn{grid-column:2;justify-self:end;gap:5px}
+.me-acct .hint{grid-column:1/-1;margin:0;font-size:11px;color:var(--mut)}
+@media (max-width:860px){.me-acct{position:static;width:auto;margin-top:12px}}
