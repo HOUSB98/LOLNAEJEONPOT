@@ -2130,3 +2130,8 @@ a.me-ch[href]:hover{background:rgba(255,255,255,.05)}
 /* 오늘의 내전 머리 버튼: 좁은 휴대폰에서 한 줄에 들어가게(라인 지원·라인 주사위의 '라인'을 감추고 여백을 줄임, 아이콘은 그대로) */
 @media (max-width:430px){.td-h{gap:4px}.td-h .n-hide{display:none}.td-h .btn{padding:8px 7px;gap:4px}}
 @media (max-width:374px){.td-h{gap:3px}.td-h .btn{padding:8px 4px;gap:3px;font-size:12.5px}}
+/* 홈 배너(휴대폰): 'CHAMPION · 이름' / 'HOLIDAY SKIN · 스킨 이름' 글자(hero-cap)가 버튼과 겹치지 않게 버튼 아래 줄로 내림(긴 이름은 …). 챔피언 그림은 그대로 */
+@media (max-width:860px){
+  .hero-in{padding-bottom:40px}
+  .hero-cap{left:18px;right:18px;bottom:14px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+}
