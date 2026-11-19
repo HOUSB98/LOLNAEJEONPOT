@@ -53,7 +53,7 @@ export default {
         MEM.weeklyAt = Date.now();
         return json(await weeklyReport(env), 200, cors);
       }
-      if (url.pathname === '/live') { // 오늘의 내전 '게임에서 챔피언·밴 불러오기'(라이엇 관전 API, Firestore는 읽지 않음)
+      if (url.pathname === '/live') { // 오늘의 내전 '밴픽 시작'(진행 중인 게임에서 챔피언·밴 불러오기)(라이엇 관전 API, Firestore는 읽지 않음)
         if (Date.now() - (MEM.liveAt || 0) < 2000) return json({ error: '방금 다른 사람이 불러오는 중이에요. 잠시 뒤 다시 눌러 주세요' }, 429, cors);
         MEM.liveAt = Date.now();
         return json(await liveGame(env, body), 200, cors);
@@ -501,7 +501,7 @@ async function riotUpdate(env, manual) {
   return out;
 }
 
-// ---------- 진행 중인 게임 불러오기(오늘의 내전 '게임에서 챔피언·밴 불러오기') ----------
+// ---------- 진행 중인 게임 불러오기(오늘의 내전 '밴픽 시작'(진행 중인 게임에서 챔피언·밴 불러오기)) ----------
 // 사이트가 라인업 10명의 롤 닉네임(쉼표로 적은 부계정·리플레이로 배운 닉네임 포함)과 저장된 puuid 를 보낸다.
 // 한 명씩 라이엇 관전 API(진행 중인 게임)를 확인하다가, 보낸 계정이 6명 이상 들어 있는 게임을 찾으면 그 게임의 참가자·챔피언·밴을 돌려준다.
 // (한 명이 솔랭 같은 다른 게임 중이면 건너뛰고 계속 찾는다.) 선수와 자리 맞추기·진영 판단·저장은 사이트(js/live.js)가 한다.

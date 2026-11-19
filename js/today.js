@@ -273,14 +273,14 @@ act('tKda', (d, el) => {
   if (!edit) keep();
 });
 // ---------- 게임에서 챔피언·밴 불러오기(연동 서버 /live → js/live.js 가 자리 맞추기) ----------
-// 밴픽 정보는 라이엇 API에 없어서 로딩 화면(게임 시작)부터 찾을 수 있다. 먼저 눌러 두면 30초마다 다시 확인해 최대 6분 동안 기다린다
+// 밴픽 정보는 라이엇 API에 없어서 로딩 화면(게임 시작)부터 찾을 수 있다. 먼저 눌러 두면 30초마다 다시 확인해 최대 11분 동안 기다린다(밴픽 시작할 때 눌러 두는 용도)
 // (기다리는 동안 라이엇 호출은 30초에 2~6번, Firestore 읽기·쓰기 없음). 찾으면 라인업 동기화(meta/todayDraft)로 모두의 화면에 반영된다.
 const LV = { busy: false, until: 0, t: 0, start: 0, note: '', bad: false };
-const LIVE_WAIT = 6 * 60e3, LIVE_EVERY = 30e3;
-// 머리 버튼(AI 추천 왼쪽): 평소 '실시간 불러오기' → 찾는 중 → 게임 전이면 '대기 중'(누르면 그만). 결과·오류 안내는 경기 결과 기록 칸 위 한 줄 + 알림
+const LIVE_WAIT = 11 * 60e3, LIVE_EVERY = 30e3;
+// 머리 버튼(AI 추천 왼쪽): 평소 '밴픽 시작' → 찾는 중 → 게임 전이면 '밴픽 중'(누르면 그만). 결과·오류 안내는 경기 결과 기록 칸 위 한 줄 + 알림
 function liveBtn(full) {
-  if (LV.until) return `<button class="btn gold lv-on" data-a="tLiveStop" title="게임 시작을 기다리는 중이에요. 로딩 화면이 뜨면 자동으로 채워요(최대 6분). 누르면 그만 기다려요">${ic('eye')}대기 중</button>`;
-  return `<button class="btn gold" data-a="tLive" ${full && !LV.busy ? '' : 'disabled'} title="${full ? '진행 중인 롤 게임에서 10명의 챔피언과 밴을 가져와 채워요. 밴픽이 끝나고 로딩 화면이 뜨면 누르고, 미리 누르면 게임이 시작될 때 자동으로 채워요' : '10명을 모두 배치하면 쓸 수 있어요'}">${ic('eye')}${LV.busy ? '찾는 중…' : '<span class="m-hide">실시간 </span>불러오기'}</button>`;
+  if (LV.until) return `<button class="btn gold lv-on" data-a="tLiveStop" title="밴픽이 끝나기를 기다리는 중이에요. 로딩 화면이 뜨면 자동으로 챔피언·밴을 채워요(최대 11분). 누르면 그만 기다려요">${ic('eye')}밴픽 중</button>`;
+  return `<button class="btn gold" data-a="tLive" ${full && !LV.busy ? '' : 'disabled'} title="${full ? '밴픽을 시작할 때 눌러 두면, 로딩 화면이 뜨는 순간 10명의 챔피언과 밴을 자동으로 채워요(최대 11분 기다림). 게임이 이미 시작됐으면 바로 채워요' : '10명을 모두 배치하면 쓸 수 있어요'}">${ic('eye')}${LV.busy ? '찾는 중…' : '밴픽 시작'}</button>`;
 }
 const liveStop = () => { clearTimeout(LV.t); LV.t = 0; LV.until = 0; };
 act('tLive', () => {
@@ -300,8 +300,8 @@ async function liveTry(quick) {
   // 처음 누른 때의 오류는 바로 알리고, 기다리는 중의 잠깐 오류(연결·호출 한도)는 다음 확인에서 다시 시도한다. 키·닉네임 문제는 기다려도 안 되니 멈춘다
   if (res.error && (!LV.until || /키|닉네임/.test(res.error))) { liveStop(); LV.note = '불러오기 실패: ' + res.error; LV.bad = true; toast(LV.note); return refresh(); }
   if (!res.found) {
-    if (!LV.until) { LV.until = Date.now() + LIVE_WAIT; toast('아직 게임이 시작되지 않았어요. 로딩 화면이 뜨면 자동으로 채울게요'); }
-    if (Date.now() + LIVE_EVERY > LV.until) { liveStop(); LV.note = '6분 동안 진행 중인 게임을 찾지 못했어요. 게임이 시작된 뒤 다시 눌러 주세요'; LV.bad = true; toast(LV.note); }
+    if (!LV.until) { LV.until = Date.now() + LIVE_WAIT; toast('밴픽이 끝나고 로딩 화면이 뜨면 자동으로 챔피언을 채울게요'); }
+    if (Date.now() + LIVE_EVERY > LV.until) { liveStop(); LV.note = '11분 동안 진행 중인 게임을 찾지 못했어요. 게임이 시작된 뒤 다시 눌러 주세요'; LV.bad = true; toast(LV.note); }
     else { LV.start += 3; LV.t = setTimeout(() => liveTry(true), LIVE_EVERY); }
     return refresh();
   }
