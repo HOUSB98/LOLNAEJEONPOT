@@ -10,6 +10,7 @@ const WATCHED = ['players', 'matches', 'meta', 'presence', 'chat', 'posts'];
 const PRESENCE_MS = 15 * 60e3; // 접속 표시는 12분 안에 신호가 있는 사람만 보이므로, 처음 읽을 때 15분 안의 기록만 받는다
 const CHAT_LIMIT = 30; // 채팅은 문서가 계속 쌓이므로 최근 30개만 구독한다(기록 자체는 DB에 남는다)
 const POST_LIMIT = 10; // 익명 게시판도 최근 10개만 실시간으로 받고, 이전 글은 '더 보기'를 누를 때 10개씩 한 번만 읽는다
+const FUSE_MSG = '저장이 너무 잦아 이 화면의 저장을 잠시 멈췄어요. 새로고침해 주세요';
 const clean = (o) => JSON.parse(JSON.stringify(o)); // Firestore는 undefined를 받지 않는다
 const FB ='https://www.gstatic.com/firebasejs/10.12.5/';
 
@@ -42,6 +43,7 @@ function localStore(key, onChange) {
     clockSoon: async () => 0,
     need: async () => {}, unneed() {}, loaded: () => true, // 체험 모드는 모든 컬렉션을 이미 들고 있다
     pause() {}, isPaused: () => false, // 체험 모드는 사용량이 없으니 쉬지 않는다
+    bulk: (fn) => fn(),
     watchDoc: (col, id, onData) => {
       onData(data[col]?.[id] || null);
       return () => {};
@@ -78,6 +80,19 @@ async function firebaseStore(key, onChange) {
   catch (e) { console.warn('[store] 로컬 캐시를 쓸 수 없어 기본 방식으로 연결합니다', e); db = fs.getFirestore(app); }
   const ref = (col, id) => fs.doc(db, 'leagues', key, col, id);
   let clockOffset = 0, clockSyncedAt = 0, clockPromise = null;
+  // 쓰기 안전장치: 버그로 한 화면이 저장을 반복하면(1분에 100번 넘게) 그 화면의 저장을 모두 멈추고 app.js 에 알린다(onChange('fuse')).
+  // 사람이 누르는 속도로는 닿지 않는 기준. 관리자 복원·가져오기·점수 일괄 적용처럼 한 번에 많이 쓰는 일은 bulk() 안에서 해서 세지 않는다.
+  // 멈춘 뒤에는 서버에 요청을 보내지 않고 바로 실패로 돌려준다(새로고침하면 다시 정상). 읽기·실시간 반영은 그대로.
+  const FUSE_N = 100, FUSE_MS = 60e3, writeAt = [];
+  let fused = false, bulkN = 0;
+  const guard = () => {
+    if (fused) throw new Error(FUSE_MSG);
+    if (bulkN) return;
+    const now = performance.now();
+    writeAt.push(now);
+    while (writeAt[0] <= now - FUSE_MS) writeAt.shift();
+    if (writeAt.length > FUSE_N) { fused = true; console.warn('[store] 1분에 저장 ' + writeAt.length + '번: 이 화면의 저장을 멈춥니다'); onChange('fuse'); throw new Error(FUSE_MSG); }
+  };
 
   // Firestore serverTimestamp()로 서버 시각을 받아 브라우저 시계 오차를 보정한다.
   // 일반 기능은 기존 Date.now()를 그대로 사용하고, reveal처럼 동시 시작이 필요한 기능만 serverNow()를 사용한다.
@@ -85,6 +100,7 @@ async function firebaseStore(key, onChange) {
     if (!force && clockSyncedAt && performance.now() - clockSyncedAt < 5 * 60e3) return clockOffset;
     if (clockPromise) return clockPromise;
     clockPromise = (async () => {
+      guard();
       const before = Date.now();
       const clockRef = ref('clock', 'sync'); // 구독하지 않는 컬렉션에 둔다(meta에 두면 누가 접속할 때마다 모두의 화면이 다시 그려진다)
       await fs.setDoc(clockRef, { at: fs.serverTimestamp() }, { merge: true });
@@ -216,13 +232,17 @@ async function firebaseStore(key, onChange) {
     byField: async (col, field, value, after, n) => (await fs.getDocs(fs.query(fs.collection(db, 'leagues', key, col), fs.where(field, '==', value), fs.where('deleted', '==', false), fs.orderBy(fs.documentId()), ...(after ? [fs.startAfter(after)] : []), fs.limit(n)))).docs.map((d) => ({ ...d.data(), id: d.id })),
     // 조건에 맞는 문서 수(문서를 내려받지 않음, 1,000개당 읽기 1번으로 계산)
     count: async (col, field, value) => (await fs.getCountFromServer(fs.query(fs.collection(db, 'leagues', key, col), fs.where(field, '==', value)))).data().count,
-    put: (col, id, doc) => fs.setDoc(ref(col, id), stamp(col, clean({ ...doc, id }))),
-    patch: (col, id, part) => fs.setDoc(ref(col, id), stamp(col, clean(part)), { merge: true }),
-    tx: (col, id, fn) => fs.runTransaction(db, async (t) => {
+    put: async (col, id, doc) => { guard(); return fs.setDoc(ref(col, id), stamp(col, clean({ ...doc, id }))); },
+    patch: async (col, id, part) => { guard(); return fs.setDoc(ref(col, id), stamp(col, clean(part)), { merge: true }); },
+    // 한 번에 많이 쓰는 관리자 작업(복원·가져오기·점수 일괄 적용)은 안전장치 횟수에 넣지 않는다
+    async bulk(fn) { bulkN++; try { return await fn(); } finally { bulkN--; } },
+    // 거래(tx)는 실제로 저장할 때만 센다(경매 타이머의 '정산할 게 있나' 확인처럼 아무것도 안 쓰고 끝나는 경우는 세지 않음). 재시도해도 한 번만
+    tx: async (col, id, fn) => { if (fused) throw new Error(FUSE_MSG); let counted = false; return fs.runTransaction(db, async (t) => {
       const s = await t.get(ref(col, id));
       const next = fn(s.exists() ? { ...s.data(), id } : null);
+      if (next && !counted) { guard(); counted = true; }
       if (next) t.set(ref(col, id), stamp(col, clean({ ...next, id })));
       return next ? { ...next, id } : null;
-    }),
+    }); },
   };
 }
