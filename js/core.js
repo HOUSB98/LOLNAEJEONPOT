@@ -490,5 +490,13 @@ export function needAdmin(fn) {
     closeModal(); fn();
   });
 }
+// 경기의 블루/레드를 통째로 맞바꾼 값(patch용): 선수·챔피언·밴·승리 진영·저장 당시 점수. KDA·상세 기록은 선수 id 기준이라 그대로 둔다.
+// 같은 팀·승패는 그대로라 선수 기록(판수·승·MMR)은 변하지 않는다. 경기 상세의 '진영 바꾸기'와 리플레이 적용(팀 색이 반대로 기록된 경기)이 쓴다.
+export function flipSides(m) {
+  const flip = (o) => ({ blue: [...(o?.red || [])], red: [...(o?.blue || [])] });
+  const p = { blue: [...m.red], red: [...m.blue], champs: flip(m.champs), bans: flip(m.bans), winner: m.winner === 'blue' ? 'red' : m.winner === 'red' ? 'blue' : m.winner };
+  if (m.snap) p.snap = { ...m.snap, bs: m.snap.rs, rs: m.snap.bs, pBlue: 1 - (+m.snap.pBlue || 0) };
+  return p;
+}
 export const history = (type, before) => S.store.put('history', uid(), { type, at: Date.now(), before });
 export { LANES, LANE_NAME, pct };

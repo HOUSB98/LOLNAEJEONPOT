@@ -1,5 +1,5 @@
 // 리플레이(.rofl) 분석: 파일 안에 들어 있는 경기 결과 JSON(statsJson)을 브라우저에서 직접 읽는다. 파일은 어디에도 올라가지 않는다.
-import { S, page, act, esc, go, refresh, champIcon, toast, ic, modal, closeModal, mh, history, fmtDT, LANES, LANE_NAME, LANE_ICON } from './core.js';
+import { S, page, act, esc, go, refresh, champIcon, toast, ic, modal, closeModal, mh, history, flipSides, fmtDT, LANES, LANE_NAME, LANE_ICON } from './core.js';
 import { importDraft } from './today.js';
 import { XKEYS } from './stats.js';
 
@@ -151,9 +151,10 @@ function attachView() {
   const warn = [miss && '연결되지 않은 소환사가 있습니다. 직접 골라 주세요.', dup && '같은 선수가 두 번 선택되었습니다.',
     !miss && !dup && split && '리플레이의 팀 구성이 이 경기의 팀 구성과 다릅니다. 다른 경기의 리플레이일 수 있습니다.',
     !miss && !dup && !split && wrongWin && '리플레이의 승패가 기록된 승패와 다릅니다. 다른 경기의 리플레이일 수 있습니다.'].filter(Boolean);
+  const flipNote = !miss && !dup && isFlipped(m, AT.rows) ? `<div class="panel">${ic('swap')} 이 경기는 블루/레드가 반대로 기록돼 있어요. 적용하면 리플레이(실제 게임)에 맞춰 진영도 바로잡아요. 같은 팀·승패는 그대로예요.</div>` : '';
   modal(`${mh(`경기 #${st.MI[AT.id].no}에 리플레이 넣기`)}
-    <p class="mut sm">${esc(AT.name)} · ${fmtDur(AT.dur)} — 라인업과 승패는 그대로 두고 KDA·CS·골드·피해량·시야·아이템·챔피언을 채웁니다.</p>
-    ${warn.map((w) => `<div class="panel errbox">${ic('alert')} ${w}</div>`).join('')}
+    <p class="mut sm">${esc(AT.name)} · ${fmtDur(AT.dur)} — 같은 팀·승패는 그대로 두고 KDA·CS·골드·피해량·시야·아이템·챔피언을 채웁니다.</p>
+    ${warn.map((w) => `<div class="panel errbox">${ic('alert')} ${w}</div>`).join('')}${flipNote}
     <div class="tw"><table class="tbl rtbl"><thead><tr><th>진영</th><th class="l">챔피언 · 소환사</th><th class="l">이 경기의 선수</th><th>KDA</th><th>CS</th><th>피해량</th></tr></thead><tbody>
     ${AT.rows.map((r, i) => `<tr><td class="${r.side}"><b>${r.side === 'blue' ? 'BLUE' : 'RED'}</b></td><td class="l"><span class="rch">${champIcon(r.champ)}<span><b>${esc(r.champ)}</b><small>${esc(r.riot)}</small></span></span></td>
       <td class="l"><select class="inp ${r.pid ? '' : 'warnsel'}" data-c="atPid" data-i="${i}"><option value="">선수 선택</option>${ids.map((id) => `<option value="${id}" ${id === r.pid ? 'selected' : ''}>${esc(st.P[id]?.name || '?')}</option>`).join('')}</select></td>
@@ -162,10 +163,14 @@ function attachView() {
 }
 act('atPid', (d, el) => { AT.rows[+d.i].pid = el.value; attachView(); });
 act('atApply', async () => { if (await applyReplay(AT.id, AT.rows, AT.dur)) { closeModal(); toast('리플레이 기록을 적용했습니다'); } });
-// 경기에 리플레이 기록을 넣는다. 라인업·승패는 그대로, 선수별(id 기준)로 KDA·상세 기록·챔피언을 채우므로 팀 색이 반대로 기록돼 있어도 맞게 들어간다.
+// 경기에 리플레이 기록을 넣는다. 같은 팀·승패는 그대로, 선수별(id 기준)로 KDA·상세 기록·챔피언을 채운다. 팀 색이 반대로 기록돼 있으면 진영도 바로잡는다(isFlipped).
 // 처음 보는 롤 닉네임은 그 선수의 riotAlt에 저장해 다음부터 자동으로 찾는다.
+// 팀 색이 반대로 기록된 경기: 리플레이의 블루 팀이 기록에서는 모두 레드(반대도 마찬가지)면 진영도 리플레이(실제 게임)에 맞춰 바로잡는다.
+// 팀이 섞여 있으면(다른 경기일 수 있음) 바꾸지 않는다.
+const isFlipped = (m, rows) => { const k = rows.filter((r) => r.pid && (m.blue.includes(r.pid) || m.red.includes(r.pid))); return k.length > 0 && k.every((r) => (r.side === 'blue') !== m.blue.includes(r.pid)); };
 async function applyReplay(id, rows, dur) {
-  const m = S.store.data.matches[id]; if (!m) return false;
+  const m0 = S.store.data.matches[id]; if (!m0) return false;
+  const flip = isFlipped(m0, rows), fix = flip ? flipSides(m0) : {}, m = { ...m0, ...fix };
   const kda = { ...(m.kda || {}) }, stats = {}, champs = { blue: [...(m.champs?.blue || ['', '', '', '', ''])], red: [...(m.champs?.red || ['', '', '', '', ''])] };
   for (const r of rows) {
     kda[r.pid] = [r.k, r.d, r.a];
@@ -174,8 +179,9 @@ async function applyReplay(id, rows, dur) {
     if (S.champBy[r.champ]) champs[side][i] = r.champ;
   }
   try {
-    await history('match-replay', m);
-    await S.store.patch('matches', m.id, { kda, stats, champs, dur });
+    await history('match-replay', m0);
+    await S.store.patch('matches', m.id, { ...fix, kda, stats, champs, dur });
+    if (flip) toast(`#${S.st.MI[id]?.no ?? ''} 경기: 팀 색이 반대로 기록돼 있어 리플레이에 맞춰 진영도 바로잡았어요`);
     for (const r of rows) { // 닉네임 학습
       const pl = S.store.data.players[r.pid], key = norm(r.riot);
       if (!pl || !key || nicks({ p: pl }).includes(key)) continue;
@@ -301,7 +307,7 @@ function queueView() {
         <div class="rq-teams"><div><em class="good">승리</em>${ppl(win)}</div><div><em class="bad">패배</em>${ppl(lose)}</div></div>
         ${it.status === 'done' ? '' : `<div class="rq-f">
           <select class="inp" data-c="rqPick" data-i="${i}">${it.cands.length ? '' : '<option value="">찾은 경기 없음</option>'}${it.cands.map((x) => `<option value="${x.id}" ${x.id === it.pick ? 'selected' : ''}>${label(x)}</option>`).join('')}</select>
-          ${m ? `<small class="mut">기록상 ${c.flip ? '<b>팀 색이 반대로</b> 기록됨 · ' : ''}${m.winner === 'blue' ? '블루' : '레드'} 승</small>` : ''}
+          ${m ? `<small class="mut">기록상 ${c.flip ? '<b>팀 색이 반대로</b> 기록됨(적용하면 진영도 바로잡아요) · ' : ''}${m.winner === 'blue' ? '블루' : '레드'} 승</small>` : ''}
           <span class="grow"></span><button class="btn ghost xs" data-a="rqNew" data-i="${i}" title="경기 기록에 없는 판이면 새 경기로 입력">새 경기로 입력</button>
           ${m ? `<button class="btn gold xs" data-a="rqOne" data-i="${i}">적용</button>` : ''}</div>`}
       </div>`;

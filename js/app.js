@@ -2,7 +2,7 @@
 import { FIREBASE_CONFIG } from './config.js';
 import { createStore } from './store.js';
 import { cardChamp } from './core.js';
-import { S, page, act, ddMenu, cho, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, toast, download, csv, needAdmin, history, modal, closeModal, mh, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
+import { S, page, act, ddMenu, cho, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, toast, download, csv, needAdmin, history, flipSides, modal, closeModal, mh, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
 import { initSocial, renderChat, renderPresence, onMeta } from './social.js';
 import { duoRank } from './stats.js';
 import { watchDice } from './dice.js';
@@ -450,9 +450,7 @@ act('matchDetail', (d) => {
 act('matchSwap', async (d) => {
   const m = S.store.data.matches[d.id]; if (!m || m.deleted) return;
   if (!confirm(`#${S.st.MI[m.id]?.no ?? ''} 경기의 블루와 레드를 맞바꿀까요?\n같은 팀 구성·승패·KDA는 그대로이고, 진영만 바뀝니다. 다시 누르면 원래대로 돌아가요.`)) return;
-  const flip = (o) => ({ blue: [...(o?.red || [])], red: [...(o?.blue || [])] });
-  const patch = { blue: [...m.red], red: [...m.blue], champs: flip(m.champs), bans: flip(m.bans), winner: m.winner === 'blue' ? 'red' : m.winner === 'red' ? 'blue' : m.winner };
-  if (m.snap) patch.snap = { ...m.snap, bs: m.snap.rs, rs: m.snap.bs, pBlue: 1 - (+m.snap.pBlue || 0) };
+  const patch = flipSides(m);
   try {
     await history('match-edit', m);
     await S.store.patch('matches', m.id, patch);
