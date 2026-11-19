@@ -3,7 +3,7 @@ import { S, page, act, esc, uid, pname, go, refresh, ddMenu, champIcon, artUrl, 
 import { evalLineup, commentary, bestDuo, aiBalance } from './stats.js';
 import { notify, hookOn } from './hook.js';
 import { seriesUsed, matchCard } from './app.js';
-import { sysChat } from './social.js';
+import { sysChat, nick, cid } from './social.js';
 import { boardLive } from './board.js';
 
 const five = () => ['', '', '', '', ''];
@@ -202,7 +202,7 @@ page('today', {
     <div class="sec-h"><h2>${ic('rank')}경기 결과 기록</h2>${edit ? '' : sr ? `<span class="tag ok">시리즈 ${sr.ms.length + 1}번째 판</span><span class="mut sm">피어리스: 사용된 챔피언 ${Object.keys(seriesUsed(sid)).length}개 잠김</span><label class="mini"><input type="checkbox" data-c="tNew" ${d.newSeries ? 'checked' : ''}> 새 시리즈로 시작</label>` : '<span class="tag">새 시리즈 1번째 판</span>'}</div>
     <div class="panel">
       <div class="winrow"><button class="wbtn blue ${d.winner === 'blue' ? 'on' : ''}" data-a="tWin" data-w="blue"><small>BLUE</small>블루 승리</button><button class="wbtn red ${d.winner === 'red' ? 'on' : ''}" data-a="tWin" data-w="red"><small>RED</small>레드 승리</button></div>
-      ${hookOn() && !edit && LV.note ? `<p class="sm lv-note ${LV.bad ? 'bad' : 'mut'}">${esc(LV.note)}</p>` : ''}
+      ${hookOn() && !edit && liveNote() ? `<p class="sm lv-note ${liveNote().bad ? 'bad' : 'mut'}">${esc(liveNote().t)}</p>` : ''}
       <button class="btn block ghost" data-a="tMore">${d.more ? '밴 · KDA · 시간 접기' : '밴 · KDA · 경기 시간 입력 (선택)'}</button>
       ${d.more ? `<div class="more">
         ${['blue', 'red'].map((s) => `<div class="banrow"><small>${s === 'blue' ? 'BLUE BAN' : 'RED BAN'}</small>${d.bans[s].map((b, i) => `<button class="sl-champ" data-a="tBan" data-s="${s}" data-i="${i}">${b ? champIcon(b) : `<span class="ci plus">${ic('plus')}</span>`}</button>`).join('')}</div>`).join('')}
@@ -274,47 +274,80 @@ act('tKda', (d, el) => {
 });
 // ---------- 게임에서 챔피언·밴 불러오기(연동 서버 /live → js/live.js 가 자리 맞추기) ----------
 // 밴픽 정보는 라이엇 API에 없어서 로딩 화면(게임 시작)부터 찾을 수 있다. 먼저 눌러 두면 30초마다 다시 확인해 최대 11분 동안 기다린다(밴픽 시작할 때 눌러 두는 용도)
-// (기다리는 동안 라이엇 호출은 30초에 2~6번, Firestore 읽기·쓰기 없음). 찾으면 라인업 동기화(meta/todayDraft)로 모두의 화면에 반영된다.
+// (기다리는 동안 라이엇 호출은 30초에 2~6번). 찾으면 라인업 동기화(meta/todayDraft)로 모두의 화면에 반영된다.
+// 기다리는 상태는 meta/live = { until, by, cid, note, bad, at } 로 공유해서 다른 접속자 화면에도 '밴픽 중 · 누른 사람'이 뜬다.
+// 라이엇 확인은 누른 사람의 화면만 한다. 다른 사람이 '밴픽 중'을 누르면 until 을 0으로 바꾸고, 누른 사람의 화면이 그걸 보고 멈춘다.
+// (쓰기는 시작·끝에 한 번씩만. 누른 사람이 창을 닫아도 until 이 지나면 저절로 풀린다)
 const LV = { busy: false, until: 0, t: 0, start: 0, note: '', bad: false };
 const LIVE_WAIT = 11 * 60e3, LIVE_EVERY = 30e3;
+const liveDoc = () => S.store?.data?.meta?.live || null;
+const remoteLive = () => { const r = liveDoc(); return r && r.cid !== cid && +r.until > S.store.serverNow() ? r : null; };
+const liveShare = (part) => S.store.put('meta', 'live', { until: 0, note: '', bad: false, by: nick() || '익명', cid, ...part, at: S.store.serverNow() }).catch(() => {});
+const liveEnd = () => { liveStop(); liveShare({ note: LV.note, bad: LV.bad }); };
+let rlTimer = 0;
+// 결과 안내 한 줄: 내 화면의 결과, 없으면 다른 사람이 누른 밴픽 시작의 결과(20분 동안)
+const liveNote = () => {
+  if (LV.note) return { t: LV.note, bad: LV.bad };
+  const r = liveDoc();
+  return r && r.cid !== cid && !+r.until && r.note && S.store.serverNow() - (+r.at || 0) < 20 * 60e3 ? { t: `${r.by} 님의 밴픽 시작 · ${r.note}`, bad: !!r.bad } : null;
+};
+// 다른 화면에서 meta/live 가 바뀌면(app.js 가 'np:live' 를 보냄): 내가 기다리는 중인데 누가 멈췄으면 나도 멈춘다
+addEventListener('np:live', () => {
+  const r = liveDoc();
+  if ((LV.until || LV.busy) && r && r.cid === cid && !+r.until && r.stop) { liveStop(); LV.note = `${r.stop} 님이 기다리기를 멈췄어요`; LV.bad = false; }
+  if (S.page === 'today') refresh();
+});
 // 머리 버튼(AI 추천 왼쪽): 평소 '밴픽 시작' → 찾는 중 → 게임 전이면 '밴픽 중'(누르면 그만). 결과·오류 안내는 경기 결과 기록 칸 위 한 줄 + 알림
 function liveBtn(full) {
+  const rl = !LV.until && !LV.busy && remoteLive();
+  if (rl) {
+    clearTimeout(rlTimer); rlTimer = setTimeout(() => S.page === 'today' && refresh(), Math.max(1000, +rl.until - S.store.serverNow() + 500)); // 시간이 지나면 버튼을 되돌린다
+    return `<button class="btn gold lv-on" data-a="tLiveStop" title="${esc(rl.by)} 님이 밴픽 시작을 눌러 두었어요. 로딩 화면이 뜨면 모두의 화면에 챔피언·밴이 채워져요. 누르면 기다리기를 멈춰요">${ic('eye')}밴픽 중<span class="m-hide"> · ${esc(rl.by)}</span></button>`;
+  }
   if (LV.until) return `<button class="btn gold lv-on" data-a="tLiveStop" title="밴픽이 끝나기를 기다리는 중이에요. 로딩 화면이 뜨면 자동으로 챔피언·밴을 채워요(최대 11분). 누르면 그만 기다려요">${ic('eye')}밴픽 중</button>`;
   return `<button class="btn gold" data-a="tLive" ${full && !LV.busy ? '' : 'disabled'} title="${full ? '밴픽을 시작할 때 눌러 두면, 로딩 화면이 뜨는 순간 10명의 챔피언과 밴을 자동으로 채워요(최대 11분 기다림). 게임이 이미 시작됐으면 바로 채워요' : '10명을 모두 배치하면 쓸 수 있어요'}">${ic('eye')}${LV.busy ? '찾는 중…' : '밴픽<span class="m-hide"> 시작</span>'}</button>`;
 }
-const liveStop = () => { clearTimeout(LV.t); LV.t = 0; LV.until = 0; };
+const liveStop = () => { clearTimeout(LV.t); LV.t = 0; LV.until = 0; if (LV.busy) LV.stopped = true; }; // 확인 요청 도중에 멈추면 응답이 와도 무시
 act('tLive', () => {
   if (LV.busy || LV.until) return;
+  const rl = remoteLive(); if (rl) return toast(`${rl.by} 님이 이미 밴픽 시작을 눌러 두었어요`);
   if (!isFull(D())) return toast('양 팀 10명을 모두 배치해 주세요');
-  LV.start = 0; LV.note = ''; LV.bad = false;
+  LV.start = 0; LV.note = ''; LV.bad = false; LV.stopped = false;
+  liveShare({ until: S.store.serverNow() + LIVE_WAIT + 60e3 });
   liveTry(false);
 });
-act('tLiveStop', () => { liveStop(); LV.note = ''; toast('기다리기를 멈췄어요'); refresh(); });
+act('tLiveStop', () => {
+  if (LV.until || LV.busy) { liveStop(); LV.note = ''; liveShare({}); }
+  else if (remoteLive()) S.store.patch('meta', 'live', { until: 0, stop: nick() || '익명', at: S.store.serverNow() }).catch(() => {}); // 누른 사람의 화면이 보고 멈춘다
+  toast('기다리기를 멈췄어요'); refresh();
+});
 async function liveTry(quick) {
   LV.t = 0; LV.busy = true; refresh();
   let res;
   try { const { liveRequest } = await import('./live.js'); res = await liveRequest(draft || D(), quick ? 3 : 0, LV.start); }
   catch (e) { res = { error: e.message || String(e) }; }
   LV.busy = false;
-  if (S.page === 'today' && S.arg[0] === 'edit') { liveStop(); LV.note = ''; return refresh(); } // 지난 경기 수정 화면으로 옮겼으면 그만
+  if (LV.stopped) { LV.stopped = false; return refresh(); }
+  if (S.page === 'today' && S.arg[0] === 'edit') { LV.note = ''; liveEnd(); return refresh(); } // 지난 경기 수정 화면으로 옮겼으면 그만
   // 처음 누른 때의 오류는 바로 알리고, 기다리는 중의 잠깐 오류(연결·호출 한도)는 다음 확인에서 다시 시도한다. 키·닉네임 문제는 기다려도 안 되니 멈춘다
   if (res.error === 'not found') res.error = '연동 서버(Worker)가 옛 버전이라 밴픽 시작을 쓸 수 없어요. 관리 화면의 안내대로 Worker를 다시 배포해 주세요';
-  if (res.error && (!LV.until || /키|닉네임|옛 버전/.test(res.error))) { liveStop(); LV.note = '불러오기 실패: ' + res.error; LV.bad = true; toast(LV.note); return refresh(); }
+  if (res.error && (!LV.until || /키|닉네임|옛 버전/.test(res.error))) { LV.note = '불러오기 실패: ' + res.error; LV.bad = true; liveEnd(); toast(LV.note); return refresh(); }
   if (!res.found) {
     if (!LV.until) { LV.until = Date.now() + LIVE_WAIT; toast('밴픽이 끝나고 로딩 화면이 뜨면 자동으로 챔피언을 채울게요'); }
-    if (Date.now() + LIVE_EVERY > LV.until) { liveStop(); LV.note = '11분 동안 진행 중인 게임을 찾지 못했어요. 게임이 시작된 뒤 다시 눌러 주세요'; LV.bad = true; toast(LV.note); }
+    if (Date.now() + LIVE_EVERY > LV.until) { LV.note = '11분 동안 진행 중인 게임을 찾지 못했어요. 게임이 시작된 뒤 다시 눌러 주세요'; LV.bad = true; liveEnd(); toast(LV.note); }
     else { LV.start += 3; LV.t = setTimeout(() => liveTry(true), LIVE_EVERY); }
     return refresh();
   }
   liveStop();
   const { planLive } = await import('./live.js');
   const dr = D(), plan = planLive(dr, res);
-  if (plan.error) { LV.note = plan.error; LV.bad = true; toast('불러오지 않았어요 · 경기 결과 기록 칸의 안내를 확인해 주세요'); return refresh(); }
+  if (plan.error) { LV.note = plan.error; LV.bad = true; liveShare({ note: LV.note, bad: true }); toast('불러오지 않았어요 · 경기 결과 기록 칸의 안내를 확인해 주세요'); return refresh(); }
   dr.blue = plan.blue; dr.red = plan.red; dr.champs = plan.champs; dr.winner = plan.winner;
   if (plan.bans) dr.bans = plan.bans;
   if (plan.nb) dr.more = true; // 밴을 채웠으면 밴 입력 칸을 펼쳐서 보여 준다
   const msg = `챔피언 ${plan.filled}명${plan.nb ? ` · 밴 ${plan.nb}개` : ''}를 불러왔어요${plan.swap ? ' · 게임 진영에 맞춰 블루/레드를 바꿨어요' : ''}`;
   LV.note = [msg, ...plan.notes].join(' · '); LV.bad = false;
+  liveShare({ note: LV.note });
   keep(); toast(msg);
 }
 

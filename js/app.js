@@ -591,6 +591,7 @@ function onStore(c) {
     if (ch.settings) refresh(true); else if (ch.todayDraft && S.page === 'today') refresh();
     if (ch.scorelog && S.page === 'home') refresh();
     if (ch.pause) checkPause();
+    if (ch.live) dispatchEvent(new Event('np:live')); // 밴픽 시작 기다리는 상태(오늘의 내전, js/today.js)
     return;
   }
   if (c === 'posts') { watchPosts(); postsChanged(); if (S.page === 'talk') refresh(); return; }
