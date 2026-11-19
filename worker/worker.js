@@ -1,6 +1,6 @@
 // 내전 기록실 연동 서버 (Cloudflare Worker, 무료 플랜)
 // 하는 일: ① 디스코드 알림(라인 지원 열림·경기 결과) ② Firebase 사용량 조회 ③ 라이엇 솔랭 티어·전적 자동 갱신(하루 한 번)
-//          ④ 진행 중인 내전 게임의 챔피언·밴 불러오기(라이엇 관전 API, /live)
+//          ④ 진행 중인 내전 게임의 챔피언·밴 불러오기(라이엇 관전 API, /live) ⑤ 사이트 오류를 디스코드로 알리기(/report)
 // 설치·설정 방법은 같은 폴더의 README.md 참고. 이 파일을 Cloudflare 대시보드의 Worker 편집기에 통째로 붙여 넣으면 된다.
 //
 // 비밀값(Settings > Variables and Secrets 에서 "Secret"으로 추가):
@@ -17,6 +17,8 @@
 // 예약 실행(Cron) 두 개: '0,10,20 19 * * *' = 라이엇 갱신(매일 새벽 4시), '*/30 * * * *' = 사용량 감시(무료 한도 근접·요금 디스코드 알림)
 //   + 주간 결산(매주 금요일 저녁 8시)도 30분 예약 실행에서 시간이 됐는지 확인해 보낸다(Cron 추가 설정 필요 없음)
 
+// 버전: 이 파일을 고칠 때마다 올리고, 사이트 js/hook.js 의 WORKER_VER 도 같은 값으로 바꾼다(관리 화면이 비교해 '옛 버전' 경고를 띄움)
+const WORKER_VER = '2026-11-19b';
 const PROJECT = 'lolnaejeonpot';
 const API_KEY = 'AIzaSyBx9DdwpagQTZqFqkISJLPpRe7zHYKOgC0'; // Firebase 웹 API 키(공개값). 접근 권한은 LEAGUE_KEY와 Firestore 규칙이 정한다
 const LANES = ['top', 'jg', 'mid', 'adc', 'sup'];
@@ -36,7 +38,7 @@ export default {
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
     if (req.method === 'GET' && url.pathname === '/') {
       // 설정 확인용: 어떤 값이 들어 있는지만 알려 준다(값 자체는 절대 내보내지 않음)
-      return json({ ok: true, set: { LEAGUE_KEY: !!env.LEAGUE_KEY, DISCORD_WEBHOOK: !!env.DISCORD_WEBHOOK, RIOT_KEY: !!env.RIOT_KEY, GCP_SA: !!env.GCP_SA, SITE_URL: !!env.SITE_URL } }, 200, cors);
+      return json({ ok: true, ver: WORKER_VER, set: { LEAGUE_KEY: !!env.LEAGUE_KEY, DISCORD_WEBHOOK: !!env.DISCORD_WEBHOOK, RIOT_KEY: !!env.RIOT_KEY, GCP_SA: !!env.GCP_SA, SITE_URL: !!env.SITE_URL } }, 200, cors);
     }
     if (req.method !== 'POST') return json({ error: 'not found' }, 404, cors);
     if (!cors['Access-Control-Allow-Origin']) return json({ error: '허용되지 않은 사이트에서 온 요청입니다' }, 403, cors);
@@ -53,6 +55,7 @@ export default {
         MEM.weeklyAt = Date.now();
         return json(await weeklyReport(env), 200, cors);
       }
+      if (url.pathname === '/report') return json(await errorReport(env, body), 200, cors); // 사이트 오류 보고(같은 오류는 하루 한 번만 디스코드로)
       if (url.pathname === '/live') { // 오늘의 내전 '밴픽 시작'(진행 중인 게임에서 챔피언·밴 불러오기)(라이엇 관전 API, Firestore는 읽지 않음)
         if (Date.now() - (MEM.liveAt || 0) < 2000) return json({ error: '방금 다른 사람이 불러오는 중이에요. 잠시 뒤 다시 눌러 주세요' }, 429, cors);
         MEM.liveAt = Date.now();
@@ -556,4 +559,42 @@ async function liveGame(env, body) {
     }
   }
   return out;
+}
+
+// ---------- 사이트 오류 보고(/report) ----------
+// 사이트(js/hook.js)가 자기 코드에서 난 오류만 보낸다: 오류 문구·파일·줄·화면 이름·사이트 버전·기기 종류(휴대폰/PC·브라우저). 닉네임 같은 개인 정보는 없음.
+// 여러 친구에게서 같은 오류가 와도 디스코드에는 하루(한국 날짜) 한 번만 보내고, 나머지는 횟수만 센다(ops/errlog 문서 1개, 읽기 1·쓰기 1).
+// 하루에 서로 다른 오류는 20개까지만 알린다(폭주 방지).
+const ERR_MAX_DAY = 20;
+const djb = (s) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; return h.toString(36); };
+const PAGE_KO = { home: '홈', me: '내 페이지', rank: '랭킹', matches: '경기 기록', players: '선수 카드', champs: '챔피언', chem: '케미', today: '오늘의 내전', gacha: '가챠', auction: '팀 경매', replay: '리플레이 분석', admin: '관리', talk: '익명 게시판', maker: '제작자' };
+async function errorReport(env, body) {
+  const t = (v, n) => String(v ?? '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, n);
+  const e = { msg: t(body.msg, 240), file: t(body.file, 40), line: Math.max(0, +body.line || 0) | 0, col: Math.max(0, +body.col || 0) | 0, page: t(body.page, 20), v: t(body.v, 20), dev: t(body.dev, 40), kind: body.kind === 'promise' ? 'promise' : 'error' };
+  if (!e.msg || !/^(js\/[\w-]+\.js|index\.html)$/.test(e.file)) return { ok: false, skip: 'invalid' };
+  const now = Date.now();
+  MEM.rep = (MEM.rep || []).filter((x) => now - x < 60e3);
+  if (MEM.rep.length >= 30) return { ok: false, skip: 'busy' }; // 같은 서버 인스턴스에 1분 30건 넘게 오면 버림
+  MEM.rep.push(now);
+  const day = kstDate(now), sig = djb(`${e.file}:${e.line}:${e.msg.slice(0, 80)}`);
+  const doc = (await getDoc(env, 'ops', 'errlog')) || {};
+  const log = doc.day === day ? { day, sigs: { ...(doc.sigs || {}) }, sent: +doc.sent || 0 } : { day, sigs: {}, sent: 0 };
+  const first = !log.sigs[sig];
+  log.sigs[sig] = (+log.sigs[sig] || 0) + 1;
+  let notified = false;
+  if (first && log.sent < ERR_MAX_DAY) {
+    log.sent++;
+    await discord(env, { embeds: [{
+      title: '🐞 사이트 오류', color: 0xf0506e, description: '```' + e.msg.replace(/`/g, "'") + '```',
+      fields: [
+        { name: '위치', value: `${e.file}${e.line ? ':' + e.line + (e.col ? ':' + e.col : '') : ''}${e.kind === 'promise' ? ' (비동기)' : ''}`, inline: true },
+        { name: '화면', value: e.page ? `${PAGE_KO[e.page] || e.page} (#/${e.page})` : '알 수 없음', inline: true },
+        { name: '기기', value: e.dev || '알 수 없음', inline: true },
+        { name: '사이트 버전', value: e.v || '알 수 없음', inline: true },
+      ],
+      footer: { text: `같은 오류는 오늘(${day}) 다시 알리지 않고 횟수만 셉니다 · Worker ${WORKER_VER}` }, timestamp: new Date(now).toISOString(),
+    }] }).then(() => (notified = true)).catch((x) => console.warn('[report]', x));
+  }
+  await commit(env, [{ update: { name: docName(env, 'ops', 'errlog'), fields: enc(log).mapValue.fields } }]);
+  return { ok: true, first, notified, count: log.sigs[sig] };
 }

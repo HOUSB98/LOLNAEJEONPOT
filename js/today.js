@@ -298,7 +298,8 @@ async function liveTry(quick) {
   LV.busy = false;
   if (S.page === 'today' && S.arg[0] === 'edit') { liveStop(); LV.note = ''; return refresh(); } // 지난 경기 수정 화면으로 옮겼으면 그만
   // 처음 누른 때의 오류는 바로 알리고, 기다리는 중의 잠깐 오류(연결·호출 한도)는 다음 확인에서 다시 시도한다. 키·닉네임 문제는 기다려도 안 되니 멈춘다
-  if (res.error && (!LV.until || /키|닉네임/.test(res.error))) { liveStop(); LV.note = '불러오기 실패: ' + res.error; LV.bad = true; toast(LV.note); return refresh(); }
+  if (res.error === 'not found') res.error = '연동 서버(Worker)가 옛 버전이라 밴픽 시작을 쓸 수 없어요. 관리 화면의 안내대로 Worker를 다시 배포해 주세요';
+  if (res.error && (!LV.until || /키|닉네임|옛 버전/.test(res.error))) { liveStop(); LV.note = '불러오기 실패: ' + res.error; LV.bad = true; toast(LV.note); return refresh(); }
   if (!res.found) {
     if (!LV.until) { LV.until = Date.now() + LIVE_WAIT; toast('밴픽이 끝나고 로딩 화면이 뜨면 자동으로 챔피언을 채울게요'); }
     if (Date.now() + LIVE_EVERY > LV.until) { liveStop(); LV.note = '11분 동안 진행 중인 게임을 찾지 못했어요. 게임이 시작된 뒤 다시 눌러 주세요'; LV.bad = true; toast(LV.note); }
