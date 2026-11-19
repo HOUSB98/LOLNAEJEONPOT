@@ -1070,11 +1070,12 @@ canvas.fx{position:fixed;inset:0;pointer-events:none;z-index:70}
 p.bad{color:var(--red)}
 @media (max-width:1100px){.ausel{grid-template-columns:1fr}.au-caps{position:static}}@media (max-width:860px){.au-lane{grid-template-columns:1fr}.au-ll{padding:0}.sealed-list{grid-template-columns:1fr}}
 /* --- 접속자 수 · 입장 알림 --- */
-.pcount{margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:3px 9px 3px 8px;border-radius:8px;border:1px solid rgba(63,208,224,.38);background:linear-gradient(180deg,rgba(63,208,224,.16),rgba(63,208,224,.03));box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 0 18px -6px var(--teal)}
-.pcount i{position:relative;width:6px;height:6px;border-radius:50%;background:var(--teal);color:rgba(63,208,224,.7)}
-.prh .pcount b{display:inline;font:700 16px/1 var(--mono);letter-spacing:.08em;background:linear-gradient(180deg,#fff,var(--teal));-webkit-background-clip:text;background-clip:text;color:transparent}
-.pcount small{font:700 10px var(--mono);letter-spacing:.2em;color:#6f9aa5}
-.pcount.bump{animation:pcbump .7s cubic-bezier(.2,1.6,.4,1)}@keyframes pcbump{0%{transform:scale(1)}35%{transform:scale(1.22);box-shadow:0 0 26px -2px var(--teal)}100%{transform:scale(1)}}
+/* 접속자 수(자수정 글래스): 보라 유리 캡슐 + 보랏빛 숫자 + 라벤더 점(사이트 보라 #9b8cff 기준) */
+.pcount{margin-left:auto;display:inline-flex;align-items:center;gap:7px;padding:3px 11px 3px 8px;border-radius:99px;border:1px solid rgba(180,165,255,.42);background:radial-gradient(120% 160% at 25% -10%,rgba(190,170,255,.32),rgba(155,140,255,.06) 55%),rgba(12,9,26,.72);box-shadow:inset 0 1px 0 rgba(255,255,255,.2),inset 0 -8px 14px -10px rgba(155,140,255,.8),0 0 22px -9px var(--purple)}
+.pcount i{position:relative;width:7px;height:7px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#f3efff,#a996ff 60%);color:rgba(155,140,255,.7);box-shadow:0 0 0 2px rgba(155,140,255,.2),0 0 8px var(--purple)}
+.prh .pcount b{display:inline;font:600 16px/1 var(--mono);letter-spacing:.1em;background:linear-gradient(180deg,#fff,#cfc4ff);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 6px rgba(155,140,255,.55))}
+.pcount small{font:600 9px var(--mono);letter-spacing:.24em;color:#b3a8e6}
+.pcount.bump{animation:pcbump .7s cubic-bezier(.2,1.6,.4,1)}@keyframes pcbump{0%{transform:scale(1)}35%{transform:scale(1.22);box-shadow:0 0 26px -2px var(--purple)}100%{transform:scale(1)}}
 #joinfeed{position:fixed;left:calc(var(--sw) + 18px);bottom:18px;z-index:55;display:flex;flex-direction:column;gap:8px;pointer-events:none}
 .jf{position:relative;overflow:hidden;display:flex;align-items:center;gap:10px;padding:9px 14px 10px 12px;border-radius:12px;--c:var(--teal);background:linear-gradient(120deg,rgba(17,26,41,.97),rgba(7,10,17,.97));border:1px solid color-mix(in srgb,var(--c) 40%,transparent);box-shadow:0 16px 30px -14px #000,0 0 24px -10px var(--c);font-size:13px;color:#c3ccdb;animation:jfin .55s cubic-bezier(.2,1.4,.4,1) both}
 .jf.leave{--c:#8592a8}.jf b{color:#fff}.jf i{width:9px;height:9px;border-radius:50%;background:hsl(var(--h) 80% 62%);box-shadow:0 0 10px hsl(var(--h) 80% 62%)}.jf.leave i{background:#586479;box-shadow:none}
