@@ -116,9 +116,9 @@ export function lazyPage(id, load, actNames = []) {
 export const NAV = [
   ['', 'LEAGUE'], ['home', '홈'], ['me', '내 페이지'], ['rank', '랭킹'], ['matches', '경기 기록'], ['players', '선수 카드'],
   ['', 'ANALYSIS'], ['champs', '챔피언'], ['chem', '케미'],
-  ['', 'PLAY'], ['today', '오늘의 내전'], ['gacha', '가챠'], ['auction', '팀 경매'], ['replay', '리플레이 분석'], ['admin', '관리'],
+  ['', 'PLAY'], ['today', '오늘의 내전'], ['gacha', '가챠'], ['auction', '팀 경매'], ['replay', '리플레이 분석'],
   ['', 'COMMUNITY'], ['talk', '익명 게시판'],
-  ['', 'CREDITS'], ['maker', '제작자'],
+  ['', 'CREDITS'], ['admin', '관리'], ['maker', '제작자'],
 ];
 export function go(hash) { location.hash = hash; }
 function parseHash() {
