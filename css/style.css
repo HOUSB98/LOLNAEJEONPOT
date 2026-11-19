@@ -2152,3 +2152,6 @@ a.me-ch[href]:hover{background:rgba(255,255,255,.05)}
 @media (max-width:860px){.adm-tabs button{padding:0 4px;gap:5px}}
 /* 칭호 도감(관리 > 칭호 탭): 휴대폰에서는 두 칸씩 */
 @media (max-width:860px){.adm-body .dogam{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.adm-body .dogam>div{padding:8px 9px}.adm-body .dogam b{font-size:12.5px}.adm-body .dogam span{font-size:11px;line-height:1.45}.adm-body .dogam small{font-size:11px}}
+/* 휴대폰 머리 줄: 로고 글자(NAEJEONPOT)가 접속자 칸에 밀려 잘리지 않게. 430px 미만에서는 접속자 칸의 'ONLINE' 글자만 숨기고(얼굴·숫자는 그대로), 로고 글자는 줄어들지 않게 */
+@media (max-width:429px){#side .pcount small{display:none}#side .pcount{gap:5px;padding:3px 8px}}
+@media (max-width:860px){#side .brand .bt{flex:none}#side #presence{min-width:0}}
