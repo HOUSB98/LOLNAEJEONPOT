@@ -2137,3 +2137,18 @@ a.me-ch[href]:hover{background:rgba(255,255,255,.05)}
 }
 /* 관리 > 연동: 연동 서버 버전 확인 줄(admin.js verHTML) */
 .wk-ver{display:flex;align-items:flex-start;gap:6px;margin:8px 0 0;line-height:1.5}.wk-ver .ic{width:15px;height:15px;flex:none;margin-top:2px}.wk-ver .btn{margin-left:auto;flex:none}
+/* 관리 화면 탭(admin.js admTabsHTML): 사이트 공통 금색 세그먼트(.seg.full) 모양 그대로 */
+.adm-tabs{margin:4px 0 14px!important}
+.adm-tabs button{position:relative;gap:6px;padding:9px 6px;white-space:nowrap}.adm-tabs .ic{width:16px;height:16px;flex:none}
+.adm-dot{position:absolute;top:7px;right:9px;width:7px;height:7px;border-radius:50%;background:var(--red);box-shadow:0 0 0 2px var(--panel),0 0 8px var(--red)}
+.adm-n{font-style:normal;font-size:10.5px;font-weight:800;min-width:17px;height:17px;padding:0 4px;border-radius:9px;display:inline-grid;place-items:center;background:rgba(240,80,110,.18);color:var(--red)}
+.adm-tabs button.on .adm-n{background:rgba(26,18,4,.18);color:#1a1204}
+/* 짧은 칸끼리는 넓은 화면에서 두 줄로(내전: 1지망 보정 | 가챠 설정, 설정: 설정 | 백업·삭제된 경기) */
+.adm-body{container-type:inline-size}
+.adm-2{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:start}
+.adm-col{display:flex;flex-direction:column;gap:14px;min-width:0}.adm-col>.panel{margin:0}
+.adm-body>.panel:first-child{margin-top:0}
+@container (min-width:880px){.adm-2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+@media (max-width:860px){.adm-tabs button{padding:0 4px;gap:5px}}
+/* 칭호 도감(관리 > 칭호 탭): 휴대폰에서는 두 칸씩 */
+@media (max-width:860px){.adm-body .dogam{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.adm-body .dogam>div{padding:8px 9px}.adm-body .dogam b{font-size:12.5px}.adm-body .dogam span{font-size:11px;line-height:1.45}.adm-body .dogam small{font-size:11px}}
