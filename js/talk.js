@@ -138,6 +138,7 @@ act('cmPost', async (d) => {
   if (wait > 0) return toast(`${Math.ceil(wait / 1000)}초 뒤에 다시 달 수 있어요`);
   c.busy = true; refresh();
   try {
+    await S.store.clockSoon?.(); // 글 시각은 서버 시각 기준(필요할 때만 맞춤)
     const id = Date.now().toString(36) + uid(), doc = { pid, at: S.store.serverNow?.() || Date.now(), body, pw: await cmPw(id, pw), deleted: false };
     await S.store.put('comments', id, doc);
     await S.store.tx('posts', pid, (p) => (p ? { ...p, cn: cmCount(p) + 1 } : null)).catch(() => {});
@@ -232,6 +233,7 @@ act('tkPost', async () => {
     const id = Date.now().toString(36) + uid();
     TK.mine.add(id); // 내가 쓴 글은 나에게 알리지 않는다
     { const m = myPosts(); m[id] = 0; saveMy(m); }
+    await S.store.clockSoon?.();
     await S.store.put('posts', id, { at: S.store.serverNow?.() || Date.now(), title, body, pw: await hashPw(id, pw), deleted: false });
     localStorage.setItem(lastKey(), String(Date.now()));
     Object.assign(TK, { title: '', body: '', pw: '', open: false });

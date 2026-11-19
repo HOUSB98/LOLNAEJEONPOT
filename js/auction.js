@@ -271,10 +271,18 @@ function tick() {
     tx(r.id, (x, t) => (x.status === 'running' && x.cur && x.cur.pid === c.pid && t >= x.cur.endsAt ? settle(x, t) : null)).finally(() => setTimeout(() => (tick.busy = false), 800));
   }
 }
+// 경매 기록은 이 화면을 연 사람만 실시간으로 받는다(store.need). 다른 화면으로 가고 1분이 지나면 구독을 끊는다.
+// 실시간 입찰·타이머·정산은 원래도 경매 화면을 연 사람의 브라우저에서만 돌았으므로 동작은 같다.
+let auOff = 0;
+addEventListener('hashchange', () => {
+  clearTimeout(auOff);
+  if (!/^#\/auction(\/|$)/.test(location.hash)) auOff = setTimeout(() => { if (S.page !== 'auction') S.store?.unneed?.('auctions'); }, 60e3);
+});
+const auReady = () => { if (S.store.loaded?.('auctions') !== false) return true; S.store.need('auctions').then(() => { if (S.page === 'auction') refresh(); }); return false; };
 page('auction', {
-  render: (id, token) => (id ? roomView(id, token) : lobbyList()),
+  render: (id, token) => (!auReady() ? `<h1>${ic('auction')}팀 경매</h1><div class="panel empty">경매 방을 불러오는 중…</div>` : id ? roomView(id, token) : lobbyList()),
   after() {
-    if (!S.arg[0]) return;
+    if (!S.arg[0] || S.store.loaded?.('auctions') === false) return; // 경매 기록을 다 받은 뒤에 타이머를 돌린다
     if (!timer) timer = setInterval(tick, 250);
     tick();
     const ch = document.getElementById('au-chat'); if (ch) ch.scrollTop = ch.scrollHeight;

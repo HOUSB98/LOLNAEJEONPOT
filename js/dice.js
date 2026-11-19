@@ -55,7 +55,9 @@ function onDice(d) {
   if (!d || !rollKey(d) || rollKey(d) === seen) return;
   seen = rollKey(d);
   if (DC.rolling) return;
-  try { play(d, false); } catch (e) { DC.rolling = false; console.error('[dice]', e); }
+  // 서버 시각은 필요할 때만 맞춘다: 다른 사람이 굴린 주사위를 받으면 맞춘 뒤 재생(시작까지 1.5초 여유)
+  const go = () => { if (DC.rolling) return; try { play(d, false); } catch (e) { DC.rolling = false; console.error('[dice]', e); } };
+  if (S.store.serverClockReady?.()) go(); else S.store.clockSoon?.(1200).then(go, go);
 }
 export function watchDice(initial) {
   const d = S.store.data.meta?.dice;
