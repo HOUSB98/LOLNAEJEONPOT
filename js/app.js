@@ -590,11 +590,55 @@ function onStore(c) {
     if (ch.settings || ch.kicks) onMeta();
     if (ch.settings) refresh(true); else if (ch.todayDraft && S.page === 'today') refresh();
     if (ch.scorelog && S.page === 'home') refresh();
+    if (ch.pause) checkPause();
     return;
   }
   if (c === 'posts') { watchPosts(); postsChanged(); if (S.page === 'talk') refresh(); return; }
   if (c === 'players' || c === 'matches') refresh(true);
 }
+// ---------- 사용량 자동 쉬기 ----------
+// 연동 서버(Worker)가 30분마다 사용량을 보고, 오늘 Firebase 무료 한도의 95%를 넘으면 meta/pause = { on, day(태평양 날짜), reason } 를 적는다.
+// 사이트는 그날(구글 한도가 초기화되는 태평양 자정 = 한국 오후 4~5시 전까지) 화면을 덮고 meta 외 실시간 구독을 끊는다. 기록은 그대로.
+// 관리자가 '지금 다시 열기'를 누르면 { on:false, resumeDay:오늘 } → 그날은 Worker가 다시 쉬게 하지 않는다.
+const ptDay = (t = Date.now()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(t));
+export const pausedNow = () => { const x = S.store?.data?.meta?.pause; return !!(x && x.on && x.day === ptDay()); };
+const PAUSE_KEY = () => 'naejeon:pause:' + S.key;
+function nextReset() { // 다음 태평양 자정(한국 시각으로 보여 준다)
+  const d0 = ptDay(); let t = Date.now() - (Date.now() % 60e3);
+  while (ptDay(t) === d0 && t < Date.now() + 27 * 3600e3) t += 10 * 60e3;
+  t -= 10 * 60e3; while (ptDay(t) === d0) t += 60e3;
+  return t;
+}
+function pauseHTML() {
+  const x = S.store.data.meta.pause, t = nextReset(), d = new Date(t), today = new Date().toDateString() === d.toDateString();
+  return `<div class="pz-in">${logo(false, 64)}<b>잠시 쉬어요</b>
+    <p>오늘 Firebase 무료 사용량이 95%를 넘어서, 요금이 나가지 않도록 사이트를 잠시 쉬게 했어요.<br>경기 기록·점수 같은 데이터는 모두 그대로예요.</p>
+    ${x.reason ? `<p class="pz-why">${esc(x.reason)}</p>` : ''}
+    <p class="pz-at">${today ? '오늘' : '내일'} <em>${d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })}</em>쯤 자동으로 다시 열려요</p>
+    <button class="btn gold" data-a="pauseResume">관리자: 지금 다시 열기</button>
+    <small>다시 열면 오늘 남은 시간은 쉬지 않고, 무료 한도를 넘은 만큼 요금이 붙을 수 있어요.</small></div>`;
+}
+function checkPause() {
+  if (!S.store) return;
+  const on = pausedNow();
+  let el = document.getElementById('pause');
+  if (on) {
+    try { localStorage.setItem(PAUSE_KEY(), ptDay()); } catch {}
+    if (!S.store.isPaused?.()) S.store.pause?.();
+    if (!el) { el = document.createElement('div'); el.id = 'pause'; document.body.appendChild(el); }
+    el.innerHTML = pauseHTML();
+  } else {
+    try { localStorage.removeItem(PAUSE_KEY()); } catch {}
+    if (el) el.remove();
+    if (S.store.isPaused?.()) location.reload(); // 쉬는 동안 끊은 구독을 처음부터 다시 시작
+  }
+}
+setInterval(checkPause, 60e3); // 날짜가 바뀌면(한국 오후 4~5시) 자동으로 다시 연다
+act('pauseResume', () => needAdmin(async () => {
+  try { await S.store.put('meta', 'pause', { on: false, resumeDay: ptDay(), by: 'admin', at: Date.now() }); toast('사이트를 다시 열어요'); }
+  catch (e) { toast('실패: ' + (e.code || e.message)); }
+}));
+
 window.NP_OK = 1; // index.html의 시작 확인(이 줄까지 왔다면 모든 JS 파일이 문제없이 이어진 것)
 (async () => {
   // 잠깐 배포됐던 웹앱 알림용 서비스 워커가 남아 있으면 지운다(웹앱 기능은 쓰지 않기로 함)
@@ -625,4 +669,5 @@ window.NP_OK = 1; // index.html의 시작 확인(이 줄까지 왔다면 모든 
   } catch (e) { document.getElementById('splash')?.remove(); main.innerHTML = `<div class="panel landing"><h1>연결 실패</h1><p>${esc(e.message || e)}</p><p class="hint">js/config.js 의 Firebase 설정과 Firestore 규칙을 확인하세요.</p></div>`; return; }
   await SEASON.ready; // 시즌이 아니면 바로 끝난다. 시즌이면 시작 화면 장식 전에 받아 둔다(DB 연결과 동시에 받으므로 보통 기다리지 않는다)
   metaDiff(); up = true; watchDice(true); watchBoard(true); watchPosts(true); initShell(); initSocial(); SEASON.x?.initXmas(); SEASON.n?.initNewYear(); loadChamps();
+  checkPause();
 })();

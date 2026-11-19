@@ -40,7 +40,7 @@ const VISIBLE_BEAT_MS = 5 * 60e3;
 function beat(off) {
   if (!nick()) return;
   if (off) { byeSent = true; return S.store.bye('presence', cid, 'at', 0); } // 탭 닫기·숨김 직전에도 끝까지 전송되는 방식
-  if (isKicked()) return;
+  if (isKicked() || S.store.isPaused?.()) return; // 사용량 자동 쉬기 중에는 접속 신호도 보내지 않는다
   const at = Date.now();
   byeSent = false; lastBeat = at;
   S.store.put('presence', cid, { nick: nick(), at }).catch(() => { if (lastBeat === at) lastBeat = 0; }); // 실패하면 다음에 바로 다시 보낸다
