@@ -34,44 +34,54 @@ function usageHTML() {
 const WV = { r: null, busy: false };
 function verHTML() {
   if (!hookOn()) return '';
-  if (!WV.r) { if (!WV.busy) { WV.busy = true; workerVer().then((r) => { WV.r = r; WV.busy = false; const el = document.getElementById('wkver'); if (el) el.innerHTML = verHTML(); }); } return '<p class="sm mut wk-ver">연동 서버 버전 확인 중…</p>'; }
+  if (!WV.r) { if (!WV.busy) { WV.busy = true; workerVer().then((r) => { WV.r = r; WV.busy = false; const el = document.getElementById('wkver'); if (el) el.innerHTML = verHTML(); admTabsRefresh(); }); } return '<p class="sm mut wk-ver">연동 서버 버전 확인 중…</p>'; }
   if (WV.r.error) return `<p class="sm bad wk-ver">${ic('alert')}${esc(WV.r.error)}</p>`;
   if (WV.r.ver === WORKER_VER) return `<p class="sm mut wk-ver">${ic('shield')}연동 서버 최신 버전 (${esc(WV.r.ver)})</p>`;
   return `<p class="sm bad wk-ver">${ic('alert')}<span><b>연동 서버(Worker)가 옛 버전이에요</b> · 배포된 버전 ${esc(WV.r.ver || '알 수 없음(아주 옛 버전)')} / 필요한 버전 ${WORKER_VER}<br>저장소의 <code>worker/worker.js</code> 내용을 Cloudflare Worker 편집기에 통째로 붙여 넣고 Deploy를 눌러 주세요. 그 전까지는 새 기능(밴픽 시작·오류 알림 등)이 동작하지 않아요.</span> <button class="btn xs" data-a="wkVer">다시 확인</button></p>`;
 }
-act('wkVer', async () => { WV.r = await workerVer(true); const el = document.getElementById('wkver'); if (el) el.innerHTML = verHTML(); toast(WV.r.ver === WORKER_VER ? '연동 서버가 최신이에요' : '아직 옛 버전이에요'); });
-addEventListener('usage', () => { const el = document.getElementById('uzbox'); if (el) el.innerHTML = usageHTML(); });
+act('wkVer', async () => { WV.r = await workerVer(true); const el = document.getElementById('wkver'); if (el) el.innerHTML = verHTML(); admTabsRefresh(); toast(WV.r.ver === WORKER_VER ? '연동 서버가 최신이에요' : '아직 옛 버전이에요'); });
+addEventListener('usage', () => { const el = document.getElementById('uzbox'); if (el) el.innerHTML = usageHTML(); admTabsRefresh(); });
 
+
+// ---------- 관리 화면 탭(선수 · 내전 · 서버 · 설정 · 칭호): 고른 탭만 그린다. 마지막에 본 탭을 기억(naejeon:admtab), 주소 #/admin/<탭> 으로 바로 열 수도 있음 ----------
+const ATABS = [['players', 'users', '선수', '관리'], ['play', 'target', '내전', '도구'], ['server', 'bolt', '서버', '· 연동'], ['config', 'admin', '설정', '· 백업'], ['titles', 'scroll', '칭호', '도감']];
+const AT_KEY = 'naejeon:admtab';
+function admTab() {
+  const ok = (t) => ATABS.some((x) => x[0] === t);
+  if (ok(S.arg[0])) return S.arg[0];
+  try { const t = localStorage.getItem(AT_KEY); if (ok(t)) return t; } catch {}
+  return 'players';
+}
+// 서버 탭의 빨간 점: 연동 서버가 옛 버전이거나 오늘 사용량이 무료 한도의 80%를 넘었을 때(탭을 열지 않아도 알 수 있게)
+const serverWarn = () => (!!WV.r && !WV.r.error && WV.r.ver !== WORKER_VER) || (!!USAGE.d?.today && ['read', 'write', 'delete'].some((k) => (+USAGE.d.today[k] || 0) >= USAGE.d.limits[k] * 0.8));
+function admTabsHTML(tab, nDel) {
+  return `<div class="seg full adm-tabs" role="tablist">${ATABS.map(([k, i, a, b]) => `<button role="tab" aria-selected="${k === tab}" class="${k === tab ? 'on' : ''}" data-a="admTab" data-t="${k}">${ic(i)}<span>${a}<span class="m-hide"> ${b}</span></span>${k === 'server' && serverWarn() ? '<i class="adm-dot" title="확인이 필요해요"></i>' : k === 'config' && nDel ? `<i class="adm-n" title="삭제된 경기 ${nDel}개">${nDel}</i>` : ''}</button>`).join('')}</div>`;
+}
+act('admTab', (d) => {
+  try { localStorage.setItem(AT_KEY, d.t); } catch {}
+  if (S.arg[0]) location.hash = '#/admin'; else refresh();
+});
+const admTabsRefresh = () => { const el = document.querySelector('.adm-tabs'); if (el && S.page === 'admin') el.outerHTML = admTabsHTML(admTab(), col('matches').filter((m) => m.deleted).length); };
 
 page('admin', {
   render() {
     const st = S.st, cfg = { ...DEFAULTS, ...settings() };
     const del = col('matches').filter((m) => m.deleted).sort((a, b) => b.at - a.at);
     const gone = col('players').filter((p) => p.deleted), adm = isAdmin();
-    return `<h1>${ic('admin')}관리</h1>
-    <div class="panel"><div class="ph"><b>${ic('save')}내보내기 · 백업</b></div>
-      <div class="row wrapr"><button class="btn" data-a="exportCsv">⬇ 경기 기록 CSV</button><button class="btn" data-a="exportPlayers">⬇ 선수 CSV</button><button class="btn" data-a="backup">⬇ 전체 백업 (JSON)</button><button class="btn ghost" data-a="restore">⬆ 백업 복원</button></div>
-      <div class="row wrapr"><span class="mut sm">로고 내려받기</span><a class="btn xs" href="brand/naejeonpot-logo-1024.png" download>⬇ PNG 1024</a><a class="btn xs" href="brand/naejeonpot-logo-512.png" download>⬇ PNG 512</a><a class="btn xs" href="brand/naejeonpot-icon-512.png" download title="아래 MAISON 글씨 없는 아이콘">⬇ 아이콘 PNG</a><a class="btn xs ghost" href="brand/naejeonpot-logo.svg" download title="확대해도 깨지지 않는 벡터 파일">⬇ SVG</a></div>
-      <p class="hint">${S.store.mode === 'local' ? `${ic('alert')}` + ' 지금은 체험 모드라 데이터가 이 브라우저에만 저장됩니다. Firebase를 연결하면 친구들과 실시간으로 공유됩니다(README 참고).' : '데이터는 Firebase에 저장됩니다. Firestore 무료 요금제는 오래 안 써도 일시정지되지 않지만, 가끔 전체 백업을 내려받아 두세요.'}</p></div>
-
-    <div class="panel"><div class="ph"><b>${ic('bolt')}Firebase 사용량</b><small class="mut">무료 한도 대비 오늘 사용량</small><span class="grow"></span>${hookOn() && !/billing/i.test(USAGE.err) ? '<button class="btn xs" data-a="uzLoad">새로고침</button>' : ''}</div>
+    const tab = admTab(), V = {
+      players: () => `<div class="panel"><div class="ph"><b>${ic('users')}선수 관리</b><span class="tag">${st.list.length}명</span><span class="grow"></span><button class="btn xs" data-a="scOut" title="점수 조정을 맡길 사람에게 줄 파일(이름·라인 점수만 들어 있음)">⬇ 점수표 파일</button><button class="btn xs" data-a="scIn" title="조정자가 고친 점수표 파일을 올려 반영(관리자 PIN 필요)">⬆ 점수표 올리기</button><button class="btn xs" data-a="slOpen" title="최근 라인 점수 변경을 익명 게시판 댓글·단톡방에 붙여 넣을 글로 정리">📋 변경 내역 복사</button><button class="btn pri xs" data-a="plEdit" data-id="">＋ 선수 추가</button></div>
+      <div class="lockbar ${adm ? 'open' : ''}">${adm ? `${ic('shield')}<b>관리자 모드</b><span>점수와 주라인을 칸에서 바로 고치면 즉시 저장됩니다. 이 창을 닫기 전까지 유지됩니다.</span><button class="btn xs" data-a="admLock">잠그기</button>` : `${ic('shield')}<b>잠겨 있음</b><span>관리자 PIN을 한 번 입력하면 모든 선수의 점수를 바로 수정할 수 있습니다.</span><button class="btn gold xs" data-a="admUnlock">관리자 PIN 입력</button>`}</div>
+      <div class="tw scw"><table class="tbl edit score ${adm ? '' : 'locked'}"><thead><tr><th class="no">#</th><th class="l">이름</th>${LANES.map((l) => `<th class="lh l-${l}">${LANE_ICON[l]}${LANE_NAME[l]}</th>`).join('')}<th>평균</th><th>주라인</th><th class="l">솔랭 티어</th><th>시작 MMR</th><th></th></tr></thead>
+      <tbody>${st.list.map((s, i) => `<tr><td class="no mono">${i + 1}</td><td class="l nm"><span class="nmc">${LANE_ICON[s.mainLane]}${esc(s.name)}</span></td>${LANES.map((l) => `<td class="scd l-${l} ${s.mainLane === l ? 'main' : ''}" style="--v:${Math.min(100, (+s.p.scores?.[l] || 0) * 5)}%"><input id="sc-${s.id}-${l}" class="inp cell mono" type="number" min="0" max="20" step="0.5" value="${s.p.scores?.[l] ?? 0}" data-c="plScore" data-id="${s.id}" data-l="${l}" ${adm ? '' : 'disabled'}></td>`).join('')}<td class="num mono avg"><b>${s.avg.toFixed(1)}</b></td><td><select class="inp cell" data-c="plMain" data-id="${s.id}" ${adm ? '' : 'disabled'}>${LANES.map((l) => `<option value="${l}" ${s.mainLane === l ? 'selected' : ''}>${LANE_NAME[l]}</option>`).join('')}</select></td><td class="l tier">${esc(s.p.soloTier || '-')}</td><td class="num mono">${s.mmrInit}</td><td><button class="btn xs" data-a="plEdit" data-id="${s.id}">상세</button></td></tr>`).join('') || '<tr><td colspan="11" class="empty">선수가 없습니다.</td></tr>'}</tbody></table></div>
+      ${gone.length ? `<p class="sm mut">숨긴 선수: ${gone.map((p) => `${esc(p.name)} <button class="btn xs ghost" data-a="plRestore" data-id="${p.id}">복구</button>`).join(' ')}</p>` : ''}</div>`,
+      play: () => `${luckAdminHTML(st)}${gachaAdminHTML()}`, // 가챠 설정은 안쪽이 3칸이라 반쪽 폭에서는 오히려 길어져서 위아래로 둔다
+      server: () => `<div class="panel"><div class="ph"><b>${ic('bolt')}Firebase 사용량</b><small class="mut">무료 한도 대비 오늘 사용량</small><span class="grow"></span>${hookOn() && !/billing/i.test(USAGE.err) ? '<button class="btn xs" data-a="uzLoad">새로고침</button>' : ''}</div>
       <div id="uzbox">${usageHTML()}</div>
       ${hookOn() ? `<div class="ph"><b>연동</b><small class="mut">디스코드 알림 · 라이엇 솔랭 자동 갱신(매일 새벽 4시)</small></div>
       <div class="row wrapr"><button class="btn" data-a="hkTest">디스코드 테스트 알림</button><button class="btn" data-a="hkRiot">라이엇 전적 지금 갱신</button><button class="btn" data-a="hkWeekly" title="매주 금요일 저녁 8시에 자동으로 올라가는 결산을 지금 미리 보내 봅니다">주간 결산 지금 보내기</button></div>
       <div id="wkver">${verHTML()}</div>
-      ${UZ.riot ? `<p class="sm">${esc(UZ.riot)}</p>` : ''}<p class="hint">${ic('shield')} <b>자동 쉬기</b>: 오늘 Firebase 무료 한도(읽기·쓰기·삭제 중 하나)의 95%를 넘으면 연동 서버가 그날 사이트를 쉬게 해요(30분마다 확인). 한국 시간 오후 4~5시에 자동으로 다시 열리고, 쉬기 화면의 '관리자: 지금 다시 열기'로 바로 열 수 있어요(그날은 다시 쉬지 않음).${S.store.data.meta?.pause?.resumeDay ? ` 최근 관리자가 다시 연 날: ${esc(S.store.data.meta.pause.resumeDay)}(태평양 날짜)` : ''}</p><p class="hint">라인 지원이 열릴 때와 경기 결과를 저장할 때 디스코드 채널에 알림이 올라갑니다. 라이엇 갱신은 선수의 라이엇 ID(이름#태그)로 솔랭 티어·전적을 채우며, 한 사람은 하루 한 번만 갱신됩니다.</p>` : ''}</div>
-
-    <div class="panel"><div class="ph"><b>${ic('users')}선수 관리</b><span class="tag">${st.list.length}명</span><span class="grow"></span><button class="btn xs" data-a="scOut" title="점수 조정을 맡길 사람에게 줄 파일(이름·라인 점수만 들어 있음)">⬇ 점수표 파일</button><button class="btn xs" data-a="scIn" title="조정자가 고친 점수표 파일을 올려 반영(관리자 PIN 필요)">⬆ 점수표 올리기</button><button class="btn xs" data-a="slOpen" title="최근 라인 점수 변경을 익명 게시판 댓글·단톡방에 붙여 넣을 글로 정리">📋 변경 내역 복사</button><button class="btn pri xs" data-a="plEdit" data-id="">＋ 선수 추가</button></div>
-      <div class="lockbar ${adm ? 'open' : ''}">${adm ? `${ic('shield')}<b>관리자 모드</b><span>점수와 주라인을 칸에서 바로 고치면 즉시 저장됩니다. 이 창을 닫기 전까지 유지됩니다.</span><button class="btn xs" data-a="admLock">잠그기</button>` : `${ic('shield')}<b>잠겨 있음</b><span>관리자 PIN을 한 번 입력하면 모든 선수의 점수를 바로 수정할 수 있습니다.</span><button class="btn gold xs" data-a="admUnlock">관리자 PIN 입력</button>`}</div>
-      <div class="tw scw"><table class="tbl edit score ${adm ? '' : 'locked'}"><thead><tr><th class="no">#</th><th class="l">이름</th>${LANES.map((l) => `<th class="lh l-${l}">${LANE_ICON[l]}${LANE_NAME[l]}</th>`).join('')}<th>평균</th><th>주라인</th><th class="l">솔랭 티어</th><th>시작 MMR</th><th></th></tr></thead>
-      <tbody>${st.list.map((s, i) => `<tr><td class="no mono">${i + 1}</td><td class="l nm"><span class="nmc">${LANE_ICON[s.mainLane]}${esc(s.name)}</span></td>${LANES.map((l) => `<td class="scd l-${l} ${s.mainLane === l ? 'main' : ''}" style="--v:${Math.min(100, (+s.p.scores?.[l] || 0) * 5)}%"><input id="sc-${s.id}-${l}" class="inp cell mono" type="number" min="0" max="20" step="0.5" value="${s.p.scores?.[l] ?? 0}" data-c="plScore" data-id="${s.id}" data-l="${l}" ${adm ? '' : 'disabled'}></td>`).join('')}<td class="num mono avg"><b>${s.avg.toFixed(1)}</b></td><td><select class="inp cell" data-c="plMain" data-id="${s.id}" ${adm ? '' : 'disabled'}>${LANES.map((l) => `<option value="${l}" ${s.mainLane === l ? 'selected' : ''}>${LANE_NAME[l]}</option>`).join('')}</select></td><td class="l tier">${esc(s.p.soloTier || '-')}</td><td class="num mono">${s.mmrInit}</td><td><button class="btn xs" data-a="plEdit" data-id="${s.id}">상세</button></td></tr>`).join('') || '<tr><td colspan="11" class="empty">선수가 없습니다.</td></tr>'}</tbody></table></div>
-      ${gone.length ? `<p class="sm mut">숨긴 선수: ${gone.map((p) => `${esc(p.name)} <button class="btn xs ghost" data-a="plRestore" data-id="${p.id}">복구</button>`).join(' ')}</p>` : ''}</div>
-
-    ${luckAdminHTML(st)}
-
-    ${gachaAdminHTML()}
-
-    <div class="panel"><div class="ph"><b>${ic('admin')}설정</b></div>
+      ${UZ.riot ? `<p class="sm">${esc(UZ.riot)}</p>` : ''}<p class="hint">${ic('shield')} <b>자동 쉬기</b>: 오늘 Firebase 무료 한도(읽기·쓰기·삭제 중 하나)의 95%를 넘으면 연동 서버가 그날 사이트를 쉬게 해요(30분마다 확인). 한국 시간 오후 4~5시에 자동으로 다시 열리고, 쉬기 화면의 '관리자: 지금 다시 열기'로 바로 열 수 있어요(그날은 다시 쉬지 않음).${S.store.data.meta?.pause?.resumeDay ? ` 최근 관리자가 다시 연 날: ${esc(S.store.data.meta.pause.resumeDay)}(태평양 날짜)` : ''}</p><p class="hint">라인 지원이 열릴 때와 경기 결과를 저장할 때 디스코드 채널에 알림이 올라갑니다. 라이엇 갱신은 선수의 라이엇 ID(이름#태그)로 솔랭 티어·전적을 채우며, 한 사람은 하루 한 번만 갱신됩니다.</p>` : ''}</div>`,
+      config: () => `<div class="adm-2"><div class="adm-col"><div class="panel"><div class="ph"><b>${ic('admin')}설정</b></div>
       <form id="cfgf" class="fgrid">
         <label class="fld"><span>리그 이름</span><input class="inp" name="leagueName" value="${esc(cfg.leagueName)}"></label>
         <label class="fld"><span>예상승률 스케일 <small class="mut">(작을수록 점수 차에 민감)</small></span><input class="inp" name="scale" type="number" step="0.5" value="${cfg.scale}"></label>
@@ -80,15 +90,19 @@ page('admin', {
         <label class="fld"><span>&nbsp;</span><button class="btn pri">설정 저장</button></label>
       </form>
       <p class="hint">예상승률 = 1 / (1 + 10^(−점수차/스케일)). 현재 10점 차 = ${Math.round(100 / (1 + Math.pow(10, -10 / cfg.scale)))}%. MMR은 솔랭 티어를 시작값으로 경기마다 Elo 방식으로 변합니다.</p>
-      <div class="row wrapr"><button class="btn ghost" data-a="pinChange">${ic('lock')}관리자 PIN 변경</button><span class="mut sm">리그 코드: ${esc(S.key)}</span></div></div>
-
-    ${del.length ? `<div class="panel"><div class="ph"><b>${ic('trash')}삭제된 경기</b></div>${del.map((m) => `<div class="kv"><span>${fmtDT(m.at)} · ${m.blue.map(pname).join(' ')} vs ${m.red.map(pname).join(' ')}</span><button class="btn xs" data-a="mRestore" data-id="${m.id}">복구</button></div>`).join('')}</div>` : ''}
-
-    <div class="panel"><div class="ph"><b>${ic('scroll')}칭호 도감</b><small class="mut">${TITLES.length}종</small></div>
-      <div class="dogam">${TITLES.map((t) => { const own = st.list.filter((s) => s.titles.includes(t)); return `<div><b>${t.e} ${t.n}</b><span>${esc(t.d)}</span><small>${own.length ? own.map((s) => esc(s.name)).join(', ') : '—'}</small></div>`; }).join('')}</div></div>`;
+      <div class="row wrapr"><button class="btn ghost" data-a="pinChange">${ic('lock')}관리자 PIN 변경</button><span class="mut sm">리그 코드: ${esc(S.key)}</span></div></div></div><div class="adm-col"><div class="panel"><div class="ph"><b>${ic('save')}내보내기 · 백업</b></div>
+      <div class="row wrapr"><button class="btn" data-a="exportCsv">⬇ 경기 기록 CSV</button><button class="btn" data-a="exportPlayers">⬇ 선수 CSV</button><button class="btn" data-a="backup">⬇ 전체 백업 (JSON)</button><button class="btn ghost" data-a="restore">⬆ 백업 복원</button></div>
+      <div class="row wrapr"><span class="mut sm">로고 내려받기</span><a class="btn xs" href="brand/naejeonpot-logo-1024.png" download>⬇ PNG 1024</a><a class="btn xs" href="brand/naejeonpot-logo-512.png" download>⬇ PNG 512</a><a class="btn xs" href="brand/naejeonpot-icon-512.png" download title="아래 MAISON 글씨 없는 아이콘">⬇ 아이콘 PNG</a><a class="btn xs ghost" href="brand/naejeonpot-logo.svg" download title="확대해도 깨지지 않는 벡터 파일">⬇ SVG</a></div>
+      <p class="hint">${S.store.mode === 'local' ? `${ic('alert')}` + ' 지금은 체험 모드라 데이터가 이 브라우저에만 저장됩니다. Firebase를 연결하면 친구들과 실시간으로 공유됩니다(README 참고).' : '데이터는 Firebase에 저장됩니다. Firestore 무료 요금제는 오래 안 써도 일시정지되지 않지만, 가끔 전체 백업을 내려받아 두세요.'}</p></div>
+        ${del.length ? `<div class="panel"><div class="ph"><b>${ic('trash')}삭제된 경기</b></div>${del.map((m) => `<div class="kv"><span>${fmtDT(m.at)} · ${m.blue.map(pname).join(' ')} vs ${m.red.map(pname).join(' ')}</span><button class="btn xs" data-a="mRestore" data-id="${m.id}">복구</button></div>`).join('')}</div>` : ''}</div></div>`,
+      titles: () => `<div class="panel"><div class="ph"><b>${ic('scroll')}칭호 도감</b><small class="mut">${TITLES.length}종</small></div>
+      <div class="dogam">${TITLES.map((t) => { const own = st.list.filter((s) => s.titles.includes(t)); return `<div><b>${t.e} ${t.n}</b><span>${esc(t.d)}</span><small>${own.length ? own.map((s) => esc(s.name)).join(', ') : '—'}</small></div>`; }).join('')}</div></div>`,
+    };
+    return `<h1>${ic('admin')}관리</h1>${admTabsHTML(tab, del.length)}<div class="adm-body" data-t="${tab}">${V[tab]()}</div>`;
   },
   after() {
     loadUsage(false);
+    if (hookOn() && !WV.r && !WV.busy) { WV.busy = true; workerVer().then((r) => { WV.r = r; WV.busy = false; const el = document.getElementById('wkver'); if (el) el.innerHTML = verHTML(); admTabsRefresh(); }); }
     const f = document.getElementById('cfgf');
     if (f) f.onsubmit = (e) => { e.preventDefault(); const d = new FormData(f); needAdmin(async () => { await S.store.patch('meta', 'settings', { leagueName: d.get('leagueName').trim() || DEFAULTS.leagueName, scale: Math.max(1, +d.get('scale') || DEFAULTS.scale), k: Math.max(0, +d.get('k') || DEFAULTS.k), notice: String(d.get('notice') || '').trim().slice(0, 300) }); toast('설정을 저장했습니다'); }); };
   },

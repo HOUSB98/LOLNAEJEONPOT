@@ -13,7 +13,7 @@ const MOVE = { top: '탑 솔로킬', jg: '정글 장악', mid: '미드 로밍', 
 function listView() {
   const st = S.st, n = st.list.length;
   const seg = `<div class="seg">${[['card', '카드'], ['solo', '솔랭 분석']].map(([k, t]) => `<button class="${PV.view === k ? 'on' : ''}" data-a="pvView" data-v="${k}">${t}</button>`).join('')}</div>`;
-  if (!n) return `<h1>${ic('players')}선수 카드</h1><div class="panel empty">등록된 선수가 없습니다.<br><a class="btn pri" href="#/admin">관리에서 선수 추가 / 시트 데이터 가져오기</a></div>`;
+  if (!n) return `<h1>${ic('players')}선수 카드</h1><div class="panel empty">등록된 선수가 없습니다.<br><a class="btn pri" href="#/admin/players">관리에서 선수 추가 / 시트 데이터 가져오기</a></div>`;
   if (PV.view === 'solo') {
     return `<div class="h2row"><h1>${ic('target')}솔랭 분석</h1><span class="grow"></span>${seg}</div>
     <p class="hint">솔랭 티어는 내전 MMR 초기값으로 쓰입니다. 내용은 관리 &gt; 선수 상세 수정에서 고칠 수 있습니다.</p>
