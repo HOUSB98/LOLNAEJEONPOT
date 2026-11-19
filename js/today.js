@@ -186,7 +186,7 @@ page('today', {
     };
     const duo = (side) => { const b = bestDuo(d[side], st); return b ? `<span class="${side}">${pname(b.a)} + ${pname(b.b)} <b class="mono">${pct(b.w, b.g)}%</b> <small>${b.g}판</small></span>` : `<span class="mut">${side === 'blue' ? '블루' : '레드'} — 함께한 기록 부족</span>`; };
     return `<div class="h2row"><h1>${ic('today')}${edit ? `경기 수정 <span class="mono">#${st.MI[edit.id]?.no ?? ''}</span>` : '오늘의 내전'}</h1><span class="tag ${full ? 'ok' : ''}">${filled}/10 배치</span><span class="grow"></span>
-      ${edit ? '<a class="btn" href="#/matches">취소</a>' : `<button class="btn gold" data-a="tAi" ${full ? '' : 'disabled'} title="${full ? '라인은 그대로 두고, 점수 차이가 가장 작아지도록 블루·레드를 나눕니다 (높은 원딜·높은 서폿은 같은 팀 안 됨)' : '10명을 모두 배치하면 쓸 수 있어요'}">${ic('bolt')}AI<span class="m-hide"> 추천</span></button><button class="btn gold gbtn ${boardLive() ? 'bd-on' : ''}" data-a="tBoard" title="라인 지원: 모두 함께 원하는 라인 고르기 → 몰린 라인은 추첨">${ic('users')}<span>${boardLive() ? '라인 지원 중' : '라인 지원'}</span></button><button class="btn gold" data-a="tDice">${ic('dice')}라인 주사위</button>${ddMenu(`<button data-a="tSwap">${ic('swap')}진영 교체</button><button class="danger" data-a="tClear">${ic('trash')}비우기</button>`)}`}</div>
+      ${edit ? '<a class="btn" href="#/matches">취소</a>' : `${hookOn() ? liveBtn(full) : ''}<button class="btn gold" data-a="tAi" ${full ? '' : 'disabled'} title="${full ? '라인은 그대로 두고, 점수 차이가 가장 작아지도록 블루·레드를 나눕니다 (높은 원딜·높은 서폿은 같은 팀 안 됨)' : '10명을 모두 배치하면 쓸 수 있어요'}">${ic('bolt')}AI<span class="m-hide"> 추천</span></button><button class="btn gold gbtn ${boardLive() ? 'bd-on' : ''}" data-a="tBoard" title="라인 지원: 모두 함께 원하는 라인 고르기 → 몰린 라인은 추첨">${ic('users')}<span>${boardLive() ? '라인 지원 중' : '라인 지원'}</span></button><button class="btn gold" data-a="tDice">${ic('dice')}라인 주사위</button>${ddMenu(`<button data-a="tSwap">${ic('swap')}진영 교체</button><button class="danger" data-a="tClear">${ic('trash')}비우기</button>`)}`}</div>
     <section class="arena">
       <div class="scorebar"><div class="sb blue"><small>BLUE TEAM</small><b class="mono">${ev.bs.toFixed(1)}</b><span>평균 MMR ${ev.mmrB ? Math.round(ev.mmrB) : '—'}</span></div>
         <div class="sb-mid">${winRing(pb, full, any, filled)}</div>
@@ -202,7 +202,7 @@ page('today', {
     <div class="sec-h"><h2>${ic('rank')}경기 결과 기록</h2>${edit ? '' : sr ? `<span class="tag ok">시리즈 ${sr.ms.length + 1}번째 판</span><span class="mut sm">피어리스: 사용된 챔피언 ${Object.keys(seriesUsed(sid)).length}개 잠김</span><label class="mini"><input type="checkbox" data-c="tNew" ${d.newSeries ? 'checked' : ''}> 새 시리즈로 시작</label>` : '<span class="tag">새 시리즈 1번째 판</span>'}</div>
     <div class="panel">
       <div class="winrow"><button class="wbtn blue ${d.winner === 'blue' ? 'on' : ''}" data-a="tWin" data-w="blue"><small>BLUE</small>블루 승리</button><button class="wbtn red ${d.winner === 'red' ? 'on' : ''}" data-a="tWin" data-w="red"><small>RED</small>레드 승리</button></div>
-      ${hookOn() && !edit ? liveBar(full) : ''}
+      ${hookOn() && !edit && LV.note ? `<p class="sm lv-note ${LV.bad ? 'bad' : 'mut'}">${esc(LV.note)}</p>` : ''}
       <button class="btn block ghost" data-a="tMore">${d.more ? '밴 · KDA · 시간 접기' : '밴 · KDA · 경기 시간 입력 (선택)'}</button>
       ${d.more ? `<div class="more">
         ${['blue', 'red'].map((s) => `<div class="banrow"><small>${s === 'blue' ? 'BLUE BAN' : 'RED BAN'}</small>${d.bans[s].map((b, i) => `<button class="sl-champ" data-a="tBan" data-s="${s}" data-i="${i}">${b ? champIcon(b) : `<span class="ci plus">${ic('plus')}</span>`}</button>`).join('')}</div>`).join('')}
@@ -277,12 +277,10 @@ act('tKda', (d, el) => {
 // (기다리는 동안 라이엇 호출은 30초에 2~6번, Firestore 읽기·쓰기 없음). 찾으면 라인업 동기화(meta/todayDraft)로 모두의 화면에 반영된다.
 const LV = { busy: false, until: 0, t: 0, start: 0, note: '', bad: false };
 const LIVE_WAIT = 6 * 60e3, LIVE_EVERY = 30e3;
-function liveBar(full) {
-  const btn = LV.until
-    ? `<div class="lv-wait">${ic('eye')}<p><b>게임 시작을 기다리는 중…</b><small>로딩 화면이 뜨면 자동으로 채워요 · 최대 6분</small></p><button class="btn ghost xs" data-a="tLiveStop">그만</button></div>`
-    : `<button class="btn block gold" data-a="tLive" ${full && !LV.busy ? '' : 'disabled'} title="${full ? '진행 중인 롤 게임에서 10명의 챔피언과 밴을 가져와 채웁니다' : '10명을 모두 배치하면 쓸 수 있어요'}">${ic('eye')}${LV.busy ? '게임을 찾는 중…' : '게임에서 챔피언 · 밴 불러오기'}</button>`;
-  const note = LV.note || (LV.until ? '' : '밴픽이 끝나고 로딩 화면이 뜨면 눌러 주세요. 미리 눌러 두면 게임이 시작될 때 자동으로 채워요.');
-  return `${btn}${note ? `<p class="sm lv-note ${LV.bad ? 'bad' : 'mut'}">${esc(note)}</p>` : '<div class="lv-gap"></div>'}`;
+// 머리 버튼(AI 추천 왼쪽): 평소 '실시간 불러오기' → 찾는 중 → 게임 전이면 '대기 중'(누르면 그만). 결과·오류 안내는 경기 결과 기록 칸 위 한 줄 + 알림
+function liveBtn(full) {
+  if (LV.until) return `<button class="btn gold lv-on" data-a="tLiveStop" title="게임 시작을 기다리는 중이에요. 로딩 화면이 뜨면 자동으로 채워요(최대 6분). 누르면 그만 기다려요">${ic('eye')}대기 중</button>`;
+  return `<button class="btn gold" data-a="tLive" ${full && !LV.busy ? '' : 'disabled'} title="${full ? '진행 중인 롤 게임에서 10명의 챔피언과 밴을 가져와 채워요. 밴픽이 끝나고 로딩 화면이 뜨면 누르고, 미리 누르면 게임이 시작될 때 자동으로 채워요' : '10명을 모두 배치하면 쓸 수 있어요'}">${ic('eye')}${LV.busy ? '찾는 중…' : '<span class="m-hide">실시간 </span>불러오기'}</button>`;
 }
 const liveStop = () => { clearTimeout(LV.t); LV.t = 0; LV.until = 0; };
 act('tLive', () => {
@@ -291,7 +289,7 @@ act('tLive', () => {
   LV.start = 0; LV.note = ''; LV.bad = false;
   liveTry(false);
 });
-act('tLiveStop', () => { liveStop(); LV.note = '기다리기를 멈췄어요'; LV.bad = false; refresh(); });
+act('tLiveStop', () => { liveStop(); LV.note = ''; toast('기다리기를 멈췄어요'); refresh(); });
 async function liveTry(quick) {
   LV.t = 0; LV.busy = true; refresh();
   let res;
@@ -300,17 +298,17 @@ async function liveTry(quick) {
   LV.busy = false;
   if (S.page === 'today' && S.arg[0] === 'edit') { liveStop(); LV.note = ''; return refresh(); } // 지난 경기 수정 화면으로 옮겼으면 그만
   // 처음 누른 때의 오류는 바로 알리고, 기다리는 중의 잠깐 오류(연결·호출 한도)는 다음 확인에서 다시 시도한다. 키·닉네임 문제는 기다려도 안 되니 멈춘다
-  if (res.error && (!LV.until || /키|닉네임/.test(res.error))) { liveStop(); LV.note = '불러오기 실패: ' + res.error; LV.bad = true; return refresh(); }
+  if (res.error && (!LV.until || /키|닉네임/.test(res.error))) { liveStop(); LV.note = '불러오기 실패: ' + res.error; LV.bad = true; toast(LV.note); return refresh(); }
   if (!res.found) {
     if (!LV.until) { LV.until = Date.now() + LIVE_WAIT; toast('아직 게임이 시작되지 않았어요. 로딩 화면이 뜨면 자동으로 채울게요'); }
-    if (Date.now() + LIVE_EVERY > LV.until) { liveStop(); LV.note = '6분 동안 진행 중인 게임을 찾지 못했어요. 게임이 시작된 뒤 다시 눌러 주세요'; LV.bad = true; }
+    if (Date.now() + LIVE_EVERY > LV.until) { liveStop(); LV.note = '6분 동안 진행 중인 게임을 찾지 못했어요. 게임이 시작된 뒤 다시 눌러 주세요'; LV.bad = true; toast(LV.note); }
     else { LV.start += 3; LV.t = setTimeout(() => liveTry(true), LIVE_EVERY); }
     return refresh();
   }
   liveStop();
   const { planLive } = await import('./live.js');
   const dr = D(), plan = planLive(dr, res);
-  if (plan.error) { LV.note = plan.error; LV.bad = true; return refresh(); }
+  if (plan.error) { LV.note = plan.error; LV.bad = true; toast('불러오지 않았어요 · 경기 결과 기록 칸의 안내를 확인해 주세요'); return refresh(); }
   dr.blue = plan.blue; dr.red = plan.red; dr.champs = plan.champs; dr.winner = plan.winner;
   if (plan.bans) dr.bans = plan.bans;
   if (plan.nb) dr.more = true; // 밴을 채웠으면 밴 입력 칸을 펼쳐서 보여 준다
