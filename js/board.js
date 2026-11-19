@@ -445,6 +445,9 @@ async function play(d) {
   if (!view()) modal('<div class="lp"></div>', 'lp-sheet');
   const el = view();
   BD.playing = d.rid; BD.d = d; BD.skipped = false;
+  // 서버 시각은 접속할 때 미리 맞추지 않으므로, 다른 사람이 시작한 추첨을 볼 때 여기서 맞춘다(모두 같은 순간에 같은 장면).
+  // 시작까지 1.8초 여유가 있어 보통 기다림이 느껴지지 않고, 늦게 들어온 사람도 진행 중인 위치부터 정확히 보인다.
+  if (!S.store.serverClockReady?.()) { await S.store.clockSoon?.(1500); if (BD.playing !== d.rid) return; }
   const steps = (d.steps || []).filter((s) => s.kind === 'roll' && !s.fill && s.pick.length);
   const start = +d.startAt || now();
   let t = start + (steps.length ? T_INTRO : 0);

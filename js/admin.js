@@ -201,7 +201,8 @@ act('scIn', () => needAdmin(() => {
   };
   inp.click();
 }));
-act('backup', () => download(`내전_백업_${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ at: Date.now(), players: col('players'), matches: col('matches'), auctions: col('auctions'), meta: col('meta') }), 'application/json'));
+// 경매 기록은 경매 화면에서만 구독하므로, 백업할 때는 한 번 받아서 넣는다(경매 화면이 아니면 1분 뒤 구독 해제)
+act('backup', async () => { if (S.store.loaded?.('auctions') === false) { toast('경매 기록을 받는 중…'); await S.store.need('auctions'); if (S.page !== 'auction') setTimeout(() => S.page !== 'auction' && S.store.unneed?.('auctions'), 60e3); } download(`내전_백업_${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ at: Date.now(), players: col('players'), matches: col('matches'), auctions: col('auctions'), meta: col('meta') }), 'application/json'); });
 act('restore', () => needAdmin(() => {
   const inp = Object.assign(document.createElement('input'), { type: 'file', accept: '.json' });
   inp.onchange = async () => {

@@ -33,12 +33,19 @@ const face = (nick) => { const l = playerOf(nick)?.mainLane, c = LANE_COLOR[l]; 
 const KICK_MS = 10 * 60e3;
 const kickedUntil = (id = cid) => +(S.store.data.meta?.kicks?.[id] || 0);
 const isKicked = (id = cid) => kickedUntil(id) > Date.now();
+// 신호를 보낼 때마다 모든 접속자가 그 문서를 다시 읽는다. 롤과 창을 오갈 때(화면이 다시 보일 때)는 5분에 한 번까지만 보낸다.
+// 표시 기준은 12분이고 10분마다 정기 신호가 가므로 접속 중 표시는 그대로다. 나감 표시(at:0)를 보낸 뒤에는 바로 다시 보낸다.
+let lastBeat = 0, byeSent = false;
+const VISIBLE_BEAT_MS = 5 * 60e3;
 function beat(off) {
   if (!nick()) return;
-  if (off) return S.store.bye('presence', cid, 'at', 0); // 탭 닫기·숨김 직전에도 끝까지 전송되는 방식
+  if (off) { byeSent = true; return S.store.bye('presence', cid, 'at', 0); } // 탭 닫기·숨김 직전에도 끝까지 전송되는 방식
   if (isKicked()) return;
-  S.store.put('presence', cid, { nick: nick(), at: Date.now() }).catch(() => {});
+  const at = Date.now();
+  byeSent = false; lastBeat = at;
+  S.store.put('presence', cid, { nick: nick(), at }).catch(() => { if (lastBeat === at) lastBeat = 0; }); // 실패하면 다음에 바로 다시 보낸다
 }
+const beatIfStale = () => { if (byeSent || Date.now() - lastBeat >= VISIBLE_BEAT_MS) beat(); };
 const online = () => col('presence').filter((p) => p.nick && Date.now() - p.at < ONLINE_MS && !isKicked(p.id)).sort((a, b) => (a.id === cid ? -1 : b.id === cid ? 1 : a.nick.localeCompare(b.nick, 'ko')));
 // 입장·퇴장 알림(왼쪽 아래). 처음 화면을 그릴 때 이미 있던 사람은 알리지 않는다.
 let prevOn = null, prSig = '';
@@ -114,6 +121,7 @@ function trayHTML() {
 }
 act('chatStkTab', (d) => { stkTab = d.t; const el = document.getElementById('chattray'); if (el) el.innerHTML = trayHTML(); });
 let unread = 0, lastSeenAt = +localStorage.getItem('naejeon:chatseen') || 0, lastChatAt = 0, tray = false;
+let chatQ = Promise.resolve(); // 채팅 전송 순서 유지용(서버 시각을 맞추는 동안 다음 메시지가 앞지르지 않게)
 const isOpen = () => !document.body.classList.contains('chat-closed');
 const msgs = () => col('chat').filter((m) => !m.deleted && m.at > (+settings().chatClearedAt || 0)).sort((a, b) => a.at - b.at || a.id.localeCompare(b.id));
 function send(kind, text) {
@@ -121,10 +129,14 @@ function send(kind, text) {
   if (!nick()) { askNick(true); return false; }
   // 기기 시계 차이로 메시지 순서가 뒤섞이지 않게 서버 시각을 기준으로 하고,
   // 같은 기기에서 연속 전송해도 타임스탬프가 겹치지 않게 한다.
-  const now = Math.max(S.store.serverNow?.() ?? Date.now(), lastChatAt + 1);
-  lastChatAt = now;
-  const id = now.toString(36) + Math.random().toString(36).slice(2, 6);
-  S.store.put('chat', id, { at: now, cid, nick: nick(), k: kind, t: String(text).slice(0, 200) }).catch((e) => toast('전송 실패: ' + (e.code || e.message)));
+  // 서버 시각은 필요할 때만 맞춘다(30분 안에 맞췄으면 바로, 아니면 최대 2.5초 기다림). 보내는 순서는 그대로 지킨다.
+  const t = String(text).slice(0, 200), who = nick();
+  chatQ = chatQ.then(() => S.store.clockSoon?.()).then(() => {
+    const now = Math.max(S.store.serverNow?.() ?? Date.now(), lastChatAt + 1);
+    lastChatAt = now;
+    const id = now.toString(36) + Math.random().toString(36).slice(2, 6);
+    return S.store.put('chat', id, { at: now, cid, nick: who, k: kind, t }).catch((e) => toast('전송 실패: ' + (e.code || e.message)));
+  });
   return true;
 }
 export function sendLobbyChat(text) {
@@ -134,9 +146,12 @@ export function sendLobbyChat(text) {
 }
 // 다른 화면에서 쓰는 알림 메시지 (경기 저장, 주사위 결과 등)
 export function sysChat(text) {
-  const now = Math.max(S.store.serverNow?.() ?? Date.now(), lastChatAt + 1);
-  lastChatAt = now;
-  S.store.put('chat', now.toString(36) + Math.random().toString(36).slice(2, 6), { at: now, cid, nick: nick() || '익명', k: 'sys', t: String(text).slice(0, 200) }).catch(() => {});
+  const t = String(text).slice(0, 200), who = nick() || '익명';
+  chatQ = chatQ.then(() => S.store.clockSoon?.()).then(() => {
+    const now = Math.max(S.store.serverNow?.() ?? Date.now(), lastChatAt + 1);
+    lastChatAt = now;
+    return S.store.put('chat', now.toString(36) + Math.random().toString(36).slice(2, 6), { at: now, cid, nick: who, k: 'sys', t }).catch(() => {});
+  });
 }
 function buildChat() {
   document.getElementById('chat').innerHTML = `
@@ -260,7 +275,9 @@ export function initSocial() {
   setInterval(beat, BEAT_MS);
   addEventListener('xmaschange', renderPresence);
   setInterval(renderPresence, 10e3); // 신호가 끊긴 사람을 목록에서 내린다
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') beat(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') beatIfStale(); });
+  // 글을 쓰기 시작하면(채팅·게시판·경매 채팅 입력칸) 미리 서버 시각을 맞춰 둔다. 보낼 때 기다리지 않게
+  document.addEventListener('focusin', (e) => { if (e.target.matches?.('#chatinp, #tkb, [data-i="cmT"]')) S.store.clockSoon?.(); });
   addEventListener('pagehide', () => beat(true));
   addEventListener('pageshow', (e) => { if (e.persisted) beat(); });
 }
@@ -269,7 +286,7 @@ export function initSocial() {
 // 채팅 전체 삭제는 문서를 지우지 않고 "이 시각 이전 글은 숨김" 기준 시각만 설정에 적는다(모두의 화면에서 한 번에 사라진다).
 act('chatClear', () => needAdmin(async () => {
   if (!confirm('채팅창의 모든 메시지를 지울까요? 모든 사람의 화면에서 사라집니다.')) return;
-  try { await S.store.patch('meta', 'settings', { chatClearedAt: S.store.serverNow?.() ?? Date.now() }); toast('채팅을 모두 지웠습니다'); } catch (e) { toast('삭제 실패: ' + (e.code || e.message)); }
+  try { await S.store.clockSoon?.(); await S.store.patch('meta', 'settings', { chatClearedAt: S.store.serverNow?.() ?? Date.now() }); toast('채팅을 모두 지웠습니다'); } catch (e) { toast('삭제 실패: ' + (e.code || e.message)); }
 }));
 function closeCtx() { document.getElementById('ctx')?.remove(); }
 function openCtx(x, y, id, name) {

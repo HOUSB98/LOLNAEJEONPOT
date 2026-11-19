@@ -3,9 +3,11 @@
 //   put / patch / tx : 쓰기. 삭제는 없다(문서에 deleted:true 를 표시하는 방식).
 import { FIREBASE_CONFIG } from './config.js';
 
-// 읽기 줄이기: 경기 기록은 바뀐 것만(upd), 접속 표시는 최근 하루, 채팅 30·게시판 10개만 실시간, 라인 지원·주사위는 meta 구독 하나로.
+// 읽기 줄이기: 경기 기록은 바뀐 것만(upd), 접속 표시는 최근 15분, 채팅 30·게시판 10개만 실시간, 라인 지원·주사위는 meta 구독 하나로.
 // reveals(승률 공개 이벤트)는 계속 쌓이는 기록이라 전체를 구독하지 않고 watchCollection으로 최근 것만 따로 듣는다.
-const WATCHED = ['players', 'matches', 'auctions', 'meta', 'presence', 'chat', 'posts'];
+// 경매(auctions)는 경매 화면을 연 사람만 need()로 구독한다(입찰마다 모든 접속자가 다시 읽지 않게).
+const WATCHED = ['players', 'matches', 'meta', 'presence', 'chat', 'posts'];
+const PRESENCE_MS = 15 * 60e3; // 접속 표시는 12분 안에 신호가 있는 사람만 보이므로, 처음 읽을 때 15분 안의 기록만 받는다
 const CHAT_LIMIT = 30; // 채팅은 문서가 계속 쌓이므로 최근 30개만 구독한다(기록 자체는 DB에 남는다)
 const POST_LIMIT = 10; // 익명 게시판도 최근 10개만 실시간으로 받고, 이전 글은 '더 보기'를 누를 때 10개씩 한 번만 읽는다
 const clean = (o) => JSON.parse(JSON.stringify(o)); // Firestore는 undefined를 받지 않는다
@@ -19,7 +21,7 @@ function localStore(key, onChange) {
   const k = (col) => `naejeon:${key}:${col}`;
   const load = (col) => { try { return JSON.parse(localStorage.getItem(k(col))) || {}; } catch { return {}; } };
   const data = {};
-  WATCHED.concat('history', 'reveals', 'gacha').forEach((c) => (data[c] = load(c)));
+  WATCHED.concat('auctions', 'history', 'reveals', 'gacha').forEach((c) => (data[c] = load(c)));
   const subs = {}; // 체험 모드에서도 다른 탭의 이벤트(승률 공개)를 받을 수 있게 한다
   const bc = 'BroadcastChannel' in window ? new BroadcastChannel('naejeon:' + key) : null;
   if (bc) bc.onmessage = (e) => {
@@ -37,6 +39,8 @@ function localStore(key, onChange) {
     serverNow: () => Date.now(),
     serverClockReady: () => true,
     syncServerClock: async () => 0,
+    clockSoon: async () => 0,
+    need: async () => {}, unneed() {}, loaded: () => true, // 체험 모드는 모든 컬렉션을 이미 들고 있다
     watchDoc: (col, id, onData) => {
       onData(data[col]?.[id] || null);
       return () => {};
@@ -100,8 +104,10 @@ async function firebaseStore(key, onChange) {
   };
 
   const serverNow = () => Date.now() + clockOffset;
-  // 백그라운드에서 한 번 동기화한다. 실패해도 사이트의 기존 기능은 그대로 동작한다.
-  syncServerClock();
+  // 접속할 때마다 맞추지 않는다(쓰기 1·읽기 1 절약). 서버 시각이 필요한 일(채팅·글 시각, 라인 지원·주사위·경매 연출)을 하기 직전에만 맞춘다.
+  // clockSoon: 30분 안에 맞춘 적이 있으면 그대로 쓰고, 아니면 맞춘다(최대 ms 기다림. 실패·지연 시에도 사이트는 기기 시계로 계속 동작).
+  const clockSoon = (ms = 2500) => (clockSyncedAt && performance.now() - clockSyncedAt < 30 * 60e3 ? Promise.resolve(clockOffset)
+    : Promise.race([syncServerClock(), new Promise((r) => setTimeout(() => r(clockOffset), ms))]));
 
   const data = { history: {} };
   let pending = WATCHED.length, done;
@@ -135,7 +141,7 @@ async function firebaseStore(key, onChange) {
     const src = fs.collection(db, 'leagues', key, col);
     const lim = col === 'chat' ? CHAT_LIMIT : col === 'posts' ? POST_LIMIT : 0;
     let q = lim ? fs.query(src, fs.orderBy('at', 'desc'), fs.limit(lim)) : src, base = null, inc = false;
-    if (col === 'presence') q = fs.query(src, fs.where('at', '>', Date.now() - 24 * 3600e3)); // 접속 표시는 최근 하루 안의 기록만(표시는 원래 12분 안의 사람만)
+    if (col === 'presence') q = fs.query(src, fs.where('at', '>', Date.now() - PRESENCE_MS)); // 그 뒤에 들어오는 신호는 at 이 더 크므로 계속 받는다
     if (col === 'matches') { ({ q, base, inc } = await matchesQuery(src)); if (inc) { data[col] = { ...base }; cached[col] = true; } }
     fs.onSnapshot(q, { includeMetadataChanges: true }, (snap) => {
       const fromServer = !snap.metadata.fromCache, first = !seen[col];
@@ -149,13 +155,28 @@ async function firebaseStore(key, onChange) {
       onChange(col);
     }, (err) => { console.error(err); mark(col); onChange('error', err); });
   });
+  // 화면을 열 때만 구독하는 컬렉션(경매). 캐시에 있으면 바로 보여 주고 서버에서 바뀐 것을 이어 받는다.
+  // unneed 로 끊어도 30분 안에 다시 열면 서버는 바뀐 문서만 보낸다(Firestore 재개 토큰).
+  const LZ = {};
+  const need = (col) => {
+    if (LZ[col]) return LZ[col].ready;
+    let res; const l = (LZ[col] = { got: false, ready: new Promise((r) => (res = r)) });
+    l.unsub = fs.onSnapshot(fs.collection(db, 'leagues', key, col), (snap) => {
+      if (LZ[col] !== l) return;
+      const m = {}; snap.forEach((d) => (m[d.id] = { ...d.data(), id: d.id }));
+      data[col] = m; l.got = true; res(); onChange(col);
+    }, (err) => { console.error(err); l.got = true; res(); onChange('error', err); });
+    return l.ready;
+  };
+  const unneed = (col) => { const l = LZ[col]; if (!l) return; delete LZ[col]; try { l.unsub(); } catch {} };
   // 경기 기록을 쓸 때는 항상 서버 시각으로 upd 를 붙인다(다른 기기가 '바뀐 경기'로 알아보는 기준)
   const stamp = (col, o) => (col === 'matches' ? { ...o, upd: fs.serverTimestamp() } : o);
   return {
     mode: 'firebase', data, ready,
     serverNow,
     serverClockReady: () => !!clockSyncedAt && performance.now() - clockSyncedAt < 5 * 60e3,
-    syncServerClock,
+    syncServerClock, clockSoon,
+    need, unneed, loaded: (col) => WATCHED.includes(col) || !!LZ[col]?.got,
     watchDoc: (col, id, onData, onError) => fs.onSnapshot(ref(col, id), (snap) => {
       if (snap.metadata.fromCache) return; // 캐시의 옛 값은 건너뛴다
       onData(snap.exists() ? { ...snap.data(), id: snap.id } : null, snap);
