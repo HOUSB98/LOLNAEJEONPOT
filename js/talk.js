@@ -1,5 +1,5 @@
 // 익명 게시판: 글쓴이는 누구든 '익명'으로만 보인다(이름·닉네임·기기 정보를 아예 저장하지 않는다).
-// 글마다 비밀번호를 정하고, 그 비밀번호로 본인이 지운다. 비밀번호는 원문이 아니라 해시만 저장한다.
+// 글마다 비밀번호를 정하고, 그 비밀번호로 본인이 고치거나 지운다(글·댓글 모두). 비밀번호는 원문이 아니라 해시만 저장한다.
 // 지운 글은 문서를 없애지 않고 deleted:true 로 표시한다(사이트 공통 규칙).
 import { S, page, act, esc, uid, col, refresh, toast, modal, closeModal, mh, ic, sha, needAdmin } from './core.js';
 import { sysChat } from './social.js';
@@ -113,7 +113,7 @@ function cmBox(p) {
   const btn = `<button class="tk-cb ${c.open ? 'on' : ''}" data-a="cmToggle" data-id="${p.id}" aria-expanded="${c.open}">${ic('talk')}<span>댓글</span>${n ? `<b class="mono">${n}</b>` : ''}</button>`;
   if (!c.open) return { btn, box: '' };
   const box = `<div class="tk-cm">
-      ${shown.map((x) => `<div class="tk-c"><i class="tk-cav">${ic('user')}</i><div class="tk-cb2"><div class="tk-ch"><b>익명</b><small class="mut" title="${new Date(x.at).toLocaleString('ko')}">${ago(x.at)}</small><span class="grow"></span><button class="btn ghost xs" data-a="cmDel" data-pid="${p.id}" data-id="${x.id}" title="댓글 삭제">${ic('trash')}</button></div><p>${esc(x.body)}</p></div></div>`).join('')}
+      ${shown.map((x) => `<div class="tk-c"><i class="tk-cav">${ic('user')}</i><div class="tk-cb2"><div class="tk-ch"><b>익명</b><small class="mut" title="${new Date(x.at).toLocaleString('ko')}">${ago(x.at)}${x.edited ? ' · 수정됨' : ''}</small><span class="grow"></span><button class="btn ghost xs" data-a="cmEdit" data-pid="${p.id}" data-id="${x.id}" title="댓글 수정">${ic('edit')}</button><button class="btn ghost xs" data-a="cmDel" data-pid="${p.id}" data-id="${x.id}" title="댓글 삭제">${ic('trash')}</button></div><p>${esc(x.body)}</p></div></div>`).join('')}
       ${c.loading ? '<p class="mut sm tk-cl">불러오는 중…</p>' : !c.done && left > 0 ? `<button class="btn ghost xs block tk-cmore" data-a="cmMore" data-id="${p.id}">댓글 더 보기 (${left}개)</button>` : ''}
       ${!shown.length && c.done ? '<p class="mut sm tk-cl">첫 댓글을 남겨 보세요.</p>' : ''}
       <form class="tk-cf" data-pid="${p.id}" onsubmit="return false">
@@ -133,7 +133,7 @@ act('cmPost', async (d) => {
   const post = S.store.data.posts?.[pid] || OLD[pid];
   if (!post || post.deleted) return toast('지워진 글이에요');
   if (!body) return toast('댓글 내용을 적어 주세요');
-  if (pw.length < 4) return toast('삭제용 비밀번호를 4자 이상 정해 주세요');
+  if (pw.length < 4) return toast('수정·삭제용 비밀번호를 4자 이상 정해 주세요');
   const wait = +localStorage.getItem(cmLast()) + CM_COOL - Date.now();
   if (wait > 0) return toast(`${Math.ceil(wait / 1000)}초 뒤에 다시 달 수 있어요`);
   c.busy = true; refresh();
@@ -172,6 +172,30 @@ act('cmDel', (d) => {
     cmRemove(d.pid, x.id, 'author');
   };
 });
+// 댓글 수정: 댓글을 달 때 정한 비밀번호가 맞으면 내용만 바꾼다(edited 에 고친 시각)
+act('cmEdit', (d) => {
+  const x = cmOf(d.pid).list.find((y) => y.id === d.id); if (!x) return;
+  const el = modal(`${mh(`${ic('edit')}댓글 수정`)}
+    <form class="col" id="cmef"><textarea class="inp" id="cmeb" maxlength="${CM_MAX}" rows="3">${esc(x.body)}</textarea>
+      <div class="row"><input class="inp grow" id="cmep" type="password" autocomplete="off" placeholder="댓글을 달 때 정한 비밀번호"><button class="btn pri">${ic('save')}저장</button></div></form>`);
+  const tb = el.querySelector('#cmeb'), inp = el.querySelector('#cmep'); tb.focus(); tb.setSelectionRange(tb.value.length, tb.value.length);
+  let busy = false;
+  el.querySelector('#cmef').onsubmit = async (e) => {
+    e.preventDefault(); if (busy) return;
+    const body = tb.value.trim().slice(0, CM_MAX);
+    if (!body) return toast('댓글 내용을 적어 주세요');
+    if (body === x.body) return toast('바뀐 내용이 없어요');
+    if (!inp.value) return inp.focus();
+    if ((await cmPw(x.id, inp.value)) !== x.pw) { inp.value = ''; inp.focus(); return toast('비밀번호가 맞지 않아요'); }
+    busy = true;
+    try {
+      const edited = S.store.serverNow?.() || Date.now();
+      await S.store.patch('comments', x.id, { body, edited });
+      Object.assign(x, { body, edited });
+      closeModal(); toast('댓글을 고쳤어요'); refresh();
+    } catch (err) { busy = false; toast('수정 실패: ' + (err.code || err.message)); }
+  };
+});
 act('cmAdminDel', (d) => needAdmin(() => { if (confirm('관리자 권한으로 이 댓글을 지울까요?')) cmRemove(d.pid, d.id, 'admin'); }));
 
 page('talk', {
@@ -184,18 +208,18 @@ page('talk', {
         <div class="tk-who">${ic('user')}<b>익명</b><small>글쓴이는 항상 '익명'으로 표시됩니다</small></div>
         <input id="tkt" class="inp" maxlength="${MAX_TITLE}" placeholder="제목 (선택)" value="${esc(TK.title)}" data-i="tkT" autocomplete="off">
         <textarea id="tkb" class="inp tk-body" maxlength="${MAX_BODY}" placeholder="하고 싶은 말을 자유롭게 적어 주세요. 다른 사람을 불쾌하게 하는 글은 관리자가 지울 수 있어요." data-i="tkB">${esc(TK.body)}</textarea>
-        <div class="tk-row"><label class="tk-pw">${ic('lock')}<input id="tkp" class="inp" type="password" maxlength="20" placeholder="삭제용 비밀번호 (4자 이상)" value="${esc(TK.pw)}" data-i="tkP" autocomplete="new-password"></label>
+        <div class="tk-row"><label class="tk-pw">${ic('lock')}<input id="tkp" class="inp" type="password" maxlength="20" placeholder="수정·삭제용 비밀번호 (4자 이상)" value="${esc(TK.pw)}" data-i="tkP" autocomplete="new-password"></label>
           <small class="mut tk-len">${TK.body.length}/${MAX_BODY}</small><span class="grow"></span>
           <button type="button" class="btn ghost" data-a="tkCancel">취소</button><button type="button" class="btn pri" data-a="tkPost" ${TK.busy ? 'disabled' : ''}>${ic('send')}글 올리기</button></div>
-        <p class="hint">비밀번호는 글을 지울 때 필요해요. 잊어버리면 지울 수 없으니 기억해 두세요.</p>
+        <p class="hint">비밀번호는 글을 고치거나 지울 때 필요해요. 잊어버리면 지울 수 없으니 기억해 두세요.</p>
       </form>`
       : `<button class="panel tk-open" data-a="tkOpen">${ic('user')}<span>익명으로 글 쓰기…</span>${ic('edit')}</button>`;
     return `<div class="h2row"><h1>${ic('talk')}익명 게시판</h1><span class="tag">${total}개</span></div>
       <p class="hint">누가 썼는지 아무도 모릅니다. 글쓴이 정보는 저장되지 않고 모두 <b>익명</b>으로 보입니다.</p>
       ${form}
       <div class="tk-list">${shown.map((p) => `<article class="panel tk-post ${fresh(p) ? 'new' : ''}">
-          <header><i class="tk-av">${ic('user')}</i><b>익명</b><small class="mut" title="${new Date(p.at).toLocaleString('ko')}">${ago(p.at)}</small><span class="grow"></span>
-            <button class="btn ghost xs" data-a="tkDel" data-id="${p.id}" title="글 삭제">${ic('trash')}</button></header>
+          <header><i class="tk-av">${ic('user')}</i><b>익명</b><small class="mut" title="${new Date(p.at).toLocaleString('ko')}">${ago(p.at)}${p.edited ? ' · 수정됨' : ''}</small><span class="grow"></span>
+            <button class="btn ghost xs" data-a="tkEdit" data-id="${p.id}" title="글 수정">${ic('edit')}</button><button class="btn ghost xs" data-a="tkDel" data-id="${p.id}" title="글 삭제">${ic('trash')}</button></header>
           ${p.title ? `<h3>${esc(p.title)}</h3>` : ''}<p class="tk-text">${esc(p.body)}</p>
           ${(() => { const c = cmBox(p); return `<div class="tk-foot">${rxBar(p)}${c.btn}</div>${c.box}`; })()}
         </article>`).join('') || '<div class="panel empty">아직 글이 없어요. 첫 글을 남겨 보세요!</div>'}</div>
@@ -225,7 +249,7 @@ act('tkMore', async () => {
 act('tkPost', async () => {
   const title = TK.title.trim().slice(0, MAX_TITLE), body = TK.body.trim().slice(0, MAX_BODY), pw = TK.pw;
   if (!body) return toast('내용을 적어 주세요');
-  if (pw.length < 4) return toast('삭제용 비밀번호를 4자 이상 정해 주세요');
+  if (pw.length < 4) return toast('수정·삭제용 비밀번호를 4자 이상 정해 주세요');
   const wait = +localStorage.getItem(lastKey()) + COOLDOWN - Date.now();
   if (wait > 0) return toast(`${Math.ceil(wait / 1000)}초 뒤에 다시 올릴 수 있어요`);
   TK.busy = true; refresh();
@@ -259,6 +283,31 @@ act('tkDel', (d) => {
     if (!inp.value) return;
     if ((await hashPw(p.id, inp.value)) !== p.pw) { inp.value = ''; inp.focus(); return toast('비밀번호가 맞지 않아요'); }
     remove(p.id, 'author');
+  };
+});
+// 글 수정: 글을 쓸 때 정한 비밀번호가 맞으면 제목·내용을 바꾼다(edited 에 고친 시각). 공감·댓글은 그대로
+act('tkEdit', (d) => {
+  const p = S.store.data.posts?.[d.id] || OLD[d.id]; if (!p || p.deleted) return;
+  const el = modal(`${mh(`${ic('edit')}글 수정`)}
+    <form class="col" id="tkef"><input class="inp" id="tket" maxlength="${MAX_TITLE}" placeholder="제목 (선택)" value="${esc(p.title || '')}" autocomplete="off">
+      <textarea class="inp tk-body" id="tkeb" maxlength="${MAX_BODY}">${esc(p.body)}</textarea>
+      <div class="row"><input class="inp grow" id="tkep" type="password" autocomplete="off" placeholder="글을 쓸 때 정한 비밀번호"><button class="btn pri">${ic('save')}저장</button></div></form>`);
+  const tt = el.querySelector('#tket'), tb = el.querySelector('#tkeb'), inp = el.querySelector('#tkep'); tb.focus(); tb.setSelectionRange(tb.value.length, tb.value.length);
+  let busy = false;
+  el.querySelector('#tkef').onsubmit = async (e) => {
+    e.preventDefault(); if (busy) return;
+    const title = tt.value.trim().slice(0, MAX_TITLE), body = tb.value.trim().slice(0, MAX_BODY);
+    if (!body) return toast('내용을 적어 주세요');
+    if (title === (p.title || '') && body === p.body) return toast('바뀐 내용이 없어요');
+    if (!inp.value) return inp.focus();
+    if ((await hashPw(p.id, inp.value)) !== p.pw) { inp.value = ''; inp.focus(); return toast('비밀번호가 맞지 않아요'); }
+    busy = true;
+    try {
+      const edited = S.store.serverNow?.() || Date.now();
+      await S.store.patch('posts', p.id, { title, body, edited });
+      if (OLD[p.id]) OLD[p.id] = { ...OLD[p.id], title, body, edited };
+      closeModal(); toast('글을 고쳤어요'); refresh();
+    } catch (err) { busy = false; toast('수정 실패: ' + (err.code || err.message)); }
   };
 });
 act('tkAdminDel', (d) => needAdmin(() => { if (confirm('관리자 권한으로 이 글을 지울까요?')) remove(d.id, 'admin'); }));

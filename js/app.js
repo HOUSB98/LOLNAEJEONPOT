@@ -2,7 +2,7 @@
 import { FIREBASE_CONFIG } from './config.js';
 import { createStore } from './store.js';
 import { cardChamp } from './core.js';
-import { S, page, act, ddMenu, cho, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, toast, download, csv, needAdmin, history, modal, mh, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
+import { S, page, act, ddMenu, cho, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, toast, download, csv, needAdmin, history, modal, closeModal, mh, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
 import { initSocial, renderChat, renderPresence, onMeta } from './social.js';
 import { duoRank } from './stats.js';
 import { watchDice } from './dice.js';
@@ -442,7 +442,22 @@ act('matchDetail', (d) => {
   modal(`${mh(`경기 #${mi.no} 상세`)}
     <div class="sub mdsub"><span class="mono">${fmtDT(m.at)}</span>${min ? `<span class="mono">${Math.floor(min)}분 ${String(Math.round((min % 1) * 60)).padStart(2, '0')}초</span>` : ''}<span>예상 블루 ${Math.round(mi.pBlue * 100)}%</span><span>점수 ${mi.bs} : ${mi.rs}</span>${mi.upset ? '<span class="tag bad">UPSET</span>' : ''}</div>
     ${team('blue')}${team('red')}
-    <div class="row"><span class="mut sm grow">${has ? '리플레이 기록이 적용된 경기입니다.' : '직접 입력한 기록이라 라인업과 KDA만 있습니다. 이 경기의 리플레이(.rofl)를 넣으면 CS·골드·피해량·시야·아이템이 채워집니다.'}</span><button class="btn ${has ? '' : 'gold'}" data-a="matchReplay" data-id="${m.id}">${has ? '리플레이 교체' : '리플레이 넣기'}</button></div>`, 'xwide');
+    <div class="row md-act"><span class="mut sm grow">${has ? '리플레이 기록이 적용된 경기입니다.' : '직접 입력한 기록이라 라인업과 KDA만 있습니다. 이 경기의 리플레이(.rofl)를 넣으면 CS·골드·피해량·시야·아이템이 채워집니다.'}</span><button class="btn ghost" data-a="matchSwap" data-id="${m.id}" title="블루와 레드를 거꾸로 기록했을 때: 두 팀의 진영만 맞바꿔요(선수·챔피언·KDA·승패는 그대로)">${ic('swap')}진영 바꾸기</button><button class="btn ${has ? '' : 'gold'}" data-a="matchReplay" data-id="${m.id}">${has ? '리플레이 교체' : '리플레이 넣기'}</button></div>`, 'xwide');
+});
+// 진영 바꾸기: 블루/레드를 거꾸로 적은 경기를 바로잡는다. 두 팀이 통째로 자리를 바꿀 뿐 누가 누구와 한 팀이었는지, 누가 이겼는지는 그대로다.
+// 바꾸는 값: 선수 목록·챔피언·밴·승리 진영·저장 당시 점수(bs↔rs, 블루 예상 승률 → 1-값). KDA·리플레이 기록(stats)은 선수 id 기준이라 그대로.
+// 바꾸기 전 경기는 되돌리기 기록(history 'match-edit')에 남긴다. 다시 누르면 원래대로 돌아간다.
+act('matchSwap', async (d) => {
+  const m = S.store.data.matches[d.id]; if (!m || m.deleted) return;
+  if (!confirm(`#${S.st.MI[m.id]?.no ?? ''} 경기의 블루와 레드를 맞바꿀까요?\n같은 팀 구성·승패·KDA는 그대로이고, 진영만 바뀝니다. 다시 누르면 원래대로 돌아가요.`)) return;
+  const flip = (o) => ({ blue: [...(o?.red || [])], red: [...(o?.blue || [])] });
+  const patch = { blue: [...m.red], red: [...m.blue], champs: flip(m.champs), bans: flip(m.bans), winner: m.winner === 'blue' ? 'red' : m.winner === 'red' ? 'blue' : m.winner };
+  if (m.snap) patch.snap = { ...m.snap, bs: m.snap.rs, rs: m.snap.bs, pBlue: 1 - (+m.snap.pBlue || 0) };
+  try {
+    await history('match-edit', m);
+    await S.store.patch('matches', m.id, patch);
+    toast('진영을 바꿨어요'); closeModal();
+  } catch (e) { toast('바꾸기 실패: ' + (e.code || e.message)); }
 });
 act('editMatch', (d) => go('#/today/edit/' + d.id));
 act('delMatch', (d) => needAdmin(async () => {
@@ -591,7 +606,6 @@ function onStore(c) {
     if (ch.settings) refresh(true); else if (ch.todayDraft && S.page === 'today') refresh();
     if (ch.scorelog && S.page === 'home') refresh();
     if (ch.pause) checkPause();
-    if (ch.live) dispatchEvent(new Event('np:live')); // 밴픽 시작 기다리는 상태(오늘의 내전, js/today.js)
     return;
   }
   if (c === 'posts') { watchPosts(); postsChanged(); if (S.page === 'talk') refresh(); return; }
