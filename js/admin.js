@@ -2,7 +2,7 @@
 import { S, page, act, esc, uid, col, settings, pname, refresh, fmtDT, toast, download, csv, modal, closeModal, mh, sha, needAdmin, isAdmin, history, ic, LANES, LANE_NAME, LANE_ICON } from './core.js';
 import { TITLES, DEFAULTS, initMmr } from './stats.js';
 import { exportMatches } from './app.js';
-import { callWorker, hookOn, USAGE, loadUsage, won } from './hook.js';
+import { callWorker, hookOn, USAGE, loadUsage, won, WORKER_VER, workerVer } from './hook.js';
 import { WORKER_URL } from './config.js';
 import { gachaAdminHTML } from './gacha.js';
 import { missOf, weightOf, LUCK_MAX } from './board.js';
@@ -30,6 +30,16 @@ function usageHTML() {
       <div class="uz-days" title="최근 8일 읽기 (점선 = 무료 한도 5만)"><div class="uz-in"><i class="uz-lim" style="bottom:${((d.limits.read / maxR) * 100).toFixed(1)}%"></i>${d.days.map((x, i) => `<div class="uz-day ${i === d.days.length - 1 ? 'now' : ''} ${x.read > d.limits.read ? 'over' : ''}" title="${x.date} · 읽기 ${fmtN(x.read)} · 쓰기 ${fmtN(x.write)} · 삭제 ${fmtN(x.delete)}${x.usd ? ` · ${won(x.usd, d.krw)}` : ''}"><i style="height:${Math.max(1, (x.read / maxR) * 100).toFixed(1)}%"></i><small class="mono">${x.date.slice(5).replace('-', '/')}</small><span class="mono">${x.read >= 1000 ? (x.read / 1000).toFixed(1) + 'k' : x.read}</span></div>`).join('')}</div></div>
       <p class="hint">오늘 = 미국 태평양 시간 기준(한국 시간 오후 4~5시에 0으로 초기화). 구글 집계라 몇 분 늦게 반영되고, 5분 동안은 같은 값을 보여 줍니다 · ${fmtDT(d.at)} 기준. 요금은 하루마다 무료 한도를 넘은 건수로 계산한 <b>예상 금액</b>이라 실제 청구서와 조금 다를 수 있어요. 단가·환율은 Worker 변수 <code>RATE_READ</code>·<code>RATE_WRITE</code>·<code>RATE_DELETE</code>·<code>USD_KRW</code>로 바꿀 수 있어요 · <a class="lnk" href="https://cloud.google.com/firestore/pricing" target="_blank" rel="noopener">가격표</a> · <a class="lnk" href="https://console.cloud.google.com/billing?project=lolnaejeonpot" target="_blank" rel="noopener">실제 청구 내역</a></p>` : `<p class="mut sm">${USAGE.busy ? '불러오는 중…' : '아직 불러오지 않았어요'}</p>`}`;
 }
+// 연동 서버 버전 확인(관리 화면을 열 때, 10분에 한 번): 사이트가 기대하는 버전(WORKER_VER)과 배포된 Worker 버전을 비교
+const WV = { r: null, busy: false };
+function verHTML() {
+  if (!hookOn()) return '';
+  if (!WV.r) { if (!WV.busy) { WV.busy = true; workerVer().then((r) => { WV.r = r; WV.busy = false; const el = document.getElementById('wkver'); if (el) el.innerHTML = verHTML(); }); } return '<p class="sm mut wk-ver">연동 서버 버전 확인 중…</p>'; }
+  if (WV.r.error) return `<p class="sm bad wk-ver">${ic('alert')}${esc(WV.r.error)}</p>`;
+  if (WV.r.ver === WORKER_VER) return `<p class="sm mut wk-ver">${ic('shield')}연동 서버 최신 버전 (${esc(WV.r.ver)})</p>`;
+  return `<p class="sm bad wk-ver">${ic('alert')}<span><b>연동 서버(Worker)가 옛 버전이에요</b> · 배포된 버전 ${esc(WV.r.ver || '알 수 없음(아주 옛 버전)')} / 필요한 버전 ${WORKER_VER}<br>저장소의 <code>worker/worker.js</code> 내용을 Cloudflare Worker 편집기에 통째로 붙여 넣고 Deploy를 눌러 주세요. 그 전까지는 새 기능(밴픽 시작·오류 알림 등)이 동작하지 않아요.</span> <button class="btn xs" data-a="wkVer">다시 확인</button></p>`;
+}
+act('wkVer', async () => { WV.r = await workerVer(true); const el = document.getElementById('wkver'); if (el) el.innerHTML = verHTML(); toast(WV.r.ver === WORKER_VER ? '연동 서버가 최신이에요' : '아직 옛 버전이에요'); });
 addEventListener('usage', () => { const el = document.getElementById('uzbox'); if (el) el.innerHTML = usageHTML(); });
 
 
@@ -48,6 +58,7 @@ page('admin', {
       <div id="uzbox">${usageHTML()}</div>
       ${hookOn() ? `<div class="ph"><b>연동</b><small class="mut">디스코드 알림 · 라이엇 솔랭 자동 갱신(매일 새벽 4시)</small></div>
       <div class="row wrapr"><button class="btn" data-a="hkTest">디스코드 테스트 알림</button><button class="btn" data-a="hkRiot">라이엇 전적 지금 갱신</button><button class="btn" data-a="hkWeekly" title="매주 금요일 저녁 8시에 자동으로 올라가는 결산을 지금 미리 보내 봅니다">주간 결산 지금 보내기</button></div>
+      <div id="wkver">${verHTML()}</div>
       ${UZ.riot ? `<p class="sm">${esc(UZ.riot)}</p>` : ''}<p class="hint">${ic('shield')} <b>자동 쉬기</b>: 오늘 Firebase 무료 한도(읽기·쓰기·삭제 중 하나)의 95%를 넘으면 연동 서버가 그날 사이트를 쉬게 해요(30분마다 확인). 한국 시간 오후 4~5시에 자동으로 다시 열리고, 쉬기 화면의 '관리자: 지금 다시 열기'로 바로 열 수 있어요(그날은 다시 쉬지 않음).${S.store.data.meta?.pause?.resumeDay ? ` 최근 관리자가 다시 연 날: ${esc(S.store.data.meta.pause.resumeDay)}(태평양 날짜)` : ''}</p><p class="hint">라인 지원이 열릴 때와 경기 결과를 저장할 때 디스코드 채널에 알림이 올라갑니다. 라이엇 갱신은 선수의 라이엇 ID(이름#태그)로 솔랭 티어·전적을 채우며, 한 사람은 하루 한 번만 갱신됩니다.</p>` : ''}</div>
 
     <div class="panel"><div class="ph"><b>${ic('users')}선수 관리</b><span class="tag">${st.list.length}명</span><span class="grow"></span><button class="btn xs" data-a="scOut" title="점수 조정을 맡길 사람에게 줄 파일(이름·라인 점수만 들어 있음)">⬇ 점수표 파일</button><button class="btn xs" data-a="scIn" title="조정자가 고친 점수표 파일을 올려 반영(관리자 PIN 필요)">⬆ 점수표 올리기</button><button class="btn xs" data-a="slOpen" title="최근 라인 점수 변경을 익명 게시판 댓글·단톡방에 붙여 넣을 글로 정리">📋 변경 내역 복사</button><button class="btn pri xs" data-a="plEdit" data-id="">＋ 선수 추가</button></div>

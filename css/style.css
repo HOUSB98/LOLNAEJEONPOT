@@ -2135,3 +2135,5 @@ a.me-ch[href]:hover{background:rgba(255,255,255,.05)}
   .hero-in{padding-bottom:40px}
   .hero-cap{left:18px;right:18px;bottom:14px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 }
+/* 관리 > 연동: 연동 서버 버전 확인 줄(admin.js verHTML) */
+.wk-ver{display:flex;align-items:flex-start;gap:6px;margin:8px 0 0;line-height:1.5}.wk-ver .ic{width:15px;height:15px;flex:none;margin-top:2px}.wk-ver .btn{margin-left:auto;flex:none}
