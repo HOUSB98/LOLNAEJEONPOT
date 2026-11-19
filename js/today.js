@@ -185,8 +185,8 @@ page('today', {
       </button><span class="sl-score mono">${(+s.p.scores?.[l] || 0).toFixed(1)}</span></div>`;
     };
     const duo = (side) => { const b = bestDuo(d[side], st); return b ? `<span class="${side}">${pname(b.a)} + ${pname(b.b)} <b class="mono">${pct(b.w, b.g)}%</b> <small>${b.g}판</small></span>` : `<span class="mut">${side === 'blue' ? '블루' : '레드'} — 함께한 기록 부족</span>`; };
-    return `<div class="h2row"><h1>${ic('today')}${edit ? `경기 수정 <span class="mono">#${st.MI[edit.id]?.no ?? ''}</span>` : '오늘의 내전'}</h1><span class="tag ${full ? 'ok' : ''}">${filled}/10 배치</span><span class="grow"></span>
-      ${edit ? '<a class="btn" href="#/matches">취소</a>' : `${hookOn() ? liveBtn(full) : ''}<button class="btn gold" data-a="tAi" ${full ? '' : 'disabled'} title="${full ? '라인은 그대로 두고, 점수 차이가 가장 작아지도록 블루·레드를 나눕니다 (높은 원딜·높은 서폿은 같은 팀 안 됨)' : '10명을 모두 배치하면 쓸 수 있어요'}">${ic('bolt')}AI<span class="m-hide"> 추천</span></button><button class="btn gold gbtn ${boardLive() ? 'bd-on' : ''}" data-a="tBoard" title="라인 지원: 모두 함께 원하는 라인 고르기 → 몰린 라인은 추첨">${ic('users')}<span>${boardLive() ? '라인 지원 중' : '라인 지원'}</span></button><button class="btn gold" data-a="tDice">${ic('dice')}라인 주사위</button>${ddMenu(`<button data-a="tSwap">${ic('swap')}진영 교체</button><button class="danger" data-a="tClear">${ic('trash')}비우기</button>`)}`}</div>
+    return `<div class="h2row td-h"><h1>${ic('today')}${edit ? `경기 수정 <span class="mono">#${st.MI[edit.id]?.no ?? ''}</span>` : '오늘의 내전'}</h1><span class="tag ${full ? 'ok' : ''}">${filled}/10 배치</span><span class="grow"></span>
+      ${edit ? '<a class="btn" href="#/matches">취소</a>' : `${hookOn() ? liveBtn(full) : ''}<button class="btn gold" data-a="tAi" ${full ? '' : 'disabled'} title="${full ? '라인은 그대로 두고, 점수 차이가 가장 작아지도록 블루·레드를 나눕니다 (높은 원딜·높은 서폿은 같은 팀 안 됨)' : '10명을 모두 배치하면 쓸 수 있어요'}">${ic('bolt')}AI<span class="m-hide"> 추천</span></button><button class="btn gold gbtn ${boardLive() ? 'bd-on' : ''}" data-a="tBoard" title="라인 지원: 모두 함께 원하는 라인 고르기 → 몰린 라인은 추첨">${ic('users')}<span><span class="n-hide">라인 </span>${boardLive() ? '지원 중' : '지원'}</span></button><button class="btn gold" data-a="tDice">${ic('dice')}<span class="n-hide">라인 </span>주사위</button>${ddMenu(`<button data-a="tSwap">${ic('swap')}진영 교체</button><button class="danger" data-a="tClear">${ic('trash')}비우기</button>`)}`}</div>
     <section class="arena">
       <div class="scorebar"><div class="sb blue"><small>BLUE TEAM</small><b class="mono">${ev.bs.toFixed(1)}</b><span>평균 MMR ${ev.mmrB ? Math.round(ev.mmrB) : '—'}</span></div>
         <div class="sb-mid">${winRing(pb, full, any, filled)}</div>
@@ -280,7 +280,7 @@ const LIVE_WAIT = 11 * 60e3, LIVE_EVERY = 30e3;
 // 머리 버튼(AI 추천 왼쪽): 평소 '밴픽 시작' → 찾는 중 → 게임 전이면 '밴픽 중'(누르면 그만). 결과·오류 안내는 경기 결과 기록 칸 위 한 줄 + 알림
 function liveBtn(full) {
   if (LV.until) return `<button class="btn gold lv-on" data-a="tLiveStop" title="밴픽이 끝나기를 기다리는 중이에요. 로딩 화면이 뜨면 자동으로 챔피언·밴을 채워요(최대 11분). 누르면 그만 기다려요">${ic('eye')}밴픽 중</button>`;
-  return `<button class="btn gold" data-a="tLive" ${full && !LV.busy ? '' : 'disabled'} title="${full ? '밴픽을 시작할 때 눌러 두면, 로딩 화면이 뜨는 순간 10명의 챔피언과 밴을 자동으로 채워요(최대 11분 기다림). 게임이 이미 시작됐으면 바로 채워요' : '10명을 모두 배치하면 쓸 수 있어요'}">${ic('eye')}${LV.busy ? '찾는 중…' : '밴픽 시작'}</button>`;
+  return `<button class="btn gold" data-a="tLive" ${full && !LV.busy ? '' : 'disabled'} title="${full ? '밴픽을 시작할 때 눌러 두면, 로딩 화면이 뜨는 순간 10명의 챔피언과 밴을 자동으로 채워요(최대 11분 기다림). 게임이 이미 시작됐으면 바로 채워요' : '10명을 모두 배치하면 쓸 수 있어요'}">${ic('eye')}${LV.busy ? '찾는 중…' : '밴픽<span class="m-hide"> 시작</span>'}</button>`;
 }
 const liveStop = () => { clearTimeout(LV.t); LV.t = 0; LV.until = 0; };
 act('tLive', () => {
