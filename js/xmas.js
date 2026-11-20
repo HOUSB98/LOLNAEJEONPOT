@@ -291,13 +291,13 @@ function pixie() {
   dustOff = () => { removeEventListener('pointerdown', burst); removeEventListener('resize', fit); cancelAnimationFrame(raf); cv.remove(); dustOff = null; };
 }
 
-// ---------- 시작(로딩) 화면: 동화풍 밤하늘 ----------
+// ---------- 산타 썰매(시작 화면·가끔 지나가는 썰매가 함께 씀) ----------
 const REINDEER = `<symbol id="xsRd" viewBox="0 0 64 44"><path d="M8 24c2-7 20-9 30-6l6-7c2-4 6-5 9-3l4 1-2 3h-4l-3 8c-1 5-5 8-11 8H20c-5 0-10-1-12-4z"/><path d="M38 27l11 7 2-2-10-6zM33 28l9 9 2-2-8-8zM12 27 2 33l-1-2 9-6zM17 28l-8 9-2-1 7-9z"/><path d="M8 23l-6-3 1-2 6 3z"/><path d="M52 9l-3-7M52 6l-5-2M55 9l3-7M57 5l4-1" stroke="currentColor" stroke-width="1.600" stroke-linecap="round" fill="none"/></symbol>`;
 const SLEIGH = `<symbol id="xsSl" viewBox="0 0 110 60"><path d="M6 50c10 6 70 6 92-2l4-6c-2 7-6 10-14 12-24 4-62 4-84-2z"/><path d="M14 48l2-6M40 50v-6M66 50v-6M88 47l-1-5" stroke="currentColor" stroke-width="2"/><path d="M10 42c0-12 6-20 18-20h40c10 0 16-6 22-12l4 3c-5 9-10 16-14 23-3 4-8 6-14 6z"/><circle cx="52" cy="14" r="7"/><path d="M45 12c2-10 12-12 18-6l6 6-3 1c-3-4-8-5-12-2z"/><circle cx="71" cy="13" r="2.400"/><path d="M42 32c-2-10 2-16 10-16s12 6 10 16z"/><path d="M58 20l12-8 2 2-11 9z"/><path d="M20 26c-6-10 2-20 12-18 4 1 6 4 6 8l-2 10z"/></symbol>`;
-function sleighSVG() {
+function sleighSVG(c = '#16203a', rein = '#2a3552') {
   return `<svg class="xs-sleigh" viewBox="0 0 420 110" aria-hidden="true"><defs>${REINDEER}${SLEIGH}<radialGradient id="xsNose"><stop offset="0" stop-color="#fff"/><stop offset=".3" stop-color="#ff4b3e"/><stop offset="1" stop-color="#ff4b3e" stop-opacity="0"/></radialGradient></defs>
-    <g fill="#16203a" color="#16203a">
-      <path d="M104 62 C170 50 250 44 372 34" stroke="#2a3552" stroke-width="1.200" fill="none"/><path d="M104 66 C180 58 250 52 372 40" stroke="#2a3552" stroke-width="1.200" fill="none"/>
+    <g fill="${c}" color="${c}">
+      <path d="M104 62 C170 50 250 44 372 34" stroke="${rein}" stroke-width="1.200" fill="none"/><path d="M104 66 C180 58 250 52 372 40" stroke="${rein}" stroke-width="1.200" fill="none"/>
       <use href="#xsSl" x="0" y="34" width="120" height="66"/>
       <g class="xs-rd a"><use href="#xsRd" x="150" y="38" width="56" height="38"/><use href="#xsRd" x="164" y="50" width="56" height="38"/></g>
       <g class="xs-rd b"><use href="#xsRd" x="222" y="30" width="56" height="38"/><use href="#xsRd" x="236" y="42" width="56" height="38"/></g>
@@ -306,60 +306,98 @@ function sleighSVG() {
     </g>
     <circle class="xs-nose" cx="408" cy="21" r="9" fill="url(#xsNose)"/></svg>`;
 }
-function hillsSVG() {
-  const tree = (x, y, s) => `<path d="M${x} ${y - 46 * s}l${-14 * s} ${22 * s}h${6 * s}l${-10 * s} ${14 * s}h${7 * s}l${-11 * s} ${12 * s}h${44 * s}l${-11 * s} ${-12 * s}h${7 * s}l${-10 * s} ${-14 * s}h${6 * s}z" fill="#0b1830"/><path d="M${x} ${y - 46 * s}l${-6 * s} ${10 * s}h${12 * s}z" fill="#e8f0ff" opacity=".85"/>`;
-  const house = (x, y) => `<g><path d="M${x} ${y}v-18l12-10 12 10v18z" fill="#101d36"/><path d="M${x - 3} ${y - 17}l15-13 15 13" stroke="#e8f0ff" stroke-width="3" fill="none" stroke-linecap="round"/><rect x="${x + 5}" y="${y - 12}" width="6" height="6" fill="#ffcf6b" class="xs-win"/><rect x="${x + 14}" y="${y - 12}" width="5" height="6" fill="#ffb84a" class="xs-win"/></g>`;
-  return `<svg class="xs-hills" viewBox="0 0 1200 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><defs>
-      <linearGradient id="xsH1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfdcf5"/><stop offset="1" stop-color="#7f93c4"/></linearGradient>
-      <linearGradient id="xsH2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f8ff"/><stop offset="1" stop-color="#a9bbe2"/></linearGradient></defs>
-    <path d="M0 190 C180 140 330 160 480 176 S820 130 1000 160 1200 150 1200 150V300H0z" fill="url(#xsH1)" opacity=".75"/>
-    ${[90, 140, 420, 470, 760, 1080, 1130].map((x, i) => tree(x, 186 - (i % 2) * 6, 0.9)).join('')}
-    ${house(560, 186)}${house(600, 180)}${house(880, 166)}
-    <path d="M0 236 C220 200 420 226 640 230 S1000 196 1200 214V300H0z" fill="url(#xsH2)"/>
-    ${[40, 300, 980, 1160].map((x) => tree(x, 238, 1.3)).join('')}</svg>`;
+// ---------- 시작(로딩) 화면: 한밤중 달빛 밤하늘 ----------
+// 성능 원칙: 달·별·산·눈·금빛 꼬리는 처음 한 번만 캔버스/SVG로 그리고, 그 뒤 움직임은 전부 CSS의 투명도·위치(transform)만 바꾼다.
+// 매 프레임 돌아가는 JS가 하나도 없어서, 사이트가 DB 연결·화면 준비로 바쁜 순간에도 그래픽 카드가 움직임을 끊김 없이 이어 간다.
+const rng = (seed) => () => ((seed = (seed * 16807) % 2147483647) / 2147483647); // 같은 씨앗 → 늘 같은 달·같은 산
+const DPR = () => Math.min(2, devicePixelRatio || 1);
+function paintMoon(cv, size) {
+  const d = DPR(), g = cv.getContext('2d'), R = size / 2, r = rng(7);
+  cv.width = cv.height = Math.round(size * d); g.scale(d, d);
+  g.save(); g.beginPath(); g.arc(R, R, R, 0, 6.283); g.clip();
+  let gr = g.createRadialGradient(R * 0.8, R * 0.75, R * 0.05, R, R, R); gr.addColorStop(0, '#fffdf4'); gr.addColorStop(0.65, '#ece7d6'); gr.addColorStop(1, '#b8b4a6');
+  g.fillStyle = gr; g.fillRect(0, 0, size, size);
+  const blot = (x, y, rad, a) => { const q = g.createRadialGradient(x, y, 0, x, y, rad); q.addColorStop(0, `rgba(90,96,112,${a})`); q.addColorStop(0.6, `rgba(90,96,112,${a * 0.6})`); q.addColorStop(1, 'rgba(90,96,112,0)'); g.fillStyle = q; g.fillRect(x - rad, y - rad, rad * 2, rad * 2); };
+  [[0.38, 0.34, 0.2], [0.58, 0.3, 0.16], [0.66, 0.5, 0.18], [0.42, 0.56, 0.13], [0.52, 0.72, 0.1], [0.3, 0.5, 0.09]].forEach(([x, y, k]) => blot(x * size, y * size, k * size, 0.22));
+  for (let i = 0; i < 22; i++) { const x = r() * size, y = r() * size, k = (0.01 + r() * r() * 0.045) * size; blot(x, y, k, 0.12 + r() * 0.1); g.strokeStyle = 'rgba(255,255,255,.08)'; g.lineWidth = Math.max(0.6, k * 0.22); g.beginPath(); g.arc(x - k * 0.12, y - k * 0.12, k * 0.75, 3.6, 5.4); g.stroke(); }
+  const im = g.getImageData(0, 0, cv.width, cv.height), px = im.data; // 미세한 입자감(실제 달 표면처럼)
+  for (let i = 0; i < px.length; i += 4) { const n = (r() - 0.5) * (size < 160 ? 7 : 12); px[i] += n; px[i + 1] += n; px[i + 2] += n; }
+  g.putImageData(im, 0, 0);
+  gr = g.createRadialGradient(R * 0.85, R * 0.8, R * 0.55, R, R, R * 1.02); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(20,26,44,.42)');
+  g.fillStyle = gr; g.fillRect(0, 0, size, size); g.restore();
+}
+// 별: 작은 별은 가만히 있는 한 장에 모두 찍고, 밝은 별 몇 개만 작은 점(<b>)으로 따로 깜빡인다(화면 전체 크기의 그림을 매 프레임 움직이지 않게)
+function paintStars(sc, W, H) {
+  const d = DPR(), r = rng(11), n = Math.round((W * H) / 3600), cv = sc.querySelector('.xs-stars'), g = cv.getContext('2d'); let tw = '';
+  cv.width = W * d; cv.height = H * d; g.scale(d, d);
+  for (let i = 0; i < n; i++) {
+    const big = r() < 0.05, x = r() * W, y = Math.pow(r(), 1.4) * H * 0.78, rad = big ? 0.9 + r() * 0.8 : 0.3 + r() * 0.55;
+    const c = r() < 0.2 ? '200,220,255' : r() < 0.1 ? '255,236,200' : '255,255,255';
+    if (big) { tw += `<b style="left:${x.toFixed(0)}px;top:${y.toFixed(0)}px;--s:${(rad * 2).toFixed(1)}px;--c:rgb(${c});--d:${(-r() * 4).toFixed(2)}s;--t:${(3 + r() * 2.5).toFixed(1)}s"></b>`; continue; }
+    g.fillStyle = `rgba(${c},${0.35 + r() * 0.5})`; g.beginPath(); g.arc(x, y, rad, 0, 6.283); g.fill();
+  }
+  sc.querySelector('.sk-tw').innerHTML = tw;
+}
+// 눈: 송이 하나하나가 작은 점 하나(층 하나)이고, CSS 한 동작으로 떨어지며 좌우로 살랑인다. 큰 그림 없이 작은 점만 움직여 가볍다
+function snowHTML(W) {
+  const r = rng(31), n = Math.round(Math.min(44, 16 + W / 50)); let h = '';
+  for (let i = 0; i < n; i++) {
+    const near = r() < 0.3, s = near ? 3.2 + r() * 2.6 : 1.4 + r() * 1.8, dur = near ? 9 + r() * 5 : 16 + r() * 10;
+    h += `<i class="${near ? 'n' : ''}" style="left:${(r() * 100).toFixed(1)}%;--s:${s.toFixed(1)}px;--o:${(near ? 0.75 + r() * 0.25 : 0.4 + r() * 0.4).toFixed(2)};animation-duration:${dur.toFixed(1)}s;animation-delay:${(-r() * dur).toFixed(1)}s${r() < 0.5 ? ';animation-name:sksnow2' : ''}"></i>`;
+  }
+  return h;
+}
+// 썰매 뒤 금빛 꼬리: 썰매와 함께 움직이는 반짝이 두 장(서로 엇갈려 반짝임). 썰매 위치를 매 프레임 잴 필요가 없다
+function paintTrail(fly) {
+  const w = fly.offsetWidth * 0.95, h = fly.offsetWidth * 0.34, d = DPR(), r = rng(41);
+  fly.querySelectorAll('.sk-trail').forEach((cv, half) => {
+    cv.width = Math.round(w * d); cv.height = Math.round(h * d); const g = cv.getContext('2d'); g.scale(d, d); g.globalCompositeOperation = 'lighter';
+    for (let i = half; i < 260; i += 2) {
+      const t = Math.pow(r(), 0.7), x = w * t, y = h * (0.15 + (1 - t) * 0.55 + (r() - 0.5) * (0.12 + (1 - t) * 0.5)), rad = (0.5 + r() * 1.6) * (0.5 + t * 0.7);
+      const c = r() < 0.7 ? '255,224,140' : '255,255,255', a = (0.15 + t * 0.85) * (0.5 + r() * 0.5);
+      const q = g.createRadialGradient(x, y, 0, x, y, rad * 3); q.addColorStop(0, `rgba(${c},${a})`); q.addColorStop(0.35, `rgba(${c},${a * 0.45})`); q.addColorStop(1, `rgba(${c},0)`);
+      g.fillStyle = q; g.fillRect(x - rad * 3, y - rad * 3, rad * 6, rad * 6);
+    }
+  });
+}
+function ridgeSVG() {
+  const r = rng(3);
+  const forest = (y0, amp, n, hMin, hMax, fill) => {
+    let d = '';
+    for (let i = 0; i <= n; i++) {
+      const x = (i / n) * 1240 - 20 + (r() - 0.5) * 14, y = y0 + Math.sin(i * 0.37) * amp + Math.sin(i * 0.11) * amp * 1.6, h = hMin + r() * (hMax - hMin), w = h * 0.42;
+      d += `M${x.toFixed(1)} ${(y - h).toFixed(1)}l${(w * 0.2).toFixed(1)} ${(h * 0.28).toFixed(1)}h${(-w * 0.07).toFixed(1)}l${(w * 0.23).toFixed(1)} ${(h * 0.28).toFixed(1)}h${(-w * 0.09).toFixed(1)}l${(w * 0.23).toFixed(1)} ${(h * 0.44).toFixed(1)}h${(-w).toFixed(1)}l${(w * 0.23).toFixed(1)} ${(-h * 0.44).toFixed(1)}h${(-w * 0.09).toFixed(1)}l${(w * 0.23).toFixed(1)} ${(-h * 0.28).toFixed(1)}h${(-w * 0.07).toFixed(1)}z`;
+    }
+    return `<path d="${d}" fill="${fill}"/>`;
+  };
+  const hill = (y0, amp) => { let d = `M0 300V${y0}`; for (let x = 0; x <= 1200; x += 40) d += `L${x} ${(y0 + Math.sin(x / 170) * amp + Math.sin(x / 63) * amp * 0.3).toFixed(1)}`; return d + 'V300z'; };
+  const mtn = 'M0 176L90 148L160 162L240 122L310 150L390 132L470 160L560 126L640 152L720 112L800 146L880 132L960 160L1040 124L1120 152L1200 136V300H0z';
+  const cabin = (x, y) => `<circle cx="${x}" cy="${y}" r="10" fill="url(#skW)"/><rect x="${x - 2}" y="${y - 1.5}" width="4" height="3" fill="#ffd27a"/>`;
+  return `<svg class="sk-ridge" viewBox="0 0 1200 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><defs>
+    <linearGradient id="skA1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e2b52"/><stop offset=".45" stop-color="#0b1330"/><stop offset="1" stop-color="#060b1c"/></linearGradient>
+    <linearGradient id="skA2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#121c38"/><stop offset="1" stop-color="#060a16"/></linearGradient>
+    <radialGradient id="skW"><stop offset="0" stop-color="rgba(255,200,110,.55)"/><stop offset="1" stop-color="rgba(255,200,110,0)"/></radialGradient></defs>
+    <path d="${mtn}" fill="url(#skA1)"/><path d="${mtn}" fill="none" stroke="rgba(200,214,245,.3)" stroke-width="1"/>
+    ${forest(226, 6, 64, 22, 54, '#070d1f')}${cabin(452, 222)}${cabin(470, 224)}${cabin(866, 218)}
+    <path d="${hill(246, 9)}" fill="url(#skA2)"/><path d="${hill(246, 9)}" fill="none" stroke="rgba(190,206,240,.16)" stroke-width="1"/>${forest(262, 4, 32, 52, 108, '#02040b')}</svg>`;
 }
 const INTRO_MS = 2100; // 시작 화면에서 로고·NAEJEONPOT 글자가 다 올라오는 시간(css의 .sp-word 애니메이션과 맞춤)
 export function splashScene(splash) {
   if (!xmasOn()) return;
   splash.classList.add('xs');
   const sc = document.createElement('div'); sc.className = 'xs-scene';
-  sc.innerHTML = `<canvas class="xs-stars a"></canvas><canvas class="xs-stars b"></canvas><i class="xs-shoot"></i><div class="xs-moon"><i></i><i></i><i></i><i></i></div>
-    <div class="xs-fly">${sleighSVG()}</div>${hillsSVG()}<canvas class="xs-dust"></canvas><canvas class="xs-snow"></canvas>`;
+  sc.innerHTML = `<canvas class="xs-stars"></canvas><div class="sk-tw"></div><i class="sk-cloud c1"></i><i class="xs-shoot"></i>
+    <div class="sk-moon"><i class="sk-halo"></i><canvas></canvas></div><i class="sk-cloud c3"></i>
+    <div class="xs-fly"><canvas class="sk-trail a"></canvas><canvas class="sk-trail b"></canvas>${sleighSVG('#02040b', '#0a1124')}</div>${ridgeSVG()}<i class="sk-mist"></i><div class="sk-snow"></div>`;
   splash.prepend(sc);
-  if (calm()) return;
-  const stops = [];
-  // 반짝이는 별: 매 프레임 다시 그리지 않고 두 장의 캔버스에 한 번만 찍은 뒤, CSS로 두 장의 밝기를 엇갈려 바꾼다(그래픽 카드가 처리해 끊기지 않음).
-  // 별똥별도 CSS 애니메이션(.xs-shoot)으로 지나간다.
-  (() => {
-    const W = innerWidth, H = innerHeight, n = Math.round((W * H) / 5200);
-    sc.querySelectorAll('.xs-stars').forEach((cv, half) => {
-      cv.width = W; cv.height = H; const g = cv.getContext('2d'); g.fillStyle = '#fff';
-      for (let i = half; i < n; i += 2) { const r = Math.random() * 1.3 + 0.2; g.globalAlpha = 0.45 + Math.random() * 0.55; g.fillRect(Math.random() * W, Math.random() * H * 0.72, r, r); }
-    });
-  })();
-  // 썰매 뒤로 흩날리는 금빛 가루: 절반 해상도·초당 30번만 그리고, 썰매 위치는 세 번에 한 번만 잰다(매 프레임 재면 화면 배치 계산이 반복돼 끊긴다)
-  (() => {
-    const cv = sc.querySelector('.xs-dust'), g = cv.getContext('2d'), fly = sc.querySelector('.xs-sleigh'); let raf, ps = [], last = 0, n = 0, r = null;
-    const Q = 0.5; cv.width = Math.round(innerWidth * Q); cv.height = Math.round(innerHeight * Q); g.setTransform(Q, 0, 0, Q, 0, 0);
-    const loop = (t) => {
-      raf = requestAnimationFrame(loop);
-      if (t - last < 33) return; last = t;
-      if (!r || n++ % 3 === 0) r = fly.getBoundingClientRect();
-      if (r.right > 0 && r.left < innerWidth) for (let k = 0; k < 5; k++) ps.push({ x: r.left + r.width * (0.05 + Math.random() * 0.25), y: r.top + r.height * (0.55 + Math.random() * 0.35), vx: -1.2 - Math.random() * 2, vy: 0.6 + Math.random() * 1.6, l: 1, s: 0.8 + Math.random() * 2.2, c: Math.random() < 0.7 ? '255,226,140' : '255,255,255' });
-      g.clearRect(0, 0, innerWidth, innerHeight); g.globalCompositeOperation = 'lighter';
-      ps = ps.filter((p) => (p.l -= 0.024) > 0);
-      for (const p of ps) { p.x += p.vx; p.y += p.vy; p.vy += 0.016; g.globalAlpha = p.l; g.fillStyle = `rgb(${p.c})`; g.beginPath(); g.arc(p.x, p.y, p.s * (0.6 + 0.4 * Math.sin(p.l * 20)), 0, 6.283); g.fill(); }
-      g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
-    };
-    let started = false;
-    const t = setTimeout(() => { started = true; raf = requestAnimationFrame(loop); }, INTRO_MS);
-    stops.push(() => { clearTimeout(t); if (started) cancelAnimationFrame(raf); });
-  })();
-  // 눈도 로고·이름 등장이 끝난 뒤에 내리기 시작한다(등장 모션이 먼저 부드럽게 끝나도록). 캔버스는 CSS로 서서히 나타난다
-  let snowStop = null;
-  const snowT = setTimeout(() => { snowStop = snowCanvas(sc.querySelector('.xs-snow'), { always: true, count: 100, glint: 18 }); sc.classList.add('snowing'); }, INTRO_MS); // 절반 해상도(눈은 부드러워 티가 안 남)
-  stops.push(() => { clearTimeout(snowT); snowStop?.(); });
-  const gone = new MutationObserver(() => { if (!document.body.contains(splash)) { stops.forEach((f) => f()); gone.disconnect(); } });
+  const W = innerWidth, H = innerHeight;
+  paintMoon(sc.querySelector('.sk-moon canvas'), Math.round(Math.min(W * (W < 860 ? 0.3 : 0.15), 220)));
+  paintStars(sc, W, H);
+  if (calm()) return; // 가벼운 모드·동작 줄이기: 움직이지 않는 밤하늘만
+  paintTrail(sc.querySelector('.xs-fly'));
+  // 눈은 로고·이름 등장이 끝난 뒤 넣고 서서히 나타난다(등장 모션이 먼저 부드럽게 끝나도록)
+  const t1 = setTimeout(() => { sc.querySelector('.sk-snow').innerHTML = snowHTML(W); }, 1500), t2 = setTimeout(() => sc.classList.add('snowing'), INTRO_MS);
+  const gone = new MutationObserver(() => { if (!document.body.contains(splash)) { clearTimeout(t1); clearTimeout(t2); gone.disconnect(); } });
   gone.observe(document.body, { childList: true });
 }
 

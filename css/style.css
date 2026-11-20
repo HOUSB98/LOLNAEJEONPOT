@@ -1475,42 +1475,13 @@ body.xmas #chat::after{content:"";position:absolute;inset:0;z-index:0;pointer-ev
 /* 고급스러운 포인트: 금빛 테두리에 붉은·초록 빛을 살짝 */
 body.xmas .btn.pri{box-shadow:0 0 0 1px rgba(255,236,190,.35),0 8px 24px -10px rgba(214,50,43,.55)}
 body.xmas .panel,body.xmas .stat{border-color:color-mix(in srgb,var(--line) 75%,#d9a441)}
-/* 시작 화면: 동화풍 밤하늘 */
-#splash.xs{background:linear-gradient(180deg,#0a1030 0%,#1c1f5a 42%,#3a2d6e 70%,#5e4686 100%)}
-#splash.xs .sp-rays,#splash.xs>canvas{display:none}
-.xs-scene{position:absolute;inset:0;overflow:hidden;pointer-events:none}
-.xs-scene canvas{position:absolute;inset:0;width:100%;height:100%}
-.xs-moon{position:absolute;right:9%;top:9%;width:min(26vw,250px);aspect-ratio:1;border-radius:50%;
-  background:radial-gradient(circle at 38% 36%,#fffef4 0,#fff3cf 42%,#f1dca2 70%,#e2c27e 100%);
-  box-shadow:0 0 40px 8px rgba(255,240,190,.55),0 0 120px 40px rgba(255,226,160,.25),0 0 260px 90px rgba(170,160,255,.15)}
-/* 달빛 맥동: 큰 그림자를 매 프레임 다시 그리지 않고, 미리 그린 빛 한 장의 투명도만 바꾼다 */
-.xs-moon::after{content:"";position:absolute;inset:-30%;border-radius:50%;background:radial-gradient(closest-side,rgba(255,240,190,.32),rgba(255,226,160,.12) 55%,transparent);animation:xsmoon 6s ease-in-out infinite;will-change:opacity}
-.xs-scene .xs-snow,.xs-scene .xs-dust{opacity:0;transition:opacity 1.2s ease}.xs-scene.snowing .xs-snow,.xs-scene.snowing .xs-dust{opacity:1}
-.xs-stars{will-change:opacity}.xs-stars.a{animation:xstw 3.4s ease-in-out infinite}.xs-stars.b{animation:xstw 3.4s ease-in-out -1.7s infinite}
-@keyframes xstw{0%,100%{opacity:1}50%{opacity:.35}}
-.xs-shoot{position:absolute;left:12%;top:10%;width:130px;height:2px;border-radius:2px;background:linear-gradient(90deg,rgba(255,255,255,0),#fff);opacity:0;transform:rotate(18deg);animation:xsshoot 7s 2.2s ease-out infinite;will-change:transform,opacity}
-@keyframes xsshoot{0%{opacity:0;transform:translate(0,0) rotate(18deg)}2%{opacity:1}12%{opacity:0;transform:translate(46vw,15vw) rotate(18deg)}100%{opacity:0;transform:translate(46vw,15vw) rotate(18deg)}}
-.xs-moon i{position:absolute;border-radius:50%;background:radial-gradient(circle at 40% 40%,rgba(196,164,96,.35),rgba(196,164,96,.12) 70%,transparent)}
-.xs-moon i:nth-child(1){width:22%;height:22%;left:56%;top:24%}.xs-moon i:nth-child(2){width:14%;height:14%;left:28%;top:58%}.xs-moon i:nth-child(3){width:9%;height:9%;left:62%;top:64%}.xs-moon i:nth-child(4){width:11%;height:11%;left:34%;top:28%}
-@keyframes xsmoon{0%,100%{opacity:.4}50%{opacity:1}}
-.xs-fly{position:absolute;left:0;top:0;width:min(54vw,520px);animation:xsfly 7.5s cubic-bezier(.35,.05,.55,.95) -1.6s infinite;will-change:transform}
 .xs-sleigh{width:100%;height:auto;overflow:visible;animation:xsbob 1.4s ease-in-out infinite}
-#splash .xs-sleigh{will-change:transform}
-@keyframes xsfly{0%{transform:translate(-60vw,52vh) rotate(-7deg)}55%{transform:translate(52vw,14vh) rotate(-5deg)}100%{transform:translate(118vw,-8vh) rotate(-3deg)}}
 @keyframes xsbob{50%{transform:translateY(-6px)}}
 .xs-rd{animation:xsgallop .5s ease-in-out infinite}.xs-rd.b{animation-delay:-.12s}.xs-rd.c{animation-delay:-.25s}.xs-rd.d{animation-delay:-.37s}
 @keyframes xsgallop{50%{transform:translateY(-3px)}}
 .xs-nose{animation:xsnose 1s ease-in-out infinite}
 @keyframes xsnose{50%{opacity:.45}}
-.xs-hills{position:absolute;left:0;right:0;bottom:0;width:100%;height:34vh}
-.xs-win{animation:xswin 3s ease-in-out infinite}.xs-win:nth-of-type(2n){animation-delay:-1.4s}
-@keyframes xswin{50%{opacity:.6}}
-#splash.xs .sp-box{z-index:2;text-shadow:0 2px 12px rgba(10,16,48,.9)}
-#splash.xs .sp-skip{z-index:2}
-body.lite #xlights *,body.lite #xtree *,body.lite .xs-scene *{animation:none!important}
-@media (max-width:860px){#side .xmas-btn{display:none}.xhat{left:-5px;top:-9px;width:24px;height:19px}#xtree{width:min(70%,260px)}.xs-moon{width:38vw;top:7%;right:6%}.xs-fly{width:86vw}.xs-hills{height:26vh}}
-#splash.xs .sp-skip{color:#2a3a66;text-shadow:none}
-@media (max-width:860px){.xs-moon{width:32vw;top:4%;right:4%}}
+@media (max-width:860px){#side .xmas-btn{display:none}.xhat{left:-5px;top:-9px;width:24px;height:19px}#xtree{width:min(70%,260px)}}
 /* 디즈니 느낌: 채팅창 밤하늘 · 트리 마법 반짝임 · 지나가는 썰매 */
 #xsky{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;
   background:radial-gradient(260px 200px at 80% 20%,rgba(255,236,180,.16),transparent 70%),radial-gradient(420px 380px at 50% 72%,rgba(130,105,240,.24),transparent 70%),linear-gradient(180deg,rgba(24,28,88,.7),rgba(46,32,104,.5) 55%,rgba(8,10,24,.1))}
@@ -2164,3 +2135,42 @@ a.me-ch[href]:hover{background:rgba(255,255,255,.05)}
 
 /* 경기 상세 아래 줄(설명 + 진영 바꾸기·리플레이): 휴대폰에서는 설명을 한 줄 위로, 버튼은 오른쪽 끝에 */
 @media (max-width:600px){.md-act{flex-wrap:wrap}.md-act>span{flex-basis:100%}.md-act>.btn:first-of-type{margin-left:auto}}
+/* 시작 화면(크리스마스): 한밤중 달빛 밤하늘. 처음 한 번 그린 그림을 CSS가 투명도·transform만 바꿔 움직인다(매 프레임 JS 없음 → 바쁠 때도 부드러움) */
+#splash.xs{background:radial-gradient(50vmax 40vmax at 80% 18%,rgba(110,140,210,.1),transparent 65%),linear-gradient(180deg,#010208 0%,#01030b 55%,#030716 100%)}
+#splash.xs .sp-rays,#splash.xs>canvas{display:none}
+#splash.xs .sp-box{z-index:2;text-shadow:0 2px 16px rgba(0,0,0,.9)}
+#splash.xs .sp-skip{z-index:2;color:rgba(200,210,232,.55)}
+.xs-scene{position:absolute;inset:0;overflow:hidden;pointer-events:none;contain:strict}
+.xs-scene canvas{position:absolute;inset:0;width:100%;height:100%}
+.sk-tw b{position:absolute;width:var(--s);height:var(--s);margin:calc(var(--s) * -2.5);padding:calc(var(--s) * 2.5);box-sizing:content-box;border-radius:50%;background:radial-gradient(circle,var(--c) 0 16%,color-mix(in srgb,var(--c) 35%,transparent) 22%,transparent 60%);animation:xstw var(--t) var(--d) ease-in-out infinite;will-change:opacity}
+@keyframes xstw{0%,100%{opacity:1}50%{opacity:.25}}
+.xs-shoot{position:absolute;left:12%;top:10%;width:130px;height:2px;border-radius:2px;background:linear-gradient(90deg,rgba(255,255,255,0),#fff);opacity:0;transform:rotate(18deg);animation:xsshoot 7s 2.2s ease-out infinite;will-change:transform,opacity}
+@keyframes xsshoot{0%{opacity:0;transform:translate(0,0) rotate(18deg)}2%{opacity:1}12%{opacity:0;transform:translate(46vw,15vw) rotate(18deg)}100%{opacity:0;transform:translate(46vw,15vw) rotate(18deg)}}
+.sk-moon{position:absolute;right:15%;top:11%;width:min(15vw,220px);aspect-ratio:1}
+.xs-scene .sk-moon canvas{filter:drop-shadow(0 0 14px rgba(230,236,255,.4))}
+.sk-halo{position:absolute;inset:-100%;border-radius:50%;background:radial-gradient(closest-side,rgba(205,218,255,.22),rgba(160,180,240,.08) 40%,transparent 72%);animation:skhalo 7s ease-in-out infinite;will-change:opacity}
+@keyframes skhalo{0%,100%{opacity:.6}50%{opacity:1}}
+.sk-cloud{position:absolute;left:0;width:150vw;height:20vh;will-change:transform;
+  background:radial-gradient(14% 34% at 12% 55%,rgba(150,166,214,.16),transparent 70%),radial-gradient(20% 30% at 30% 45%,rgba(110,128,186,.16),transparent 70%),radial-gradient(12% 40% at 52% 60%,rgba(140,156,206,.14),transparent 70%),radial-gradient(22% 30% at 72% 48%,rgba(100,118,176,.16),transparent 70%),radial-gradient(14% 36% at 90% 56%,rgba(150,166,214,.14),transparent 70%)}
+.sk-cloud.c1{top:4%;animation:skdrift 80s linear infinite alternate}
+.sk-cloud.c3{top:15%;height:11vh;opacity:.8;animation:skdrift 64s linear -20s infinite alternate}
+@keyframes skdrift{from{transform:translate3d(-45vw,0,0)}to{transform:translate3d(0,0,0)}}
+.sk-ridge{position:absolute;left:0;right:0;bottom:0;width:100%;height:36vh}
+.sk-mist{position:absolute;left:0;right:0;bottom:0;height:34vh;background:linear-gradient(0deg,rgba(2,4,11,.8),transparent)}
+/* 썰매: 달 앞을 실루엣으로 가로지른다(입장 3~4초쯤). 금빛 꼬리는 썰매에 붙어 함께 움직이며 두 장이 엇갈려 반짝인다 */
+.xs-scene .xs-fly{position:absolute;left:0;top:0;width:min(26vw,280px);animation:skfly 10s cubic-bezier(.45,.1,.55,.9) -3.2s infinite;will-change:transform}
+@keyframes skfly{0%{transform:translate3d(-30vw,48vh,0) rotate(-8deg)}100%{transform:translate3d(105vw,8vh,0) rotate(-4deg)}}
+.xs-scene .xs-sleigh{position:relative;will-change:transform}
+#splash .sk-trail{position:absolute;inset:46% auto auto -88%;width:95%;height:auto;aspect-ratio:95/34;will-change:opacity;animation:sktr .9s ease-in-out infinite alternate}#splash .sk-trail.b{animation-delay:-.45s}
+@keyframes sktr{from{opacity:.35}to{opacity:1}}
+/* 눈: 송이마다 작은 점 하나. 떨어짐과 좌우 살랑임을 한 동작(transform)으로 합쳐 층 하나로 움직인다 */
+.sk-snow{position:absolute;inset:0;opacity:0;transition:opacity 1.6s ease}.xs-scene.snowing .sk-snow{opacity:1}
+.sk-snow i{position:absolute;top:0;width:var(--s);height:var(--s);border-radius:50%;opacity:var(--o);background:radial-gradient(circle,#fff 0 30%,rgba(235,242,255,.45) 55%,transparent 72%);animation:sksnow 20s linear infinite;will-change:transform}
+.sk-snow i.n{background:radial-gradient(circle,#fff 0 22%,rgba(235,242,255,.5) 48%,transparent 72%)}
+@keyframes sksnow{0%{transform:translate3d(0.0px,-3.00vh,0)}6.25%{transform:translate3d(9.2px,3.62vh,0)}12.5%{transform:translate3d(13.0px,10.25vh,0)}18.75%{transform:translate3d(9.2px,16.88vh,0)}25%{transform:translate3d(0.0px,23.50vh,0)}31.25%{transform:translate3d(-9.2px,30.12vh,0)}37.5%{transform:translate3d(-13.0px,36.75vh,0)}43.75%{transform:translate3d(-9.2px,43.38vh,0)}50%{transform:translate3d(-0.0px,50.00vh,0)}56.25%{transform:translate3d(9.2px,56.62vh,0)}62.5%{transform:translate3d(13.0px,63.25vh,0)}68.75%{transform:translate3d(9.2px,69.88vh,0)}75%{transform:translate3d(0.0px,76.50vh,0)}81.25%{transform:translate3d(-9.2px,83.12vh,0)}87.5%{transform:translate3d(-13.0px,89.75vh,0)}93.75%{transform:translate3d(-9.2px,96.38vh,0)}100%{transform:translate3d(-0.0px,103.00vh,0)}}
+@keyframes sksnow2{0%{transform:translate3d(0.0px,-3.00vh,0)}6.25%{transform:translate3d(-7.1px,3.62vh,0)}12.5%{transform:translate3d(-10.0px,10.25vh,0)}18.75%{transform:translate3d(-7.1px,16.88vh,0)}25%{transform:translate3d(-0.0px,23.50vh,0)}31.25%{transform:translate3d(7.1px,30.12vh,0)}37.5%{transform:translate3d(10.0px,36.75vh,0)}43.75%{transform:translate3d(7.1px,43.38vh,0)}50%{transform:translate3d(0.0px,50.00vh,0)}56.25%{transform:translate3d(-7.1px,56.62vh,0)}62.5%{transform:translate3d(-10.0px,63.25vh,0)}68.75%{transform:translate3d(-7.1px,69.88vh,0)}75%{transform:translate3d(-0.0px,76.50vh,0)}81.25%{transform:translate3d(7.1px,83.12vh,0)}87.5%{transform:translate3d(10.0px,89.75vh,0)}93.75%{transform:translate3d(7.1px,96.38vh,0)}100%{transform:translate3d(0.0px,103.00vh,0)}}
+@media (max-width:860px){.sk-moon{width:30vw;top:6%;right:8%}.sk-ridge{height:28vh}.xs-scene .xs-fly{width:56vw;animation-name:skflym}.sk-cloud{width:260vw}}
+@keyframes skflym{0%{transform:translate3d(-30vw,48vh,0) rotate(-10deg)}100%{transform:translate3d(105vw,-5vh,0) rotate(-6deg)}}
+#splash .xs-rd,#splash .xs-nose{animation:none} /* 시작 화면 썰매는 다리·코 깜빡임 없이(SVG 안쪽 애니메이션은 매 프레임 다시 그려야 해서 무겁다). 비행·흔들림은 그대로 */
+body.lite .xs-scene *{animation:none!important}body.lite .xs-scene .xs-fly,body.lite .xs-shoot{display:none}
+@media (prefers-reduced-motion:reduce){.xs-scene *{animation:none!important}.xs-scene .xs-fly,.xs-shoot{display:none}}
