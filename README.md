@@ -91,7 +91,7 @@ GitHub 저장소가 원본이다. 집 PC에서 저장소를 내려받아(Downloa
 ## 데이터 모델 (Firestore: `leagues/{코드}/...`)
 - `players/{id}`: name, scores{top,jg,mid,adc,sup}, mainLane, soloTier, riotId, mmrInit, solo{record,peak,most,pos,comment,asOf}, riot{id,puuid,tier,rank,lp,w,l,at | err,errAt}(연동 서버가 적음), deleted
 - `matches/{id}`: at, seriesId, blue[5], red[5] (탑→서폿 순서의 선수 id), winner, champs{blue[5],red[5]}, bans, kda{선수id:[k,d,a]}, snap{bs,rs,pBlue}(기록 당시 점수·예상승률), deleted
-- 읽기 절감: `matches`는 Firestore 로컬 캐시 + 마지막 수정 시각(`upd`, 서버 시각) 이후 바뀐 경기만 구독(하루 1회 전체, `upd` 없는 예전 기록은 자동으로 채움). 경기 쓰기는 store.js가 항상 `upd`를 붙인다. `presence`는 최근 하루, `chat` 30·`posts` 10개만 실시간, 라인 지원·주사위는 meta 컬렉션 구독 하나로.
+- 읽기 절감: `matches`는 Firestore 로컬 캐시 + 마지막 수정 시각(`upd`, 서버 시각) 이후 바뀐 경기만 구독(하루 1회 전체, `upd` 없는 예전 기록은 자동으로 채움). 경기 쓰기는 store.js가 항상 `upd`를 붙인다. `presence`는 최근 하루, `chat` 20·`posts` 5개만 실시간(2026-11-20 줄임, 나머지 글은 "접힌 이전 글 펼치기"를 누를 때만 10개씩 읽음), 라인 지원·주사위는 meta 컬렉션 구독 하나로.
 - `gacha/{선수id}`: pinHash, used{champ,skin}, bought{champ,skin}, shards, champs{챔피언id:개수}, skins{스킨id:{n,c,num,name,tier}}, log[] (구독하지 않음, 가챠 화면에서만 읽음)
 - `auctions/{id}`: 경매 방 상태(`cfg.mode`에 실시간/일괄 방식, 일괄 입찰 제출과 동점 재입찰 포함) · `meta/settings`: leagueName, scale, k, pinHash · `history/*`: 수정·삭제 전 원본
 

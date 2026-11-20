@@ -3,13 +3,13 @@
 //   put / patch / tx : 쓰기. 삭제는 없다(문서에 deleted:true 를 표시하는 방식).
 import { FIREBASE_CONFIG } from './config.js';
 
-// 읽기 줄이기: 경기 기록은 바뀐 것만(upd), 접속 표시는 최근 15분, 채팅 30·게시판 10개만 실시간, 라인 지원·주사위는 meta 구독 하나로.
+// 읽기 줄이기: 경기 기록은 바뀐 것만(upd), 접속 표시는 최근 15분, 채팅 20·게시판 5개만 실시간, 라인 지원·주사위는 meta 구독 하나로.
 // reveals(승률 공개 이벤트)는 계속 쌓이는 기록이라 전체를 구독하지 않고 watchCollection으로 최근 것만 따로 듣는다.
 // 경매(auctions)는 경매 화면을 연 사람만 need()로 구독한다(입찰마다 모든 접속자가 다시 읽지 않게).
 const WATCHED = ['players', 'matches', 'meta', 'presence', 'chat', 'posts'];
 const PRESENCE_MS = 15 * 60e3; // 접속 표시는 12분 안에 신호가 있는 사람만 보이므로, 처음 읽을 때 15분 안의 기록만 받는다
-const CHAT_LIMIT = 30; // 채팅은 문서가 계속 쌓이므로 최근 30개만 구독한다(기록 자체는 DB에 남는다)
-const POST_LIMIT = 10; // 익명 게시판도 최근 10개만 실시간으로 받고, 이전 글은 '더 보기'를 누를 때 10개씩 한 번만 읽는다
+const CHAT_LIMIT = 20; // 채팅은 문서가 계속 쌓이므로 최근 20개만 구독한다(기록 자체는 DB에 남는다)
+const POST_LIMIT = 5; // 익명 게시판도 최근 5개만 실시간으로 받고(나머지는 접어 두고 읽지 않음), 이전 글은 '더 보기'를 누를 때 10개씩 한 번만 읽는다
 const FUSE_MSG = '저장이 너무 잦아 이 화면의 저장을 잠시 멈췄어요. 새로고침해 주세요';
 const clean = (o) => JSON.parse(JSON.stringify(o)); // Firestore는 undefined를 받지 않는다
 const FB ='https://www.gstatic.com/firebasejs/10.12.5/';
