@@ -1,0 +1,51 @@
+const { chromium } = require('playwright'); const { makeSeed, client, open, Backend } = require('./harness'); const fs = require('fs');
+const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) process.exitCode = 1; };
+const CH = ['Aatrox', 'Ahri', 'LeeSin', 'Jinx', 'Thresh', 'Garen', 'Vi', 'Zed', 'Ezreal', 'Lulu'];
+const POS = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'];
+(async () => {
+  const b = await chromium.launch(); const seed = await makeSeed(b);
+  seed.players.forEach((p, i) => { p.riotId = 'P' + i + '#KR1'; p.riotAlt = []; });
+  const idx = Object.fromEntries(seed.players.map((p, i) => [p.id, i]));
+  const live = seed.matches.filter((m) => !m.deleted && !m.stats).sort((a, b) => b.at - a.at);
+  const M1 = live[0], M2 = live.find((m) => m.id !== M1.id && new Set([...m.blue, ...m.red].join()).size && [...m.blue, ...m.red].join() !== [...M1.blue, ...M1.red].join());
+  const be = new Backend(); for (const [c, d] of Object.entries(seed)) be.seed(c, d);
+  // 리플레이: flip 이면 실제 게임 블루(100) = 기록 레드
+  const rofl = (m, flip, name) => {
+    const g100 = flip ? m.red : m.blue, g200 = flip ? m.blue : m.red, win100 = (m.winner === 'blue') !== flip;
+    const st = [...g100.map((pid, i) => [pid, '100', i, win100]), ...g200.map((pid, i) => [pid, '200', i, !win100])].map(([pid, t, i, w], k) => ({ RIOT_ID_GAME_NAME: 'P' + idx[pid], RIOT_ID_TAG_LINE: 'KR1', TEAM: t, TEAM_POSITION: POS[i], SKIN: CH[k], WIN: w ? 'Win' : 'Fail', CHAMPIONS_KILLED: String(k), NUM_DEATHS: '1', ASSISTS: '2', MINIONS_KILLED: '100', GOLD_EARNED: '9000', TOTAL_DAMAGE_DEALT_TO_CHAMPIONS: String(1000 * k) }));
+    const meta = { gameLength: 1800000, gameVersion: '15.1', lastGameChunkId: 1, statsJson: JSON.stringify(st) };
+    const f = require('path').join(require('os').tmpdir(), 'naejeon-test-' + name);
+    fs.writeFileSync(f, Buffer.concat([Buffer.from('RIOT'), Buffer.alloc(200), Buffer.from(JSON.stringify(meta))])); return f;
+  };
+  const fA = rofl(M1, true, 'NA1-5000000001.rofl'), fB = rofl(M2, false, 'NA1-5000000002.rofl');
+  const A = await client(b, be, 'WORK', 'A'); A.on('dialog', (d) => d.accept());
+  await A.addInitScript((CH) => { if (location.origin !== 'https://site.test') return; localStorage.setItem('naejeon:champs3', JSON.stringify({ ver: '1', at: Date.now(), list: CH.map((id, i) => ({ id, key: i + 1, name: id, img: 'data:image/gif;base64,R0lGODlhAQABAAAAACw=' })) })); }, CH);
+  await open(A, 'replay');
+  const get = (id) => A.evaluate(async (id) => { const { S } = await import('/js/core.js'); return JSON.parse(JSON.stringify(S.store.data.matches[id])); }, id);
+  const stat = () => A.evaluate(async () => { const { S } = await import('/js/core.js'); return S.st.list.map((s) => [s.id, s.g, s.w, Math.round(s.mmr * 1000)]).sort().join(';'); });
+  const b1 = await get(M1.id), b2 = await get(M2.id), s0 = await stat();
+  await A.setInputFiles('#rfile', [fA, fB]); await A.waitForTimeout(1500);
+  const q = await A.evaluate(() => document.querySelector('.rq')?.innerText.replace(/\s+/g, ' '));
+  ok(/팀 색이 반대로.*진영도 바로잡아요/.test(q || ''), '목록 안내: 팀 색 반대 · 적용하면 바로잡음');
+  await A.click('[data-a=rqAll]'); await A.waitForTimeout(1500);
+  const a1 = await get(M1.id), a2 = await get(M2.id);
+  ok(JSON.stringify(a1.blue) === JSON.stringify(b1.red) && JSON.stringify(a1.red) === JSON.stringify(b1.blue) && a1.winner !== b1.winner, '반대로 기록된 경기: 진영 바로잡음(선수·승리 진영)');
+  ok(a1.blue.every((pid, i) => a1.champs.blue[i] === CH[i]) && a1.red.every((pid, i) => a1.champs.red[i] === CH[5 + i]), '챔피언이 실제 게임 진영 자리에: ' + JSON.stringify(a1.champs));
+  ok(!b1.snap || (a1.snap.bs === b1.snap.rs && Math.abs(a1.snap.pBlue + b1.snap.pBlue - 1) < 1e-9), '저장 당시 점수도 진영 따라');
+  ok(a1.blue.every((pid, i) => a1.kda[pid][0] === i) && !!a1.stats[a1.blue[0]] && a1.dur === 1800000, 'KDA·상세 기록 선수별로 정확');
+  ok(JSON.stringify(a2.blue) === JSON.stringify(b2.blue) && a2.winner === b2.winner && a2.blue.every((pid, i) => a2.champs.blue[i] === CH[i]), '바르게 기록된 경기: 진영 그대로, 챔피언만 채움');
+  ok(s0 === await stat(), '모든 선수 판수·승·MMR 그대로');
+  const h = be.log.filter((l) => l.op === 'write' && l.col === 'history').length; ok(h === 2, '되돌리기 기록 2건');
+  // 경기 카드의 리플레이 넣기(한 경기) 경로
+  const M3 = live.find((m) => ![M1.id, M2.id].includes(m.id)); const b3 = await get(M3.id); const f3 = rofl(M3, true, 'one.rofl');
+  await A.evaluate(() => (location.hash = '#/matches')); await A.waitForTimeout(800);
+  const [chooser] = await Promise.all([A.waitForEvent('filechooser'), A.evaluate((id) => { const btn = document.createElement('button'); btn.dataset.a = 'matchReplay'; btn.dataset.id = id; document.body.appendChild(btn); btn.click(); }, M3.id)]);
+  await chooser.setFiles(f3); await A.waitForTimeout(1000);
+  const note = await A.evaluate(() => document.querySelector('.sheet')?.innerText || '');
+  ok(/반대로 기록돼 있어요/.test(note) && !/다른 경기의 리플레이/.test(note), '한 경기 넣기: 안내 표시, 오해 경고 없음');
+  await A.click('[data-a=atApply]'); await A.waitForTimeout(1000);
+  const a3 = await get(M3.id);
+  ok(JSON.stringify(a3.blue) === JSON.stringify(b3.red) && a3.winner !== b3.winner && a3.champs.blue[0] === CH[0], '한 경기 넣기: 진영도 바로잡음');
+  console.log('페이지 오류:', A.errs.join(' | ') || '없음');
+  await b.close();
+})();

@@ -1,0 +1,14 @@
+const { chromium } = require('playwright'); const { makeSeed, client, open, Backend } = require('./harness');
+const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) process.exitCode = 1; };
+(async () => { const b = await chromium.launch(); const seed = await makeSeed(b);
+  const be = new Backend(); for (const [c, d] of Object.entries(seed)) be.seed(c, d);
+  console.log('시드: 채팅', (seed.chat || []).length, '글', (seed.posts || []).length);
+  const A = await client(b, be, 'WORK', 'A'); await open(A, 'talk'); await A.waitForTimeout(800);
+  const n = () => A.evaluate(async () => { const { S } = await import('/js/core.js'); return { chat: Object.keys(S.store.data.chat).length, posts: Object.keys(S.store.data.posts).length, shown: document.querySelectorAll('.tk-post').length, btn: document.querySelector('[data-a=tkMore]')?.innerText }; });
+  console.log('log', await A.evaluate(() => JSON.stringify(window.__fsLog)));
+  const x = await n(); ok(x.chat === 1 && x.posts === 5 && x.shown === 5 && /접힌 이전 글 \d+개 펼치기/.test(x.btn), '처음(채팅창 닫힘): 채팅 최신 1개 · 글 5개만 받음 · ' + JSON.stringify(x));
+  await A.click('[data-a=tkMore]'); await A.waitForTimeout(800);
+  const y = await n(); ok(y.shown === 15 && y.posts === 5, '펼치기: 10개 더 보임(실시간 목록은 5개 그대로) · ' + JSON.stringify(y));
+  await A.evaluate(async () => { const { S } = await import('/js/core.js'); for (let i = 0; i < 1; i++) await S.store.put('chat', 'zz' + i, { at: S.store.serverNow(), nick: 'A', text: '새 채팅' }); });
+  await A.waitForTimeout(500); ok((await n()).chat === 1, '닫힌 채팅창: 새 채팅이 와도 1개만 유지');
+  console.log('오류:', A.errs.join('|') || '없음'); await b.close(); })();
