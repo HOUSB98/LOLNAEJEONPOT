@@ -59,6 +59,16 @@ function feed(name, kind) {
   while (box.children.length > 4) box.firstElementChild.remove();
   setTimeout(() => { el.classList.add('bye'); setTimeout(() => el.remove(), 500); }, 4200);
 }
+// 접속자 작은 창: 나를 맨 위, 나머지는 가나다순
+const PR = { open: false };
+function prPop(list) {
+  const rows = [...list].sort((a, b) => (b.id === cid) - (a.id === cid) || a.nick.localeCompare(b.nick, 'ko', { numeric: true }));
+  return `<div class="prpop" role="dialog" aria-label="접속자 목록"><div class="prpop-h"><b>접속 중</b><small class="mono">${list.length}명</small></div>
+    <div class="prpop-l">${rows.map((p) => `<button class="${p.id === cid ? 'me' : ''}" ${p.id === cid ? 'data-a="nickEdit" title="닉네임 변경"' : `data-cid="${esc(p.id)}" data-nick="${esc(p.nick)}" title="우클릭: 관리자 메뉴"`}>${face(p.nick)}<span>${esc(p.nick)}</span>${p.id === cid ? '<small>나</small>' : ''}</button>`).join('')}</div></div>`;
+}
+const prSet = (on) => { if (PR.open === on) return; PR.open = on; prSig = ''; renderPresence(); };
+addEventListener('pointerdown', (e) => { if (PR.open && !e.target.closest('#presence')) prSet(false); }, { passive: true });
+addEventListener('keydown', (e) => { if (PR.open && e.key === 'Escape') prSet(false); });
 export function renderPresence() {
   const el = document.getElementById('presence'); if (!el) return;
   const list = online(), now = new Map(list.map((p) => [p.id, p.nick]));
@@ -68,12 +78,14 @@ export function renderPresence() {
   }
   const bump = prevOn && prevOn.size !== now.size;
   prevOn = now;
-  const sig = list.map((p) => p.id + ':' + p.nick).join('|') + (S.st?.list?.length ? '#p' : '') + (xmasOn() ? '#x' : '');
+  const sig = list.map((p) => p.id + ':' + p.nick).join('|') + (S.st?.list?.length ? '#p' : '') + (xmasOn() ? '#x' : '') + (PR.open ? '#o' : '');
   if (sig === prSig && el.firstChild) return; // 목록이 그대로면 다시 그리지 않는다
   prSig = sig;
-  const cnt = String(list.length).padStart(2, '0');
+  const cnt = String(list.length).padStart(2, '0'), more = list.length - 5;
+  // 얼굴은 최대 5개까지 겹쳐 보여 주고, 누르면 위로 작은 창(접속자 목록)이 뜬다. 모바일은 위쪽 막대에 3개 + 눌러서 아래 창
   el.innerHTML = `<div class="prh" data-a="presList" title="접속자 보기">${ic('users')}<b>접속 중</b><span class="pav">${list.slice(0, 3).map((p) => face(p.nick)).join('')}</span><span class="pcount ${bump ? 'bump' : ''}" title="현재 접속자 ${list.length}명"><i></i><b class="mono">${cnt}</b><small>ONLINE</small></span></div>
-    <div class="prl">${list.map((p) => `<button class="${p.id === cid ? 'me' : ''}" ${p.id === cid ? 'data-a="nickEdit" title="닉네임 변경"' : `data-cid="${esc(p.id)}" data-nick="${esc(p.nick)}" title="우클릭: 관리자 메뉴"`}>${face(p.nick)}${esc(p.nick)}${p.id === cid ? '<small>나</small>' : ''}</button>`).join('') || '<span class="mut sm">아직 아무도 없어요</span>'}</div>`;
+    <button class="prf" data-a="presList" aria-expanded="${PR.open}" title="접속자 모두 보기">${list.length ? `<span class="prs">${list.slice(0, 5).map((p) => face(p.nick)).join('')}${more > 0 ? `<i class="pmore mono">+${more}</i>` : ''}</span><small>${PR.open ? '닫기' : '모두 보기'}</small>` : '<small class="mut">아직 아무도 없어요</small>'}</button>
+    ${PR.open ? prPop(list) : ''}`;
   const c = document.getElementById('chat-on'); if (c) c.textContent = list.length;
 }
 function askNick(first) {
@@ -89,9 +101,9 @@ function setNick(v) {
   localStorage.setItem('naejeon:nick', v); beat(); renderPresence(); renderChat(true);
   return true;
 }
-act('nickEdit', () => askNick(false));
-act('presList', () => { // 모바일에서는 접속자 목록이 숨겨져 있으니 눌러서 본다
-  if (matchMedia('(min-width: 861px)').matches) return;
+act('nickEdit', () => { prSet(false); askNick(false); });
+act('presList', () => { // PC: 위로 작은 창을 열고 닫는다. 모바일: 아래에서 올라오는 창
+  if (matchMedia('(min-width: 861px)').matches) return prSet(!PR.open);
   const list = online();
   modal(`${mh(`접속 중 · ${list.length}명`)}<div class="pr-sheet">${list.map((p) => `<button class="${p.id === cid ? 'me' : ''}" ${p.id === cid ? 'data-a="nickEdit"' : ''}>${face(p.nick)}<b>${esc(p.nick)}</b>${p.id === cid ? `<small>나 · 눌러서 닉네임 변경</small>` : `<small>접속 중${playerOf(p.nick) ? ` · ${LANE_NAME[playerOf(p.nick).mainLane] || ''}` : ''}</small>`}</button>`).join('') || '<p class="mut">아직 아무도 없어요</p>'}</div>`, 'pres-sheet');
 });

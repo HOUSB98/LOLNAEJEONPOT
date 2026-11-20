@@ -299,7 +299,7 @@ function scoreChanges(days) {
   const lines = [...per.entries()].sort((a, b) => P[a[0]].name.localeCompare(P[b[0]].name, 'ko', { numeric: true })).map(([pid, rs]) =>
     `${P[pid].name} — ` + rs.sort((a, b) => LANES.indexOf(a.lane) - LANES.indexOf(b.lane)).map((r) => `${LANE_NAME[r.lane]} ${fmtSc(r.from)}→${fmtSc(r.to)}${r.to > r.from ? '▲' : '▼'}`).join(', '));
   const all = S.store.data.meta?.scorelog?.items || [];
-  return { lines, n: rows.length, up: rows.filter((r) => r.to > r.from).length, period: first ? `${md(first)} ~ ${md(now)}` : '', full: all.length >= 80 && +all[0]?.at >= since, oldest: +all[0]?.at };
+  return { lines, n: rows.length, up: rows.filter((r) => r.to > r.from).length, period: first ? `${md(first)} ~ ${md(now)}` : '', full: all.length >= 300 && +all[0]?.at >= since, oldest: +all[0]?.at };
 }
 function scoreText(days) {
   const c = scoreChanges(days);
@@ -314,7 +314,7 @@ function scoreText(days) {
 }
 function slDraw() {
   const { c, parts } = scoreText(SL.range);
-  const old = c.full ? `<p class="hint">점수 변경 기록은 최근 80건까지만 남아서, ${fmtDT(c.oldest)} 이전 변경은 빠져 있을 수 있어요.</p>` : '';
+  const old = c.full ? `<p class="hint">점수 변경 기록은 최근 300건까지만 남아서, ${fmtDT(c.oldest)} 이전 변경은 빠져 있을 수 있어요.</p>` : '';
   return `${mh('라인 점수 변경 내역 복사')}
     <div class="seg sl-seg">${[[7, '최근 7일'], [30, '최근 30일'], [0, '남은 기록 전체']].map(([v, t]) => `<button class="${SL.range === v ? 'on' : ''}" data-a="slRange" data-v="${v}">${t}</button>`).join('')}</div>
     ${parts.length ? parts.map((t, i) => `<div class="sl-part"><div class="sl-ph"><b>${parts.length > 1 ? `댓글 ${i + 1}/${parts.length}` : '붙여 넣을 글'}</b><small class="mono">${t.length}/${SL_MAX}자</small><span class="grow"></span><button class="btn xs pri" data-a="slCopy" data-i="${i}">복사</button></div><textarea class="inp sl-ta" readonly rows="${Math.min(12, t.split('\n').length + 1)}">${esc(t)}</textarea></div>`).join('')
@@ -329,11 +329,11 @@ act('slCopy', async (d) => {
   catch { const ta = document.querySelectorAll('#modal.on .sl-ta')[+d.i]; ta?.select(); toast('글을 길게 눌러 복사해 주세요'); }
 });
 
-// 라인 점수 변경 기록(홈 공지에 쓴다): meta/scorelog.items 에 최근 80건만 남긴다
+// 라인 점수 변경 기록(홈 공지·점수 변동 화면에 쓴다): meta/scorelog.items 에 최근 300건만 남긴다(scores.js 의 LOG_MAX 와 같게)
 async function logScores(list) {
   if (!list.length) return;
   const at = S.store.serverNow?.() || Date.now();
-  try { await S.store.tx('meta', 'scorelog', (r) => ({ items: [...(r?.items || []), ...list.map((x) => ({ ...x, at }))].slice(-80) })); } catch (e) { console.warn('[scorelog]', e); }
+  try { await S.store.tx('meta', 'scorelog', (r) => ({ items: [...(r?.items || []), ...list.map((x) => ({ ...x, at }))].slice(-300) })); } catch (e) { console.warn('[scorelog]', e); }
 }
 // 표에서 바로 수정: 값이 바뀌면 즉시 저장
 act('plScore', async (d, el) => {

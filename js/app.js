@@ -14,7 +14,8 @@ import { lazyPage } from './core.js';
 const LAZY_GET = [
   lazyPage('replay', () => import('./replay.js'), ['matchReplay']),
   lazyPage('auction', () => import('./auction.js')),
-  lazyPage('admin', () => import('./admin.js')),
+  lazyPage('admin', () => import('./admin.js'), ['slOpen']),
+  lazyPage('scores', () => import('./scores.js')),
   lazyPage('maker', () => import('./maker.js')),
   lazyPage('me', () => import('./me.js')),
 ];
@@ -610,7 +611,7 @@ function onStore(c) {
     if (ch.luck && S.page === 'admin') refresh();
     if (ch.settings || ch.kicks) onMeta();
     if (ch.settings) refresh(true); else if (ch.todayDraft && S.page === 'today') refresh();
-    if (ch.scorelog && S.page === 'home') refresh();
+    if (ch.scorelog && (S.page === 'home' || S.page === 'scores')) refresh();
     if (ch.pause) checkPause();
     return;
   }
