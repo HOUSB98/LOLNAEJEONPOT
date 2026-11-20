@@ -18,7 +18,7 @@
 //   + 주간 결산(매주 금요일 저녁 8시)도 30분 예약 실행에서 시간이 됐는지 확인해 보낸다(Cron 추가 설정 필요 없음)
 
 // 버전: 이 파일을 고칠 때마다 올리고, 사이트 js/hook.js 의 WORKER_VER 도 같은 값으로 바꾼다(관리 화면이 비교해 '옛 버전' 경고를 띄움)
-const WORKER_VER = '2026-11-19b';
+const WORKER_VER = '2026-11-20a';
 const PROJECT = 'lolnaejeonpot';
 const API_KEY = 'AIzaSyBx9DdwpagQTZqFqkISJLPpRe7zHYKOgC0'; // Firebase 웹 API 키(공개값). 접근 권한은 LEAGUE_KEY와 Firestore 규칙이 정한다
 const LANES = ['top', 'jg', 'mid', 'adc', 'sup'];
@@ -148,7 +148,8 @@ function patchWrite(env, col, id, fields) {
     ks.slice(0, -1).forEach((k) => (o = o[k] ||= {}));
     o[ks[ks.length - 1]] = v;
   }
-  return { update: { name: docName(env, col, id), fields: enc(tree).mapValue.fields }, updateMask: { fieldPaths: Object.keys(fields) }, currentDocument: { exists: true } };
+  // 선수 문서는 고칠 때 서버 시각으로 upd 를 붙인다(사이트가 '바뀐 선수만' 받는 기준, js/store.js INC)
+  return { update: { name: docName(env, col, id), fields: enc(tree).mapValue.fields }, updateMask: { fieldPaths: Object.keys(fields) }, currentDocument: { exists: true }, ...(col === 'players' ? { updateTransforms: [{ fieldPath: 'upd', setToServerValue: 'REQUEST_TIME' }] } : {}) };
 }
 
 // ---------- 디스코드 ----------

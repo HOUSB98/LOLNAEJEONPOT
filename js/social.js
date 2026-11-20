@@ -123,6 +123,16 @@ act('chatStkTab', (d) => { stkTab = d.t; const el = document.getElementById('cha
 let unread = 0, lastSeenAt = +localStorage.getItem('naejeon:chatseen') || 0, lastChatAt = 0, tray = false;
 let chatQ = Promise.resolve(); // 채팅 전송 순서 유지용(서버 시각을 맞추는 동안 다음 메시지가 앞지르지 않게)
 const isOpen = () => !document.body.classList.contains('chat-closed');
+// 채팅창이 처음에 열려 있을지: 넓은 화면은 지난번 상태를 기억하고, 좁은 화면은 접힌 채로 시작(app.js 가 store 에도 알려 채팅을 몇 개 받을지 정한다)
+export const chatStartsOpen = () => matchMedia('(min-width: 1281px)').matches && localStorage.getItem('naejeon:chatclosed') !== '1';
+// 닫힌 채팅창의 '안 읽은 채팅': 채팅창이 닫혀 있으면 최신 1개만 실시간으로 받으므로(store chatFull), 숫자는
+// 접속할 때 서버에서 센 수(마지막으로 본 뒤의 채팅 수, 읽기 1번) + 그 뒤로 새로 도착한 다른 사람 메시지 수로 계산한다.
+const UN = { base: 0, at: 0, ids: new Set() };
+function unreadReset(at) { UN.base = 0; UN.at = at; UN.ids.clear(); }
+// 채팅창을 열 것 같으면(버튼에 손가락·마우스를 올림) 미리 20개를 받기 시작하고, 닫은 뒤 1분이 지나면 다시 1개로 줄인다
+let chatIdle = 0;
+const chatWant = () => { clearTimeout(chatIdle); S.store.chatFull?.(true); };
+const chatRest = () => { clearTimeout(chatIdle); chatIdle = setTimeout(() => { if (!isOpen()) S.store.chatFull?.(false); }, 60e3); };
 const msgs = () => col('chat').filter((m) => !m.deleted && m.at > (+settings().chatClearedAt || 0)).sort((a, b) => a.at - b.at || a.id.localeCompare(b.id));
 // 도배 막기: 3초에 3개, 1분에 20개까지(스티커·주사위 포함). 넘으면 보내지 않고 입력한 글은 그대로 둔다(자동 알림 sysChat 은 제외).
 // 메시지 하나마다 접속한 모든 사람에게 읽기가 생기므로, 엔터를 꾹 누르거나 장난으로 도배해도 사용량이 튀지 않게 한다.
@@ -185,7 +195,13 @@ function buildChat() {
   fab.innerHTML = `<span class="cf-ring"></span><span class="cf-core">${ic('chat')}<i class="cf-line"></i></span><em>CHAT</em><span id="chatbadge" hidden></span>`;
   const lz = document.createElement('div'); lz.id = 'chatlaser'; lz.innerHTML = '<i class="a"></i><i class="b"></i><u></u>'; document.body.appendChild(lz);
   // 넓은 화면은 지난번 상태를 기억하고, 좁은 화면은 접힌 채로 시작한다
-  if (!matchMedia('(min-width: 1281px)').matches || localStorage.getItem('naejeon:chatclosed') === '1') document.body.classList.add('chat-closed');
+  if (!chatStartsOpen()) document.body.classList.add('chat-closed');
+  for (const ev of ['pointerenter', 'pointerdown', 'focus']) fab.addEventListener(ev, () => { if (!isOpen()) { chatWant(); chatRest(); } }, { passive: true });
+  // 닫힌 채로 시작하면, 마지막으로 본 뒤에 쌓인 채팅 수를 서버에서 한 번 센다(문서를 내려받지 않음)
+  if (!isOpen()) {
+    const since = Math.max(lastSeenAt, +settings().chatClearedAt || 0); unreadReset(S.store.serverNow?.() ?? Date.now());
+    if (lastSeenAt && S.store.countSince) S.store.countSince('chat', 'at', since).then((n) => { if (!isOpen()) { UN.base = n; renderChat(); } }).catch(() => {});
+  }
 }
 // 새로 도착한 메시지만 떠오르는 효과를 준다(다시 그릴 때마다 전체가 다시 떠오르며 깜빡이지 않게)
 let renderedAt = 0;
@@ -208,8 +224,8 @@ export function renderChat(force) {
   if (atBottom) log.scrollTop = log.scrollHeight;
   const last = list[list.length - 1]?.at || 0;
   renderedAt = Math.max(renderedAt, last, 1);
-  if (isOpen()) { lastSeenAt = last; localStorage.setItem('naejeon:chatseen', last); unread = 0; }
-  else unread = list.filter((m) => m.at > lastSeenAt && m.cid !== cid).length;
+  if (isOpen()) { lastSeenAt = Math.max(lastSeenAt, last); localStorage.setItem('naejeon:chatseen', lastSeenAt); unread = 0; unreadReset(Math.max(lastSeenAt, S.store.serverNow?.() ?? Date.now())); }
+  else { for (const m of list) if (m.at > UN.at && m.cid !== cid) UN.ids.add(m.id); unread = UN.base + UN.ids.size; }
   const b = document.getElementById('chatbadge'); if (b) { b.hidden = !unread; b.textContent = unread > 99 ? '99+' : unread; }
 }
 // 접기/펼치기: 레이저 선이 그어진 뒤 위아래로 갈라지며 열리고, 닫을 때는 선으로 모였다가 사라진다(#chatlaser + #chat clip-path)
@@ -219,6 +235,7 @@ act('chatToggle', () => {
   const closing = isOpen(), reduce = matchMedia('(prefers-reduced-motion: reduce)').matches, T = reduce ? 0 : closing ? 560 : 760;
   clearTimeout(chatAnim); chat.classList.remove('opening', 'closing'); lz.classList.remove('opening', 'closing');
   const done = () => { chat.classList.remove('opening', 'closing'); lz.classList.remove('opening', 'closing'); b.classList.remove('chat-closing'); if (closing) b.classList.add('chat-closed'); };
+  if (closing) chatRest(); else chatWant(); // 열면 최근 20개를 받고(기기 캐시가 먼저 보임), 닫고 1분 뒤에는 최신 1개만
   if (!closing) b.classList.remove('chat-closed', 'chat-closing');
   else b.classList.add('chat-closing'); // 채팅창이 접히는 동안 본문도 함께 넓어진다(끝난 뒤 한 번에 튀지 않게)
   if (matchMedia('(min-width: 1281px)').matches) localStorage.setItem('naejeon:chatclosed', closing ? '1' : '0');

@@ -92,6 +92,7 @@ GitHub 저장소가 원본이다. 집 PC에서 저장소를 내려받아(Downloa
 - `players/{id}`: name, scores{top,jg,mid,adc,sup}, mainLane, soloTier, riotId, mmrInit, solo{record,peak,most,pos,comment,asOf}, riot{id,puuid,tier,rank,lp,w,l,at | err,errAt}(연동 서버가 적음), deleted
 - `matches/{id}`: at, seriesId, blue[5], red[5] (탑→서폿 순서의 선수 id), winner, champs{blue[5],red[5]}, bans, kda{선수id:[k,d,a]}, snap{bs,rs,pBlue}(기록 당시 점수·예상승률), deleted
 - 읽기 절감: `matches`는 Firestore 로컬 캐시 + 마지막 수정 시각(`upd`, 서버 시각) 이후 바뀐 경기만 구독(하루 1회 전체, `upd` 없는 예전 기록은 자동으로 채움). 경기 쓰기는 store.js가 항상 `upd`를 붙인다. `presence`는 최근 하루, `chat` 20·`posts` 5개만 실시간(2026-11-20 줄임, 나머지 글은 "접힌 이전 글 펼치기"를 누를 때만 10개씩 읽음), 라인 지원·주사위는 meta 컬렉션 구독 하나로.
+- 읽기 절감 2(2026-11-20): ① 선수(`players`)도 경기 기록처럼 기기 캐시 + `upd` 이후 바뀐 선수만 구독(`store.js` `INC`, 하루 1회 전체, `upd` 없는 예전 문서는 자동으로 채움). 사이트 저장은 `stamp`로, 연동 서버의 라이엇 갱신은 `patchWrite`의 `updateTransforms`(REQUEST_TIME)로 `upd`를 붙인다. ② 채팅은 채팅창이 열려 있을 때만 최근 20개, 닫혀 있으면 최신 1개만 구독(`chatFull`). 닫힌 채팅창의 안 읽은 숫자 = 접속 때 서버에서 센 수(`countSince`, 읽기 1) + 이후 도착한 다른 사람 메시지. 채팅 버튼에 손가락·마우스를 올리면 미리 20개로 바꾸고, 닫은 뒤 1분이 지나면 1개로 되돌린다. 넓은 PC에서 채팅창을 열어 둔 사람은 그대로 20개. 시험에서 휴대폰 재접속 읽기 61 → 19.
 - `gacha/{선수id}`: pinHash, used{champ,skin}, bought{champ,skin}, shards, champs{챔피언id:개수}, skins{스킨id:{n,c,num,name,tier}}, log[] (구독하지 않음, 가챠 화면에서만 읽음)
 - `auctions/{id}`: 경매 방 상태(`cfg.mode`에 실시간/일괄 방식, 일괄 입찰 제출과 동점 재입찰 포함) · `meta/settings`: leagueName, scale, k, pinHash · `history/*`: 수정·삭제 전 원본
 
