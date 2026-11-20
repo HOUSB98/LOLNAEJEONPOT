@@ -3,19 +3,20 @@
 //   put / patch / tx : 쓰기. 삭제는 없다(문서에 deleted:true 를 표시하는 방식).
 import { FIREBASE_CONFIG } from './config.js';
 
-// 읽기 줄이기: 경기 기록은 바뀐 것만(upd), 접속 표시는 최근 15분, 채팅 20·게시판 5개만 실시간, 라인 지원·주사위는 meta 구독 하나로.
+// 읽기 줄이기: 경기 기록·선수는 바뀐 것만(upd), 접속 표시는 최근 15분, 채팅은 채팅창을 열었을 때만 20개(닫혀 있으면 최신 1개로 새 메시지만 감지), 게시판 5개만 실시간, 라인 지원·주사위는 meta 구독 하나로.
 // reveals(승률 공개 이벤트)는 계속 쌓이는 기록이라 전체를 구독하지 않고 watchCollection으로 최근 것만 따로 듣는다.
 // 경매(auctions)는 경매 화면을 연 사람만 need()로 구독한다(입찰마다 모든 접속자가 다시 읽지 않게).
 const WATCHED = ['players', 'matches', 'meta', 'presence', 'chat', 'posts'];
 const PRESENCE_MS = 15 * 60e3; // 접속 표시는 12분 안에 신호가 있는 사람만 보이므로, 처음 읽을 때 15분 안의 기록만 받는다
-const CHAT_LIMIT = 20; // 채팅은 문서가 계속 쌓이므로 최근 20개만 구독한다(기록 자체는 DB에 남는다)
+const CHAT_LIMIT = 20; // 채팅은 문서가 계속 쌓이므로 최근 20개만 구독한다(기록 자체는 DB에 남는다). 채팅창이 닫혀 있으면 1개(chatFull)
+const INC = ['matches', 'players']; // 마지막 수정 시각(upd) 이후 바뀐 문서만 받는 컬렉션(하루 1번은 전체)
 const POST_LIMIT = 5; // 익명 게시판도 최근 5개만 실시간으로 받고(나머지는 접어 두고 읽지 않음), 이전 글은 '더 보기'를 누를 때 10개씩 한 번만 읽는다
 const FUSE_MSG = '저장이 너무 잦아 이 화면의 저장을 잠시 멈췄어요. 새로고침해 주세요';
 const clean = (o) => JSON.parse(JSON.stringify(o)); // Firestore는 undefined를 받지 않는다
 const FB ='https://www.gstatic.com/firebasejs/10.12.5/';
 
-export async function createStore(key, onChange) {
-  return FIREBASE_CONFIG && key !== 'local' ? firebaseStore(key, onChange) : localStore(key, onChange); // 주소에 ?demo 를 붙이면 체험 모드
+export async function createStore(key, onChange, opt = {}) {
+  return FIREBASE_CONFIG && key !== 'local' ? firebaseStore(key, onChange, opt) : localStore(key, onChange); // 주소에 ?demo 를 붙이면 체험 모드
 }
 
 function localStore(key, onChange) {
@@ -42,6 +43,7 @@ function localStore(key, onChange) {
     syncServerClock: async () => 0,
     clockSoon: async () => 0,
     need: async () => {}, unneed() {}, loaded: () => true, // 체험 모드는 모든 컬렉션을 이미 들고 있다
+    chatFull() {}, countSince: async (col, field, gt) => Object.values(data[col] || {}).filter((d) => d[field] > gt).length,
     pause() {}, isPaused: () => false, // 체험 모드는 사용량이 없으니 쉬지 않는다
     bulk: (fn) => fn(),
     watchDoc: (col, id, onData) => {
@@ -70,7 +72,7 @@ function localStore(key, onChange) {
   };
 }
 
-async function firebaseStore(key, onChange) {
+async function firebaseStore(key, onChange, opt = {}) {
   const [{ initializeApp }, fs] = await Promise.all([import(FB + 'firebase-app.js'), import(FB + 'firebase-firestore.js')]);
   // 로컬 캐시(IndexedDB): 새로고침해도 기기에 저장된 기록을 먼저 쓰고, 서버에서는 바뀐 문서만 받는다(30분 안에 다시 열면 바뀐 문서만 읽기로 계산).
   // 여러 탭을 동시에 열어도 되도록 탭 관리자를 쓴다. 저장소를 막는 브라우저(일부 사파리 개인정보 보호 모드 등)는 SDK가 알아서 지금처럼 메모리로 동작한다.
@@ -143,31 +145,33 @@ async function firebaseStore(key, onChange) {
   const cached = {};
   setTimeout(() => startCols.forEach((col) => cached[col] && mark(col)), 4000); // 캐시가 있으면 4초, 없으면(첫 방문·빈 컬렉션) 12초까지 서버를 기다린다
   setTimeout(() => startCols.forEach(mark), 12000);
-  // 경기 기록: 기기에 저장된 기록(Firestore 로컬 캐시)을 먼저 쓰고, 서버에서는 마지막 수정 시각(upd) 이후에 바뀐 경기만 받는다.
-  // 하루에 한 번은 전체를 다시 받아 혹시 빠진 것을 맞추고, upd 가 없는 예전 기록에는 이때 upd 를 채워 넣는다.
-  const FULL_KEY = 'naejeon:mfull:' + key;
-  async function matchesQuery(src) {
+  // 경기 기록·선수(INC): 기기에 저장된 기록(Firestore 로컬 캐시)을 먼저 쓰고, 서버에서는 마지막 수정 시각(upd) 이후에 바뀐 문서만 받는다.
+  // 하루에 한 번은 전체를 다시 받아 혹시 빠진 것을 맞추고, upd 가 없는 예전 문서에는 이때 upd 를 채워 넣는다.
+  // upd 는 사이트의 저장(put·patch·tx → stamp)과 연동 서버의 라이엇 갱신(worker.js patchWrite 의 updateTransforms)이 서버 시각으로 붙인다.
+  const fullKey = (col) => 'naejeon:' + (col === 'matches' ? 'mfull' : 'pfull') + ':' + key;
+  async function incQuery(col, src) {
     const base = {};
     try { (await fs.getDocsFromCache(src)).forEach((d) => (base[d.id] = { ...d.data(), id: d.id })); } catch {}
     const docs = Object.values(base), ups = docs.map((d) => d.upd?.toMillis?.()).filter(Number.isFinite);
-    const lastFull = +localStorage.getItem(FULL_KEY) || 0;
+    const lastFull = +localStorage.getItem(fullKey(col)) || 0;
     const inc = docs.length > 0 && ups.length > 0 && docs.every((d) => d.upd) && Date.now() - lastFull < 24 * 3600e3;
     return inc ? { q: fs.query(src, fs.where('upd', '>=', fs.Timestamp.fromMillis(Math.max(...ups)))), base, inc } : { q: src, base: {}, inc };
   }
-  let backfilled = false;
-  const backfill = (m) => { // upd 가 없는 예전 경기 기록에 수정 시각을 한 번 채운다(한 번만, 쓰기 = 그 경기 수)
-    if (backfilled || !Object.values(m).some((d) => !d.upd)) return; backfilled = true;
+  const backfilled = {};
+  const backfill = (col, m) => { // upd 가 없는 예전 문서에 수정 시각을 한 번 채운다(한 번만, 쓰기 = 그 문서 수)
+    if (backfilled[col] || !Object.values(m).some((d) => !d.upd)) return; backfilled[col] = true;
     // 여러 사람이 동시에 채우지 않게 잠시(3~30초) 기다렸다가, 그때도 비어 있는 것만 채운다
-    setTimeout(() => Object.values(data.matches || {}).filter((d) => !d.upd).forEach((d) => fs.setDoc(ref('matches', d.id), { upd: fs.serverTimestamp() }, { merge: true }).catch(() => {})), 3000 + Math.random() * 27000);
+    setTimeout(() => Object.values(data[col] || {}).filter((d) => !d.upd).forEach((d) => fs.setDoc(ref(col, d.id), { upd: fs.serverTimestamp() }, { merge: true }).catch(() => {})), 3000 + Math.random() * 27000);
   };
-  startCols.forEach(async (col) => {
-    data[col] = {};
+  // 채팅: 채팅창이 열려 있으면 최근 20개, 닫혀 있으면 최신 1개만(새 메시지 알림용). 열고 닫을 때 chatFull()로 바꿔 다시 구독한다
+  let chatOn = !!opt.chatOpen;
+  const sub = async (col) => {
     const src = fs.collection(db, 'leagues', key, col);
-    const lim = col === 'chat' ? CHAT_LIMIT : col === 'posts' ? POST_LIMIT : 0;
+    const lim = col === 'chat' ? (chatOn ? CHAT_LIMIT : 1) : col === 'posts' ? POST_LIMIT : 0;
     let q = lim ? fs.query(src, fs.orderBy('at', 'desc'), fs.limit(lim)) : src, base = null, inc = false;
     if (col === 'presence') q = fs.query(src, fs.where('at', '>', Date.now() - PRESENCE_MS)); // 그 뒤에 들어오는 신호는 at 이 더 크므로 계속 받는다
-    if (col === 'matches') { ({ q, base, inc } = await matchesQuery(src)); if (inc) { data[col] = { ...base }; cached[col] = true; } }
-    if (isPaused && col !== 'meta') return; // 경기 기록 준비 중에 쉬기가 시작됐으면 구독하지 않는다
+    if (INC.includes(col)) { ({ q, base, inc } = await incQuery(col, src)); if (inc) { data[col] = { ...base }; cached[col] = true; } }
+    if (isPaused && col !== 'meta') return; // 준비 중에 쉬기가 시작됐으면 구독하지 않는다
     UNSUB[col] = fs.onSnapshot(q, { includeMetadataChanges: true }, (snap) => {
       const fromServer = !snap.metadata.fromCache, first = !seen[col];
       if (!first && !snap.docChanges().length) return; // 내용은 그대로이고 상태 표시만 바뀐 알림은 무시(다시 그리지 않음)
@@ -175,11 +179,18 @@ async function firebaseStore(key, onChange) {
       snap.forEach((d) => (m[d.id] = { ...d.data(), id: d.id }));
       data[col] = m;
       if (first && !fromServer) { cached[col] = snap.size > 0 || cached[col]; return; } // 캐시 값: 담아만 두고 서버 확인을 기다린다
-      if (col === 'matches' && !inc && fromServer && first) { try { localStorage.setItem(FULL_KEY, String(Date.now())); } catch {} backfill(m); }
+      if (INC.includes(col) && !inc && fromServer && first) { try { localStorage.setItem(fullKey(col), String(Date.now())); } catch {} backfill(col, m); }
       mark(col);
       onChange(col);
     }, (err) => { console.error(err); mark(col); onChange('error', err); });
-  });
+  };
+  startCols.forEach((col) => { data[col] = {}; sub(col); });
+  // 채팅창을 열면(또는 열 것 같으면) 20개로, 닫으면 1개로 다시 구독. 기기 캐시에 있는 채팅이 먼저 보이고 서버 값이 뒤따른다
+  const chatFull = (on) => {
+    on = !!on; if (on === chatOn) return; chatOn = on;
+    if (isPaused || !UNSUB.chat) return;
+    try { UNSUB.chat(); } catch {} delete UNSUB.chat; sub('chat');
+  };
   // 화면을 열 때만 구독하는 컬렉션(경매). 캐시에 있으면 바로 보여 주고 서버에서 바뀐 것을 이어 받는다.
   // unneed 로 끊어도 30분 안에 다시 열면 서버는 바뀐 문서만 보낸다(Firestore 재개 토큰).
   const LZ = {};
@@ -194,14 +205,16 @@ async function firebaseStore(key, onChange) {
     return l.ready;
   };
   const unneed = (col) => { const l = LZ[col]; if (!l) return; delete LZ[col]; try { l.unsub(); } catch {} };
-  // 경기 기록을 쓸 때는 항상 서버 시각으로 upd 를 붙인다(다른 기기가 '바뀐 경기'로 알아보는 기준)
-  const stamp = (col, o) => (col === 'matches' ? { ...o, upd: fs.serverTimestamp() } : o);
+  // 경기 기록·선수를 쓸 때는 항상 서버 시각으로 upd 를 붙인다(다른 기기가 '바뀐 문서'로 알아보는 기준)
+  const stamp = (col, o) => (INC.includes(col) ? { ...o, upd: fs.serverTimestamp() } : o);
   return {
     mode: 'firebase', data, ready,
     serverNow,
     serverClockReady: () => !!clockSyncedAt && performance.now() - clockSyncedAt < 5 * 60e3,
     syncServerClock, clockSoon,
-    need, unneed, loaded: (col) => WATCHED.includes(col) || !!LZ[col]?.got,
+    need, unneed, loaded: (col) => WATCHED.includes(col) || !!LZ[col]?.got, chatFull,
+    // field 가 gt 보다 큰 문서 수(내려받지 않음, 1,000개당 읽기 1번). 닫힌 채팅창의 '안 읽은 채팅' 숫자
+    countSince: async (col, field, gt) => (await fs.getCountFromServer(fs.query(fs.collection(db, 'leagues', key, col), fs.where(field, '>', gt)))).data().count,
     // 쉬기 시작: meta 외 모든 실시간 구독을 끊는다(화면에 이미 받은 기록은 그대로 둔다). 다시 열 때는 새로고침으로 처음부터 시작
     pause() { isPaused = true; for (const [c, u] of Object.entries(UNSUB)) if (c !== 'meta') { try { u(); } catch {} delete UNSUB[c]; } Object.keys(LZ).forEach(unneed); },
     isPaused: () => isPaused,

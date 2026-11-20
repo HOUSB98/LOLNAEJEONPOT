@@ -3,7 +3,7 @@ import { FIREBASE_CONFIG } from './config.js';
 import { createStore } from './store.js';
 import { cardChamp } from './core.js';
 import { S, page, act, ddMenu, cho, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, toast, download, csv, needAdmin, history, flipSides, modal, closeModal, mh, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
-import { initSocial, renderChat, renderPresence, onMeta } from './social.js';
+import { initSocial, renderChat, renderPresence, onMeta, chatStartsOpen } from './social.js';
 import { duoRank } from './stats.js';
 import { watchDice } from './dice.js';
 import { watchBoard } from './board.js';
@@ -687,7 +687,7 @@ window.NP_OK = 1; // index.html의 시작 확인(이 줄까지 왔다면 모든 
       if (c === 'fuse') return showFuse();
       if (!up) return;
       onStore(c);
-    });
+    }, { chatOpen: chatStartsOpen() }); // 채팅창이 닫힌 채 시작하면 채팅은 최신 1개만 받는다
     await S.store.ready;
   } catch (e) { document.getElementById('splash')?.remove(); main.innerHTML = `<div class="panel landing"><h1>연결 실패</h1><p>${esc(e.message || e)}</p><p class="hint">js/config.js 의 Firebase 설정과 Firestore 규칙을 확인하세요.</p></div>`; return; }
   await SEASON.ready; // 시즌이 아니면 바로 끝난다. 시즌이면 시작 화면 장식 전에 받아 둔다(DB 연결과 동시에 받으므로 보통 기다리지 않는다)
