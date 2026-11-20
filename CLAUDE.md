@@ -4,6 +4,7 @@
 - 구조·데이터 모델·설정 절차는 `README.md` 참고.
 - 사이트를 고칠 때마다 `index.html`의 `V` 값을 바꾼다(모든 JS·CSS 주소의 버전, 배포 직후 옛·새 파일 섞임 방지). 새 JS 파일은 같은 곳 `JS` 목록에 추가.
 - 빌드 도구 없음(순수 ES 모듈). node/git이 없는 PC에서도 수정 가능해야 한다. 미리보기는 `serve.ps1`.
+- 자동 시험은 `tests/`(가짜 Firestore + Playwright, `node tests/run-all.js`, 설명은 `tests/README.md`). 기능을 고치면 관련 시험을 돌리고, 바뀐 동작에 맞춰 시험도 고친다.
 - 통계는 저장하지 않고 `js/stats.js`의 `compute()`가 매번 경기 기록에서 다시 계산한다.
 - DB 문서는 지우지 않는다(`deleted:true`). Firestore는 중첩 배열·undefined를 받지 않는다.
 - 사용자 계정으로 해야 하는 일(GitHub, Firebase)은 "여기를 눌러 주세요" 식으로 짧게 안내.

@@ -1,0 +1,20 @@
+const { chromium } = require('playwright'); const { makeSeed, client, open, Backend } = require('./harness');
+const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) process.exitCode = 1; };
+(async () => { const b = await chromium.launch(); const seed = await makeSeed(b);
+  seed.players[0].riotId = '주계정#KR1';
+  const be = new Backend(); for (const [c, d] of Object.entries(seed)) be.seed(c, d);
+  const A = await client(b, be, 'WORK', 'A'); await A.addInitScript(() => localStorage.setItem('naejeon:me', 'p0'));
+  await open(A, 'me'); await A.waitForTimeout(800);
+  if (!(await A.$('.me-acct'))) { const pk = await A.$('[data-a=mePick][data-id=p0], .me-pick [data-id=p0]'); if (pk) await pk.click(); await A.waitForTimeout(800); }
+  const toast = () => A.evaluate(() => [...document.querySelectorAll('.toast,#toast')].map((e) => e.innerText).join('|'));
+  const nm = await A.evaluate(() => document.querySelector('.me-nm h1')?.innerText);
+  const pid = await A.evaluate(() => document.querySelector('[data-a=meAcct]')?.dataset.id);
+  ok(!!pid && await A.inputValue('#meMain') !== undefined, `칸 표시 (${nm}, ${pid}, 솔랭: ${await A.inputValue('#meMain')})`);
+  await A.fill('#meSubs', '잘못된값'); await A.click('[data-a=meAcct]'); await A.waitForTimeout(400);
+  ok(/형식/.test(await toast()), '형식 틀림 안내: ' + await toast());
+  await A.fill('#meMain', '새주계정#KR1'); await A.fill('#meSubs', '부캐1#KR2, 부캐2#KR3, 부캐1#KR2'); await A.press('#meSubs', 'Enter'); await A.waitForTimeout(800);
+  const v = await A.evaluate(async (pid) => { const { S } = await import('/js/core.js'); return S.store.data.players[pid].riotId; }, pid);
+  ok(v === '새주계정#KR1,부캐1#KR2,부캐2#KR3', 'Enter로 저장, 중복 제거: ' + v);
+  const live = await A.evaluate(async (pid) => { const { S } = await import('/js/core.js'); const m = await import('/js/live.js'); return null; }, pid);
+  await A.click('[data-a=meAcct]'); await A.waitForTimeout(400); ok(/바뀐 내용이 없어요/.test(await toast()), '그대로 저장: ' + await toast());
+  console.log('오류:', A.errs.join(' | ') || '없음'); await b.close(); })();
