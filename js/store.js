@@ -13,7 +13,7 @@ const INC = ['matches', 'players']; // 마지막 수정 시각(upd) 이후 바�
 const POST_LIMIT = 5; // 익명 게시판도 최근 5개만 실시간으로 받고(나머지는 접어 두고 읽지 않음), 이전 글은 '더 보기'를 누를 때 10개씩 한 번만 읽는다
 const FUSE_MSG = '저장이 너무 잦아 이 화면의 저장을 잠시 멈췄어요. 새로고침해 주세요';
 const clean = (o) => JSON.parse(JSON.stringify(o)); // Firestore는 undefined를 받지 않는다
-const FB ='https://www.gstatic.com/firebasejs/10.12.5/';
+const FB ='https://www.gstatic.com/firebasejs/10.12.5/'; // index.html 이 같은 주소를 미리 받아 둔다(modulepreload). 버전을 바꾸면 거기도 같이 바꿀 것
 
 export async function createStore(key, onChange, opt = {}) {
   return FIREBASE_CONFIG && key !== 'local' ? firebaseStore(key, onChange, opt) : localStore(key, onChange); // 주소에 ?demo 를 붙이면 체험 모드

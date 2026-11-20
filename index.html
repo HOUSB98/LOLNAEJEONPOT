@@ -33,12 +33,18 @@
      모든 JS 주소에 같은 V를 붙여(import map) 같은 버전끼리만 쓰이게 한다. 새 JS 파일을 만들면 JS 목록에도 추가한다.
      import map을 모르는 아주 오래된 브라우저는 예전처럼 버전 없이 받는다. -->
 <script>
+// DB 연결 프로그램(Firebase SDK)을 사이트 코드와 동시에 받기 시작한다. 예전에는 사이트 코드를 다 읽은 뒤(휴대폰 약 1.4초)에야 받기 시작했다.
+// 주소·버전은 js/store.js 의 FB 와 같아야 한다(다르면 미리 받은 파일을 못 쓰고 한 번 더 받을 뿐 동작은 같다). 체험 모드(?demo)·리그 코드 없이 열면 받지 않는다
+(function () { try { var q = new URLSearchParams(location.search); if (!q.get('k') || q.has('demo')) return;
+  ['firebase-app.js', 'firebase-firestore.js'].forEach(function (f) { var l = document.createElement('link'); l.rel = 'modulepreload'; l.href = 'https://www.gstatic.com/firebasejs/10.12.5/' + f; document.head.appendChild(l); }); } catch (e) {} })();
+</script>
+<script>
 // 홈으로 들어오면 지난 접속 때 골라 둔 첫 배너 그림(app.js HERO_KEY)을 바로 받기 시작한다(DB 연결을 기다리는 동안 받아 두어 배너가 늦게 뜨지 않게)
 (function () { try { if (/^(#\/?(home)?)?$/.test(location.hash)) { var h = JSON.parse(localStorage.getItem('naejeon:herofirst') || 'null'); if (h && /^https:\/\/ddragon\.leagueoflegends\.com\//.test(h.url)) { var l = document.createElement('link'); l.rel = 'preload'; l.as = 'image'; l.href = h.url; l.setAttribute('fetchpriority', 'high'); document.head.appendChild(l); } } } catch (e) {} })();
 </script>
 <script>
 (function () {
-  var V = '20261120f';
+  var V = '20261120g';
   var JS = ['app', 'core', 'stats', 'store', 'config', 'social', 'season', 'today', 'board', 'dice', 'talk', 'players', 'hook', 'gacha', 'me', 'admin', 'auction', 'replay', 'maker', 'xmas', 'newyear'];
   var ok = !!(window.HTMLScriptElement && HTMLScriptElement.supports && HTMLScriptElement.supports('importmap'));
   var q = ok ? '?v=' + V : '', map = {};
