@@ -6,6 +6,7 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   const A = await client(b, be, 'WORK', 'A'), B = await client(b, be, 'WORK', 'B');
   for (const p of [A, B]) p.on('dialog', (d) => d.accept());
   await open(A, 'today'); await open(B, 'matches');
+  await A.waitForFunction(async () => (await import('/js/core.js')).S.st?.matches?.length > 0, null, { timeout: 15000 }); // 경기 기록이 다 올 때까지
   ok(!(await A.$('[data-a=tLive],[data-a=tLiveStop]')) && !!(await A.$('[data-a=tAi]')), '오늘의 내전: 밴픽 시작 버튼 없음, AI 추천 그대로');
   // ---- 진영 바꾸기
   const snap = (p) => p.evaluate(async () => { const { S } = await import('/js/core.js'); return { list: S.st.list.map((s) => [s.id, s.g, s.w, Math.round(s.mmr * 1000), s.ovr]).sort().join(';'), ms: Object.values(S.store.data.matches).filter(m=>!m.deleted).length }; });
@@ -30,7 +31,9 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   await A.click(`[data-a=matchDetail][data-id="${mid}"]`); await A.waitForTimeout(300); await A.click('[data-a=matchSwap]'); await A.waitForTimeout(800);
   const back = await A.evaluate(async (id) => { const { S } = await import('/js/core.js'); const { id: _, ...m } = JSON.parse(JSON.stringify(S.store.data.matches[id])); return m; }, mid);
   const { id: __, ...b0 } = before;
-  const rp = (o) => typeof o === 'number' ? Math.round(o * 1e9) / 1e9 : Array.isArray(o) ? o.map(rp) : o && typeof o === 'object' ? Object.keys(o).sort().map((k) => [k, rp(o[k])]) : o; { const x = rp(back), y = rp(b0); x.forEach(([k, v], i) => { if (JSON.stringify(v) !== JSON.stringify(y.find((z) => z[0] === k)?.[1])) console.log('DIFF', k, JSON.stringify(v), JSON.stringify(y.find((z) => z[0] === k)?.[1])); }); } ok(JSON.stringify(rp(back)) === JSON.stringify(rp(b0)) || JSON.stringify(Object.keys(back).sort().map((k) => [k, back[k]])) === JSON.stringify(Object.keys(b0).sort().map((k) => [k, b0[k]])), '한 번 더 누르면 원래 기록과 완전히 같음');
+  // upd(저장 시각)는 저장할 때마다 바뀌므로 빼고, 소수점 끝자리 차이는 무시하고 비교
+  const rp = (o) => typeof o === 'number' ? Math.round(o * 1e9) / 1e9 : Array.isArray(o) ? o.map(rp) : o && typeof o === 'object' ? Object.keys(o).filter((k) => k !== 'upd').sort().map((k) => [k, rp(o[k])]) : o;
+  ok(JSON.stringify(rp(back)) === JSON.stringify(rp(b0)), '한 번 더 누르면 원래 기록과 완전히 같음(저장 시각 제외)');
   // ---- 게시판 수정
   await A.evaluate(() => (location.hash = '#/talk')); await A.waitForTimeout(600);
   await A.click('[data-a=tkOpen]'); await A.fill('#tkt', '원래 제목'); await A.fill('#tkb', '원래 내용'); await A.fill('#tkp', '1234'); await A.click('[data-a=tkPost]'); await A.waitForTimeout(800);

@@ -15,6 +15,5 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   await A.fill('#meMain', '새주계정#KR1'); await A.fill('#meSubs', '부캐1#KR2, 부캐2#KR3, 부캐1#KR2'); await A.press('#meSubs', 'Enter'); await A.waitForTimeout(800);
   const v = await A.evaluate(async (pid) => { const { S } = await import('/js/core.js'); return S.store.data.players[pid].riotId; }, pid);
   ok(v === '새주계정#KR1,부캐1#KR2,부캐2#KR3', 'Enter로 저장, 중복 제거: ' + v);
-  const live = await A.evaluate(async (pid) => { const { S } = await import('/js/core.js'); const m = await import('/js/live.js'); return null; }, pid);
   await A.click('[data-a=meAcct]'); await A.waitForTimeout(400); ok(/바뀐 내용이 없어요/.test(await toast()), '그대로 저장: ' + await toast());
   console.log('오류:', A.errs.join(' | ') || '없음'); await b.close(); })();

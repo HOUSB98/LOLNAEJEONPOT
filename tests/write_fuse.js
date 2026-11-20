@@ -44,8 +44,8 @@ const SHOT = process.env.SHOT;
   ok(be.log.filter((l) => l.op === 'write').length === w2 && r === 'tx,put', `멈춘 뒤 5분: 서버 저장 ${be.log.filter((l) => l.op === 'write').length - w2}번 (tx·put 모두 거절: ${r})`);
   // 읽기(실시간 반영)는 계속: B의 채팅이 A에 보임
   await B.evaluate(async () => { const { sendLobbyChat } = await import('/js/social.js'); sendLobbyChat('B가 보낸 말'); });
-  await A.waitForTimeout(1500);
-  ok(await S_(A, (S) => Object.values(S.store.data.chat).some((m) => m.t === 'B가 보낸 말')), '멈춘 뒤에도 다른 사람 채팅은 실시간으로 보임');
+  const seenB = await A.waitForFunction(async () => Object.values((await import('/js/core.js')).S.store.data.chat).some((m) => m.t === 'B가 보낸 말'), null, { timeout: 4000 }).then(() => true).catch(() => false);
+  ok(seenB, '멈춘 뒤에도 다른 사람 채팅은 실시간으로 보임');
   ok(!(await B.$('#fuse')), '다른 기기(B)는 영향 없음');
   if (SHOT) { await A.screenshot({ path: SHOT + '/fuse_pc.png' }); }
   // 새로고침 버튼 → 정상
