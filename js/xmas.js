@@ -388,7 +388,8 @@ function place() {
   const chat = document.getElementById('chat');
   if (chat && !chat.querySelector('#xsky')) {
     const k = document.createElement('div'); k.id = 'xsky';
-    k.innerHTML = `<i class="xk-moon"></i>${starLayers(22, chat.clientWidth || 340, (chat.clientHeight || 800) * 0.62)}`;
+    const shut = document.body.classList.contains('chat-closed'); // 닫힌 채팅창은 크기를 재지 않는다(재면 배치 계산이 한 번 더 일어남)
+    k.innerHTML = `<i class="xk-moon"></i>${starLayers(22, (!shut && chat.clientWidth) || 340, ((!shut && chat.clientHeight) || 800) * 0.62)}`;
     chat.prepend(k);
   }
   if (chat && !chat.querySelector('#xtree')) {
@@ -408,10 +409,12 @@ function clear() {
   document.querySelector('#side .xhat')?.remove();
   snowStop?.();
 }
-function apply() {
+// later: 접속 직후에는 장식(트리·별·갈랜드·눈)을 첫 화면이 그려진 다음에 붙인다(첫 화면이 멈칫하지 않게). 색 등 xmas 표시는 바로
+const after1st = (f) => requestAnimationFrame(() => setTimeout(() => (window.requestIdleCallback ? requestIdleCallback(f, { timeout: 800 }) : f()), 0));
+function apply(later) {
   const on = xmasOn();
   document.body.classList.toggle('xmas', on);
-  if (on) place(); else clear();
+  if (on) (later ? after1st(() => xmasOn() && place()) : place()); else clear();
   dispatchEvent(new Event('xmaschange')); // 접속자 얼굴(산타·루돌프)을 바로 바꾼다
   document.querySelectorAll('[data-a="xmasToggle"]').forEach((b) => { b.classList.toggle('on', on); const u = b.querySelector('u'); if (u) u.textContent = on ? 'ON' : 'OFF'; });
 }
@@ -421,7 +424,7 @@ export function initXmas() {
   if (!inSeason()) return;
   moreHooks.push(xmasBtn);
   document.querySelector('.sidefoot')?.insertAdjacentHTML('beforeend', xmasBtn());
-  apply();
+  apply(true);
   let w = innerWidth; addEventListener('resize', () => { if (Math.abs(innerWidth - w) > 40 && document.getElementById('xlights')) { w = innerWidth; garland(); } });
   setTimeout(flyBy, 12e3); setInterval(flyBy, 90e3); // 접속 12초 뒤 한 번, 그 뒤 1분 30초마다
   let day = new Date().getDate();

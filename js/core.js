@@ -139,8 +139,10 @@ export function render() {
   document.getElementById('league').textContent = settings().leagueName || '친구 내전 리그';
   const route = S.page + '/' + S.arg.join('/'), entering = route !== lastRoute;
   lastRoute = route;
+  // 화면 전환 효과: 새 화면의 요소는 새로 만들어지므로, 내용을 넣기 전에 enter 를 붙여 두면 효과가 처음부터 걸린다.
+  // (예전에는 넣은 뒤 void offsetWidth 로 페이지 전체 배치를 억지로 계산시켜 다시 걸어서 휴대폰 첫 화면이 0.4초 멈칫했다.)
+  if (entering) { main.classList.add('enter'); clearTimeout(render.t); render.t = setTimeout(() => main.classList.remove('enter'), 900); }
   main.innerHTML = pages[S.page].render(...S.arg);
-  if (entering) { main.classList.remove('enter'); void main.offsetWidth; main.classList.add('enter'); clearTimeout(render.t); render.t = setTimeout(() => main.classList.remove('enter'), 900); }
   lazyArt(main);
   pages[S.page].after?.(entering);
   if (fid) { const el = document.getElementById(fid); if (el) { el.focus(); try { el.setSelectionRange(sel, sel); } catch {} } }
@@ -407,15 +409,29 @@ export { mh };
 // ---------- 챔피언 ----------
 const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
 export const cho = (s) => [...s].map((c) => { const n = c.charCodeAt(0) - 0xac00; return n >= 0 && n < 11172 ? CHO[Math.floor(n / 588)] : c; }).join('');
+const CHAMP_KEY = 'naejeon:champs3';
+const champCache = () => { try { return JSON.parse(localStorage.getItem(CHAMP_KEY) || 'null'); } catch { return null; } };
+// 챔피언 목록(패치 데이터) 받기를 DB 연결과 동시에 시작한다(app.js 가 접속하자마자 부름). 기기에 반나절 안의 목록이 있으면 받지 않는다.
+// 예전에는 DB 연결이 끝난 뒤에야 받기 시작해서 첫 방문 때 배너·챔피언 그림이 1초 넘게 늦게 떴다
+let champFetch = null;
+export function prefetchChamps() {
+  if (champFetch) return champFetch;
+  const c = champCache();
+  if (c && Date.now() - c.at < 12 * 3600e3) return (champFetch = Promise.resolve(null));
+  return (champFetch = (async () => {
+    const ver = (await (await fetch('https://ddragon.leagueoflegends.com/api/versions.json')).json())[0];
+    return { ver, data: (await (await fetch(`https://ddragon.leagueoflegends.com/cdn/${ver}/data/ko_KR/champion.json`)).json()).data };
+  })());
+}
 export async function loadChamps() {
-  const KEY = 'naejeon:champs3';
+  const KEY = CHAMP_KEY;
   const set = (o) => { S.ver = o.ver; S.champs = o.list; S.champBy = Object.fromEntries(o.list.map((c) => [c.name, c])); };
   try {
-    const cached = JSON.parse(localStorage.getItem(KEY) || 'null');
+    const cached = champCache();
     if (cached) { set(cached); refresh(); } // 저장해 둔 목록을 적용한 뒤 화면을 다시 그려야 첫 화면의 이미지가 비지 않는다
     if (cached && Date.now() - cached.at < 12 * 3600e3) return; // 패치 버전은 반나절마다 다시 확인
-    const ver = (await (await fetch('https://ddragon.leagueoflegends.com/api/versions.json')).json())[0];
-    const data = (await (await fetch(`https://ddragon.leagueoflegends.com/cdn/${ver}/data/ko_KR/champion.json`)).json()).data;
+    const got = await prefetchChamps(); if (!got) return;
+    const { ver, data } = got;
     const list = Object.values(data).map((c) => ({ id: c.id, key: +c.key, name: c.name, img: `https://ddragon.leagueoflegends.com/cdn/${ver}/img/champion/${c.image.full}` })).sort((a, b) => a.name.localeCompare(b.name, 'ko'));
     const o = { ver, list, at: Date.now() };
     localStorage.setItem(KEY, JSON.stringify(o)); set(o); refresh();

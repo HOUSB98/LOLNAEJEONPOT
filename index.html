@@ -33,8 +33,12 @@
      모든 JS 주소에 같은 V를 붙여(import map) 같은 버전끼리만 쓰이게 한다. 새 JS 파일을 만들면 JS 목록에도 추가한다.
      import map을 모르는 아주 오래된 브라우저는 예전처럼 버전 없이 받는다. -->
 <script>
+// 홈으로 들어오면 지난 접속 때 골라 둔 첫 배너 그림(app.js HERO_KEY)을 바로 받기 시작한다(DB 연결을 기다리는 동안 받아 두어 배너가 늦게 뜨지 않게)
+(function () { try { if (/^(#\/?(home)?)?$/.test(location.hash)) { var h = JSON.parse(localStorage.getItem('naejeon:herofirst') || 'null'); if (h && /^https:\/\/ddragon\.leagueoflegends\.com\//.test(h.url)) { var l = document.createElement('link'); l.rel = 'preload'; l.as = 'image'; l.href = h.url; l.setAttribute('fetchpriority', 'high'); document.head.appendChild(l); } } } catch (e) {} })();
+</script>
+<script>
 (function () {
-  var V = '20261120d';
+  var V = '20261120e';
   var JS = ['app', 'core', 'stats', 'store', 'config', 'social', 'season', 'today', 'board', 'dice', 'talk', 'players', 'hook', 'gacha', 'me', 'admin', 'auction', 'replay', 'maker', 'xmas', 'newyear'];
   var ok = !!(window.HTMLScriptElement && HTMLScriptElement.supports && HTMLScriptElement.supports('importmap'));
   var q = ok ? '?v=' + V : '', map = {};

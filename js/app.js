@@ -1,7 +1,7 @@
 // 시작점 + 홈 / 랭킹 / 경기 기록 / 챔피언 / 피어리스 화면
 import { FIREBASE_CONFIG } from './config.js';
 import { createStore } from './store.js';
-import { cardChamp } from './core.js';
+import { cardChamp, prefetchChamps } from './core.js';
 import { S, page, act, ddMenu, cho, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, toast, download, csv, needAdmin, history, flipSides, modal, closeModal, mh, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
 import { initSocial, renderChat, renderPresence, onMeta, chatStartsOpen } from './social.js';
 import { duoRank } from './stats.js';
@@ -108,6 +108,7 @@ function noticeTick() {
 // 홈 배너: 내전에 나온 챔피언(적으면 전체)의 일러스트를 순서를 섞어 차례로 보여 준다.
 // 크리스마스 시즌(시즌 장식 ON)에는 겨울·크리스마스 스킨 일러스트로 바꾼다. 항목: { url, cap }
 const HERO = { list: [], i: 0, t: 0, flip: 0, xm: false };
+const HERO_KEY = 'naejeon:herofirst'; // 다음 접속 때 처음 보여 줄 배너 그림 { url, cap, xm } (index.html 이 미리 받는다)
 const shuffle = (a) => a.map((x) => [Math.random(), x]).sort((p, q) => p[0] - q[0]).map((x) => x[1]);
 // 겨울 스킨이 있을 만한 챔피언 후보. 실제로는 패치 데이터에서 스킨 이름을 확인해 아래 낱말이 들어간 스킨만 쓴다(후보에 있어도 해당 스킨이 없으면 빠진다)
 const XMAS_IDS = ['Amumu', 'Anivia', 'Annie', 'Bard', 'Braum', 'Corki', 'Draven', 'Ezreal', 'Fiddlesticks', 'Gangplank', 'Gnar', 'Gragas', 'Graves', 'Heimerdinger', 'Ivern', 'Janna', 'Jinx', 'Karma', 'Katarina', 'Kayle', 'Kassadin', 'Kennen', 'Leona', 'Lissandra', 'Lulu', 'Lux', 'Malphite', 'MasterYi', 'Morgana', 'Neeko', 'Nidalee', 'Nunu', 'Orianna', 'Poppy', 'Rakan', 'Sett', 'Shaco', 'Singed', 'Sivir', 'Sona', 'Soraka', 'Syndra', 'Taliyah', 'Teemo', 'TwistedFate', 'Veigar', 'Yuumi', 'Ziggs', 'Zilean', 'Zoe'];
@@ -143,6 +144,13 @@ function heroList() {
     const pool = played.length >= 6 ? played : S.champs.map((c) => c.name);
     HERO.list = shuffle(pool).slice(0, HERO_N()).map((n) => ({ url: artUrl(n), cap: n }));
   }
+  // 첫 배너: 지난 접속 때 골라 둔 그림(index.html 이 사이트를 여는 순간 미리 받기 시작함)을 맨 앞에 두고, 다음 접속용 그림을 하나 골라 둔다
+  try {
+    const r = JSON.parse(localStorage.getItem(HERO_KEY) || 'null');
+    if (r?.url && r.xm === want && (want || S.champBy[r.cap])) { HERO.list = [{ url: r.url, cap: r.cap }, ...HERO.list.filter((x) => x.url !== r.url)]; }
+    const nx = HERO.list[1 + Math.floor(Math.random() * Math.max(1, HERO.list.length - 1))] || HERO.list[0];
+    if (nx) localStorage.setItem(HERO_KEY, JSON.stringify({ url: nx.url, cap: nx.cap, xm: want }));
+  } catch {}
   return HERO.list;
 }
 function heroNext(tries = 0) {
@@ -682,6 +690,7 @@ window.NP_OK = 1; // index.html의 시작 확인(이 줄까지 왔다면 모든 
   S.key = key || 'local';
   let up = false;
   try {
+    prefetchChamps().catch(() => {}); // 챔피언 목록(배너·챔피언 그림)은 DB 연결과 동시에 받기 시작한다
     S.store = await createStore(S.key, (c, err) => {
       if (c === 'error') return toast('DB 연결 오류: ' + (err?.code || err));
       if (c === 'fuse') return showFuse();

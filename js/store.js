@@ -132,7 +132,7 @@ async function firebaseStore(key, onChange, opt = {}) {
   // 사용량 자동 쉬기(meta/pause): 이 기기가 오늘 쉬는 중이라고 알고 있으면 meta 만 구독해서 시작한다(쉬는 동안 읽기 거의 0).
   // 쉬는 중이 아니었으면(관리자가 풀었거나 날이 바뀜) app.js 가 새로고침해서 정상으로 시작한다.
   const ptDay = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-  let isPaused = (() => { try { return localStorage.getItem('naejeon:pause:' + key) === ptDay(); } catch { return false; } })();
+  let isPaused = (() => { try { const v = localStorage.getItem('naejeon:pause:' + key); return !!v && v === ptDay(); } catch { return false; } })(); // 기록이 없으면 시간대 계산(느림)을 하지 않는다
   const UNSUB = {};
   const startCols = isPaused ? ['meta'] : WATCHED;
   WATCHED.forEach((c) => { if (!startCols.includes(c)) data[c] = {}; });
