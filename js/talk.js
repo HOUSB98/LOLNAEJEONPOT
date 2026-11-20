@@ -17,7 +17,7 @@ function ago(t) {
   if (s < 86400 * 7) return `${Math.floor(s / 86400)}일 전`;
   const d = new Date(t); return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
 }
-// 실시간으로는 최근 10개만 받는다(store.js POST_LIMIT). '더 보기'로 읽은 이전 글은 OLD 에 따로 둔다
+// 실시간으로는 최근 5개만 받는다(store.js POST_LIMIT). 나머지 글은 접어 두고, 누를 때만 읽는다. '더 보기'로 읽은 이전 글은 OLD 에 따로 둔다
 const OLD = {};
 const CNT = { n: null, at: 0, busy: false }; // 전체 글 수(서버에서 세기, 1분에 한 번까지)
 const posts = () => { const live = col('posts'), ids = new Set(live.map((p) => p.id)); return [...live, ...Object.values(OLD).filter((p) => !ids.has(p.id))].filter((p) => !p.deleted && p.body).sort((a, b) => b.at - a.at); };
@@ -36,7 +36,7 @@ const myKey = () => 'naejeon:myposts:' + S.key;
 const myPosts = () => { try { return JSON.parse(localStorage.getItem(myKey())) || {}; } catch { return {}; } };
 const saveMy = (m) => { const keep = Object.keys(m).sort().slice(-20); try { localStorage.setItem(myKey(), JSON.stringify(Object.fromEntries(keep.map((k) => [k, m[k]])))); } catch {} };
 export function markPostSeen(id, cn) { const m = myPosts(); if (!(id in m)) return; m[id] = Math.max(0, +cn || 0); saveMy(m); }
-const MP = {}; // 실시간 목록(최근 10개)에 없는 내 글은 2분에 한 번만 직접 읽는다
+const MP = {}; // 실시간 목록(최근 5개)에 없는 내 글은 2분에 한 번만 직접 읽는다
 export function myPostAlerts(onLoad) {
   const m = myPosts(), ids = Object.keys(m).sort().reverse().slice(0, 5), live = Object.fromEntries(allLoaded().map((p) => [p.id, p]));
   const out = [];
@@ -223,7 +223,7 @@ page('talk', {
           ${p.title ? `<h3>${esc(p.title)}</h3>` : ''}<p class="tk-text">${esc(p.body)}</p>
           ${(() => { const c = cmBox(p); return `<div class="tk-foot">${rxBar(p)}${c.btn}</div>${c.box}`; })()}
         </article>`).join('') || '<div class="panel empty">아직 글이 없어요. 첫 글을 남겨 보세요!</div>'}</div>
-      ${more > 0 ? `<button class="btn block ghost" data-a="tkMore" ${TK.loading ? 'disabled' : ''}>${TK.loading ? '불러오는 중…' : `이전 글 더 보기 (${more}개)`}</button>` : ''}`;
+      ${more > 0 ? `<button class="btn block ghost" data-a="tkMore" ${TK.loading ? 'disabled' : ''}>${TK.loading ? '불러오는 중…' : `접힌 이전 글 ${more}개 펼치기`}</button>` : ''}`;
   },
   after() { TK.seen = new Set(posts().map((p) => p.id)); },
 });
