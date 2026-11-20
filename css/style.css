@@ -190,7 +190,7 @@ textarea.inp{width:100%;resize:vertical}
 /* ---------- 경기 카드 ---------- */
 .day{display:flex;align-items:baseline;gap:10px;border-bottom:1px solid var(--line);padding-bottom:8px;margin-top:26px}.day .mono{font-size:17px;color:var(--gold2)}
 .mlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:12px}
-.mcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;transition:.2s}.mcard:hover{border-color:var(--line2);transform:translateY(-2px);box-shadow:0 14px 30px -22px #000}
+.mcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;transition:.2s}@media (hover:hover){.mcard:hover{border-color:var(--line2);transform:translateY(-2px);box-shadow:0 14px 30px -22px #000}} /* 휴대폰은 스크롤·누를 때 hover 가 걸려 카드가 들썩여서 마우스 기기만 */
 .mhd>*{flex:none;white-space:nowrap}.mhd .mut{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}.mhd .btn.xs{padding:3px 8px;min-height:26px}
 .mhd{display:flex;gap:6px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);font-size:12px;flex-wrap:nowrap;background:rgba(255,255,255,.015)}.mhd b{color:var(--gold)}
 .vs{display:grid;grid-template-columns:1fr 1fr}
@@ -548,7 +548,8 @@ button.sticker:hover{transform:translateY(-2px) scale(1.04);background:color-mix
 canvas.fx{position:fixed;inset:0;pointer-events:none;z-index:70}
 
 .stat,.ins,.hslide,.notice li,.panel,.pod{color:var(--text)}
-.mcard,.solo .panel,.dogam>div{content-visibility:auto;contain-intrinsic-size:auto 220px}
+/* 경기 카드(.mcard)는 빼 둠: 화면 밖 카드의 어림 높이(220~260px)와 실제 높이가 달라 스크롤할 때 아래 칸이 덜컥 움직였다(아이폰은 자동 보정이 없음). 경기 기록은 한 번에 30장까지만 그려서 미리 그려도 가볍다 */
+.solo .panel,.dogam>div{content-visibility:auto;contain-intrinsic-size:auto 220px}
 .car-track{will-change:transform}
 /* ---------- 모션 ---------- */
 #main.enter>*{animation:rise .5s cubic-bezier(.2,.8,.2,1) both}
@@ -1237,7 +1238,7 @@ body.idle #main *,body.idle #main *::before,body.idle #main *::after,body.idle #
   .mm-foot{margin-top:14px;gap:8px;flex-wrap:wrap}.mm-foot .btn{flex:1 1 150px;min-width:0;justify-content:center;white-space:nowrap;padding-left:10px;padding-right:10px}
 }
 /* 긴 목록은 화면 밖 항목을 그리지 않는다(경기가 수백 판 쌓여도 스크롤이 가볍게) */
-.mlist>.mcard{content-visibility:auto;contain-intrinsic-size:auto 260px}
+
 @media (max-width:860px){#side .sidefoot{display:none}.prh>.ic{display:none}#presence{margin-left:auto}}
 
 /* ---------- 버튼 위계: 금색 채움(.pri)은 화면의 핵심 버튼 하나만, 나머지 금색(.gold)은 테두리 ---------- */
