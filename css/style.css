@@ -41,12 +41,21 @@ code{background:var(--panel2);padding:1px 6px;border-radius:5px;font-family:var(
 #nav a:hover{background:rgba(255,255,255,.04);color:#fff;transform:translateX(2px)}
 #nav a.on{background:linear-gradient(90deg,rgba(217,164,65,.18),rgba(217,164,65,.02));color:var(--gold2)}
 #nav a.on::before{height:22px}#nav a.on .ic{color:var(--gold)}
-#presence{margin-top:auto;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.02);padding:10px}
+#presence{position:relative;margin-top:auto;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.02);padding:10px}
+/* 접속자: 얼굴 최대 5개 겹침 + '+N', 누르면 위로 작은 창 */
+.prf{display:flex;align-items:center;gap:8px;width:100%;margin-top:8px;padding:2px 2px 2px 0;border:0;background:none;color:var(--mut);font:inherit;cursor:pointer;text-align:left}
+.prf small{margin-left:auto;font-size:11px;transition:color .15s}.prf:hover small,.prf[aria-expanded=true] small{color:var(--gold2)}
+.prs{display:inline-flex;align-items:center}
+.prs i.face,.prs .pmore{width:24px;height:24px;margin-left:-7px;border:2px solid var(--side);box-sizing:content-box}.prs>:first-child{margin-left:0}
+.prs .pmore{display:inline-grid;place-items:center;border-radius:50%;background:var(--panel2);color:var(--text);font:700 10px/1 var(--mono);font-style:normal;letter-spacing:0}
+.prpop{position:absolute;left:-1px;right:-1px;bottom:calc(100% + 8px);z-index:20;display:flex;flex-direction:column;max-height:min(56vh,420px);border:1px solid var(--line2);border-radius:12px;background:var(--panel);box-shadow:0 18px 40px -12px rgba(0,0,0,.75);animation:prpop .18s cubic-bezier(.2,.9,.3,1)}
+@keyframes prpop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.prpop-h{display:flex;align-items:baseline;gap:6px;padding:9px 12px 7px;border-bottom:1px solid var(--line);font-size:12px}.prpop-h small{margin-left:auto;color:var(--teal)}
+.prpop-l{overflow-y:auto;padding:4px;display:grid;gap:1px;overscroll-behavior:contain}
+.prpop-l button{display:flex;align-items:center;gap:8px;width:100%;padding:5px 8px;border:0;border-radius:8px;background:none;color:var(--text);font:inherit;font-size:12px;text-align:left}
+.prpop-l button:hover{background:var(--panel2)}.prpop-l button span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prpop-l i.face{width:20px;height:20px}.prpop-l .me{cursor:pointer}.prpop-l small{color:var(--gold);font-size:10px}
 .prh{display:flex;align-items:center;gap:7px;font-size:12px;color:#a9b4c7}.prh span{margin-left:auto;color:var(--teal);font-weight:700}
-.prl{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;max-height:92px;overflow-y:auto}
-.prl button{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:99px;padding:3px 9px 3px 7px;font:inherit;font-size:12px}
-.prl button i{position:relative;width:7px;height:7px;border-radius:50%;background:hsl(var(--h) 80% 62%);--pd:2.4s}
-.prl .me{border-color:var(--gold);cursor:pointer}.prl small{color:var(--gold)}
 .sidefoot{display:flex;align-items:center;justify-content:space-between;gap:6px}
 /* ---------- 사이드바를 한 화면에 (스크롤 없이) ---------- */
 @media (min-width:861px){#side{gap:7px;padding:12px 12px 10px;scrollbar-width:none}#side::-webkit-scrollbar{display:none}}
@@ -60,10 +69,10 @@ code{background:var(--panel2);padding:1px 6px;border-radius:5px;font-family:var(
 .nav-chev{margin-top:3px}
 #nav a{padding:6px 12px}
 #nav a.on::before{height:18px}
-#presence{padding:7px 9px}.prl{margin-top:6px;max-height:60px}
+#presence{padding:7px 9px}.prf{margin-top:6px}
 .sidefoot{flex-wrap:wrap;gap:4px}.sidefoot:not(:has(*)){display:none}#mode:empty{display:none}
 .sidefoot .btn.xs{padding:3px 7px;font-size:11px;gap:3px;min-height:0}.sidefoot .btn.xs u{font-size:9px;padding:0 4px;margin-left:2px}
-@media (max-height:820px){#nav a{padding:5px 12px}#nav h6{margin:5px 10px 1px}.prl{max-height:28px}}
+@media (max-height:820px){#nav a{padding:5px 12px}#nav h6{margin:5px 10px 1px}}
 @media (max-height:740px){#nav a{padding:4px 12px}#nav h6{margin:3px 10px 0}.brand .logo{width:34px;height:34px}}
 i.live{position:relative;display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:6px}
 #main{margin-left:var(--sw);margin-right:var(--cw);padding:24px 28px 90px;min-height:100vh}
@@ -562,7 +571,7 @@ canvas.fx{position:fixed;inset:0;pointer-events:none;z-index:70}
 @keyframes pop{0%{transform:scale(1)}45%{transform:scale(1.07)}100%{transform:scale(1)}}
 @keyframes stamp{from{opacity:0;transform:scale(2.200) rotate(-14deg)}to{opacity:1;transform:rotate(-3deg)}}
 /* 퍼지는 점: 점 크기에서 지름 +14px 까지 커지며 사라지는 고리(그림자 애니메이션은 매 프레임 다시 그려서 바꿈) */
-.prl button i:not(.face)::after,i.live::after,.pcount i::after{content:"";position:absolute;inset:0;border-radius:50%;background:currentColor;pointer-events:none;will-change:transform,opacity;animation:pulse var(--pd,2s) infinite}
+i.live::after,.pcount i::after{content:"";position:absolute;inset:0;border-radius:50%;background:currentColor;pointer-events:none;will-change:transform,opacity;animation:pulse var(--pd,2s) infinite}
 @keyframes pulse{0%{transform:scale(1);opacity:1}70%{transform:scale(3);opacity:0}100%{transform:scale(1);opacity:0}}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes draw{to{stroke-dashoffset:0}}
@@ -589,7 +598,7 @@ canvas.fx{position:fixed;inset:0;pointer-events:none;z-index:70}
 @media (max-width:860px){
   #side{position:sticky;top:0;inset:auto;width:auto;flex-direction:row;flex-wrap:wrap;align-items:center;padding:8px 10px 0;gap:6px;border-right:0;border-bottom:1px solid var(--line)}
   .brand{padding:0;flex:1;min-width:0}.brand .logo{width:30px;height:30px}
-  #side>a.btn.gold,#side>a.btn.pri,#presence .prl{display:none}#presence{margin:0;padding:4px 9px;border-radius:99px}.prh b{display:none}
+  #side>a.btn.gold,#side>a.btn.pri,#presence .prf,#presence .prpop{display:none}#presence{margin:0;padding:4px 9px;border-radius:99px}.prh b{display:none}
   .sidefoot{gap:4px}#mode{display:none}
   #nav{order:9;flex-direction:row;overflow-x:auto;width:100%;gap:0;scrollbar-width:none}#nav h6,#nav .nav-h{display:none}#nav .nav-g{display:contents}#nav .nav-g.fold a:not(.on){display:flex}
   #nav a{flex:none;padding:10px 11px;border-radius:0;border-bottom:2px solid transparent;font-size:13px;gap:6px}#nav a::before{display:none}#nav a.on{background:transparent;border-color:var(--gold)}#nav a:hover{transform:none}
@@ -823,7 +832,7 @@ canvas.fx{position:fixed;inset:0;pointer-events:none;z-index:70}
 
 /* ---------- 채팅 머리 버튼 · 접속자 메뉴 · 강퇴 화면 ---------- */
 .ch-btns{display:flex;gap:4px;align-self:flex-start}.ch-btns .btn{color:var(--mut)}.ch-btns .btn:hover{color:#ff8ea2;border-color:#6b2333}
-.prl button[data-cid]{cursor:context-menu}
+.prpop-l button[data-cid]{cursor:context-menu}
 #ctx{position:fixed;z-index:40;min-width:160px;padding:6px;border-radius:11px;background:linear-gradient(180deg,#131c2c,#0b111c);border:1px solid var(--line2);box-shadow:0 20px 44px -14px #000;animation:sheetin .16s}
 #ctx small{display:block;padding:4px 9px 6px;font-weight:700;color:var(--gold2);border-bottom:1px solid var(--line);margin-bottom:4px}
 #ctx button{display:flex;align-items:center;gap:8px;width:100%;padding:8px 9px;border:0;border-radius:7px;background:none;color:#ff8ea2;font:inherit;font-weight:700;cursor:pointer}#ctx button:hover{background:rgba(240,80,110,.16)}
@@ -1276,15 +1285,12 @@ em.m-hide{font-style:normal}
 @media (max-width:860px){.rq-teams{grid-template-columns:1fr}}
 /* 접속자 얼굴(챔피언 일러스트) */
 i.face.img{background-color:#1a2536!important;background-size:cover!important;background-position:center 18%!important;color:transparent}
-.prl button{padding:3px 10px 3px 3px}
-.prl button i.face{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font:700 11px inherit;font-style:normal;color:#fff;background:hsl(var(--h),55%,42%);box-shadow:0 0 0 2px rgba(79,208,139,.55);animation:none}
 .pav i.face.img{box-shadow:0 0 0 1px rgba(79,208,139,.6)}
 .pr-sheet i.face.img{box-shadow:0 0 0 2px rgba(79,208,139,.6),0 4px 10px -4px #000}
 
 /* ---------- 접속자 아이콘(주 라인 / 사람) ---------- */
 i.face{display:inline-grid!important;place-items:center;flex:none;border-radius:50%;font-style:normal;color:var(--lc)!important;background:color-mix(in srgb,var(--lc) 16%,#0b111c)!important;box-shadow:0 0 0 1.5px color-mix(in srgb,var(--lc) 65%,transparent)!important;animation:none!important}
 i.face svg{width:58%;height:58%}i.face .lic{color:var(--lc)}
-.prl button i.face{width:22px;height:22px}
 .pav i.face{width:22px;height:22px;margin-left:-6px;border:2px solid #070b13}.pav i.face:first-child{margin-left:0}
 .pr-sheet i.face{width:36px;height:36px}
 
@@ -2174,3 +2180,44 @@ a.me-ch[href]:hover{background:rgba(255,255,255,.05)}
 #splash .xs-rd,#splash .xs-nose{animation:none} /* 시작 화면 썰매는 다리·코 깜빡임 없이(SVG 안쪽 애니메이션은 매 프레임 다시 그려야 해서 무겁다). 비행·흔들림은 그대로 */
 body.lite .xs-scene *{animation:none!important}body.lite .xs-scene .xs-fly,body.lite .xs-shoot{display:none}
 @media (prefers-reduced-motion:reduce){.xs-scene *{animation:none!important}.xs-scene .xs-fly,.xs-shoot{display:none}}
+/* ---------- 점수 변동(js/scores.js): 선수 × 라인 표. 큰 숫자 = 지금 점수, 옆 = 기간 안의 변화 ---------- */
+.sv-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.sv-top .btn{margin-left:auto}
+.sv-sub{margin:6px 0 14px;font-size:13px}
+.sv-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:12px}
+.sv-all{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--mut);cursor:pointer}.sv-all input{accent-color:var(--gold)}
+.sv-sum{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 18px;margin:0 0 12px;padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--panel);font-size:13px;color:var(--mut)}
+.sv-sum b{font-size:20px;color:var(--text);margin-right:2px}.sv-sum .up b{color:var(--green)}.sv-sum .dn b{color:var(--red)}.sv-sum small{margin-left:auto}
+.sv-tbl{padding:4px 0;overflow:hidden}
+.sv-row{display:grid;grid-template-columns:minmax(120px,1.3fr) repeat(5,minmax(0,1fr)) 78px;align-items:center;gap:6px;padding:7px 14px;border-top:1px solid var(--line)}
+.sv-row:first-child{border-top:0}.sv-row:not(.sv-h):hover{background:rgba(255,255,255,.025)}
+.sv-h{font:600 11px var(--mono);letter-spacing:.06em;color:var(--mut);padding-top:9px;padding-bottom:9px}
+.sv-h span{display:inline-flex;align-items:center;justify-content:center;gap:4px}.sv-h span:first-child{justify-content:flex-start}.sv-h span:last-child{justify-content:flex-end}
+.sv-h span[style] svg{width:13px;height:13px;color:var(--lc)}
+.sv-nm{display:flex;align-items:center;gap:8px;min-width:0}.sv-nm b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.sv-nm i{flex:none;display:grid;place-items:center;width:22px;height:22px;border-radius:50%;color:var(--lc);background:color-mix(in srgb,var(--lc) 15%,transparent)}.sv-nm i svg{width:13px;height:13px}
+.sv-nm:hover b{color:var(--gold2)}
+.sv-c{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:center;column-gap:5px;padding:5px 4px;border-radius:8px;text-align:center;line-height:1.15}
+.sv-c b{font:700 15px var(--mono)}.sv-c em{font:700 11px var(--mono);font-style:normal}.sv-c small{flex-basis:100%;font:500 10px var(--mono);color:var(--mut)}
+.sv-c.same b{color:var(--mut);font-weight:500}
+.sv-c.up{background:rgba(79,208,139,.1);box-shadow:inset 0 0 0 1px rgba(79,208,139,.28)}.sv-c.up em{color:var(--green)}
+.sv-c.dn{background:rgba(240,80,110,.1);box-shadow:inset 0 0 0 1px rgba(240,80,110,.28)}.sv-c.dn em{color:var(--red)}
+.sv-tot{display:flex;flex-direction:column;align-items:flex-end;line-height:1.2}.sv-tot b{font-size:15px}.sv-tot.up b{color:var(--green)}.sv-tot.dn b{color:var(--red)}
+.sv-row.none .sv-nm b{color:var(--mut);font-weight:500}
+.sv-h2{margin:22px 0 10px}
+.sv-tl{padding:6px 16px 12px}
+.sv-day h4{display:flex;align-items:baseline;gap:8px;margin:12px 0 6px;font:700 13px var(--mono);color:var(--gold2)}.sv-day h4 small{font-family:var(--sans)}
+.sv-ev{display:grid;grid-template-columns:44px minmax(60px,1fr) 74px 92px 46px;align-items:center;gap:8px;padding:5px 0;border-top:1px solid var(--line);font-size:13px}
+.sv-ev>span:first-child{color:var(--mut);font-size:11px}.sv-ev b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.sv-ev i{display:inline-flex;align-items:center;gap:4px;font-style:normal;font-size:12px;color:var(--lc)}.sv-ev i svg{width:13px;height:13px}
+.sv-ev em{font:700 12px var(--mono);font-style:normal;text-align:right}.sv-ev em.up{color:var(--green)}.sv-ev em.dn{color:var(--red)}
+.sv-more{margin-top:10px}
+@media (max-width:860px){
+  .sv-h{display:none}
+  .sv-row{grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;padding:10px 12px}
+  .sv-nm{grid-row:1;grid-column:1/4}.sv-tot{grid-row:1;grid-column:4/6;flex-direction:row;align-items:baseline;justify-content:flex-end;gap:5px}
+  .sv-c{grid-row:2;padding:4px 2px}
+  .sv-top h1{font-size:22px}.sv-cp-t{display:none}.sv-c::before{content:attr(data-l);flex-basis:100%;font-size:10px;color:var(--mut);margin-bottom:1px}
+  .sv-c b{font-size:14px}
+  .sv-sum small{flex-basis:100%;margin-left:0}
+  .sv-ev{grid-template-columns:38px minmax(0,1fr) 62px auto 40px;gap:6px;font-size:12px}
+}
