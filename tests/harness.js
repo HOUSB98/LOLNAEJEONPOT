@@ -38,5 +38,11 @@ async function client(browser, be, tree, name, opts = {}) {
   p.ctx = ctx; p.name = name;
   return p;
 }
-const open = async (p, hash = 'home', wait = 800) => { await p.goto('https://site.test/?k=test#/' + hash); await p.waitForFunction(() => window.NP_OK && document.querySelector('#presence .prh') && (document.getElementById('main').innerText || '').length > 50, null, { timeout: 30000 }); if (wait) await p.waitForTimeout(wait); };
+// 화면 열기: 가짜 Firestore 의 첫 전달이 가끔 늦어 화면이 안 열릴 때가 있어, 15초 안에 안 열리면 한 번 새로 연다(새로 열었으면 기록에 남김)
+const ready = (p, ms) => p.waitForFunction(() => window.NP_OK && document.querySelector('#presence .prh') && (document.getElementById('main').innerText || '').length > 50, null, { timeout: ms });
+const open = async (p, hash = 'home', wait = 800) => {
+  await p.goto('https://site.test/?k=test#/' + hash);
+  if (!(await ready(p, 15000).then(() => true).catch(() => false))) { console.log(`   (${p.name || ''} 화면이 15초 안에 안 열려 새로 엶)`); await p.goto('https://site.test/?k=test#/' + hash); await ready(p, 30000); }
+  if (wait) await p.waitForTimeout(wait);
+};
 module.exports = { makeSeed, device, client, open, Backend, REPO };
