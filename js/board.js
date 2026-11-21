@@ -200,9 +200,10 @@ function openBoard() {
 }
 
 // ---------- 열기·지원 ----------
-function setup() {
+// 처음 창을 열 때만(비어 있으면) 배치된 선수·최근 내전 참가자로 채운다. 창 안에서 모두 해제하면 빈 채로 둔다
+function setup(fresh) {
   const st = S.st, last = st.matches[st.matches.length - 1];
-  if (!BD.sel.length) { const p = placedIds(); BD.sel = p.length >= 2 ? p : last ? [...last.blue, ...last.red] : []; }
+  if (fresh && !BD.sel.length) { const p = placedIds(); BD.sel = p.length >= 2 ? p : last ? [...last.blue, ...last.red] : []; }
   const list = [...st.list].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
   const html = `${mh(`${ic('users')}라인 지원 열기`)}
     <p class="mut">오늘 내전에 참가할 사람을 고르세요. 라인 지원을 열면 <b class="good">접속한 모든 사람의 화면에 함께 뜹니다.</b> 각자 원하는 라인을 고르고 <b>선택 완료</b>를 누르면, 모두 완료한 순간 자동으로 추첨해서 라인업에 넣습니다.</p>
@@ -212,7 +213,7 @@ function setup() {
   const open = document.querySelector('#modal.on .sheet.lp-setup');
   if (open) { const y = open.querySelector('.chipsel')?.scrollTop || 0; open.innerHTML = html; open.querySelector('.chipsel').scrollTop = y; } else modal(html, 'tall lp-setup');
 }
-act('tBoard', () => (live(cur()) ? openBoard() : setup()));
+act('tBoard', () => (live(cur()) ? openBoard() : setup(true)));
 act('bdSel', (x) => { BD.sel = BD.sel.includes(x.id) ? BD.sel.filter((i) => i !== x.id) : [...BD.sel, x.id]; setup(); });
 act('bdRecent', () => { const l = S.st.matches[S.st.matches.length - 1]; if (l) BD.sel = [...l.blue, ...l.red]; setup(); });
 act('bdNone', () => { BD.sel = []; setup(); });
