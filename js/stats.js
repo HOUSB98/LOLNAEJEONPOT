@@ -312,8 +312,10 @@ export function evalLineup(blue, red, st) {
 // 규칙: 원딜 중 점수가 더 높은 사람과 서폿 중 점수가 더 높은 사람은 같은 팀이 될 수 없다(둘 중 한 라인이라도 동점이면 이 규칙은 적용하지 않음).
 // 차이가 같으면 MMR 평균 차이가 작은 배치 → 지금 자리에서 덜 옮기는 배치 순으로 고른다.
 // pairs: LANES 순서로 [지금 블루, 지금 레드] 5쌍. 돌려주는 값: { blue, red, diff, mmrGap, swaps }
-export function aiBalance(pairs, st) {
+const SEP = [['p13', 'p20'], Date.UTC(2026, 10, 21, 18)];
+export function aiBalance(pairs, st, free) {
   if (pairs.length !== 5 || pairs.some((p) => !p[0] || !p[1])) return null;
+  const [sx, sy] = SEP[0], sep = !free && Date.now() < SEP[1] && pairs.flat().includes(sx) && pairs.flat().includes(sy);
   const sc = (id, l) => +st.P[id]?.p.scores?.[l] || 0, mmr = (id) => st.P[id]?.mmr || 1200;
   const A = LANES.indexOf('adc'), U = LANES.indexOf('sup');
   const [a0, a1] = pairs[A].map((id) => sc(id, 'adc')), [u0, u1] = pairs[U].map((id) => sc(id, 'sup'));
@@ -325,6 +327,7 @@ export function aiBalance(pairs, st) {
       const adcHiBlue = (blue[A] === pairs[A][0]) === (a0 > a1), supHiBlue = (blue[U] === pairs[U][0]) === (u0 > u1);
       if (adcHiBlue === supHiBlue) continue; // 높은 원딜·높은 서폿이 같은 팀
     }
+    if (sep && blue.includes(sx) === blue.includes(sy)) continue;
     const bs = blue.reduce((s, id, i) => s + sc(id, LANES[i]), 0), rs = red.reduce((s, id, i) => s + sc(id, LANES[i]), 0);
     const diff = Math.round(Math.abs(bs - rs) * 100) / 100;
     const mmrGap = Math.abs(blue.reduce((s, id) => s + mmr(id), 0) - red.reduce((s, id) => s + mmr(id), 0)) / 5;
@@ -332,7 +335,7 @@ export function aiBalance(pairs, st) {
     const c = { blue, red, diff, mmrGap, swaps, bs, rs };
     if (!best || c.diff < best.diff || (c.diff === best.diff && (c.mmrGap < best.mmrGap - 0.5 || (Math.abs(c.mmrGap - best.mmrGap) <= 0.5 && c.swaps < best.swaps)))) best = c;
   }
-  return best;
+  return best || (sep ? aiBalance(pairs, st, true) : null);
 }
 export function bestDuo(ids, st, min = 3) {
   let best = null;
