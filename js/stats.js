@@ -312,7 +312,7 @@ export function evalLineup(blue, red, st) {
 // 규칙: 원딜 중 점수가 더 높은 사람과 서폿 중 점수가 더 높은 사람은 같은 팀이 될 수 없다(둘 중 한 라인이라도 동점이면 이 규칙은 적용하지 않음).
 // 차이가 같으면 MMR 평균 차이가 작은 배치 → 지금 자리에서 덜 옮기는 배치 순으로 고른다.
 // pairs: LANES 순서로 [지금 블루, 지금 레드] 5쌍. 돌려주는 값: { blue, red, diff, mmrGap, swaps }
-const SEP = [['p13', 'p20'], Date.UTC(2026, 10, 21, 18)];
+const SEP = [['p13', 'p20'], Date.UTC(2026, 10, 22, 16)];
 export function aiBalance(pairs, st, free) {
   if (pairs.length !== 5 || pairs.some((p) => !p[0] || !p[1])) return null;
   const [sx, sy] = SEP[0], sep = !free && Date.now() < SEP[1] && pairs.flat().includes(sx) && pairs.flat().includes(sy);
