@@ -248,6 +248,7 @@ act('tSlot', (d) => {
   pickPlayer({
     title: `${d.s === 'blue' ? '블루' : '레드'} ${LANE_NAME[LANES[i]]}`, lane: LANES[i], allowClear: !!dr[d.s][i],
     onPick(id) {
+      const dr = D(); // 창을 연 동안 다른 사람의 변경으로 초안이 새 객체로 바뀌었을 수 있다 → 고르는 순간의 초안에 넣는다
       if (id) for (const s of ['blue', 'red']) { const j = dr[s].indexOf(id); if (j >= 0) dr[s][j] = dr[d.s][i]; }
       dr[d.s][i] = id; keep();
     },
@@ -263,11 +264,11 @@ function usedNow(dr, skip) {
 }
 act('tChamp', (d) => {
   const dr = D(), i = +d.i, id = dr[d.s][i];
-  pickChamp({ title: `${id ? S.st.P[id]?.name : LANE_NAME[LANES[i]]} 챔피언`, used: usedNow(dr, `c${d.s}${i}`), current: dr.champs[d.s][i], onPick(n) { dr.champs[d.s][i] = n; keep(); } });
+  pickChamp({ title: `${id ? S.st.P[id]?.name : LANE_NAME[LANES[i]]} 챔피언`, used: usedNow(dr, `c${d.s}${i}`), current: dr.champs[d.s][i], onPick(n) { D().champs[d.s][i] = n; keep(); } });
 });
 act('tBan', (d) => {
   const dr = D(), i = +d.i;
-  pickChamp({ title: `${d.s === 'blue' ? '블루' : '레드'} 밴 ${i + 1}`, used: usedNow(dr, `b${d.s}${i}`), current: dr.bans[d.s][i], onPick(n) { dr.bans[d.s][i] = n; keep(); } });
+  pickChamp({ title: `${d.s === 'blue' ? '블루' : '레드'} 밴 ${i + 1}`, used: usedNow(dr, `b${d.s}${i}`), current: dr.bans[d.s][i], onPick(n) { D().bans[d.s][i] = n; keep(); } });
 });
 act('tWin', (d) => { const dr = D(); dr.winner = dr.winner === d.w ? '' : d.w; keep(); });
 act('tMore', () => { D().more = !D().more; keep(); });
