@@ -195,12 +195,19 @@ function buildChat() {
     <div id="chatlog"></div>
     <div id="chattray" hidden>${trayHTML()}</div>
     <form id="chatform"><button type="button" class="cbtn2" data-a="chatTray" title="스티커">${ic('star')}</button><button type="button" class="cbtn2" data-a="chatRoll" title="주사위 1~100">${ic('dice')}</button>
-      <input id="chatinp" class="inp grow" maxlength="200" placeholder="메시지 입력…" autocomplete="off"><button class="cbtn2 go" title="전송">${ic('send')}</button></form>`;
-  document.getElementById('chatform').onsubmit = (e) => {
+      <input id="chatinp" class="inp grow" maxlength="200" placeholder="메시지 입력…" autocomplete="off" enterkeyhint="send"><button class="cbtn2 go" title="전송">${ic('send')}</button></form>`;
+  // 휴대폰: 전송 버튼을 눌러도 입력칸이 포커스를 잃지 않게 해서 키보드가 내려가지 않는다(연달아 입력 가능).
+  // 버튼을 누를 때 포커스가 버튼으로 옮겨 가는 것을 막고, 그래도 빠지면 보낸 직후 입력칸으로 되돌린다(누른 동작 안이라 키보드가 유지됨)
+  const form = document.getElementById('chatform'), inp = document.getElementById('chatinp'), go = form.querySelector('.go');
+  let keep = false;
+  go.addEventListener('pointerdown', () => { keep = document.activeElement === inp; }, { passive: true });
+  go.addEventListener('mousedown', (e) => { if (document.activeElement === inp) e.preventDefault(); });
+  form.onsubmit = (e) => {
     e.preventDefault();
-    const inp = document.getElementById('chatinp'), v = inp.value.trim();
-    if (!v) return;
-    if (send('m', v)) inp.value = '';
+    const typing = keep || document.activeElement === inp; keep = false;
+    const v = inp.value.trim();
+    if (v && send('m', v)) inp.value = '';
+    if (typing && document.activeElement !== inp) inp.focus({ preventScroll: true });
   };
   const fab = document.getElementById('chatfab');
   fab.title = '채팅창 펼치기';
