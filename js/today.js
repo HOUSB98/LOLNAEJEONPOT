@@ -173,6 +173,8 @@ page('today', {
     const any = d.blue.some(Boolean) || d.red.some(Boolean), pb = any ? Math.round(ev.pBlue * 100) : 50;
     const filled = [...d.blue, ...d.red].filter(Boolean).length;
     const full = isFull(d);
+    // 우세 팀(점수 합이 더 높은 팀 = 예상 승률이 더 높은 팀): 10명이 다 차고 점수가 다를 때만. 차이가 클수록 빛이 진해진다(--wi 0.35~1)
+    const fav = full && pb !== 50 ? (pb > 50 ? 'blue' : 'red') : '', wi = Math.min(1, Math.max(0.35, (Math.max(pb, 100 - pb) - 50) / 30));
     const slot = (side, i) => {
       const id = d[side][i], l = LANES[i], s = st.P[id];
       const ch = d.champs[side][i], art = ch && artUrl(ch) ? ` art" style="--img:url('${artUrl(ch)}')` : '';
@@ -188,9 +190,9 @@ page('today', {
     return `<div class="h2row td-h"><h1>${ic('today')}${edit ? `경기 수정 <span class="mono">#${st.MI[edit.id]?.no ?? ''}</span>` : '오늘의 내전'}</h1><span class="tag ${full ? 'ok' : ''}">${filled}/10 배치</span><span class="grow"></span>
       ${edit ? '<a class="btn" href="#/matches">취소</a>' : `<button class="btn gold" data-a="tAi" ${full ? '' : 'disabled'} title="${full ? '라인은 그대로 두고, 점수 차이가 가장 작아지도록 블루·레드를 나눕니다 (높은 원딜·높은 서폿은 같은 팀 안 됨)' : '10명을 모두 배치하면 쓸 수 있어요'}">${ic('bolt')}AI<span class="m-hide"> 추천</span></button><button class="btn gold gbtn ${boardLive() ? 'bd-on' : ''}" data-a="tBoard" title="라인 지원: 모두 함께 원하는 라인 고르기 → 몰린 라인은 추첨">${ic('users')}<span><span class="n-hide">라인 </span>${boardLive() ? '지원 중' : '지원'}</span></button><button class="btn gold" data-a="tDice">${ic('dice')}<span class="n-hide">라인 </span>주사위</button>${ddMenu(`<button data-a="tSwap">${ic('swap')}진영 교체</button><button class="danger" data-a="tClear">${ic('trash')}비우기</button>`)}`}</div>
     <section class="arena">
-      <div class="scorebar"><div class="sb blue"><small>BLUE TEAM</small><b class="mono">${ev.bs.toFixed(1)}</b><span>평균 MMR ${ev.mmrB ? Math.round(ev.mmrB) : '—'}</span></div>
-        <div class="sb-mid">${winRing(pb, full, any, filled)}</div>
-        <div class="sb red"><small>RED TEAM</small><b class="mono">${ev.rs.toFixed(1)}</b><span>평균 MMR ${ev.mmrR ? Math.round(ev.mmrR) : '—'}</span></div></div>
+      <div class="scorebar" style="--wi:${fav ? wi.toFixed(2) : 0}"><div class="sb blue${fav === 'blue' ? ' fav' : ''}">${fav === 'blue' ? FAV_RING : ''}<small>BLUE TEAM</small><b class="mono">${ev.bs.toFixed(1)}</b><span>평균 MMR ${ev.mmrB ? Math.round(ev.mmrB) : '—'}</span></div>
+        <div class="sb-mid">${winRing(pb, full, any, filled, wi)}</div>
+        <div class="sb red${fav === 'red' ? ' fav' : ''}">${fav === 'red' ? FAV_RING : ''}<small>RED TEAM</small><b class="mono">${ev.rs.toFixed(1)}</b><span>평균 MMR ${ev.mmrR ? Math.round(ev.mmrR) : '—'}</span></div></div>
       <div class="prob"><i style="width:${pb}%"></i></div>
       ${ev.lanes.map((x, i) => { const g = x.bs - x.rs, both = x.b && x.r; return `<div class="lrow" style="--d:${i}">${slot('blue', i)}
         <div class="lmid">${LANE_ICON[x.lane]}<small class="${both ? (g > 0 ? 'blue' : g < 0 ? 'red' : '') : ''} mono">${both ? (g === 0 ? 'EVEN' : (g > 0 ? '◀ ' : '') + Math.abs(g).toFixed(1) + (g < 0 ? ' ▶' : '')) : LANE_NAME[x.lane]}</small></div>
@@ -217,12 +219,16 @@ page('today', {
 // 예상 승률 원형 그래프: 바깥 금테 + 눈금, 블루·레드 두 호. 가운데에는 승률이 더 높은 팀의 승률을 보여 주고 그 팀의 호를 빛나게 한다.
 // 10명이 다 차야 빛나는 효과와 '○○ 예상 승률'을 표시하고, 배치 중에는 흐리게 지금까지의 예상만 보여 준다.
 const RC = 2 * Math.PI * 50; // 호의 둘레(반지름 50)
-function winRing(pb, full, any, filled) {
+// 우세 팀 점수판 테두리를 따라 도는 빛(바깥 틀이 테두리 모양으로 자르고, 안쪽 빛 판만 회전 → 그래픽 카드가 처리)
+const FAV_RING = '<i class="sb-ring" aria-hidden="true"><i></i></i>';
+function winRing(pb, full, any, filled, wi = 0.6) {
   const even = pb === 50, hi = even ? '' : pb > 50 ? 'blue' : 'red', hv = even ? 50 : Math.max(pb, 100 - pb);
   const gap = any && pb > 0 && pb < 100 ? 3 : 0, bl = Math.max(0, (RC * pb) / 100 - gap), rl = Math.max(0, (RC * (100 - pb)) / 100 - gap);
   const label = !any ? '예상 승률' : even ? '완전 팽팽' : `${hi === 'blue' ? '블루' : '레드'} 예상 승률`;
   const ticks = Array.from({ length: 40 }, (_, i) => `<line x1="60" y1="2.5" x2="60" y2="${i % 5 ? 5 : 7.5}" transform="rotate(${i * 9} 60 60)"/>`).join('');
-  return `<div class="wring ${full ? 'full' : 'part'} ${hi}" role="img" aria-label="${label} ${hv}%">
+  const glow = full && hi ? `<svg class="wr-glow" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke-width="9" stroke-linecap="round" stroke-dasharray="${(hi === 'blue' ? bl : rl).toFixed(2)} ${RC.toFixed(2)}" transform="rotate(-90 60 60)" style="stroke-dashoffset:${(hi === 'blue' ? -gap / 2 : -(RC * pb) / 100 - gap / 2).toFixed(2)}"/></svg>
+    <i class="wr-sp s1"></i><i class="wr-sp s2"></i><i class="wr-sp s3"></i>` : '';
+  return `<div class="wring ${full ? 'full' : 'part'} ${hi}" style="--wi:${wi.toFixed(2)}" role="img" aria-label="${label} ${hv}%">${glow}
     <svg viewBox="0 0 120 120" aria-hidden="true">
       <defs><linearGradient id="wr-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbeec8"/><stop offset=".5" stop-color="#d9a441"/><stop offset="1" stop-color="#7a5418"/></linearGradient>
         <radialGradient id="wr-in" cx=".5" cy=".38" r=".7"><stop offset="0" stop-color="#16213a"/><stop offset="1" stop-color="#070b13"/></radialGradient></defs>
