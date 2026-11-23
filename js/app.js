@@ -4,7 +4,7 @@ import { createStore } from './store.js';
 import { cardChamp, prefetchChamps } from './core.js';
 import { S, page, act, ddMenu, cho, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, toast, download, csv, needAdmin, history, flipSides, modal, closeModal, mh, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
 import { initSocial, renderChat, renderPresence, onMeta, chatStartsOpen } from './social.js';
-import { duoRank } from './stats.js';
+import { duoRank, dayKey } from './stats.js';
 import { watchDice } from './dice.js';
 import { watchBoard } from './board.js';
 import './players.js';
@@ -293,8 +293,8 @@ const COLS = {
     ['wr', '승률', (s) => (s.g ? s.wr : -1), (s) => wrBar(s.w, s.g)],
     ['recent', '최근 5판', (s) => s.recent.filter(Boolean).length, (s) => dots(s.recent)],
     ['cur', '연속', (s) => s.cur, (s) => streak(s.cur)],
-    ['ovr', 'OVR', (s) => s.ovr, (s) => `<b class="ovr mono">${s.ovr}</b>`],
-    ['mmr', 'MMR', (s) => s.mmr, (s) => `<span class="mono">${Math.round(s.mmr).toLocaleString()}</span> ${s.g ? `<small class="${s.mmrLast >= 0 ? 'good' : 'bad'}">${s.mmrLast >= 0 ? '▲' : '▼'}${Math.abs(Math.round(s.mmrLast))}</small>` : ''}`],
+    ['ovr', 'OVR', (s) => s.ovr, (s) => `<b class="ovr mono" data-live="ovr:${s.id}">${s.ovr}</b>`],
+    ['mmr', 'MMR', (s) => s.mmr, (s) => `<span class="mono" data-live="mmr:${s.id}">${Math.round(s.mmr).toLocaleString()}</span> ${s.g ? `<small class="${s.mmrLast >= 0 ? 'good' : 'bad'}">${s.mmrLast >= 0 ? '▲' : '▼'}${Math.abs(Math.round(s.mmrLast))}</small>` : ''}`],
     ['main', '주라인', (s) => LANES.indexOf(s.mainLane), (s) => laneTag(s.mainLane)],
     ['cond', '폼', (s) => s.recent.filter(Boolean).length / (s.recent.length || 1), (s) => `<span class="cond c${'⬆️↗️➡️↘️⬇️➖'.indexOf(s.cond) / 2 | 0}">${{ '⬆️': '최상', '↗️': '좋음', '➡️': '보통', '↘️': '주춤', '⬇️': '부진', '➖': '—' }[s.cond]}</span>`],
   ],
@@ -342,14 +342,26 @@ act('copyLink', async () => {
 });
 
 // ---------- 경기 기록 ----------
+// 새로 들어온 경기(이 화면을 연 뒤 저장된 경기)는 카드에 광택이 한 번 스친다. 처음 그릴 때 한 번만, 2시간 안의 경기만(읽기·쓰기 없음)
+const MSEEN = { ids: null, fresh: new Set() };
+function noteMatches() {
+  const all = S.store?.data?.matches || {}, ids = Object.keys(all);
+  if (!MSEEN.ids) { MSEEN.ids = new Set(ids); return; }
+  for (const id of ids) if (!MSEEN.ids.has(id)) {
+    MSEEN.ids.add(id);
+    if (Date.now() - (+all[id]?.at || 0) < 2 * 3600e3) { MSEEN.fresh.add(id); if (MF.open && !all[id].deleted) MF.open.add(dayKey(+all[id].at)); } // 새 경기의 날짜는 펼쳐서 보이게
+  }
+}
+const takeFresh = (id) => (MSEEN.fresh.delete(id) ? ' fresh' : '');
 export function matchCard(m, tools = true) {
+  if (!MSEEN.ids) noteMatches();
   const mi = S.st.MI[m.id];
   const team = (side) => `<div class="team ${side} ${m.winner === side ? 'win' : 'lose'}">
     <div class="th"><b>${side === 'blue' ? 'BLUE' : 'RED'}</b><em>${m.winner === side ? 'VICTORY' : 'DEFEAT'}</em><small class="mono">${mi.bs !== undefined ? (side === 'blue' ? mi.bs : mi.rs) : ''}</small></div>
     ${m[side].map((id, i) => { const k = m.kda?.[id]; return `<div class="pl">${LANE_ICON[LANES[i]]}${champIcon(m.champs?.[side]?.[i], 'sm')}<a href="#/players/${id}">${pname(id)}</a>${k ? `<small class="mono">${k.join('/')}</small>` : ''}</div>`; }).join('')}
     ${(m.bans?.[side] || []).some(Boolean) ? `<div class="bans">BAN ${m.bans[side].filter(Boolean).map((b) => champIcon(b, 'sm')).join('')}</div>` : ''}
   </div>`;
-  return `<div class="mcard">
+  return `<div class="mcard${takeFresh(m.id)}">
     <div class="mhd"><b class="mono">#${mi.no}</b><span>${fmtDT(m.at)}</span><span class="mut"><em class="m-hide">예상 </em>블루 ${Math.round(mi.pBlue * 100)}%</span>${mi.upset ? '<span class="tag bad">UPSET</span>' : ''}
       ${m.stats ? '<span class="tag gold">REPLAY</span>' : ''}<span class="grow"></span><button class="btn xs" data-a="matchDetail" data-id="${m.id}">상세</button>${tools && !m.stats ? `<button class="btn xs gold" data-a="matchReplay" data-id="${m.id}" title="이 경기의 .rofl 파일을 넣으면 상세 기록이 채워집니다">리플레이</button>` : ''}
       ${tools ? ddMenu(`<button data-a="editMatch" data-id="${m.id}">${ic('edit')}수정</button><button class="danger" data-a="delMatch" data-id="${m.id}">${ic('trash')}삭제</button>`, 'xs') : ''}</div>
@@ -616,6 +628,7 @@ function onStore(c) {
     return;
   }
   if (c === 'posts') { watchPosts(); postsChanged(); if (S.page === 'talk') refresh(); return; }
+  if (c === 'matches') noteMatches();
   if (c === 'players' || c === 'matches') refresh(true);
 }
 // ---------- 사용량 자동 쉬기 ----------

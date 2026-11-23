@@ -40,6 +40,7 @@ function localStore(key, onChange) {
     mode: 'local', data, ready: Promise.resolve(),
     serverNow: () => Date.now(),
     serverClockReady: () => true,
+    serverClockErr: () => 0,
     syncServerClock: async () => 0,
     clockSoon: async () => 0,
     need: async () => {}, unneed() {}, loaded: () => true, // 체험 모드는 모든 컬렉션을 이미 들고 있다
@@ -81,7 +82,7 @@ async function firebaseStore(key, onChange, opt = {}) {
   try { db = fs.initializeFirestore(app, { localCache: fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() }) }); }
   catch (e) { console.warn('[store] 로컬 캐시를 쓸 수 없어 기본 방식으로 연결합니다', e); db = fs.getFirestore(app); }
   const ref = (col, id) => fs.doc(db, 'leagues', key, col, id);
-  let clockOffset = 0, clockSyncedAt = 0, clockPromise = null;
+  let clockOffset = 0, clockErr = 0, clockSyncedAt = 0, clockPromise = null;
   // 쓰기 안전장치: 버그로 한 화면이 저장을 반복하면(1분에 100번 넘게) 그 화면의 저장을 모두 멈추고 app.js 에 알린다(onChange('fuse')).
   // 사람이 누르는 속도로는 닿지 않는 기준. 관리자 복원·가져오기·점수 일괄 적용처럼 한 번에 많이 쓰는 일은 bulk() 안에서 해서 세지 않는다.
   // 멈춘 뒤에는 서버에 요청을 보내지 않고 바로 실패로 돌려준다(새로고침하면 다시 정상). 읽기·실시간 반영은 그대로.
@@ -106,12 +107,14 @@ async function firebaseStore(key, onChange, opt = {}) {
       const before = Date.now();
       const clockRef = ref('clock', 'sync'); // 구독하지 않는 컬렉션에 둔다(meta에 두면 누가 접속할 때마다 모두의 화면이 다시 그려진다)
       await fs.setDoc(clockRef, { at: fs.serverTimestamp() }, { merge: true });
+      const wrote = Date.now(); // 서버 시각은 이 쓰기(before~wrote) 안의 어느 순간에 찍힌다. 뒤의 읽기 시간은 계산에 넣지 않는다
       const snap = await fs.getDocFromServer(clockRef);
       const ts = snap.data()?.at;
-      const after = Date.now();
       if (ts?.toMillis) {
-        // 요청 왕복시간의 중간 시점을 기준으로 서버-클라이언트 시계 오차를 추정한다.
-        clockOffset = ts.toMillis() - ((before + after) / 2);
+        // 쓰기 왕복의 중간 시점을 기준으로 오차를 추정하고, 왕복의 절반을 '최대 오차'로 둔다.
+        // (휴대폰 연결이 잠깐 느리면 요청이 늦게 도착해 시계가 앞서 보일 수 있다. 경매 마감처럼 늦으면 안 되는 판단은 이 최대 오차만큼 기다린다)
+        clockOffset = ts.toMillis() - ((before + wrote) / 2);
+        clockErr = Math.max(0, (wrote - before) / 2);
         clockSyncedAt = performance.now();
       }
       return clockOffset;
@@ -211,6 +214,7 @@ async function firebaseStore(key, onChange, opt = {}) {
     mode: 'firebase', data, ready,
     serverNow,
     serverClockReady: () => !!clockSyncedAt && performance.now() - clockSyncedAt < 5 * 60e3,
+    serverClockErr: () => clockErr, // 서버 시각 추정의 최대 오차(ms). 실제 서버 시각은 serverNow() ± 이 값 안에 있다
     syncServerClock, clockSoon,
     need, unneed, loaded: (col) => WATCHED.includes(col) || !!LZ[col]?.got, chatFull,
     // field 가 gt 보다 큰 문서 수(내려받지 않음, 1,000개당 읽기 1번). 닫힌 채팅창의 '안 읽은 채팅' 숫자

@@ -190,9 +190,9 @@ page('today', {
     return `<div class="h2row td-h"><h1>${ic('today')}${edit ? `경기 수정 <span class="mono">#${st.MI[edit.id]?.no ?? ''}</span>` : '오늘의 내전'}</h1><span class="tag ${full ? 'ok' : ''}">${filled}/10 배치</span><span class="grow"></span>
       ${edit ? '<a class="btn" href="#/matches">취소</a>' : `<button class="btn gold" data-a="tAi" ${full ? '' : 'disabled'} title="${full ? '라인은 그대로 두고, 점수 차이가 가장 작아지도록 블루·레드를 나눕니다 (높은 원딜·높은 서폿은 같은 팀 안 됨)' : '10명을 모두 배치하면 쓸 수 있어요'}">${ic('bolt')}AI<span class="m-hide"> 추천</span></button><button class="btn gold gbtn ${boardLive() ? 'bd-on' : ''}" data-a="tBoard" title="라인 지원: 모두 함께 원하는 라인 고르기 → 몰린 라인은 추첨">${ic('users')}<span><span class="n-hide">라인 </span>${boardLive() ? '지원 중' : '지원'}</span></button><button class="btn gold" data-a="tDice">${ic('dice')}<span class="n-hide">라인 </span>주사위</button>${ddMenu(`<button data-a="tSwap">${ic('swap')}진영 교체</button><button class="danger" data-a="tClear">${ic('trash')}비우기</button>`)}`}</div>
     <section class="arena">
-      <div class="scorebar" style="--wi:${fav ? wi.toFixed(2) : 0}"><div class="sb blue${fav === 'blue' ? ' fav' : ''}">${fav === 'blue' ? FAV_RING : ''}<small>BLUE TEAM</small><b class="mono">${ev.bs.toFixed(1)}</b><span>평균 MMR ${ev.mmrB ? Math.round(ev.mmrB) : '—'}</span></div>
+      <div class="scorebar" style="--wi:${fav ? wi.toFixed(2) : 0}"><div class="sb blue${fav === 'blue' ? ' fav' : ''}">${fav === 'blue' ? FAV_RING : ''}<small>BLUE TEAM</small><b class="mono" data-live="bs">${ev.bs.toFixed(1)}</b><span>평균 MMR ${ev.mmrB ? Math.round(ev.mmrB) : '—'}</span></div>
         <div class="sb-mid">${winRing(pb, full, any, filled, wi)}</div>
-        <div class="sb red${fav === 'red' ? ' fav' : ''}">${fav === 'red' ? FAV_RING : ''}<small>RED TEAM</small><b class="mono">${ev.rs.toFixed(1)}</b><span>평균 MMR ${ev.mmrR ? Math.round(ev.mmrR) : '—'}</span></div></div>
+        <div class="sb red${fav === 'red' ? ' fav' : ''}">${fav === 'red' ? FAV_RING : ''}<small>RED TEAM</small><b class="mono" data-live="rs">${ev.rs.toFixed(1)}</b><span>평균 MMR ${ev.mmrR ? Math.round(ev.mmrR) : '—'}</span></div></div>
       <div class="prob"><i style="width:${pb}%"></i></div>
       ${ev.lanes.map((x, i) => { const g = x.bs - x.rs, both = x.b && x.r; return `<div class="lrow" style="--d:${i}">${slot('blue', i)}
         <div class="lmid">${LANE_ICON[x.lane]}<small class="${both ? (g > 0 ? 'blue' : g < 0 ? 'red' : '') : ''} mono">${both ? (g === 0 ? 'EVEN' : (g > 0 ? '◀ ' : '') + Math.abs(g).toFixed(1) + (g < 0 ? ' ▶' : '')) : LANE_NAME[x.lane]}</small></div>
@@ -239,7 +239,7 @@ function winRing(pb, full, any, filled, wi = 0.6) {
       <circle cx="60" cy="60" r="50" fill="none" class="wr-arc r ${hi === 'red' ? 'hi' : ''}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${rl.toFixed(2)} ${RC.toFixed(2)}" transform="rotate(-90 60 60)" style="stroke-dashoffset:${(-(RC * pb) / 100 - gap / 2).toFixed(2)}"/>` : ''}
       <circle cx="60" cy="60" r="42.5" fill="url(#wr-in)" stroke="url(#wr-gold)" stroke-width=".6" stroke-opacity=".5"/>
     </svg>
-    <div class="wr-c"><small>${label}</small><b class="mono">${hv}<i>%</i></b><span>${full ? (even ? '누가 이겨도 이상하지 않아요' : `${hi === 'blue' ? '레드' : '블루'} ${100 - hv}%`) : any ? `배치 중 ${filled}/10` : '선수를 배치하세요'}</span></div>
+    <div class="wr-c"><small>${label}</small><b class="mono" data-live="pb">${hv}<i>%</i></b><span>${full ? (even ? '누가 이겨도 이상하지 않아요' : `${hi === 'blue' ? '레드' : '블루'} ${100 - hv}%`) : any ? `배치 중 ${filled}/10` : '선수를 배치하세요'}</span></div>
   </div>`;
 }
 

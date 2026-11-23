@@ -146,8 +146,22 @@ export function render() {
   if (entering) { main.classList.add('enter'); clearTimeout(render.t); render.t = setTimeout(() => main.classList.remove('enter'), 900); }
   main.innerHTML = pages[S.page].render(...S.arg);
   lazyArt(main);
+  liveMarks(main, entering);
   pages[S.page].after?.(entering);
   if (fid) { const el = document.getElementById(fid); if (el) { el.focus(); try { el.setSelectionRange(sel, sel); } catch {} } }
+}
+// 실시간 숫자가 바뀌는 순간 한 번 반짝: data-live="키" 가 붙은 요소의 글자를 지난번 그림과 비교해, 바뀌었으면 0.8초 효과를 한 번 건다.
+// 화면을 새로 열 때(처음 그림)는 비교하지 않는다. 읽기·쓰기 없음, 가벼운 모드·동작 줄이기에선 끔.
+const LIVE = new Map();
+export function liveMarks(root, entering) {
+  if (entering) LIVE.clear();
+  const quiet = calm();
+  root.querySelectorAll('[data-live]').forEach((el) => {
+    const k = el.dataset.live, t = el.textContent, o = LIVE.get(k);
+    LIVE.set(k, t);
+    if (quiet || o === undefined || o === t) return;
+    el.classList.add('lv-tick'); el.addEventListener('animationend', () => el.classList.remove('lv-tick'), { once: true });
+  });
 }
 // 모바일 하단 탭바: 자주 쓰는 4개 + 더보기(나머지 메뉴를 아래에서 올라오는 창으로)
 const TABS = ['home', 'rank', 'today', 'matches'];
