@@ -19,6 +19,21 @@ const SHOT = process.env.SHOT; // 폴더를 주면 화면을 찍어 둔다
 
   const A = await client(b, be, 'WORK', 'A'); await A.setViewportSize({ width: 1440, height: 900 });
   await open(A, 'scores', 1500);
+  // 변동 탭(기본): 10분 안에 이어서 바꾼 것 = 한 번의 변동. 전체 선수 명단 + 그 변동 전 → 후
+  const bRows = () => A.$$eval('.sv-row:not(.sv-h)', (rs) => rs.length);
+  const changed = () => A.$$eval('.sv-c.up, .sv-c.dn', (cs) => cs.map((c) => c.closest('.sv-row').querySelector('.sv-nm b').textContent + ':' + c.dataset.l + ':' + c.querySelector('small').textContent));
+  ok(await A.$eval('.sv-tabs .on', (e) => e.textContent) === '최근 변동', '기본 탭 = 최근 변동');
+  ok(await bRows() === 24, '최근 변동: 전체 선수 24명 명단: ' + await bRows());
+  let ch = await changed();
+  ok(ch.length === 1 && ch[0] === `선수0:탑:${P.p0.scores.top - 3}→${P.p0.scores.top}`, '최근 변동 = 1시간 전 선수0 탑 (전→후): ' + ch.join(','));
+  await A.click('[data-a=svTab][data-v=b1]'); await A.waitForTimeout(300);
+  ch = await changed();
+  ok(ch.length === 1 && ch[0] === `선수0:미드:${P.p0.scores.mid + 2}→${P.p0.scores.mid}`, '직전 변동 = 2시간 전 선수0 미드: ' + ch.join(','));
+  const topInB1 = await A.evaluate(() => [...document.querySelectorAll('.sv-row')].find((r) => r.querySelector('.sv-nm b')?.textContent === '선수0').querySelectorAll('.sv-c')[0].querySelector('b').textContent);
+  ok(+topInB1 === P.p0.scores.top - 3, `직전 변동 시점의 선수0 탑 = 최근 변동 전 점수(${topInB1})`);
+  await A.click('[data-a=svOnly]'); await A.waitForTimeout(300);
+  ok(await bRows() === 1, '바뀐 선수만 보기: 1명');
+  await A.click('[data-a=svOnly]'); await A.click('[data-a=svTab][data-v=period]'); await A.waitForTimeout(300);
   const rows = () => A.$$eval('.sv-row:not(.sv-h)', (rs) => rs.map((r) => r.querySelector('.sv-nm b').textContent));
   let r = await rows();
   ok(r.length === 6 && !r.includes('선수7') && !r.includes('선수6'), `최근 7일: 바뀐 6명만(되돌린 선수7·20일 전 선수6 제외): ${r.join(',')}`);
@@ -41,7 +56,7 @@ const SHOT = process.env.SHOT; // 폴더를 주면 화면을 찍어 둔다
   ok(/라인 점수 변경 내역 복사/.test(await A.evaluate(() => document.querySelector('#modal.on')?.innerText || '')), '변경 내역 복사 창 열림(관리 코드는 누를 때 받음)');
   await A.keyboard.press('Escape'); await A.evaluate(() => import('/js/core.js').then((m) => m.closeModal()));
 
-  // 다른 사람이 점수를 바꾸면 열려 있는 화면에 바로 반영
+  // 다른 사람이 점수를 바꾸면 열려 있는 화면에 바로 반영(기간별 탭) + 변동 탭이 한 칸씩 밀림
   const B = await client(b, be, 'WORK', 'B'); await open(B, 'home', 600);
   await B.evaluate(async () => { const { S } = await import('/js/core.js'); const p = S.store.data.players.p9; const to = p.scores.mid + 7;
     await S.store.patch('players', 'p9', { scores: { ...p.scores, mid: to } });
@@ -49,6 +64,11 @@ const SHOT = process.env.SHOT; // 폴더를 주면 화면을 찍어 둔다
   await A.waitForTimeout(1500);
   const p9 = await A.evaluate(() => [...document.querySelectorAll('.sv-row')].find((x) => x.querySelector('.sv-nm b')?.textContent === '선수9')?.querySelector('.sv-c.up em')?.textContent);
   ok(p9 === '▲7', '다른 기기에서 바꾼 점수가 실시간 반영: ' + p9);
+  await A.click('[data-a=svTab][data-v=b0]'); await A.waitForTimeout(300);
+  ch = await changed(); ok(ch.length === 1 && /^선수9:미드:/.test(ch[0]), '새 변동이 최근 변동으로: ' + ch.join(','));
+  await A.click('[data-a=svTab][data-v=b1]'); await A.waitForTimeout(300);
+  ch = await changed(); ok(ch.length === 1 && /^선수0:탑:/.test(ch[0]), '이전 최근 변동은 직전 변동으로 밀림: ' + ch.join(','));
+  await A.click('[data-a=svTab][data-v=period]'); await A.waitForTimeout(300);
 
   // 접속자: 얼굴 5개 + '+N', 누르면 위로 작은 창(나 먼저, 가나다순), 바깥 누르거나 Esc로 닫힘
   const faces = await A.$$eval('#presence .prs i.face', (x) => x.length), more = await A.$eval('#presence .pmore', (e) => e.textContent).catch(() => '');
@@ -74,6 +94,9 @@ const SHOT = process.env.SHOT; // 폴더를 주면 화면을 찍어 둔다
   // 휴대폰: 표가 화면 밖으로 넘치지 않음
   const M = await client(b, be, 'WORK', 'M'); await M.setViewportSize({ width: 390, height: 844 });
   await open(M, 'scores', 1500);
+  ok(await M.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), '휴대폰 변동 탭: 가로 넘침 없음');
+  if (SHOT) await M.screenshot({ path: SHOT + '/scores_m_batch.png' });
+  await M.click('[data-a=svTab][data-v=period]'); await M.waitForTimeout(300);
   ok(await M.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), '휴대폰: 가로 넘침 없음');
   if (SHOT) await M.screenshot({ path: SHOT + '/scores_m.png', fullPage: false });
   console.log('오류:', [...A.errs, ...M.errs].join(' | ') || '없음');
