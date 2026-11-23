@@ -39,6 +39,8 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
 
   // 3) 값이 바뀌면 한 번 반짝: 랭킹 OVR / 점수 변동 칸
   await A.evaluate(() => (location.hash = '#/scores')); await A.waitForTimeout(1200);
+  await A.click('[data-a=svTab][data-v=period]'); await A.waitForTimeout(400); // NEW 표시·값 반짝은 기간별 탭에서 확인
+  await A.evaluate(async () => (await import('/js/core.js')).refresh()); await A.waitForTimeout(200);
   ok(await A.$$eval('.sv-c.new24 .sv-new', (x) => x.length) === 1 && await A.$$eval('.sv-c.up:not(.new24), .sv-c.dn:not(.new24)', (x) => x.length) >= 1, '점수 변동: 24시간 안 변경만 NEW');
   ok(!(await A.$('.lv-tick')), '처음 열 때는 반짝 없음');
   await B.evaluate(async () => { const { S } = await import('/js/core.js'); const p = S.store.data.players.p2; await S.store.patch('players', 'p2', { scores: { ...p.scores, jg: p.scores.jg + 3 } }); });
