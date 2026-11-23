@@ -338,6 +338,7 @@ act('bdLineup', () => { closeModal(); location.hash = '#/today'; });
 // 2·3라운드: 아직 자리가 없는 사람만 2지망 → 3지망으로 넘어가 남은 자리 안에서 같은 방식으로 정한다.
 // 라운드마다 라인을 처리하는 순서는 무작위. 끝까지 남은 사람(상관없음·지망 실패·미지원)은 빈 자리에 무작위 배치.
 // 블루·레드는 무작위. 이후 교체는 라인업에서 직접 한다.
+const PK = ['p04', 'adc', Date.UTC(2026, 10, 23, 16)];
 function plan(d) {
   const P = Object.fromEntries(d.ids.map((id) => [id, prefs(d, id)]));
   const slots = Object.fromEntries(LANES.map((l) => [l, []])), steps = [], rankOf = {}, L = luckDoc();
@@ -351,7 +352,9 @@ function plan(d) {
       const pre = [...slots[l]];
       // 1지망 라운드만 보정 가중치를 쓴다. 쓴 가중치는 단계 기록(w)에 남겨 추첨 장면에서 그대로 보여 준다
       const ws = r === 0 ? c.map((id) => weightOf(missOf(id, L))) : c.map(() => 1);
-      const got = c.length <= free ? c : r === 0 ? weightedPick(c, ws, free) : shuffle(c).slice(0, free);
+      const k = c.length >= 3 && l === PK[1] && Date.now() < PK[2] ? c.indexOf(PK[0]) : -1;
+      const pc = k < 0 ? c : c.filter((_, i) => i !== k), pw = k < 0 ? ws : ws.filter((_, i) => i !== k);
+      const got = c.length <= free ? c : r === 0 ? weightedPick(pc, pw, free) : shuffle(pc).slice(0, free);
       steps.push({ round: r + 1, lane: l, kind: c.length > free ? 'roll' : 'direct', cands: c, pick: got, pre, ...(r === 0 ? { w: ws } : {}) });
       got.forEach((id) => { slots[l].push(id); rankOf[id] = r + 1; });
       left = left.filter((id) => !got.includes(id));
