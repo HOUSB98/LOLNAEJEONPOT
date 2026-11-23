@@ -30,6 +30,9 @@ function nextItem(r, now) {
   r.cur = { pid: r.pool.shift(), bid: 0, team: -1, startsAt: now + LOT_START_DELAY_MS, endsAt: now + LOT_START_DELAY_MS + r.cfg.sec * 1000 };
   return r;
 }
+// 시각 판단(경매 마감·입찰 마감)은 '확실히 지났을 때'만 한다. 기기마다 서버 시각 추정에 오차(err)가 있어서,
+// 시계가 앞서 보이는 기기가 남들보다 먼저 매물을 넘겨 버리는 일을 막는다. 새로 정하는 시각(다음 매물·연장)은 err만큼 넉넉히 잡아 짧아지지 않게 한다.
+const passed = (now, err, at) => now - err >= at;
 function settle(r, now) {
   const c = r.cur;
   if (c.team >= 0) { const t = r.teams[c.team]; t.points -= c.bid; t.members.push({ pid: c.pid, price: c.bid }); say(r, `${nm(c.pid)} → ${t.name} · ${c.bid}P 낙찰`); }
@@ -106,7 +109,7 @@ const tx = async (id, fn) => {
   try {
     await S.store.syncServerClock?.();
     if (!S.store.serverClockReady?.()) throw new Error('시계 동기화에 실패했습니다. 연결을 확인한 뒤 다시 시도하세요.');
-    return await S.store.tx('auctions', id, (r) => (r && !r.deleted ? fn(JSON.parse(JSON.stringify(r)), S.store.serverNow()) : null));
+    return await S.store.tx('auctions', id, (r) => (r && !r.deleted ? fn(JSON.parse(JSON.stringify(r)), S.store.serverNow(), S.store.serverClockErr?.() || 0) : null));
   } catch (e) { toast('오류: ' + (e.code || e.message)); return false; }
 };
 
@@ -218,10 +221,11 @@ function roomView(id, token) {
     const can = bidTeam >= 0 && r.status === 'running' && bt.members.length < r.cfg.size - 1 && c.team !== bidTeam;
     const min = c.bid + r.cfg.unit;
     const b = (add) => `<button class="btn bid" data-a="auBid" data-id="${r.id}" data-v="${c.bid + add}" ${can && c.bid + add <= bt.points ? '' : 'disabled'}>+${add}<small>${c.bid + add}P</small></button>`;
-    stage = `<div class="panel stage ${r.status}">
-      <div class="sub"><span class="tag">${r.round === 2 ? '재경매' : '경매'} · 남은 매물 ${r.pool.length}</span><span class="grow"></span><span id="au-timer" class="timer">--</span></div>
+    const lft = c.endsAt - S.store.serverNow(), hot = r.status === 'running' && S.store.serverNow() >= c.startsAt && lft > 0 && lft < 5000 ? ' hot' : ''; // 다시 그려도 맥동이 끊기지 않게
+    stage = `<div class="panel stage ${r.status}${hot}">
+      <div class="sub"><span class="tag">${r.round === 2 ? '재경매' : '경매'} · 남은 매물 ${r.pool.length}</span><span class="grow"></span><span id="au-timer" class="timer${hot}">--</span></div>
       ${info(c.pid)}
-      <div class="bidnow"><small>현재 입찰</small><b>${c.bid}P</b><span>${lead ? `${ic('crown')}${esc(lead.name)}` : '입찰 없음'}</span></div>
+      <div class="bidnow${lead ? ' lead' : ''}${bidBumped(c) ? ' bump' : ''}"><small>현재 입찰</small><b>${c.bid}P</b><span>${lead ? `${ic('crown')}${esc(lead.name)}` : '입찰 없음'}</span></div>
       ${bidTeam >= 0 ? `<div class="bidbar">
         ${me.host ? `<select class="inp" data-c="auAs">${r.teams.map((t, i) => `<option value="${i}" ${i === bidTeam ? 'selected' : ''}>${esc(t.name)} 대리 입찰</option>`).join('')}</select>` : ''}
         <div class="bids">${b(r.cfg.unit)}${b(r.cfg.unit * 5)}${b(r.cfg.unit * 10)}</div>
@@ -243,6 +247,9 @@ function roomView(id, token) {
   </div><div class="ateams">${teams}</div></div>`;
 }
 
+// 입찰 금액이 바뀌어 다시 그릴 때만 한 번 반짝(같은 매물에서 금액이 오른 경우)
+let lastBid = null;
+function bidBumped(c) { const k = c.pid + ':' + c.bid, b = lastBid && lastBid !== k && lastBid.startsWith(c.pid + ':') && c.bid > 0; lastBid = k; return b; }
 let timer = 0;
 let clockSyncPending = false, clockRetryAt = 0;
 function tick() {
@@ -264,11 +271,12 @@ function tick() {
   if (now < c.startsAt) { el.textContent = `곧 시작 ${Math.ceil((c.startsAt - now) / 1000)}`; el.className = 'timer'; return; }
   const left = c.endsAt - now;
   el.textContent = left > 0 ? `⏱ ${Math.ceil(left / 1000)}초` : '낙찰 처리 중…';
-  el.className = 'timer' + (left < 5000 ? ' hot' : '');
+  const hot = left > 0 && left < 5000;
+  if (el.classList.contains('hot') !== hot) { el.classList.toggle('hot', hot); el.closest('.stage')?.classList.toggle('hot', hot); } // 마감 5초 전: 타이머·경매판 빨간 맥동
   const me = myRole(r, S.arg[1]);
-  if (left <= (me.host || me.team >= 0 ? 0 : -2500) && !tick.busy) { // 시간이 끝나면 접속자 중 누구든 정산(중복 실행돼도 안전)
+  if (left <= (me.host || me.team >= 0 ? 0 : -2500) - (S.store.serverClockErr?.() || 0) && !tick.busy) { // 시간이 끝나면 접속자 중 누구든 정산(중복 실행돼도 안전)
     tick.busy = true;
-    tx(r.id, (x, t) => (x.status === 'running' && x.cur && x.cur.pid === c.pid && t >= x.cur.endsAt ? settle(x, t) : null)).finally(() => setTimeout(() => (tick.busy = false), 800));
+    tx(r.id, (x, t, err) => (x.status === 'running' && x.cur && x.cur.pid === c.pid && passed(t, err, x.cur.endsAt) ? settle(x, t + err) : null)).finally(() => setTimeout(() => (tick.busy = false), 800));
   }
 }
 // 경매 기록은 이 화면을 연 사람만 실시간으로 받는다(store.need). 다른 화면으로 가고 1분이 지나면 구독을 끊는다.
@@ -333,16 +341,16 @@ act('auCreate', async () => {
   AU.role = {}; AU.name = ''; AU.mode = 'live'; AU.as = 0; AU.batchDraft = {};
   go(`#/auction/${id}/${host}`);
 });
-act('auStart', (d) => tx(d.id, (r, now) => {
+act('auStart', (d) => tx(d.id, (r, t, err) => { const now = t + err;
   if (r.status !== 'lobby') return null;
   r.status = 'running'; say(r, '▶ 경매를 시작합니다!');
   if (r.cfg.mode === 'batch') { r.batch = { phase: 'initial', initial: {}, final: {}, ties: [] }; return r; }
   return nextItem(r, now);
 }));
-act('auPause', (d) => tx(d.id, (r, now) => {
+act('auPause', (d) => tx(d.id, (r, now, err) => {
   if (!r.cur) return null;
-  if (r.status === 'running') { r.status = 'paused'; r.cur.left = Math.max(1000, r.cur.endsAt - now); }
-  else if (r.status === 'paused') { r.status = 'running'; r.cur.endsAt = now + r.cur.left; r.cur.startsAt = Math.min(r.cur.startsAt, now); }
+  if (r.status === 'running') { r.status = 'paused'; r.cur.left = Math.max(1000, r.cur.endsAt - (now - err)); }
+  else if (r.status === 'paused') { r.status = 'running'; r.cur.endsAt = now + err + r.cur.left; r.cur.startsAt = Math.min(r.cur.startsAt, now); }
   return r;
 }));
 act('auBid', async (d) => {
@@ -352,11 +360,11 @@ act('auBid', async (d) => {
   if (!v || v < r0.cur.bid + r0.cfg.unit) return toast(`${r0.cur.bid + r0.cfg.unit}P 이상 입찰해야 합니다`);
   if (v % r0.cfg.unit) return toast(`입찰 단위는 ${r0.cfg.unit}P입니다`);
   if (v > r0.teams[ti].points) return toast('포인트가 부족합니다');
-  const ok = await tx(d.id, (r, now) => {
+  const ok = await tx(d.id, (r, now, err) => {
     const c = r.cur, t = r.teams[ti];
-    if (r.status !== 'running' || !c || c.pid !== pid || now < c.startsAt || now >= c.endsAt) return null;
+    if (r.status !== 'running' || !c || c.pid !== pid || now + err < c.startsAt || passed(now, err, c.endsAt)) return null;
     if (c.team === ti || v < c.bid + r.cfg.unit || v > t.points || t.members.length >= r.cfg.size - 1) return null;
-    c.bid = v; c.team = ti; c.endsAt = Math.max(c.endsAt, now + r.cfg.ext * 1000);
+    c.bid = v; c.team = ti; c.endsAt = Math.max(c.endsAt, now + err + r.cfg.ext * 1000);
     say(r, `${t.name} ${v}P`);
     return r;
   });

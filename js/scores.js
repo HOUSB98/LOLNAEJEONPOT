@@ -34,8 +34,9 @@ function collect() {
 
 function cellHTML(s, l, c) {
   const cur = +s.p.scores?.[l] || 0;
-  if (!c) return `<div class="sv-c same" data-l="${LANE_NAME[l]}"><b>${num(cur)}</b></div>`;
-  return `<div class="sv-c ${c.d > 0 ? 'up' : 'dn'}" data-l="${LANE_NAME[l]}" title="${md(c.at)} 변경 · ${num(c.from)} → ${num(c.to)}"><b>${num(cur)}</b><em>${c.d > 0 ? '▲' : '▼'}${num(Math.abs(c.d))}</em><small>${num(c.from)}→${num(c.to)}</small></div>`;
+  if (!c) return `<div class="sv-c same" data-l="${LANE_NAME[l]}"><b data-live="sv:${s.id}:${l}">${num(cur)}</b></div>`;
+  const nw = Date.now() - c.at < 864e5; // 최근 24시간 안에 바뀐 칸은 테두리를 더 밝게 + NEW 표시(움직이지 않음)
+  return `<div class="sv-c ${c.d > 0 ? 'up' : 'dn'}${nw ? ' new24' : ''}" data-l="${LANE_NAME[l]}" title="${md(c.at)} 변경${nw ? ' (최근 24시간)' : ''} · ${num(c.from)} → ${num(c.to)}">${nw ? '<i class="sv-new">NEW</i>' : ''}<b data-live="sv:${s.id}:${l}">${num(cur)}</b><em>${c.d > 0 ? '▲' : '▼'}${num(Math.abs(c.d))}</em><small>${num(c.from)}→${num(c.to)}</small></div>`;
 }
 
 function timeline(items) {
@@ -62,7 +63,7 @@ page('scores', {
         <div class="sv-tot ${r.sum > 0 ? 'up' : r.sum < 0 ? 'dn' : ''}">${r.abs ? `<b class="mono">${r.sum ? signed(r.sum) : '±0'}</b><small>${md(r.at)}</small>` : '<small>—</small>'}</div></div>`;
     }).join('');
     return `${head}
-      <p class="mut sv-sub">관리 화면에서 바꾼 라인 점수를 모았어요. 큰 숫자가 지금 점수, 옆이 기간 안의 변화예요. 한 라인을 여러 번 바꿨으면 처음 점수 → 지금 점수로 묶어요.</p>
+      <p class="mut sv-sub">관리 화면에서 바꾼 라인 점수를 모았어요. 큰 숫자가 지금 점수, 옆이 기간 안의 변화예요. 한 라인을 여러 번 바꿨으면 처음 점수 → 지금 점수로 묶어요. <span class="sv-new">NEW</span> 표시는 최근 24시간 안에 바뀐 칸이에요.</p>
       <div class="sv-ctl">${seg(PERIODS, V.days, 'svDays')}${seg(SORTS, V.sort, 'svSort')}<label class="sv-all"><input type="checkbox" data-a="svAll" ${V.all ? 'checked' : ''}>바뀌지 않은 선수도 보기</label></div>
       ${sum}
       ${c.list.length ? `<div class="panel sv-tbl"><div class="sv-row sv-h"><span>선수</span>${LANES.map((l) => `<span style="--lc:${LANE_COLOR[l]}">${LANE_ICON[l]}${LANE_NAME[l]}</span>`).join('')}<span>합계</span></div>${rows}</div>`

@@ -401,7 +401,7 @@ details.panel summary{cursor:pointer;list-style:none}details.panel summary::befo
 .ov b{font:700 21px var(--mono);color:var(--gold2);line-height:1}.ov.big{width:78px;height:82px}.ov.big b{font-size:32px}
 .lanes5{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:10px 0;max-width:340px}
 .lanes5>div{background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:5px 4px;text-align:center;display:flex;flex-direction:column;align-items:center}.lanes5 b{font:700 15px var(--mono)}.lanes5 .main{border-color:var(--gold)}
-.timer{font:700 22px var(--mono)}.timer.hot{color:var(--red);animation:pop .5s infinite}
+.timer{display:inline-block;font:700 22px var(--mono)}.timer.hot{color:var(--red)}
 .bidnow{text-align:center;background:#06090f;border:1px solid var(--line2);border-radius:var(--r);padding:12px;margin:10px 0}.bidnow b{display:block;font:700 38px var(--mono);color:var(--gold2);line-height:1.2}.bidnow span{font-weight:700}
 .bids{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0}.btn.bid{flex-direction:column;gap:0;min-height:58px;font-size:17px}
 .chat{height:200px;overflow-y:auto;background:#070b13;border:1px solid var(--line2);border-radius:9px;padding:8px 10px;font-size:13px}.chat .sys{color:var(--mut)}
@@ -2245,3 +2245,41 @@ body.lite .xs-scene *{animation:none!important}body.lite .xs-scene .xs-fly,body.
   .sv-sum small{flex-basis:100%;margin-left:0}
   .sv-ev{grid-template-columns:38px minmax(0,1fr) 62px auto 40px;gap:6px;font-size:12px}
 }
+/* ---------- 강조 효과(2026-11-23): 모두 읽기·쓰기 없음, 투명도·transform만 움직이거나 움직이지 않음. 가벼운 모드·동작 줄이기에선 멈춤 ---------- */
+/* 경기 기록: 승리 팀 쪽에 얇은 팀 색 빛(움직이지 않음 → 한 번만 그림) */
+.team.win{position:relative;--tc:var(--blue)}.team.win.red{--tc:var(--red)}
+.team.win::before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,color-mix(in srgb,var(--tc) 13%,transparent),transparent 55%);box-shadow:inset 0 2px 0 color-mix(in srgb,var(--tc) 70%,transparent)}
+.team.win>*{position:relative}
+/* 새로 들어온 경기: 카드에 광택이 한 번 스치고 테두리가 잠깐 빛난다 */
+.mcard.fresh{position:relative;animation:mfresh 1.6s ease-out}
+.mcard.fresh .vs{position:relative}
+.mcard.fresh .vs::after{content:"";position:absolute;top:0;bottom:0;left:0;width:45%;pointer-events:none;z-index:2;
+  background:linear-gradient(105deg,transparent,rgba(255,240,200,.14) 38%,rgba(255,255,255,.26) 50%,rgba(255,240,200,.14) 62%,transparent);
+  transform:translateX(-110%) skewX(-12deg);animation:mshine 1.3s .15s cubic-bezier(.4,0,.2,1) forwards;will-change:transform}
+@keyframes mshine{to{transform:translateX(260%) skewX(-12deg)}}
+@keyframes mfresh{0%{box-shadow:0 0 0 1px rgba(246,227,168,.75),0 0 26px -6px rgba(217,164,65,.7)}100%{box-shadow:0 0 0 1px transparent,0 0 0 0 transparent}}
+body.lite .mcard.fresh,body.lite .mcard.fresh .vs::after{animation:none}body.lite .mcard.fresh .vs::after{display:none}
+@media (prefers-reduced-motion:reduce){.mcard.fresh{animation:none}.mcard.fresh .vs::after{display:none}}
+/* 경매: 최고 입찰(움직이지 않는 금빛 테두리) · 금액이 오르면 한 번 반짝 · 마감 5초 전 타이머와 경매판이 빨갛게 맥동 */
+.bidnow{position:relative;transition:border-color .3s}
+.bidnow.lead{border-color:color-mix(in srgb,var(--gold) 55%,transparent);box-shadow:0 0 22px -10px var(--gold),inset 0 0 18px -12px var(--gold)}
+.bidnow.bump::after{content:"";position:absolute;inset:-1px;border-radius:inherit;pointer-events:none;box-shadow:0 0 0 2px var(--gold2),0 0 30px -4px var(--gold);opacity:0;animation:bflash .9s ease-out;will-change:opacity}
+.bidnow.bump b{animation:bbump .55s cubic-bezier(.2,1.5,.4,1)}
+@keyframes bflash{0%{opacity:1}100%{opacity:0}}
+@keyframes bbump{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}
+.timer.hot{text-shadow:0 0 12px rgba(240,80,110,.55);animation:thot 1s ease-in-out infinite;will-change:transform}
+@keyframes thot{0%,100%{transform:scale(1)}50%{transform:scale(1.09)}}
+.stage{position:relative}
+.stage.hot::after{content:"";position:absolute;inset:-1px;border-radius:inherit;pointer-events:none;box-shadow:0 0 0 1px rgba(240,80,110,.55),inset 0 0 26px -10px rgba(240,80,110,.7),0 0 24px -10px rgba(240,80,110,.6);animation:shot 1s ease-in-out infinite;will-change:opacity}
+@keyframes shot{0%,100%{opacity:.35}50%{opacity:1}}
+body.lite .bidnow.bump::after,body.lite .bidnow.bump b,body.lite .timer.hot,body.lite .stage.hot::after{animation:none}
+@media (prefers-reduced-motion:reduce){.bidnow.bump::after,.bidnow.bump b,.timer.hot,.stage.hot::after{animation:none}}
+/* 실시간 숫자가 바뀌는 순간 한 번 반짝(core.js liveMarks): 크기·밝기만 잠깐 → 원래대로 */
+.lv-tick{display:inline-block;animation:lvtick .8s cubic-bezier(.2,.9,.3,1)}
+@keyframes lvtick{0%{transform:scale(1.22);filter:brightness(1.9) drop-shadow(0 0 8px rgba(246,227,168,.8))}100%{transform:none}}
+/* 점수 변동: 최근 24시간 안에 바뀐 칸(움직이지 않음) */
+.sv-c{position:relative}
+.sv-c.new24.up{box-shadow:inset 0 0 0 1px rgba(79,208,139,.7),0 0 16px -6px rgba(79,208,139,.8)}
+.sv-c.new24.dn{box-shadow:inset 0 0 0 1px rgba(240,80,110,.7),0 0 16px -6px rgba(240,80,110,.8)}
+.sv-new{display:inline-block;font:800 8.5px/1 var(--mono);font-style:normal;letter-spacing:.08em;color:#1a1204;background:linear-gradient(180deg,var(--gold2),var(--gold));border-radius:4px;padding:2px 4px;vertical-align:1px}
+.sv-c .sv-new{position:absolute;top:-6px;right:-4px;box-shadow:0 2px 6px -2px rgba(0,0,0,.6)}
