@@ -31,6 +31,7 @@ node tests/reads.js              # 하나를 직접 실행(✓/✗ 줄을 그대
 | `error_report.js` | 사이트 오류 자동 보고, 관리 화면 Worker 버전 경고 |
 | `chat_posts_limit.js` | 채팅·게시판 실시간 개수, 접힌 이전 글 펼치기 |
 | `chat_pc_open.js` | 넓은 PC에서 채팅창을 열어 둔 사람은 처음부터 채팅 20개 |
+| `chat_keyboard.js` | 휴대폰 채팅: 전송 버튼·Enter 후에도 입력칸 포커스(키보드) 유지 |
 | `reads.js` | 접속·재접속 읽기 수, 닫힌 채팅창 새 메시지 배지, 선수 증분 구독 |
 | `swap_and_edit.js` | 경기 진영 바꾸기(선수 기록 불변), 게시판 글·댓글 수정 |
 | `replay_flip.js` | 리플레이 적용 시 반대로 기록된 진영 바로잡기 |

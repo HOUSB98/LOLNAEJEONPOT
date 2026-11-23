@@ -22,8 +22,8 @@ async function makeSeed(browser) {
     teams: [0, 1].map((t) => ({ name: '팀' + t, captain: ids[t], token: 'tk' + t, points: 1000, members: [] })), pool: ids.slice(2, 10), unsold: [], round: 1, cur: null, log: [], chat: [] }));
   return out;
 }
-async function device(browser, be, tree, name) {
-  const ctx = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1280, height: 860 } });
+async function device(browser, be, tree, name, opts = {}) {
+  const ctx = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1280, height: 860 }, ...opts }); // opts: 휴대폰 흉내(isMobile·hasTouch·viewport) 등
   await ctx.route(/workers\.dev|ddragon|fonts\.|jsdelivr|communitydragon/, (r) => r.fulfill({ status: 404, body: '' })); // 진짜 연동 서버로는 절대 보내지 않는다
   await be.attach(ctx, () => name);
   await ctx.route('https://site.test/**', (r) => { const u = new URL(r.request().url()); let f = decodeURIComponent(u.pathname).replace(/^\//, '') || 'index.html'; const b = file(tree, f); if (!b) return r.fulfill({ status: 404, body: '' }); r.fulfill({ status: 200, body: b, headers: { 'Content-Type': TYPES[path.extname(f)] || 'application/octet-stream' } }); });
