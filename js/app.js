@@ -10,7 +10,7 @@ import { watchBoard } from './board.js';
 import './players.js';
 import './finder.js';
 import './gacha.js';
-import { lazyPage } from './core.js';
+import { lazyPage, swipeZone, swiping } from './core.js';
 // 자주 안 쓰는 화면은 들어갈 때 받는다. 접속 후 한가할 때 미리 받아 두므로 보통은 기다림 없이 열린다.
 const LAZY_GET = [
   lazyPage('replay', () => import('./replay.js'), ['matchReplay']),
@@ -270,7 +270,7 @@ page('home', {
     NT.t = setInterval(noticeTick, 5000);
     if (entering) { TY.t0 = performance.now(); clearInterval(TY.timer); TY.timer = setInterval(typeTick, 45); }
     else if (TY.timer) typeTick(); else document.querySelector('.hero-h')?.classList.add('typed');
-    HM.t = setInterval(() => { if (S.page !== 'home') return clearInterval(HM.t); if (!document.querySelector('#car:hover')) carMove(1); }, 4200);
+    HM.t = setInterval(() => { if (S.page !== 'home') return clearInterval(HM.t); if (!document.querySelector('#car:hover') && !swiping() && Date.now() - (HM.sw || 0) > 4200) carMove(1); }, 4200);
     HERO.t = setInterval(() => { if (S.page !== 'home') return clearInterval(HERO.t); if (document.visibilityState === 'visible') heroNext(); }, HERO_MS());
     // 크리스마스 시즌: 겨울 스킨 목록을 (처음 한 번) 찾아오면 바로 스킨 일러스트로 넘긴다
     if (xmasOn() && !XM.list) xmasSkins().then((l) => { if (l && S.page === 'home' && xmasOn()) { heroList(); HERO.i = -1; heroNext(); } });
@@ -284,6 +284,20 @@ function carMove(d, abs) {
   document.querySelectorAll('.car-dots i').forEach((el, i) => el.classList.toggle('on', i === HM.i));
 }
 act('carGo', (d) => carMove(+d.d));
+// 휴대폰: 명예의 전당을 손가락으로 좌우로 밀어 넘기기(손가락을 따라 움직이고, 처음·끝에서는 살짝만 끌림)
+swipeZone('#car .car-view', {
+  move(el, dx, w) {
+    const tr = el.querySelector('.car-track'), n = el.querySelectorAll('.hslide').length; if (!tr || n < 2) return;
+    const edge = (HM.i === 0 && dx > 0) || (HM.i === n - 1 && dx < 0);
+    tr.style.transition = 'none'; tr.style.transform = `translateX(calc(-${HM.i * 100}% + ${edge ? dx / 3 : dx}px))`;
+  },
+  end(el, dir) {
+    const tr = el.querySelector('.car-track'), n = el.querySelectorAll('.hslide').length; if (!tr) return;
+    tr.style.transition = ''; HM.sw = Date.now();
+    const to = HM.i + dir;
+    carMove(0, dir && to >= 0 && to < n ? to : HM.i); // 처음·끝 너머로는 넘기지 않고 제자리로
+  },
+});
 act('carSet', (d) => carMove(0, +d.i));
 
 // ---------- 랭킹 ----------
