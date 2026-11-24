@@ -28,20 +28,13 @@ const nm = (id) => S.st.P[id]?.name || '?';
 // 팀 색: 팀 순서대로(블루·레드·초록·보라·주황·청록·분홍·노랑). 팀 카드·현재 입찰·입찰 경쟁·낙찰 배너·결과 요약에 같은 색을 써서 누가 이기는지 한눈에
 const TEAM_COLOR = ['#5b8cff', '#f0506e', '#4fd08b', '#b07cff', '#ff9f43', '#3fd0e0', '#ff7ac6', '#e8d35a'];
 export const teamColor = (i) => TEAM_COLOR[((i % TEAM_COLOR.length) + TEAM_COLOR.length) % TEAM_COLOR.length];
-// 익명 경매(cfg.blind): 끝나기 전까지는 매물을 '매물 A·B…'로만 보여 주고 힌트(주라인·라인 점수 모양·최근 흐름·챔피언 성향·소통)만 공개.
+// 익명 경매(cfg.blind): 끝나기 전까지는 매물을 '매물 A·B…'로만 보여 주고 힌트(라인 유형·부라인·라인 점수 등급·주라인 실전 승률·최근 흐름·플레이 스타일·소통)만 공개.
 // 화면에서만 숨긴다(방 문서에는 선수 ID가 그대로 있음 — 친구끼리 재미용). 기록 글에도 별칭으로 남기고, 끝나면 한꺼번에 정체 공개
 const blindOn = (r) => !!r?.cfg?.blind && r.status !== 'done';
 const alias = (r, pid) => r.alias?.[pid] || '?';
 const whoT = (r, pid) => (blindOn(r) ? `매물 ${alias(r, pid)}` : nm(pid));
 const who = (r, pid) => (blindOn(r) ? `<span class="au-anon">🎭 매물 ${esc(alias(r, pid))}</span>` : pname(pid));
 const letter = (i) => (i < 26 ? String.fromCharCode(65 + i) : String.fromCharCode(64 + Math.floor(i / 26)) + String.fromCharCode(65 + (i % 26)));
-const ROLE = { Assassin: '암살자', Fighter: '전사', Mage: '마법사', Marksman: '원거리 딜러', Support: '서포터', Tank: '탱커' };
-function champStyle(s) { // 판수 기준 역할군 상위 2개(챔피언 이름은 숨김)
-  const n = {}; let all = 0;
-  for (const [name, v] of Object.entries(s.champs || {})) { const t = S.champBy?.[name]?.tags?.[0]; if (!t || !ROLE[t]) continue; n[t] = (n[t] || 0) + (v.g || 0); all += v.g || 0; }
-  if (all < 3) return '';
-  return Object.entries(n).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([t, g], i) => `<span class="as-role${i ? '' : ' top'}">${ROLE[t]}${i ? '' : ' 위주'} <small>${Math.round((g / all) * 100)}%</small></span>`).join('');
-}
 // 익명 경매 힌트의 기준값(리그 전체): 라인별 평균 점수, KDA 기록 5판 이상인 선수들의 평균 킬·데스·어시스트. 화면을 그릴 때 한 번(24명 정도라 가벼움)
 function blindBase(st) {
   const L = st.list.length || 1, lavg = Object.fromEntries(LANES.map((l) => [l, st.list.reduce((a, s) => a + (+s.p.scores?.[l] || 0), 0) / L]));
@@ -212,7 +205,7 @@ function lobbyList() {
       <label class="fld"><span>매물 사이 대기(초)</span><select id="auD" class="inp" data-c="auDelay">${[5, 10, 15].map((v) => `<option value="${v}" ${AU.delay === v ? 'selected' : ''}>${v}초</option>`).join('')}</select></label>` : ''}
     </div>
     ${AU.mode === 'live' ? `<p class="au-est" id="au-est">${estHTML(formEst())}</p>` : ''}
-    ${AU.mode === 'live' ? `<label class="mini au-blindopt"><input type="checkbox" data-c="auBlind" ${AU.blind ? 'checked' : ''}> 🎭 익명 경매 <small class="mut">누구인지 숨기고 힌트(주라인·라인 점수 모양·최근 흐름·챔피언 성향·소통)만 보고 입찰 · 끝나면 한꺼번에 공개</small></label>` : ''}
+    ${AU.mode === 'live' ? `<label class="mini au-blindopt"><input type="checkbox" data-c="auBlind" ${AU.blind ? 'checked' : ''}> 🎭 익명 경매 <small class="mut">누구인지 숨기고 힌트(라인 유형·라인 점수 등급·최근 승률·플레이 스타일·소통 등)만 보고 입찰 · 끝나면 한꺼번에 공개</small></label>` : ''}
     ${AU.mode === 'live' ? '<label class="mini"><input type="checkbox" data-c="auHide" ' + (AU.hide ? 'checked' : '') + '> 경매 순서 비공개 (무작위)</label>' : '<p class="hint">팀장은 매물별 입찰가 합계가 보유 포인트를 넘지 않도록 제출합니다. 낙찰된 금액만 차감됩니다.</p>'}
     <button class="btn pri block big" data-a="auCreate">경매 방 만들기</button>
   </div>`;
@@ -297,6 +290,10 @@ function cues(r, me) {
 }
 // 팀 카드 아래: 주라인 구성(없는 라인·겹친 라인)과 남은 자리당 평균 포인트. 팀장은 다음 매물 판단, 관전자는 '저 팀 미드 급하다' 보는 재미
 function teamFoot(r, t) {
+  if (blindOn(r)) { // 익명 경매: 주라인 구성은 매물 주라인을 알려 주므로 숨기고 자리·포인트만
+    const left = Math.max(0, r.cfg.size - 1 - t.members.length);
+    return `<div class="au-tf"><div class="au-tfn">${left ? `<span class="au-per">남은 ${left}자리 · 자리당 <b class="mono">${Math.floor(t.points / left)}P</b></span>` : '<span class="au-full">팀 완성</span>'}</div></div>`;
+  }
   const n = {}; [t.captain, ...t.members.map((m) => m.pid)].forEach((id) => { const l = S.st.P[id]?.mainLane; if (l) n[l] = (n[l] || 0) + 1; });
   const left = Math.max(0, r.cfg.size - 1 - t.members.length), miss = LANES.filter((l) => !n[l]);
   const lanes = `<div class="au-lanes">${LANES.map((l) => `<span class="${!n[l] ? 'no' : n[l] > 1 ? 'dup' : 'ok'}" title="${LANE_NAME[l]} 주라인 ${n[l] || 0}명">${LANE_ICON[l]}${n[l] > 1 ? `<b>${n[l]}</b>` : ''}</span>`).join('')}</div>`;
@@ -341,27 +338,29 @@ function roomView(id, token) {
   // 익명 경매의 매물 카드: 이름·OVR·티어·챔피언·칭호·궁합 대신 힌트만(등급·구간으로). 칸별로 나눠 한눈에
   const blindCard = (pid) => {
     const s = st.P[pid]; if (!s) return '';
-    const H = blindBase(st), tk = talkOf(pid), cs = champStyle(s), sc = (l) => +s.p.scores?.[l] || 0;
+    const H = blindBase(st), tk = talkOf(pid), sc = (l) => +s.p.scores?.[l] || 0;
+    const ss = LANES.map(sc).sort((a, b) => b - a), ltype = ss[0] - ss[1] >= 4 ? '한 라인 특화' : ss[0] - ss[4] <= 3 ? '올라운더' : ss[1] - ss[2] >= 2 ? '두 라인형' : '여러 라인 가능';
+    const r10 = (s.results || []).slice(-10), w10 = r10.length >= 5 ? (r10.filter(Boolean).length / r10.length) * 100 : null;
     const sub = LANES.filter((l) => l !== s.mainLane).sort((a, b) => sc(b) - sc(a))[0];
     const ml = s.lanes?.[s.mainLane], mwr = ml?.g >= 5 ? (ml.w / ml.g) * 100 : null;
     const g3 = (k) => `<b class="au-g g${k}">${['평균 이하', '평균', '평균 이상'][k]}</b>`;
     const tile = (k, v, wide = '') => `<div class="au-ht${wide}"><span class="au-hk">${k}</span><div class="au-hv">${v}</div></div>`;
     return `<div class="item au-blind" data-k="info"><div class="ov big au-q"><b>?</b><small>익명</small></div><div class="au-bh"><h1>🎭 매물 ${esc(alias(r, pid))}</h1>
       <div class="au-hg">
-        ${tile('주라인', `<b>${LANE_ICON[s.mainLane]} ${LANE_NAME[s.mainLane]}</b>`)}
+        ${tile('라인 유형', `<b>${ltype}</b>`)}
         ${tile('부라인', sub ? `<b>${LANE_ICON[sub]} ${LANE_NAME[sub]}</b>` : '<small>—</small>')}
         ${tile('주라인 실전 승률', mwr === null ? '<small>기록 적음(5판 미만)</small>' : g3(mwr < 45 ? 0 : mwr > 55 ? 2 : 1))}
-        ${tile('라인 점수 <small>(라인별 전체 평균 ±1점 = 평균)</small>', `<div class="au-shape">${LANES.map((l) => { const d = sc(l) - H.lavg[l], k = d < -1 ? 0 : d > 1 ? 2 : 1; return `<span class="g${k}${l === s.mainLane ? ' main' : ''}" title="${LANE_NAME[l]} ${['평균 이하', '평균', '평균 이상'][k]}"><i>${LANE_ICON[l]}</i><em>${LANE_NAME[l]}</em><small>${['평균 이하', '평균', '평균 이상'][k]}</small></span>`; }).join('')}</div>`, ' wide')}
+        ${tile('라인 점수 <small>(라인별 전체 평균 ±1점 = 평균)</small>', `<div class="au-shape">${LANES.map((l) => { const d = sc(l) - H.lavg[l], k = d < -1 ? 0 : d > 1 ? 2 : 1; return `<span class="g${k}" title="${LANE_NAME[l]} ${['평균 이하', '평균', '평균 이상'][k]}"><i>${LANE_ICON[l]}</i><em>${LANE_NAME[l]}</em><small>${['평균 이하', '평균', '평균 이상'][k]}</small></span>`; }).join('')}</div>`, ' wide')}
         ${tile('최근 흐름', s.g ? `${dots(s.recent)}${streak(s.cur)}` : '<small>내전 기록 없음</small>')}
+        ${tile(`최근 ${r10.length >= 5 ? r10.length : 10}판 승률`, w10 === null ? '<small>기록 적음(5판 미만)</small>' : g3(w10 < 45 ? 0 : w10 > 55 ? 2 : 1))}
         ${tile('플레이 스타일', kdaStyle(s, H) || '<small>KDA 기록 적음</small>')}
-        ${tile('챔피언 성향', cs || '<small>정보 없음</small>')}
         ${tile('소통', tk ? talkIcon(tk) + `<small>${['과묵', '조용', '수다', '샷콜러'][tk - 1] || ''}</small>` : '<small>정보 없음</small>')}
       </div></div></div>`;
   };
   const teams = r.teams.map((t, i) => `<div data-k="team${i}" class="panel ateam ${c && c.team === i ? 'lead' : ''} ${me.team === i ? 'mine' : ''}${AU.sold?.team === i && Date.now() < AU.sold.until ? ' au-win' : ''}" style="--tc:${teamColor(i)}${AU.sold?.team === i && Date.now() < AU.sold.until ? `;--t:-${Date.now() - AU.sold.at}ms` : ''}">
     <div class="ph"><b class="au-tname"><i class="au-dot"></i>${esc(t.name)}</b>${me.team === i ? '<span class="tag ok">내 팀</span>' : ''}${c?.pass?.[i] ? '<span class="tag au-ps">패스</span>' : ''}<span class="grow"></span><b class="pts">${t.points}P</b></div>
     <div class="kv"><span>${ic('crown')}${pname(t.captain)}</span><small class="mut">팀장</small></div>
-    ${t.members.map((m) => `<div class="kv${m.pid === AU.sold?.pid && Date.now() < AU.sold.until ? ` au-sold" style="--t:-${Date.now() - AU.sold.at}ms` : ''}"><span>${who(r, m.pid)} <small class="mut">${LANE_ICON[st.P[m.pid]?.mainLane] || ''}</small></span><b>${m.price}P</b></div>`).join('')}
+    ${t.members.map((m) => `<div class="kv${m.pid === AU.sold?.pid && Date.now() < AU.sold.until ? ` au-sold" style="--t:-${Date.now() - AU.sold.at}ms` : ''}"><span>${who(r, m.pid)}${blindOn(r) ? '' : ` <small class="mut">${LANE_ICON[st.P[m.pid]?.mainLane] || ''}</small>`}</span><b>${m.price}P</b></div>`).join('')}
     ${Array(Math.max(0, r.cfg.size - 1 - t.members.length)).fill('<div class="kv emp"><span>빈 자리</span></div>').join('')}
     ${teamFoot(r, t)}</div>`).join('');
   let stage = '';
