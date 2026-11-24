@@ -531,7 +531,7 @@ page('champs', {
     const picked = all.filter((c) => c.g), totalPicks = picked.reduce((a, c) => a + c.g, 0);
     if (!picked.length) return `<h1>${ic('champs')}챔피언 분석</h1><div class="panel empty">챔피언 기록이 없습니다. 경기 입력 때 챔피언을 고르면 이곳에 티어와 통계가 쌓입니다.</div>`;
     const val = { tier: (c) => c.tier || 9, g: (c) => c.g, w: (c) => c.w, wr: (c) => (c.g ? c.w / c.g : -1), ban: (c) => c.ban };
-    const rows = all.filter((c) => !q || c.name.replace(/\s/g, '').includes(q)).sort((a, b) => CH.dir * (val[CH.sort](a) - val[CH.sort](b)) || b.g - a.g || b.w - a.w);
+    const rows = [...all].sort((a, b) => CH.dir * (val[CH.sort](a) - val[CH.sort](b)) || b.g - a.g || b.w - a.w);
     const th = (k, t) => `<th class="s ${CH.sort === k ? 'on' : ''}" data-a="chSort" data-k="${k}">${t}${CH.sort === k ? (CH.dir < 0 ? ' ▾' : ' ▴') : ''}</th>`;
     const q2 = picked.filter((c) => c.g >= 2), best = [...q2].sort((a, b) => b.w / b.g - a.w / a.g || b.g - a.g)[0], worst = [...q2].sort((a, b) => a.w / a.g - b.w / b.g || b.g - a.g)[0];
     const banned = [...all].sort((a, b) => b.ban - a.ban)[0];
@@ -562,10 +562,10 @@ page('champs', {
     <div class="tiers">${tierRows(tl, { all: true, pctOn: true })}</div>
     <div class="sec-h"><h2>전체 통계</h2></div>
     <div class="tw"><table class="tbl"><thead><tr>${th('tier', '티어')}<th class="l">챔피언</th>${th('g', '픽')}${th('w', '승')}${th('wr', '승률')}${th('ban', '밴')}<th class="l">주 사용자</th></tr></thead>
-    <tbody>${rows.map((c) => {
-      const u = Object.entries(c.users).sort((a, b) => b[1] - a[1]);
-      return `<tr><td>${c.tier ? `<span class="tbadge t${c.tier}">${c.tier}</span>` : '<span class="mut">-</span>'}</td><td class="l nm">${champIcon(c.name, 'sm')} ${esc(c.name)}</td>${num(`<span class="mono">${c.g}</span>`)}${num(`<span class="mono">${c.w}</span>`)}${num(wrBar(c.w, c.g))}${num(`<span class="mono">${c.ban || '-'}</span>`)}<td class="l users">${u.slice(0, 5).map(([id, n]) => `<span>${pname(id)}<small class="mono">${n}</small></span>`).join('')}</td></tr>`;
-    }).join('') || '<tr><td colspan="7" class="empty">검색 결과가 없습니다.</td></tr>'}</tbody></table></div>`;
+    <tbody id="chtb">${rows.map((c) => {
+      const u = Object.entries(c.users).sort((a, b) => b[1] - a[1]), key = c.name.replace(/\s/g, '');
+      return `<tr data-n="${esc(key)}" ${q && !key.includes(q) ? 'hidden' : ''}><td>${c.tier ? `<span class="tbadge t${c.tier}">${c.tier}</span>` : '<span class="mut">-</span>'}</td><td class="l nm">${champIcon(c.name, 'sm')} ${esc(c.name)}</td>${num(`<span class="mono">${c.g}</span>`)}${num(`<span class="mono">${c.w}</span>`)}${num(wrBar(c.w, c.g))}${num(`<span class="mono">${c.ban || '-'}</span>`)}<td class="l users">${u.slice(0, 5).map(([id, n]) => `<span>${pname(id)}<small class="mono">${n}</small></span>`).join('')}</td></tr>`;
+    }).join('')}<tr class="ch-none" ${rows.some((c) => !q || c.name.replace(/\s/g, '').includes(q)) ? 'hidden' : ''}><td colspan="7" class="empty">검색 결과가 없습니다.</td></tr></tbody></table></div>`;
   },
   after() { // 시그니처 칸: 4초마다 다음 선수로
     clearInterval(CH.t);
@@ -581,7 +581,12 @@ page('champs', {
 });
 act('chLane', (d) => { CH.lane = d.l; refresh(); });
 act('chSort', (d) => { if (CH.sort === d.k) CH.dir *= -1; else { CH.sort = d.k; CH.dir = d.k === 'tier' ? 1 : -1; } refresh(); });
-act('chQ', (d, el) => { CH.q = el.value; refresh(); });
+// 검색: 화면 전체를 다시 그리지 않고 표의 줄만 숨김/보임(입력칸이 바뀌지 않아 한글 조합이 끊기지 않음)
+act('chQ', (d, el) => {
+  CH.q = el.value; const q = CH.q.replace(/\s/g, ''), tb = document.getElementById('chtb'); if (!tb) return refresh();
+  let any = false; tb.querySelectorAll('tr[data-n]').forEach((tr) => { const on = !q || tr.dataset.n.includes(q); tr.hidden = !on; any ||= on; });
+  const none = tb.querySelector('.ch-none'); if (none) none.hidden = any;
+});
 
 // ---------- 피어리스 현황 ----------
 export function seriesUsed(seriesId, exceptMatchId) {
