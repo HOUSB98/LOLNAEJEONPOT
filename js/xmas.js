@@ -6,122 +6,17 @@
 // 장식이 싫으면 사이드바(모바일은 더보기)의 '시즌 장식' 버튼으로 끈다(naejeon:xmas = '0').
 import { act, toast, moreHooks } from './core.js';
 
-import { inSeason, xmasOn } from './season.js';
+import { inSeason, xmasOn, xchatOn } from './season.js';
 export { inSeason, xmasOn };
 
-const START = [11, 16], STAR_DAY = [12, 25], END = [12, 26]; // 기간 판단은 season.js(여기 날짜와 맞춰 둘 것)
+// 기간 판단은 season.js(크리스마스 11/16 ~ 12/26, 채팅창 배경·말풍선은 12/25까지)
 const KEY = 'naejeon:xmas';
 const calm = () => document.body.classList.contains('lite') || matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-function progress(now = new Date()) {
-  const y = now.getFullYear(), day = 864e5;
-  const s = new Date(y, START[0] - 1, START[1]), x = new Date(y, STAR_DAY[0] - 1, STAR_DAY[1]);
-  const t = new Date(y, now.getMonth(), now.getDate());
-  return { d: Math.max(0, Math.round((t - s) / day)), total: Math.round((x - s) / day) };
-}
 
 // 성능: 움직이지 않는 그림은 <img>(data URL SVG)로 넣어 브라우저가 한 번만 그려 두게 한다.
 // SVG 안에서 무언가 움직이면 매 프레임 SVG 전체(필터 포함)를 다시 그려야 해서 저사양 PC에서 버벅인다.
 // 반짝임·흔들림은 위에 얹은 작은 HTML 요소의 투명도·회전만 바꿔 그래픽 카드가 처리하게 한다.
 const svgImg = (inner, vb, cls = '', extra = '') => `<img class="${cls}" alt="" aria-hidden="true" decoding="async" ${extra} src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}">${inner}</svg>`)}">`;
-
-// ---------- 트리 (그리는 순서 = 하루에 하나씩 나타나는 순서) ----------
-const DEFS = `<defs>
-  <radialGradient id="xtHalo" cx=".5" cy=".55" r=".5"><stop offset="0" stop-color="#ffe3a0" stop-opacity=".6"/><stop offset=".55" stop-color="#ffb86b" stop-opacity=".14"/><stop offset="1" stop-color="#ffb347" stop-opacity="0"/></radialGradient>
-  <linearGradient id="xtLeaf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4cc07c"/><stop offset=".45" stop-color="#1f8a50"/><stop offset="1" stop-color="#0b4a2a"/></linearGradient>
-  <linearGradient id="xtLeafHi" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b8f0cc" stop-opacity=".6"/><stop offset=".35" stop-color="#b8f0cc" stop-opacity="0"/></linearGradient>
-  <linearGradient id="xtGold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff6d2"/><stop offset=".35" stop-color="#f0c55a"/><stop offset=".65" stop-color="#b9821f"/><stop offset="1" stop-color="#ffe08a"/></linearGradient>
-  <linearGradient id="xtSatin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff7b72"/><stop offset=".5" stop-color="#c81e2b"/><stop offset="1" stop-color="#7d0c16"/></linearGradient>
-  <linearGradient id="xtTrunk" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4a2c15"/><stop offset=".5" stop-color="#8a5629"/><stop offset="1" stop-color="#3a210f"/></linearGradient>
-  <radialGradient id="xbRed" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#ffb0a6"/><stop offset=".35" stop-color="#df2f35"/><stop offset="1" stop-color="#6e0d12"/></radialGradient>
-  <radialGradient id="xbGold" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#fffbe2"/><stop offset=".35" stop-color="#ecbd45"/><stop offset="1" stop-color="#7a5310"/></radialGradient>
-  <radialGradient id="xbBlue" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#cfe1ff"/><stop offset=".35" stop-color="#3a6ae0"/><stop offset="1" stop-color="#0f2257"/></radialGradient>
-  <radialGradient id="xbPearl" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#efe8de"/><stop offset="1" stop-color="#a39886"/></radialGradient>
-  <radialGradient id="xbPurple" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#f0d6ff"/><stop offset=".35" stop-color="#9b4fd8"/><stop offset="1" stop-color="#3b1561"/></radialGradient>
-  <radialGradient id="xtStarG" cx=".5" cy=".45" r=".6"><stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#ffe17a"/><stop offset="1" stop-color="#e09b1c"/></radialGradient>
-  <linearGradient id="xtRay" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff2c4" stop-opacity=".55"/><stop offset="1" stop-color="#fff2c4" stop-opacity="0"/></linearGradient>
-  <filter id="xtGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter>
-  <filter id="xtSoft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.200"/></filter>
-  <filter id="xtBlur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>
-  <linearGradient id="xgRed" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e8483f"/><stop offset="1" stop-color="#8e1717"/></linearGradient>
-  <linearGradient id="xgGreen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34a866"/><stop offset="1" stop-color="#115230"/></linearGradient>
-  <linearGradient id="xgNavy" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4466c4"/><stop offset="1" stop-color="#16285e"/></linearGradient>
-  <linearGradient id="xgPurple" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a65fe0"/><stop offset="1" stop-color="#4a1a78"/></linearGradient>
-  <pattern id="xtCane" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(40)"><rect width="6" height="6" fill="#fff"/><rect width="3" height="6" fill="#e0262f"/></pattern>
-</defs>`;
-// 가지 한 단: 아래쪽이 물결 모양으로 늘어진 삼각형 + 왼쪽 하이라이트 + 가지 끝에 쌓인 눈
-const tier = (top, bot, half) => {
-  const l = 120 - half, r = 120 + half, n = 6, w = (r - l) / n;
-  let wave = '', snow = '';
-  for (let i = 0; i < n; i++) { const x1 = r - w * i, x2 = r - w * (i + 1), mx = (x1 + x2) / 2; wave += ` Q${mx} ${bot + 10} ${x2} ${bot}`; snow += `<path d="M${x1 - 1} ${bot - 1} Q${mx} ${bot + 7} ${x2 + 1} ${bot - 1} Q${mx} ${bot + 2} ${x1 - 1} ${bot - 1}z" fill="#f4f8ff" opacity=".85"/>`; }
-  const d = `M120 ${top} L${r} ${bot}${wave} Z`;
-  return `<path d="${d}" fill="url(#xtLeaf)"/><path d="${d}" fill="url(#xtLeafHi)"/><path d="M120 ${top} L${l + 6} ${bot - 2}" stroke="#c9f5d8" stroke-opacity=".3" stroke-width="1.200"/>${snow}`;
-};
-const bauble = (x, y, g, r = 7) => `<g><path d="M${x - 2} ${y - r - 2.500}h4v3.500h-4z" fill="url(#xtGold)"/><circle cx="${x}" cy="${y}" r="${r}" fill="url(#${g})"/><path d="M${x - r} ${y}q${r} ${r * 0.5} ${r * 2} 0" stroke="#fff3c4" stroke-opacity=".55" stroke-width=".9" fill="none"/><ellipse cx="${x - r * 0.35}" cy="${y - r * 0.38}" rx="${r * 0.32}" ry="${r * 0.2}" fill="#fff" opacity=".8" transform="rotate(-30 ${x - r * 0.35} ${y - r * 0.38})"/></g>`;
-const bulbs = (pts) => `<g class="xt-lights">${pts.map(([x, y, c], i) => `<g style="--i:${i}"><circle cx="${x}" cy="${y}" r="4.500" fill="${c}" opacity=".35"/><circle cx="${x}" cy="${y}" r="2.200" fill="#fffbe8"/><path d="M${x} ${y - 5}v10M${x - 5} ${y}h10" stroke="#fffbe8" stroke-width=".8" opacity=".7"/></g>`).join('')}</g>`;
-const gift = (x, y, w, h, g, rib) => `<g><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2.500" fill="url(#${g})"/><rect x="${x}" y="${y}" width="${w}" height="${h * 0.22}" fill="#fff" opacity=".12"/><rect x="${x + w / 2 - 2.500}" y="${y}" width="5" height="${h}" fill="${rib}"/><rect x="${x}" y="${y + h / 2 - 2}" width="${w}" height="4" fill="${rib}" opacity=".9"/><path d="M${x + w / 2} ${y}c-10-11-19-3-10 0zM${x + w / 2} ${y}c10-11 19-3 10 0z" fill="${rib}" stroke="#00000030"/><circle cx="${x + w / 2}" cy="${y}" r="2.400" fill="${rib}"/></g>`;
-const cane = (x, y, flip = 1) => `<path d="M${x} ${y + 16} V${y + 4} q0 -6 ${5 * flip} -6 q${5 * flip} 0 ${5 * flip} 5" stroke="url(#xtCane)" stroke-width="3.400" fill="none" stroke-linecap="round"/>`;
-const bell = (x, y) => `<g><path d="M${x - 6} ${y + 6} q0 -11 6 -11 q6 0 6 11 l2 2 h-16z" fill="url(#xtGold)"/><circle cx="${x}" cy="${y + 9}" r="2" fill="#b9821f"/><path d="M${x - 3} ${y - 6} q3 -4 6 0" stroke="#c81e2b" stroke-width="2" fill="none"/></g>`;
-const starOrn = (x, y, s = 1) => `<path d="M${x} ${y - 7 * s} ${x + 2 * s} ${y - 2 * s} ${x + 7 * s} ${y - 2 * s} ${x + 3 * s} ${y + 1.500 * s} ${x + 4.500 * s} ${y + 7 * s} ${x} ${y + 4 * s} ${x - 4.500 * s} ${y + 7 * s} ${x - 3 * s} ${y + 1.500 * s} ${x - 7 * s} ${y - 2 * s} ${x - 2 * s} ${y - 2 * s}z" fill="url(#xtGold)" stroke="#fff6d2" stroke-width=".6"/>`;
-function treeParts() {
-  const P = []; P.lights = {};
-  P.push(`<path d="M106 286h28l4 30h-36z" fill="url(#xtTrunk)"/><path d="M40 314 q80 -22 160 0 q-6 14 -80 14 q-74 0 -80 -14z" fill="url(#xtSatin)"/><path d="M40 314 q80 -22 160 0" stroke="url(#xtGold)" stroke-width="2.500" fill="none"/>`); // 줄기 + 트리 치마
-  P.push(tier(200, 292, 104));
-  P.push(tier(148, 238, 84));
-  P.push(tier(100, 184, 64));
-  P.push(tier(58, 128, 44));
-  // 공단 리본(사선으로 감기는 금빛 띠, 아래부터)
-  P.push(`<path d="M46 284 C92 302 150 302 198 268" stroke="url(#xtGold)" stroke-width="7" fill="none" stroke-linecap="round"/><path d="M46 282 C92 300 150 300 198 266" stroke="#fff6d2" stroke-opacity=".5" stroke-width="1.400" fill="none"/>`);
-  P.push(`<path d="M60 228 C100 244 152 242 184 214" stroke="url(#xtGold)" stroke-width="6.500" fill="none" stroke-linecap="round"/><path d="M60 226 C100 242 152 240 184 212" stroke="#fff6d2" stroke-opacity=".5" stroke-width="1.200" fill="none"/>`);
-  P.push(`<path d="M74 174 C104 188 142 186 166 162" stroke="url(#xtGold)" stroke-width="6" fill="none" stroke-linecap="round"/>`);
-  P.push(`<path d="M90 122 C110 131 134 130 150 114" stroke="url(#xtGold)" stroke-width="5" fill="none" stroke-linecap="round"/>`);
-  // 장식 공
-  const B = [[70, 270, 'xbRed', 8.500], [170, 262, 'xbGold', 8.500], [118, 294, 'xbBlue', 8], [96, 252, 'xbPearl', 7.500], [146, 288, 'xbPurple', 7.500], [188, 286, 'xbPearl', 7], [52, 292, 'xbGold', 7],
-    [88, 214, 'xbGold', 8], [152, 206, 'xbRed', 8], [118, 232, 'xbPurple', 7.500], [70, 232, 'xbBlue', 7], [174, 234, 'xbBlue', 7], [104, 196, 'xbRed', 6.500],
-    [100, 160, 'xbBlue', 7.500], [142, 154, 'xbGold', 7.500], [122, 176, 'xbRed', 7], [84, 176, 'xbPurple', 6.500], [160, 178, 'xbPearl', 6.500],
-    [112, 108, 'xbGold', 6.500], [132, 118, 'xbRed', 6], [100, 126, 'xbPearl', 6], [124, 90, 'xbPurple', 5.500]];
-  B.forEach(([x, y, g, r]) => P.push(bauble(x, y, g, r)));
-  // 지팡이 사탕·금종·별 장식
-  P.push(cane(58, 240)); P.push(cane(176, 250, -1)); P.push(cane(132, 192));
-  P.push(bell(80, 286)); P.push(bell(158, 222)); P.push(bell(112, 140));
-  P.push(starOrn(136, 268)); P.push(starOrn(64, 196, 0.9)); P.push(starOrn(150, 128, 0.8)); P.push(starOrn(92, 98, 0.7));
-  // 요정 전구(십자 반짝임)
-  P.lights[P.length] = [[56, 262, '#ffcf6b'], [78, 278, '#ff8a7a'], [102, 286, '#ffcf6b'], [128, 284, '#a8d8ff'], [154, 276, '#ffcf6b'], [180, 260, '#ff8a7a'], [196, 276, '#c8a8ff']]; P.push(bulbs(P.lights[P.length]));
-  P.lights[P.length] = [[70, 208, '#a8d8ff'], [92, 222, '#ffcf6b'], [118, 226, '#ff8a7a'], [146, 220, '#ffcf6b'], [170, 202, '#c8a8ff']]; P.push(bulbs(P.lights[P.length]));
-  P.lights[P.length] = [[84, 156, '#ffcf6b'], [106, 170, '#ff8a7a'], [132, 168, '#ffcf6b'], [156, 152, '#a8d8ff'], [96, 108, '#ffcf6b'], [118, 116, '#c8a8ff'], [140, 104, '#ff8a7a'], [110, 80, '#ffcf6b']]; P.push(bulbs(P.lights[P.length]));
-  // 선물 상자
-  P.push(gift(26, 300, 36, 26, 'xgRed', '#f2cf7a'));
-  P.push(gift(172, 292, 42, 34, 'xgGreen', '#f4efe6'));
-  P.push(gift(138, 306, 30, 20, 'xgNavy', '#f2cf7a'));
-  P.push(gift(64, 308, 26, 18, 'xgPurple', '#ffd6f0'));
-  P.push(gift(98, 312, 22, 14, 'xgRed', '#f4efe6'));
-  // 리본 나비매듭(별 바로 아래)
-  P.push(`<g><path d="M120 66 c-14 -12 -26 -4 -16 4 c-8 6 4 12 16 -4z" fill="url(#xtSatin)"/><path d="M120 66 c14 -12 26 -4 16 4 c8 6 -4 12 -16 -4z" fill="url(#xtSatin)"/><path d="M118 66 l-8 22 6 -3 2 6zM122 66 l8 22 -6 -3 -2 6z" fill="#a8121e"/><circle cx="120" cy="66" r="4" fill="#ff6b62"/></g>`);
-  // 별(크리스마스 당일): 회전하는 빛살 + 큰 빛무리
-  P.push(`<g class="xt-star"><g class="xt-rays">${Array.from({ length: 12 }, (_, i) => `<path d="M120 40 l-3 -46 h6z" fill="url(#xtRay)" transform="rotate(${i * 30} 120 40)"/>`).join('')}</g><circle cx="120" cy="40" r="30" fill="#ffd76a" opacity=".55" filter="url(#xtGlow)"/><path d="M120 8 128.500 30 152 31 134 45 140 68 120 55 100 68 106 45 88 31 111.500 30z" fill="url(#xtStarG)" stroke="#fff8dc" stroke-width="1.600"/><circle cx="114" cy="30" r="3" fill="#fff" opacity=".9"/></g>`);
-  return P;
-}
-// 아래쪽이 흐려지는 페이드를 CSS mask 대신 SVG 안에 넣는다
-const TFADE = `<defs><linearGradient id="xtFadeG" x1="0" y1="0" x2="0" y2="1"><stop offset=".7" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity=".55"/></linearGradient><mask id="xtFade" maskUnits="userSpaceOnUse" x="-10" y="-14" width="260" height="352"><rect x="-10" y="-14" width="260" height="352" fill="url(#xtFadeG)"/></mask></defs>`;
-const faded = (inner) => `${TFADE}<g mask="url(#xtFade)">${inner}</g>`;
-const TVB = '-10 -14 260 352', SWIRL = 'M60 300 C150 290 200 260 170 240 C120 210 50 230 78 200 C100 176 170 186 160 156 C150 132 86 150 98 120 C108 96 150 106 142 80 C136 62 118 58 120 40';
-const tpos = (x, y) => `left:${(((x + 10) / 260) * 100).toFixed(2)}%;top:${(((y + 14) / 352) * 100).toFixed(2)}%`;
-function treeHTML() {
-  const parts = treeParts(), { d, total } = progress();
-  const n = d >= total ? parts.length : Math.min(parts.length - 1, 1 + Math.floor((d / total) * (parts.length - 1)));
-  const key = 'naejeon:xtree2', seen = +localStorage.getItem(key) || 0;
-  try { localStorage.setItem(key, String(n)); } catch {}
-  const old = seen && seen < n ? seen : n;
-  // 항상 보이는 배경: 은은한 빛무리, 뒤쪽 빛살, 트리를 휘감아 오르는 금빛 마법 소용돌이(정지 그림)
-  const aura = `<ellipse cx="120" cy="196" rx="124" ry="150" fill="url(#xtHalo)"/><g opacity=".22" filter="url(#xtBlur)">${Array.from({ length: 11 }, (_, i) => `<path d="M120 180 l-4 -200 h8z" fill="url(#xtRay)" transform="rotate(${-70 + i * 14} 120 180)"/>`).join('')}</g>`;
-  const swirl = `<path d="${SWIRL}" fill="none" stroke="#ffe7a3" stroke-width="2.600" stroke-linecap="round" stroke-dasharray="6 18" opacity=".75" filter="url(#xtSoft)"/>`;
-  const base = svgImg(faded(DEFS + aura + parts.slice(0, old).join('') + swirl), TVB, 'xt-img');
-  const fresh = old < n ? svgImg(faded(DEFS + parts.slice(old, n).join('')), TVB, 'xt-img xt-new') : ''; // 오늘 새로 생긴 장식만 깜빡
-  const pts = Object.entries(parts.lights).filter(([i]) => +i < n).flatMap(([, v]) => v);
-  const tw = [0, 1, 2].map((g) => `<div class="xt-tw g${g}">${pts.filter((_, i) => i % 3 === g).map(([x, y, c]) => `<i style="${tpos(x, y)};--c:${c}"></i>`).join('')}</div>`).join('');
-  const star = n === parts.length ? `<i class="xt-glow" style="${tpos(120, 40)}"></i>` : '';
-  return `${base}${fresh}${tw}<div class="xt-tw">${star}</div>`;
-}
 
 // ---------- 눈(작은 눈 + 가끔 흐린 큰 눈) ----------
 let snowStop = null;
@@ -421,20 +316,46 @@ function flyBy() {
   raf = requestAnimationFrame(loop);
 }
 
+// ---------- 채팅창 배경: 고급스러운 크리스마스(12/25까지) ----------
+// 어두운 미드나잇 바탕 + 가장자리 촛불빛·크랜베리 빛망울(CSS 정지 그림), 머리 아래로 늘어진 전나무 갈랜드(금 구슬 줄·작은 전구·크랜베리 리본·매달린 장식 공).
+// 말풍선이 돋보이도록 가운데는 비우고 어둡게 둔다. 갈랜드는 정지 그림(<img>) 한 장, 반짝임은 작은 점 몇 개의 투명도만
+function swagSVG() {
+  const W = 400, r = rng(25), out = [], P = (x0, y0, cx, cy, x1, y1, t) => [(1 - t) ** 2 * x0 + 2 * (1 - t) * t * cx + t * t * x1, (1 - t) ** 2 * y0 + 2 * (1 - t) * t * cy + t * t * y1];
+  const segs = [[-20, 2, 90, 52, 200, 4], [200, 4, 310, 52, 420, 2]], G = ['#0d2419', '#123323', '#18402c', '#215238', '#2c6446'];
+  for (const [x0, y0, cx, cy, x1, y1] of segs) {
+    for (let i = 0; i <= 70; i++) { // 전나무 잎: 곡선을 따라 짧은 잎을 여러 방향으로
+      const [x, y] = P(x0, y0, cx, cy, x1, y1, i / 70);
+      for (let k = 0; k < 7; k++) { const a = r() * Math.PI * 2, l = 5 + r() * 7; out.push(`<path d="M${x.toFixed(1)} ${y.toFixed(1)}l${(Math.cos(a) * l).toFixed(1)} ${(Math.sin(a) * l * 0.8).toFixed(1)}" stroke="${G[Math.floor(r() * G.length)]}" stroke-width="${(1 + r() * 0.8).toFixed(2)}" stroke-linecap="round"/>`); }
+    }
+    for (let i = 0; i <= 46; i++) { const [x, y] = P(x0, y0 + 6, cx, cy + 12, x1, y1 + 6, i / 46); out.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.25" fill="url(#xsGold)"/>`); } // 금 구슬 줄
+    for (let i = 1; i < 9; i++) { const [x, y] = P(x0, y0, cx, cy, x1, y1, i / 9 + (r() - 0.5) * 0.03); out.push(`<circle cx="${x.toFixed(1)}" cy="${(y + 2).toFixed(1)}" r="5" fill="url(#xsGlow)"/><circle cx="${x.toFixed(1)}" cy="${(y + 2).toFixed(1)}" r="1.5" fill="#fff4cf"/>`); } // 작은 전구
+  }
+  const ball = (x, y, len, g) => `<path d="M${x} ${y}v${len}" stroke="#c9a14f" stroke-width=".7"/><rect x="${x - 2}" y="${y + len - 1}" width="4" height="3" rx=".6" fill="url(#xsGold)"/><circle cx="${x}" cy="${y + len + 8}" r="7.5" fill="url(#${g})"/><ellipse cx="${x - 2.4}" cy="${y + len + 5.2}" rx="2.4" ry="1.5" fill="#fff" opacity=".45"/>`;
+  out.push(ball(92, 48, 12, 'xsRed'), ball(308, 48, 18, 'xsGb'), ball(128, 42, 22, 'xsGb'), ball(272, 42, 9, 'xsRed'));
+  const bow = (x, y) => `<g transform="translate(${x} ${y})"><path d="M0 0C-6-9-17-8-16-1c1 6 10 4 16 1zM0 0c6-9 17-8 16-1-1 6-10 4-16 1z" fill="url(#xsRed)" stroke="#d9b25e" stroke-width=".7"/><path d="M-2 1l-6 15 4-1 2 4 3-17zM2 1l6 15-4-1-2 4-3-17z" fill="url(#xsRed)" stroke="#d9b25e" stroke-width=".7"/><circle r="3.2" fill="url(#xsRed)" stroke="#e7c470" stroke-width=".8"/></g>`;
+  out.push(bow(200, 6));
+  const defs = `<defs><radialGradient id="xsGlow"><stop offset="0" stop-color="#ffd98a" stop-opacity=".75"/><stop offset="1" stop-color="#ffd98a" stop-opacity="0"/></radialGradient>
+    <linearGradient id="xsGold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff1c4"/><stop offset=".5" stop-color="#d9a441"/><stop offset="1" stop-color="#7a5414"/></linearGradient>
+    <radialGradient id="xsRed" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#c8344c"/><stop offset=".6" stop-color="#7d1426"/><stop offset="1" stop-color="#3c0610"/></radialGradient>
+    <radialGradient id="xsGb" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff1c4"/><stop offset=".5" stop-color="#d9a441"/><stop offset="1" stop-color="#5e4413"/></radialGradient></defs>`;
+  return svgImg(defs + out.join(''), `0 0 ${W} 82`, 'xs-img', 'width="400" height="82"');
+}
+function chatLux() {
+  const chat = document.getElementById('chat'), on = xchatOn(), hd = chat?.querySelector('header');
+  document.body.classList.toggle('xchat', on);
+  if (!on) { document.getElementById('xsky')?.remove(); hd?.querySelector('.xswag')?.remove(); return; }
+  if (chat && !chat.querySelector('#xsky')) {
+    const k = document.createElement('div'); k.id = 'xsky';
+    k.innerHTML = Array.from({ length: 7 }, (_, i) => `<b style="left:${8 + ((i * 37) % 84)}%;top:${14 + ((i * 53) % 74)}%;--d:${((i * 0.9) % 4).toFixed(1)}s"></b>`).join(''); // 아주 작은 금빛 반짝임
+    chat.prepend(k);
+  }
+  if (hd && !hd.querySelector('.xswag')) hd.insertAdjacentHTML('beforeend', `<div class="xswag" aria-hidden="true">${swagSVG()}</div>`);
+}
+
 // ---------- 켜기·끄기 ----------
 function place() {
   const chat = document.getElementById('chat');
-  if (chat && !chat.querySelector('#xsky')) {
-    const k = document.createElement('div'); k.id = 'xsky';
-    const shut = document.body.classList.contains('chat-closed'); // 닫힌 채팅창은 크기를 재지 않는다(재면 배치 계산이 한 번 더 일어남)
-    k.innerHTML = `<i class="xk-moon"></i>${starLayers(22, (!shut && chat.clientWidth) || 340, ((!shut && chat.clientHeight) || 800) * 0.62)}`;
-    chat.prepend(k);
-  }
-  if (chat && !chat.querySelector('#xtree')) {
-    const t = document.createElement('div'); t.id = 'xtree';
-    t.innerHTML = treeHTML() + `<div class="xt-magic">${Array.from({ length: 6 }, (_, i) => `<i style="left:${12 + ((i * 29) % 76)}%;top:${6 + ((i * 41) % 80)}%;--d:${(i * 0.53) % 3.200}s"></i>`).join('')}</div>`;
-    chat.querySelector('#xsky').after(t);
-  }
+  chatLux();
   if (!document.getElementById('xlights')) garland();
   aura(); deco(true); pixie();
   const brand = document.querySelector('#side .brand');
@@ -442,7 +363,8 @@ function place() {
   if (!snowStop) { const cv = document.createElement('canvas'); cv.id = 'xsnow'; document.body.appendChild(cv); const stop = snowCanvas(cv, { count: 45, step: 50 }); snowStop = () => { stop(); cv.remove(); snowStop = null; }; }
 }
 function clear() {
-  ['xtree', 'xsky', 'xlights', 'xfrost', 'xflyby', 'xaura'].forEach((id) => document.getElementById(id)?.remove());
+  ['xsky', 'xlights', 'xfrost', 'xflyby', 'xaura'].forEach((id) => document.getElementById(id)?.remove());
+  document.querySelector('#chat .xswag')?.remove(); document.body.classList.remove('xchat');
   deco(false); dustOff?.();
   document.querySelector('#side .xhat')?.remove();
   snowStop?.();
@@ -465,13 +387,10 @@ export function initXmas() {
   apply(true);
   let w = innerWidth; addEventListener('resize', () => { if (Math.abs(innerWidth - w) > 40 && document.getElementById('xlights')) { w = innerWidth; garland(); } });
   setTimeout(flyBy, 12e3); setInterval(flyBy, 90e3); // 접속 12초 뒤 한 번, 그 뒤 1분 30초마다
-  let day = new Date().getDate();
   setInterval(() => {
     if (!xmasOn()) return;
-    const now = new Date().getDate();
-    if (now !== day) { day = now; document.getElementById('xtree')?.remove(); }
     if (!inSeason()) return apply();
-    place();
+    place(); // 12/25가 지나면 채팅창 배경·말풍선도 여기서 원래대로(chatLux)
   }, 60e3);
 }
 

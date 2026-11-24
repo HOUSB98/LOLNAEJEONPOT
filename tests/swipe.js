@@ -79,7 +79,7 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   ok(await M.$eval('#chatfab', (e) => getComputedStyle(e).display !== 'none'), '채팅 버튼 다시 보임');
   await M.tap('#chatfab'); await M.waitForTimeout(1200);
   ok(!(await closed()) && await M.$eval('#chat', (e) => getComputedStyle(e).visibility === 'visible'), '버튼으로 다시 열면 정상');
-  await drag(W * 0.15, H * 0.5, W * 0.15 + 60, H * 0.5, 4, 12);
+  await drag(W * 0.15, H * 0.5, W * 0.15 + 66, H * 0.5, 3, 8); // 66px(화면 17%)만 빠르게
   ok(await closed(), '빠르게 튕기면 짧게 밀어도 닫힘');
   console.log('오류:', M.errs.join(' | ') || '없음'); ok(!M.errs.length, '페이지 오류 없음');
 

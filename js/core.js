@@ -558,12 +558,14 @@ document.addEventListener('pointermove', (e) => {
     if (s.lock < 0) { SW = null; return; }
     s.x = e.clientX - Math.sign(dx) * 8; // 판정 거리만큼 튀지 않게
   }
-  s.dx = e.clientX - s.x; s.h.move(s.el, s.dx, s.w);
+  const now = performance.now(), ndx = e.clientX - s.x;
+  if (now - (s.vt || 0) > 16) { s.vv = (ndx - (s.vdx ?? 0)) / Math.max(1, now - (s.vt || s.t)); s.vdx = ndx; s.vt = now; } // 마지막 움직임의 빠르기(튕김 판정)
+  s.dx = ndx; s.h.move(s.el, s.dx, s.w);
 }, { passive: true });
 const swEnd = (e, cancel) => {
   const s = SW; if (!s || e.pointerId !== s.id) return;
   SW = null; if (s.lock < 1) return;
-  const v = s.dx / Math.max(1, performance.now() - s.t); // 빠르게 튕기면 조금만 밀어도 넘어간다
+  const v = Math.abs(s.vv || 0) > Math.abs(s.dx / Math.max(1, performance.now() - s.t)) ? s.vv : s.dx / Math.max(1, performance.now() - s.t); // 빠르게 튕기면 조금만 밀어도 넘어간다(마지막 움직임 또는 전체 평균 중 빠른 쪽)
   const go = !cancel && (Math.abs(s.dx) > s.w * 0.18 || (Math.abs(s.dx) > 30 && Math.abs(v) > 0.35));
   s.h.end(s.el, go ? (s.dx < 0 ? 1 : -1) : 0);
   swClickBlock = performance.now() + 350; // 민 뒤 따라오는 눌림은 무시
