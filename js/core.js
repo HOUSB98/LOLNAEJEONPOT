@@ -268,8 +268,22 @@ export function initShell() {
   document.getElementById('nav').innerHTML = NAV.map(([p, t, soon]) => (p ? `<a href="#/${p}" data-p="${p}">${ic(p)}<span>${t}</span>${soon ? `<em>${soon}</em>` : ''}</a>`
     : `${grp ? '</div>' : ''}<button type="button" class="nav-h ${fold.includes(t) ? 'fold' : ''}" data-a="navGrp" data-g="${(grp = t)}" aria-expanded="${!fold.includes(t)}"><h6>${t}</h6><i class="nav-chev"></i></button><div class="nav-g ${fold.includes(t) ? 'fold' : ''}" data-g="${t}">`)).join('') + '</div>';
   document.getElementById('mode').innerHTML = S.store.mode === 'local' ? '<span class="tag warn" title="이 브라우저에만 저장됩니다">체험 모드</span>' : ''; // 실제 리그에서는 표시하지 않는다(사이드바 공간 절약)
+  // 누르는 사이에 화면이 다시 그려지면(다른 사람이 입찰·지원) 누른 버튼이 새 버튼으로 바뀌어 클릭이 사라진다(PC 마우스).
+  // 누를 때의 버튼(이름·data 값)을 기억해 두고, 뗀 자리에 똑같은 버튼이 있으면 그 버튼을 누른 것으로 처리한다(이때 브라우저는 클릭을 아예 보내지 않음).
+  let press = null, saved = 0;
+  const sig = (el) => JSON.stringify(Object.entries(el.dataset).sort());
+  document.addEventListener('pointerdown', (e) => { const el = e.button === 0 && e.isPrimary ? e.target.closest?.('[data-a]') : null; press = el ? { el, sig: sig(el), t: performance.now(), x: e.clientX, y: e.clientY } : null; }, true);
+  document.addEventListener('pointerup', (e) => {
+    const p0 = press; press = null;
+    if (!p0 || p0.el.isConnected || e.button !== 0 || performance.now() - p0.t > 3000 || Math.hypot(e.clientX - p0.x, e.clientY - p0.y) > 10 || swiping()) return; // 끌기·밀기는 제외
+    const el = e.target.closest?.('[data-a]');
+    if (!el || el.disabled || sig(el) !== p0.sig || !acts[el.dataset.a]) return;
+    saved = performance.now(); // 혹시 브라우저가 클릭도 보내면 두 번 실행하지 않게
+    setTimeout(() => acts[el.dataset.a]?.(el.dataset, el, e), 0);
+  }, true);
   const on = (type, attr) => document.addEventListener(type, (e) => {
     const el = e.target.closest?.(`[${attr}]`);
+    if (type === 'click' && saved && performance.now() - saved < 400) { saved = 0; return; }
     if (el && acts[el.getAttribute(attr)]) acts[el.getAttribute(attr)](el.dataset, el, e);
   });
   on('click', 'data-a'); on('change', 'data-c'); on('input', 'data-i');

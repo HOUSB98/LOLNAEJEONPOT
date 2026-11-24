@@ -153,7 +153,7 @@ function lobbyList() {
   const caps = Object.keys(AU.role).filter((k) => AU.role[k] === 2), parts = Object.keys(AU.role).filter((k) => AU.role[k] === 1);
   return `<h1>${ic('auction')}팀 경매</h1>
   <p class="hint">팀장별 포인트로 팀을 구성합니다. 실시간 경매 또는 매물별 일괄 입찰을 선택할 수 있고, 참가자는 같은 방의 진행 상황을 함께 봅니다.</p>
-  ${rooms.length ? `<div class="panel"><div class="ph"><b>경매 방</b></div>${rooms.map((r) => `<a class="kv link" href="#/auction/${r.id}"><span>${esc(r.name)} <small class="mut">${new Date(r.createdAt).toLocaleDateString('ko')}</small></span><b>${{ lobby: '대기 중', running: '<i class="live"></i>진행 중', paused: '일시정지', done: '완료' }[r.status]} · ${r.teams.length}팀</b></a>`).join('')}</div>` : ''}
+  ${rooms.length ? `<div class="panel"><div class="ph"><b>경매 방</b>${S.store.allLoaded?.('auctions') === false ? '<small class="mut">최근 2주</small>' : ''}</div>${rooms.map((r) => `<a class="kv link" href="#/auction/${r.id}"><span>${esc(r.name)} <small class="mut">${new Date(r.createdAt).toLocaleDateString('ko')}</small></span><b>${{ lobby: '대기 중', running: '<i class="live"></i>진행 중', paused: '일시정지', done: '완료' }[r.status]} · ${r.teams.length}팀</b></a>`).join('')}${S.store.allLoaded?.('auctions') === false ? `<button class="btn ghost xs block au-old" data-a="auOld" ${AU.oldBusy ? 'disabled' : ''}>${AU.oldBusy ? '불러오는 중…' : '이전 경매 보기'}</button>` : ''}</div>` : S.store.allLoaded?.('auctions') === false ? `<button class="btn ghost xs au-old" data-a="auOld" ${AU.oldBusy ? 'disabled' : ''}>${AU.oldBusy ? '불러오는 중…' : '이전 경매 보기'}</button>` : ''}
   <h2>새 경매 만들기</h2>
   <div class="panel">
     <label class="fld"><span>방 이름</span><input id="auName" class="inp" value="${esc(AU.name)}" placeholder="예: 11월 2주차 내전" data-i="auF" data-k="name"></label>
@@ -232,6 +232,20 @@ function cue(kind) {
     }
   } catch {}
 }
+// 낙찰·유찰 순간 화면 가운데에 크게(1.8초, 누르는 것을 막지 않음). 화면 다시 그리기와 상관없이 body에 따로 붙인다
+function banner(r, pid, ti, mine) {
+  setTimeout(() => {
+    if (S.page !== 'auction') return;
+    document.querySelector('.au-banner')?.remove();
+    const price = ti >= 0 ? r.teams[ti].members.find((m) => m.pid === pid)?.price ?? 0 : 0;
+    const el = document.createElement('div');
+    el.className = `au-banner${ti < 0 ? ' unsold' : ''}${mine ? ' mine' : ''}`; el.setAttribute('aria-live', 'polite');
+    el.innerHTML = ti >= 0 ? `<small>🔨 ${mine ? '우리 팀 낙찰!' : '낙찰'}</small><b>${esc(nm(pid))}</b><span>${esc(r.teams[ti].name)} · <em class="mono">${price}P</em></span>`
+      : `<small>유찰</small><b>${esc(nm(pid))}</b><span>${r.round === 2 ? '예비로' : '재경매로'}</span>`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1900);
+  }, 0);
+}
 // 화면을 다시 그릴 때마다 지난번 상태와 비교해 '밀림'·'낙찰'을 한 번만 알린다(처음 연 화면에서는 알리지 않음)
 let AW = { id: '', pid: '', lead: -1, n: 0 };
 function cues(r, me) {
@@ -241,10 +255,19 @@ function cues(r, me) {
     if (c && c.pid === AW.pid && myT >= 0 && AW.lead === myT && c.team >= 0 && c.team !== myT) cue('outbid');
     if (AW.pid && (!c || c.pid !== AW.pid) && n > AW.n) {
       const ti = r.teams.findIndex((t) => t.members.some((m) => m.pid === AW.pid));
-      if (ti >= 0) { AU.sold = { pid: AW.pid, team: ti, at: Date.now(), until: Date.now() + 2400 }; cue(ti === myT ? 'win' : 'sold'); }
-    }
+      if (ti >= 0) { AU.sold = { pid: AW.pid, team: ti, at: Date.now(), until: Date.now() + 2400 }; cue(ti === myT ? 'win' : 'sold'); banner(r, AW.pid, ti, ti === myT); }
+    } else if (AW.pid && (!c || c.pid !== AW.pid) && n === AW.n && r.unsold.includes(AW.pid)) banner(r, AW.pid, -1, false);
   }
   AW = { id: r.id, pid: c?.pid || '', lead: c?.team ?? -1, n };
+}
+// 팀 카드 아래: 주라인 구성(없는 라인·겹친 라인)과 남은 자리당 평균 포인트. 팀장은 다음 매물 판단, 관전자는 '저 팀 미드 급하다' 보는 재미
+function teamFoot(r, t) {
+  const n = {}; [t.captain, ...t.members.map((m) => m.pid)].forEach((id) => { const l = S.st.P[id]?.mainLane; if (l) n[l] = (n[l] || 0) + 1; });
+  const left = Math.max(0, r.cfg.size - 1 - t.members.length), miss = LANES.filter((l) => !n[l]);
+  const lanes = `<div class="au-lanes">${LANES.map((l) => `<span class="${!n[l] ? 'no' : n[l] > 1 ? 'dup' : 'ok'}" title="${LANE_NAME[l]} 주라인 ${n[l] || 0}명">${LANE_ICON[l]}${n[l] > 1 ? `<b>${n[l]}</b>` : ''}</span>`).join('')}</div>`;
+  const note = left ? `${miss.length ? `<span class="au-miss">${miss.map((l) => LANE_NAME[l]).join('·')} 없음</span>` : '<span class="au-full">주라인 다 있음</span>'}<span class="au-per">남은 ${left}자리 · 자리당 <b class="mono">${Math.floor(t.points / left)}P</b></span>`
+    : `<span class="au-full">팀 완성</span>${miss.length ? `<span class="au-miss">${miss.map((l) => LANE_NAME[l]).join('·')} 주라인 없음</span>` : ''}`;
+  return `<div class="au-tf">${lanes}<div class="au-tfn">${note}</div></div>`;
 }
 function roomView(id, token) {
   const r = room(id), st = S.st;
@@ -273,7 +296,8 @@ function roomView(id, token) {
     <div class="ph"><b>${esc(t.name)}</b>${me.team === i ? '<span class="tag ok">내 팀</span>' : ''}${c?.pass?.[i] ? '<span class="tag au-ps">패스</span>' : ''}<span class="grow"></span><b class="pts">${t.points}P</b></div>
     <div class="kv"><span>${ic('crown')}${pname(t.captain)}</span><small class="mut">팀장</small></div>
     ${t.members.map((m) => `<div class="kv${m.pid === AU.sold?.pid && Date.now() < AU.sold.until ? ` au-sold" style="--t:-${Date.now() - AU.sold.at}ms` : ''}"><span>${pname(m.pid)} <small class="mut">${LANE_ICON[st.P[m.pid]?.mainLane] || ''}</small></span><b>${m.price}P</b></div>`).join('')}
-    ${Array(Math.max(0, r.cfg.size - 1 - t.members.length)).fill('<div class="kv emp"><span>빈 자리</span></div>').join('')}</div>`).join('');
+    ${Array(Math.max(0, r.cfg.size - 1 - t.members.length)).fill('<div class="kv emp"><span>빈 자리</span></div>').join('')}
+    ${teamFoot(r, t)}</div>`).join('');
   let stage = '';
   if (r.status === 'lobby') {
     stage = `<div class="panel stage"><h2>대기 중</h2><p class="mut">팀장에게 각자의 링크를 보내고, 모두 들어오면 시작하세요.</p>
@@ -299,6 +323,7 @@ function roomView(id, token) {
     const lft = c.endsAt - S.store.serverNow(), hot = r.status === 'running' && S.store.serverNow() >= c.startsAt && lft > 0 && lft < 5000 ? ' hot' : ''; // 다시 그려도 맥동이 끊기지 않게
     stage = `<div class="panel stage ${r.status}${hot}">
       <div class="sub"><span class="tag">${r.round === 2 ? '재경매' : '경매'} · 남은 매물 ${r.pool.length}</span><span class="grow"></span><span id="au-timer" class="timer${hot}">--</span></div>
+      <div class="au-tbar"><i id="au-tbar"></i></div>
       <div class="au-off" hidden>${ic('alert')}연결이 끊겼어요 · 다시 연결될 때까지 입찰할 수 없어요</div>
       ${info(c.pid)}${scout(c.pid)}
       <div data-k="bidnow" class="bidnow${lead ? ' lead' : ''}${bidBumped(c) ? ' bump' : ''}"><small>현재 입찰</small><b>${c.bid}P</b><span>${lead ? `${ic('crown')}${esc(lead.name)}` : '입찰 없음'}</span></div>
@@ -357,7 +382,15 @@ function tick() {
   if (Date.now() - (AU.clk || 0) > 4 * 60e3 && document.visibilityState === 'visible') { AU.clk = Date.now(); Promise.resolve(S.store.syncServerClock?.(true)).catch(() => {}); }
   const off = navigator.onLine === false, ob = document.querySelector('.au-off');
   if (ob && ob.hidden === off) { ob.hidden = !off; document.querySelector('.bidbar')?.classList.toggle('offline', off); }
-  if (r.status === 'paused') { el.textContent = `⏸ ${Math.ceil((c.left || 0) / 1000)}초`; return; }
+  // 남은 시간 막대: 새로 그려진 막대는 애니메이션 없이 바로 그 자리로(처음부터 줄어드는 모습이 보이지 않게), 그 뒤로는 0.25초씩 부드럽게
+  const tb = document.getElementById('au-tbar'), setBar = (f, k) => {
+    if (!tb) return; const box = tb.parentNode, fresh = !box.dataset.s;
+    if (fresh) tb.style.transition = 'none';
+    tb.style.transform = `scaleX(${Math.max(0, Math.min(1, f)).toFixed(4)})`;
+    if (box.dataset.s !== k) { box.dataset.s = k; box.className = 'au-tbar ' + k; }
+    if (fresh) { void tb.offsetWidth; tb.style.transition = ''; }
+  };
+  if (r.status === 'paused') { el.textContent = `⏸ ${Math.ceil((c.left || 0) / 1000)}초`; setBar((c.wait ? c.wait / lotDelay(r) : (c.left || 0) / (r.cfg.sec * 1000)), c.wait ? 'wait paused' : 'paused'); return; }
   const waiting = now < c.startsAt, bar = document.querySelector('.bidbar');
   if (bar && bar.classList.contains('wait') !== waiting) bar.classList.toggle('wait', waiting); // 대기 중엔 입찰 버튼을 흐리게(누르면 '아직 시작 전' 안내)
   if (!waiting) document.querySelector('[data-a=auNow]')?.remove(); // 시작되면 '바로 시작' 버튼은 치운다
@@ -366,8 +399,9 @@ function tick() {
     AU.waitPid = '';
     const me = myRole(r, S.arg[1]); if (me.team >= 0 && r.teams[me.team].members.length < r.cfg.size - 1) cue('start');
   }
-  if (waiting) { el.textContent = `곧 시작 ${Math.ceil((c.startsAt - now) / 1000)}`; el.className = 'timer'; return; }
+  if (waiting) { el.textContent = `곧 시작 ${Math.ceil((c.startsAt - now) / 1000)}`; el.className = 'timer'; setBar((c.startsAt - now) / lotDelay(r), 'wait'); return; }
   const left = c.endsAt - now;
+  setBar(left / (r.cfg.sec * 1000), left > 0 && left < 5000 ? 'hot' : 'run'); // 연장되면 막대가 다시 차오른다
   el.textContent = left > 0 ? `⏱ ${Math.ceil(left / 1000)}초` : '낙찰 처리 중…';
   const hot = left > 0 && left < 5000;
   if (el.classList.contains('hot') !== hot) { el.classList.toggle('hot', hot); el.closest('.stage')?.classList.toggle('hot', hot); } // 마감 5초 전: 타이머·경매판 빨간 맥동
@@ -384,12 +418,20 @@ function tick() {
 let auOff = 0;
 addEventListener('hashchange', () => {
   clearTimeout(auOff);
-  if (!/^#\/auction(\/|$)/.test(location.hash)) auOff = setTimeout(() => { if (S.page !== 'auction') S.store?.unneed?.('auctions'); }, 60e3);
+  if (!/^#\/auction(\/|$)/.test(location.hash)) auOff = setTimeout(() => { if (S.page !== 'auction') { S.store?.unneed?.('auctions'); Object.keys(docWait).forEach((k) => delete docWait[k]); } }, 60e3);
 });
-const auReady = () => { if (S.store.loaded?.('auctions') !== false) return true; S.store.need('auctions').then(() => { if (S.page === 'auction') refresh(); }); return false; };
+// 방 화면인데 최근 구독(14일)에 없는 오래된 방이면 그 방 문서 하나만 받아 온다(받는 동안은 '불러오는 중')
+const docWait = {};
+const auReady = (id) => {
+  if (S.store.loaded?.('auctions') === false) { S.store.need('auctions').then(() => { if (S.page === 'auction') refresh(); }); return false; }
+  if (!id || room(id) || !S.store.needDoc || docWait[id] === 'done') return true;
+  if (!docWait[id]) docWait[id] = S.store.needDoc('auctions', id).then(() => { docWait[id] = 'done'; if (S.page === 'auction') refresh(); });
+  return false;
+};
+act('auOld', async () => { AU.oldBusy = true; refresh(); await S.store.need('auctions', true); AU.oldBusy = false; if (S.page === 'auction') refresh(); });
 page('auction', {
   keyed: true, // 입찰마다 바뀐 구역만 다시 그림(core.js keyedRender)
-  render: (id, token) => (!auReady() ? `<h1>${ic('auction')}팀 경매</h1><div class="panel empty">경매 방을 불러오는 중…</div>` : id ? roomView(id, token) : lobbyList()),
+  render: (id, token) => (!auReady(id) ? `<h1>${ic('auction')}팀 경매</h1><div class="panel empty">경매 방을 불러오는 중…</div>` : id ? roomView(id, token) : lobbyList()),
   after() {
     if (!S.arg[0] || S.store.loaded?.('auctions') === false) return; // 경매 기록을 다 받은 뒤에 타이머를 돌린다
     if (!timer) timer = setInterval(tick, 250);

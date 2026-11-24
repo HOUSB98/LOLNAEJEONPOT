@@ -43,7 +43,7 @@ function localStore(key, onChange) {
     serverClockErr: () => 0,
     syncServerClock: async () => 0,
     clockSoon: async () => 0,
-    need: async () => {}, unneed() {}, loaded: () => true, // 체험 모드는 모든 컬렉션을 이미 들고 있다
+    need: async () => {}, needDoc: async () => {}, unneed() {}, loaded: () => true, allLoaded: () => true, // 체험 모드는 모든 컬렉션을 이미 들고 있다
     chatFull() {}, countSince: async (col, field, gt) => Object.values(data[col] || {}).filter((d) => d[field] > gt).length,
     pause() {}, isPaused: () => false, // 체험 모드는 사용량이 없으니 쉬지 않는다
     bulk: (fn) => fn(),
@@ -196,18 +196,38 @@ async function firebaseStore(key, onChange, opt = {}) {
   };
   // 화면을 열 때만 구독하는 컬렉션(경매). 캐시에 있으면 바로 보여 주고 서버에서 바뀐 것을 이어 받는다.
   // unneed 로 끊어도 30분 안에 다시 열면 서버는 바뀐 문서만 보낸다(Firestore 재개 토큰).
+  // 경매는 방이 지워지지 않고 계속 쌓이므로 평소에는 최근 LZ_DAYS일 안에 만든 방만 구독한다(화면을 열 때 읽기 = 최근 방 수).
+  // 그보다 오래된 방은 링크로 들어올 때 그 방 문서 하나만(needDoc), 백업·'이전 경매 보기'는 전체(need(col, true))를 받는다.
+  const LZ_DAYS = { auctions: ['createdAt', 14] };
   const LZ = {};
-  const need = (col) => {
-    if (LZ[col]) return LZ[col].ready;
-    let res; const l = (LZ[col] = { got: false, ready: new Promise((r) => (res = r)) });
-    l.unsub = fs.onSnapshot(fs.collection(db, 'leagues', key, col), (snap) => {
+  const lzMerge = (col, l) => { data[col] = { ...l.extra, ...l.docs }; };
+  const need = (col, all = false) => {
+    const prev = LZ[col];
+    if (prev && (prev.all || !all || !LZ_DAYS[col])) return prev.ready;
+    let res; const l = (LZ[col] = { got: !!prev?.got, all: all || !LZ_DAYS[col], docs: prev?.docs || {}, extra: prev?.extra || {}, xs: {}, ready: new Promise((r) => (res = r)) });
+    if (prev) { try { prev.unsub(); } catch {} Object.values(prev.xs).forEach((u) => { try { u(); } catch {} }); } // 최근 → 전체로 넓힐 때: 이미 받은 방은 그대로 보여 주고 새 구독(전체)으로 이어 받는다
+    const src = fs.collection(db, 'leagues', key, col), w = LZ_DAYS[col];
+    const q = l.all ? src : fs.query(src, fs.where(w[0], '>=', Date.now() - w[1] * 864e5));
+    l.unsub = fs.onSnapshot(q, (snap) => {
       if (LZ[col] !== l) return;
       const m = {}; snap.forEach((d) => (m[d.id] = { ...d.data(), id: d.id }));
-      data[col] = m; l.got = true; res(); onChange(col);
+      l.docs = m; if (l.all) l.extra = {}; lzMerge(col, l); l.got = true; res(); onChange(col);
     }, (err) => { console.error(err); l.got = true; res(); onChange('error', err); });
     return l.ready;
   };
-  const unneed = (col) => { const l = LZ[col]; if (!l) return; delete LZ[col]; try { l.unsub(); } catch {} };
+  // 최근 구독에 없는(오래된) 문서 하나만 따로 구독해 같은 data[col]에 합친다. 이미 있으면 아무것도 하지 않는다
+  const needDoc = (col, id) => {
+    const l = LZ[col]; if (!l || l.all || l.docs[id]) return Promise.resolve();
+    if (l.xs[id]) return l.xw[id];
+    let res; (l.xw ||= {})[id] = new Promise((r) => (res = r));
+    l.xs[id] = fs.onSnapshot(ref(col, id), (snap) => {
+      if (LZ[col] !== l || !l.xs[id]) return;
+      if (snap.exists()) l.extra[id] = { ...snap.data(), id }; else delete l.extra[id];
+      lzMerge(col, l); res(); onChange(col);
+    }, (err) => { console.error(err); res(); });
+    return l.xw[id];
+  };
+  const unneed = (col) => { const l = LZ[col]; if (!l) return; delete LZ[col]; try { l.unsub(); } catch {} Object.values(l.xs).forEach((u) => { try { u(); } catch {} }); };
   // 경기 기록·선수를 쓸 때는 항상 서버 시각으로 upd 를 붙인다(다른 기기가 '바뀐 문서'로 알아보는 기준)
   const stamp = (col, o) => (INC.includes(col) ? { ...o, upd: fs.serverTimestamp() } : o);
   return {
@@ -216,7 +236,7 @@ async function firebaseStore(key, onChange, opt = {}) {
     serverClockReady: () => !!clockSyncedAt && performance.now() - clockSyncedAt < 5 * 60e3,
     serverClockErr: () => clockErr, // 서버 시각 추정의 최대 오차(ms). 실제 서버 시각은 serverNow() ± 이 값 안에 있다
     syncServerClock, clockSoon,
-    need, unneed, loaded: (col) => WATCHED.includes(col) || !!LZ[col]?.got, chatFull,
+    need, needDoc, unneed, loaded: (col) => WATCHED.includes(col) || !!LZ[col]?.got, allLoaded: (col) => !LZ_DAYS[col] || !!LZ[col]?.all, chatFull,
     // field 가 gt 보다 큰 문서 수(내려받지 않음, 1,000개당 읽기 1번). 닫힌 채팅창의 '안 읽은 채팅' 숫자
     countSince: async (col, field, gt) => (await fs.getCountFromServer(fs.query(fs.collection(db, 'leagues', key, col), fs.where(field, '>', gt)))).data().count,
     // 쉬기 시작: meta 외 모든 실시간 구독을 끊는다(화면에 이미 받은 기록은 그대로 둔다). 다시 열 때는 새로고침으로 처음부터 시작
