@@ -2315,3 +2315,5 @@ body.lite .bidnow.bump::after,body.lite .bidnow.bump b,body.lite .timer.hot,body
 .fd-none{padding:18px;text-align:center}
 .fd-tip{margin:8px 2px 0;font-size:11.5px}
 @media (max-width:860px){#modal .sheet.finder-sheet{margin-top:0;align-self:flex-end}.fd-tip{display:none}}
+/* 손가락으로 좌우 밀기 영역: 세로 스크롤은 브라우저에, 가로는 사이트가 받는다(core.js swipeZone) */
+.car-view,.dpages{touch-action:pan-y}

@@ -1,7 +1,7 @@
 // 선수 카드(홀로 카드) / 솔랭 분석 / 케미 분석
 import { S, page, act, esc, pname, go, refresh, fmtDT, wrClass, wrBar, dots, streak, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, baseChamp, skinList, skinBad, pickChamp, needAdmin, isAdmin, modal, closeModal, mh, toast, ic, logo, countUp, burst, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct } from './core.js';
 import { chem, playerLine, duoRank, CHEM_RULE } from './stats.js';
-import { cardChamp, canPickChamp } from './core.js';
+import { cardChamp, canPickChamp, swipeZone, swiping } from './core.js';
 import { gcBadge } from './gacha.js';
 
 const PV = { view: 'card', dl: 'all', gr: 'mmr' };
@@ -327,17 +327,37 @@ page('chem', {
     CM.t = setInterval(() => {
       if (S.page !== 'chem') return clearInterval(CM.t);
       if (document.visibilityState !== 'visible') return;
-      document.querySelectorAll('.dpages').forEach((box) => { const n = box.children.length; if (n > 1 && !box.closest('.cbox').matches(':hover')) chemPage(box.dataset.k, (CM[box.dataset.k] + 1) % n); });
+      document.querySelectorAll('.dpages').forEach((box) => { const n = box.children.length; if (n > 1 && !box.closest('.cbox').matches(':hover') && !swiping() && Date.now() - (CM.sw || 0) > 6000) chemPage(box.dataset.k, (CM[box.dataset.k] + 1) % n); });
     }, 6000);
   },
 });
-function chemPage(key, i) {
-  CM[key] = i;
+function chemPage(key, i, dir = 1) {
+  const prev = CM[key]; CM[key] = i;
   const box = document.querySelector(`.dpages[data-k="${key}"]`); if (!box) return;
+  // 이전 페이지로 갈 때는 새 페이지가 왼쪽에서 들어오고, 나가는 페이지는 민 쪽으로 빠진다(transform·opacity만)
+  const out = box.children[prev], inn = box.children[i];
+  if (inn && out && inn !== out) {
+    inn.style.transition = 'none'; inn.style.transform = `translateX(${dir > 0 ? 28 : -28}px)`; void inn.offsetWidth; inn.style.transition = inn.style.transform = '';
+    if (!out.style.transform) out.style.transform = `translateX(${dir > 0 ? -28 : 28}px)`; // 손가락으로 밀던 중이면 그 자리에서 사라진다
+    clearTimeout(out._t); out._t = setTimeout(() => { if (!out.classList.contains('on')) out.style.transform = ''; }, 600);
+  }
   [...box.children].forEach((p, j) => p.classList.toggle('on', j === i));
   const nav = box.nextElementSibling;
   if (nav?.classList.contains('dnav')) { nav.querySelectorAll('button').forEach((b, j) => b.classList.toggle('on', j === i)); const pr = nav.querySelector('.dprog i'); if (pr) { pr.style.animation = 'none'; void pr.offsetWidth; pr.style.animation = ''; } }
 }
-act('cmPage', (d) => chemPage(d.k, +d.i));
+// 휴대폰: 듀오 순위를 손가락으로 좌우로 밀어 넘기기(끝에서 처음으로 돌아감, 버튼·자동 넘김과 같은 순서)
+swipeZone('.dpages', {
+  move(el, dx, w) {
+    if (el.children.length < 2) return;
+    const cur = el.querySelector('.dpage.on'); if (!cur) return;
+    cur.style.transition = 'none'; cur.style.transform = `translateX(${dx}px)`; cur.style.opacity = String(1 - Math.min(1, Math.abs(dx) / w) * 0.7);
+  },
+  end(el, dir) {
+    const cur = el.querySelector('.dpage.on'), n = el.children.length, k = el.dataset.k; CM.sw = Date.now();
+    if (cur) { cur.style.transition = ''; cur.style.opacity = ''; if (!dir) cur.style.transform = ''; }
+    if (dir && n > 1) chemPage(k, (CM[k] + dir + n) % n, dir);
+  },
+});
+act('cmPage', (d) => chemPage(d.k, +d.i, +d.i < CM[d.k] ? -1 : 1));
 act('cmMin', (d, el) => { CM.min = Math.max(1, +el.value || 1); CM.pa = CM.pb = 0; refresh(); });
 act('cmMode', (d) => { CM.mode = d.v; refresh(); });

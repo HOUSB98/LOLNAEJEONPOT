@@ -533,3 +533,41 @@ export function flipSides(m) {
 }
 export const history = (type, before) => S.store.put('history', uid(), { type, at: Date.now(), before });
 export { LANES, LANE_NAME, pct };
+
+// ---------- 손가락으로 좌우 밀기(휴대폰·태블릿) ----------
+// swipeZone(선택자, { move(el, dx, w), end(el, dir) }): 그 영역을 가로로 밀면 손가락을 따라 move, 떼면 end.
+// dir: 다음(왼쪽으로 밂) +1, 이전 -1, 덜 밀었으면 0. 세로로 밀면 평소처럼 화면 스크롤(영역 CSS에 touch-action:pan-y).
+// 마우스는 대상이 아니다(PC는 지금처럼 버튼). 문서 한 곳에서 받으므로 화면을 다시 그려도 다시 붙일 필요 없음
+const SWZ = [];
+let SW = null, swClickBlock = 0;
+export function swipeZone(sel, h) { SWZ.push([sel, h]); }
+document.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'mouse' || !e.isPrimary) return;
+  for (const [sel, h] of SWZ) {
+    const el = e.target.closest?.(sel);
+    if (el) { SW = { el, h, id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), lock: 0, dx: 0, w: el.getBoundingClientRect().width || 1 }; return; }
+  }
+}, { passive: true });
+document.addEventListener('pointermove', (e) => {
+  const s = SW; if (!s || e.pointerId !== s.id) return;
+  const dx = e.clientX - s.x, dy = e.clientY - s.y;
+  if (!s.lock) {
+    if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+    s.lock = Math.abs(dx) > Math.abs(dy) * 1.2 ? 1 : -1; // 처음 움직인 방향으로 가로 밀기/세로 스크롤을 정한다
+    if (s.lock < 0) { SW = null; return; }
+    s.x = e.clientX - Math.sign(dx) * 8; // 판정 거리만큼 튀지 않게
+  }
+  s.dx = e.clientX - s.x; s.h.move(s.el, s.dx, s.w);
+}, { passive: true });
+const swEnd = (e, cancel) => {
+  const s = SW; if (!s || e.pointerId !== s.id) return;
+  SW = null; if (s.lock < 1) return;
+  const v = s.dx / Math.max(1, performance.now() - s.t); // 빠르게 튕기면 조금만 밀어도 넘어간다
+  const go = !cancel && (Math.abs(s.dx) > s.w * 0.18 || (Math.abs(s.dx) > 30 && Math.abs(v) > 0.35));
+  s.h.end(s.el, go ? (s.dx < 0 ? 1 : -1) : 0);
+  swClickBlock = performance.now() + 350; // 민 뒤 따라오는 눌림은 무시
+};
+document.addEventListener('pointerup', (e) => swEnd(e, false), { passive: true });
+document.addEventListener('pointercancel', (e) => swEnd(e, true), { passive: true });
+document.addEventListener('click', (e) => { if (performance.now() < swClickBlock) { e.preventDefault(); e.stopPropagation(); } }, true);
+export const swiping = () => !!SW && SW.lock > 0;
