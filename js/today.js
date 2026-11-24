@@ -4,7 +4,7 @@ import { evalLineup, commentary, bestDuo, aiBalance } from './stats.js';
 import { notify } from './hook.js';
 import { seriesUsed, matchCard } from './app.js';
 import { sysChat } from './social.js';
-import { boardLive } from './board.js';
+import { boardLive, talkOf, talkIcon } from './board.js';
 
 const five = () => ['', '', '', '', ''];
 const blank = () => ({ blue: five(), red: five(), winner: '', champs: { blue: five(), red: five() }, bans: { blue: five(), red: five() }, kda: {}, newSeries: false, at: '', more: false });
@@ -182,7 +182,7 @@ page('today', {
       if (!s) return `<div class="slot ${side} emp${art}" data-ds="${side}" data-di="${i}">${champ}<button class="sl-body" data-a="tSlot" data-s="${side}" data-i="${i}"><span>${ic('plus')}${LANE_NAME[l]}<em class="m-hide"> 선수 선택</em></span></button></div>`;
       const ln = s.lanes[l], off = s.mainLane !== l;
       return `<div class="slot ${side}${art}" data-ds="${side}" data-di="${i}">${champ}<button class="sl-body" data-a="tSlot" data-s="${side}" data-i="${i}">
-        <span class="sl-top"><b>${esc(s.name)}</b>${off ? `<i class="off" title="주라인은 ${LANE_NAME[s.mainLane]}">${LANE_ICON[s.mainLane]}오프</i>` : '<i class="main">주라인</i>'}</span>
+        <span class="sl-top"><b>${esc(s.name)}</b>${(() => { const t = talkOf(id); return t ? talkIcon(t, 'sl-talk') : ''; })()}${off ? `<i class="off" title="주라인은 ${LANE_NAME[s.mainLane]}">${LANE_ICON[s.mainLane]}오프</i>` : '<i class="main">주라인</i>'}</span>
         <span class="sl-meta"><span>${LANE_NAME[l]} ${ln.g ? `${pct(ln.w, ln.g)}% · ${ln.g}판` : '기록 없음'}</span><span class="mono">MMR ${Math.round(s.mmr)}</span>${dots(s.recent)}</span>
       </button><span class="sl-score mono">${(+s.p.scores?.[l] || 0).toFixed(1)}</span></div>`;
     };
