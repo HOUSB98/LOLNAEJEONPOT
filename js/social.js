@@ -1,5 +1,5 @@
 // 환영 인트로, 닉네임, 접속자 표시, 공용 채팅
-import { S, act, esc, uid, col, settings, toast, modal, closeModal, mh, ic, logo, needAdmin, LANE_ICON, LANE_COLOR, LANE_NAME } from './core.js';
+import { S, act, esc, uid, col, settings, toast, modal, closeModal, mh, ic, logo, needAdmin, swipeZone, LANE_ICON, LANE_COLOR, LANE_NAME } from './core.js';
 import { xmasOn, inSeason, SEASON } from './season.js'; // 장식 모듈(SEASON.x·n)은 시즌에만 받아진다
 import { hookOn, USAGE, loadUsage, won, kfmt } from './hook.js';
 
@@ -265,6 +265,30 @@ act('chatToggle', () => {
   void chat.offsetWidth;
   chat.classList.add(closing ? 'closing' : 'opening'); lz.classList.add(closing ? 'closing' : 'opening');
   chatAnim = setTimeout(done, T);
+});
+// 휴대폰: 채팅창을 오른쪽으로 밀어서 닫기. 손가락을 따라 밀리고, 떼면 충분히 밀었을 때 오른쪽으로 빠지며 닫힌다(덜 밀면 제자리).
+// 입력칸·스티커 칸에서 시작한 손가락은 평소대로(글자 선택·가로 스크롤). transform만 써서 다시 그리기 없음
+const chatPhone = () => matchMedia('(max-width: 860px)').matches && isOpen() && !document.getElementById('chat')?.classList.contains('closing');
+swipeZone('#chat', {
+  when: chatPhone, skip: '#chatform, #chattray, input, textarea, button',
+  move(chat, dx) {
+    chat.style.transition = 'none';
+    chat.style.transform = `translateX(${dx > 0 ? dx : dx / 6}px)`; // 왼쪽으로는 살짝만
+  },
+  end(chat, dir) {
+    clearTimeout(chatAnim);
+    if (dir < 0) { // 오른쪽으로 밀었음 → 닫기
+      chat.style.transition = 'transform .26s cubic-bezier(.3,.6,.4,1)'; chat.style.transform = 'translateX(100%)';
+      document.activeElement?.blur?.();
+      chatAnim = setTimeout(() => {
+        chatRest(); document.body.classList.add('chat-closed'); document.body.classList.remove('chat-closing');
+        chat.style.transition = chat.style.transform = '';
+      }, 260);
+    } else {
+      chat.style.transition = 'transform .22s cubic-bezier(.3,.6,.4,1)'; chat.style.transform = '';
+      chatAnim = setTimeout(() => { chat.style.transition = ''; }, 230);
+    }
+  },
 });
 act('chatTray', () => { tray = !tray; document.getElementById('chattray').hidden = !tray; renderChat(true); });
 act('chatStk', (d) => send('s', d.k));

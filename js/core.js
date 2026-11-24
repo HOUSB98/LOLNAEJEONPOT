@@ -535,7 +535,7 @@ export const history = (type, before) => S.store.put('history', uid(), { type, a
 export { LANES, LANE_NAME, pct };
 
 // ---------- 손가락으로 좌우 밀기(휴대폰·태블릿) ----------
-// swipeZone(선택자, { move(el, dx, w), end(el, dir) }): 그 영역을 가로로 밀면 손가락을 따라 move, 떼면 end.
+// swipeZone(선택자, { move(el, dx, w), end(el, dir), when?(), skip? }): 그 영역을 가로로 밀면 손가락을 따라 move, 떼면 end.
 // dir: 다음(왼쪽으로 밂) +1, 이전 -1, 덜 밀었으면 0. 세로로 밀면 평소처럼 화면 스크롤(영역 CSS에 touch-action:pan-y).
 // 마우스는 대상이 아니다(PC는 지금처럼 버튼). 문서 한 곳에서 받으므로 화면을 다시 그려도 다시 붙일 필요 없음
 const SWZ = [];
@@ -545,6 +545,7 @@ document.addEventListener('pointerdown', (e) => {
   if (e.pointerType === 'mouse' || !e.isPrimary) return;
   for (const [sel, h] of SWZ) {
     const el = e.target.closest?.(sel);
+    if (el && ((h.when && !h.when()) || (h.skip && e.target.closest(h.skip)))) return; // 조건이 안 맞거나 제외 영역(입력칸 등)에서 시작하면 평소대로
     if (el) { SW = { el, h, id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), lock: 0, dx: 0, w: el.getBoundingClientRect().width || 1 }; return; }
   }
 }, { passive: true });
