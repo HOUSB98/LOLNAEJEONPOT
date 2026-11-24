@@ -21,6 +21,7 @@ const I = {
   auction: '<circle cx="12" cy="8.500" r="6.500"/><path d="M10.800 15v5.500a1.200 1.200 0 0 0 2.400 0V15M10.600 7l1.700-1.300v5.800M10.600 11.500h3.200"/>',
   maker: '<path d="m8 7-5 5 5 5M16 7l5 5-5 5M13.500 4l-3 16"/>',
   scores: '<path d="M3 17l5-5 4 4 8-8"/><path d="M15 8h5v5"/><path d="M3 21h18"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.800-3.800"/>',
   copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
   admin: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.900 4.900 7 7M17 17l2.100 2.100M4.900 19.100 7 17M17 7l2.100-2.100"/>',
   dice: '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1" fill="currentColor"/><circle cx="15" cy="15" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/>',

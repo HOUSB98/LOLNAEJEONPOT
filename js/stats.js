@@ -199,11 +199,19 @@ export function compute(playerList, matchList, settings) {
   };
 }
 
-const anyPair = (s, c, map, self, min, ok) => Object.entries(map).some(([k, v]) => {
-  if (v.g < min) return false;
-  if (self) { if (!k.startsWith(s.id + '>')) return false; } else if (!k.split('|').includes(s.id)) return false;
-  return ok((v.w / v.g) * 100);
-});
+// 듀오(together 'a|b')·상대(versus 'a>b') 기록을 선수별로 한 번만 묶어 둔다(선수×칭호마다 전체를 훑지 않도록). 결과는 예전과 같다
+const PIDX = new WeakMap();
+const pairIdx = (map, self) => {
+  let o = PIDX.get(map); if (!o) PIDX.set(map, (o = {}));
+  const key = self ? 's' : 't'; if (o[key]) return o[key];
+  const ix = new Map();
+  for (const [k, v] of Object.entries(map)) {
+    const ids = self ? [k.slice(0, k.indexOf('>'))] : [...new Set(k.split('|'))];
+    for (const id of ids) { let a = ix.get(id); if (!a) ix.set(id, (a = [])); a.push(v); }
+  }
+  return (o[key] = ix);
+};
+const anyPair = (s, c, map, self, min, ok) => (pairIdx(map, self).get(s.id) || []).some((v) => v.g >= min && ok((v.w / v.g) * 100));
 const first5 = (s) => s.results.slice(0, 5).filter(Boolean).length;
 const last5 = (s) => s.recent.filter(Boolean).length;
 const all8 = (s) => LANES.every((l) => (s.p.scores?.[l] || 0) >= 8);
