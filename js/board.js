@@ -16,6 +16,16 @@ const COLOR = { ...LANE_COLOR, any: '#d9a441' };
 const ANY_ICON = '<svg class="lic" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3 14.300 9.100 20.800 9.300 15.700 13.300 17.500 19.600 12 16 6.500 19.600 8.300 13.300 3.200 9.300 9.700 9.100z"/></svg>';
 const icon = (o) => (o === 'any' ? ANY_ICON : LANE_ICON[o]);
 
+// 오늘 소통(1~5): 라인 지원 창에서 본인이 그날 기분대로 고른다(선택 사항, 팀 짜기에는 쓰지 않음). meta/board.talk 에 저장되고
+// 오늘의 내전 라인업 칸에 마이크 + 막대로 보인다. 라인 지원을 연 지 16시간이 지나면 보이지 않는다(다음 날 새로)
+export const TALK = ['과묵', '조용', '보통', '수다', '샷콜러'];
+const TALK_TTL = 16 * 3600e3;
+export const talkIcon = (n, cls = '') => `<span class="tk-ico tkl${n} ${cls}" title="오늘 소통: ${TALK[n - 1]} (${n}/5)" aria-label="오늘 소통 ${TALK[n - 1]}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none"/></svg><span class="tb">${[1, 2, 3, 4, 5].map((k) => `<u class="${k <= n ? 'on' : ''}"></u>`).join('')}</span></span>`;
+export const talkOf = (id) => { const d = cur(); if (!d || !id || !d.talk || S.store.serverNow() - (+d.at || 0) > TALK_TTL) return 0; const n = +d.talk[id]; return n >= 1 && n <= 5 ? n : 0; };
+const talkRow = (d) => {
+  const n = +d.talk?.[BD.me] || 0;
+  return `<div class="lp-talk"><span class="lp-tq">${ic('talk')}<b>오늘 소통</b><small>선택 · 라인업 칸에 표시</small></span><span class="lp-tb">${TALK.map((t, i) => `<button class="btn xs ${n === i + 1 ? 'on' : ''}" data-a="bdTalk" data-n="${i + 1}" aria-pressed="${n === i + 1}">${talkIcon(i + 1)}<span>${t}</span></button>`).join('')}</span></div>`;
+};
 const BD = { me: localStorage.getItem('naejeon:bdme:' + S.key) || '', sel: [], playing: '', timers: [], muted: localStorage.getItem('naejeon:bdmute') === '1', prev: {} };
 const cur = () => { const d = S.store?.data?.meta?.board; return d && d.rid ? d : null; };
 const nm = (id) => S.st.P[id]?.name || '?';
@@ -163,6 +173,7 @@ function openHTML(d) {
     ${isMe && myFix ? `<div class="lp-my locked"><b>${esc(nm(BD.me))}</b><span class="lp-rk on" style="--lc:${COLOR[myFix]}"><small>🔒 고정</small>${icon(myFix)}${NAME[myFix]}</span><small class="mut">이 라인으로 고정돼 추첨 없이 배치돼요 · 다른 사람에게는 '고정 1'처럼 숫자만 보여요</small></div>` : ''}
     ${isMe && !myFix && !meDone ? `<div class="lp-fixrow">${BD.fixing ? `<span class="lp-fxq">🔒 고정할 라인</span>${LANES.map((l) => `<button class="btn xs lp-fxb" data-a="bdFix" data-o="${l}" style="--lc:${COLOR[l]}" ${fixN(d, l) >= 2 ? 'disabled title="이미 2명이 고정했어요"' : ''}>${icon(l)}${NAME[l]}</button>`).join('')}<button class="btn ghost xs" data-a="bdFixOpen">취소</button>` : '<button class="btn ghost xs lp-fxopen" data-a="bdFixOpen" title="오늘 이 라인으로 가기로 정해졌으면 고정하세요">🔒 라인 고정</button>'}</div>` : ''}
     ${isMe && !myFix ? `<div class="lp-my ${meDone ? 'locked' : ''}"><b>${esc(nm(BD.me))}</b>의 지망${[0, 1, 2].map((r) => `<span class="lp-rk ${mine[r] ? 'on' : ''}" style="--lc:${mine[r] ? COLOR[mine[r]] : '#3a4a64'}"><small>${RANK[r]}</small>${mine[r] ? `${icon(mine[r])}${NAME[mine[r]]}` : '—'}</span>`).join('')}<small class="mut">${meDone ? '완료했어요 · 바꾸려면 아래 \'다시 고르기\'' : '카드를 누른 순서대로 1·2·3지망 · 다시 누르면 빠져요'}</small>${chanceHTML(d, BD.me)}</div>` : ''}
+    ${isMe ? talkRow(d) : ''}
     ${isMe && !BD.roster ? `<div class="lp-sec lp-mini"><span>${ic('user')}<b>${esc(nm(BD.me))}</b>(으)로 지원 중</span><button class="btn ghost xs" data-a="bdRoster">참가자 현황 · 대리 지원</button></div>`
       : `<div class="lp-sec"><div class="lp-sh"><b>참가자</b><small>${isMe ? `<b>${esc(nm(BD.me))}</b>(으)로 지원 중 · 다른 이름을 누르면 대리 지원` : '본인 이름을 눌러 주세요'}</small></div>
       <div class="lp-roster">${d.ids.map(mem).join('')}</div></div>`}
@@ -181,6 +192,7 @@ function finalHTML(d) {
   return `<div class="lp-h"><div><small>RESULT</small><h2>${ic('today')}최종 라인업</h2></div><span class="grow"></span><button class="btn ghost xs" data-a="bdClose" title="닫기">${ic('x')}</button></div>
     <div class="lf"><span></span><b class="blue">BLUE</b><b class="red">RED</b>
       ${LANES.map((l, i) => `<span class="lf-l" style="--lc:${COLOR[l]}">${LANE_ICON[l]}${LANE_NAME[l]}</span>${cell(d.result?.[l]?.[0], 'blue', i * 2)}${cell(d.result?.[l]?.[1], 'red', i * 2 + 1)}`).join('')}</div>
+    ${d.ids?.includes(BD.me) ? talkRow(d) : ''}
     ${d.left?.length ? `<p class="mut center">대기: ${d.left.map((x) => esc(nm(x))).join(', ')}</p>` : ''}
     ${(() => { const { win, lose } = luckDelta(d.steps), reset = win.filter((id) => (luckDoc().rid === d.rid ? (luckDoc().last || []).some((c) => c.id === id && c.to === 0) : missOf(id) > 0)); return lose.length || reset.length ? `<p class="lf-luck center">${ic('target')}1지망 보정 · ${lose.length ? `다음 1지망 확률 증가: ${lose.map((x) => { const L = luckDoc(), applied = L.rid === d.rid, c = applied ? (L.last || []).find((y) => y.id === x) : null, max = applied ? c && c.from >= LUCK_MAX : missOf(x) >= LUCK_MAX; return esc(nm(x)) + (max ? '(최대 유지)' : ''); }).join(', ')}` : ''}${lose.length && reset.length ? ' · ' : ''}${reset.length ? `초기화: ${reset.map((x) => esc(nm(x))).join(', ')}` : ''}</p>` : ''; })()}
     <p class="hint center"><em class="lf-tag">N지망</em> 몇 지망으로 들어갔는지 (·추첨: 몰려서 뽑힘) · <em class="lf-tag">배치</em> 상관없음·지망 실패·미지원으로 빈 자리에 들어감 · <em class="lf-tag">🔒 고정</em> 라인 고정으로 추첨 없이 배치 · 진영·자리 교체는 라인업에서 끌어다 놓으면 됩니다</p>
@@ -237,6 +249,18 @@ act('bdMe', (x) => {
   if (x.id !== BD.me && other && other !== cid && !confirm(`${nm(x.id)} 님은 다른 기기에서 이미 지원 중이에요.\n이 이름으로 대리 지원할까요? (그 사람이 고른 지망을 바꿀 수 있어요)`)) return;
   BD.me = x.id; BD.roster = false; BD.fixing = false; localStorage.setItem('naejeon:bdme:' + S.key, x.id); draw(); });
 act('bdRoster', () => { BD.roster = true; draw(); });
+act('bdTalk', async (x) => {
+  const d = cur(); if (!d || !['open', 'done'].includes(d.status) || !d.ids.includes(BD.me)) return;
+  const me = BD.me, rid = d.rid, n = +x.n;
+  try {
+    await S.store.tx('meta', 'board', (r) => {
+      if (!r || r.rid !== rid || !['open', 'done'].includes(r.status)) return null;
+      const talk = { ...(r.talk || {}) };
+      if (+talk[me] === n) delete talk[me]; else talk[me] = n; // 다시 누르면 지움
+      return { ...r, talk };
+    });
+  } catch (e) { toast('저장 실패: ' + (e.code || e.message)); }
+});
 act('bdPick', async (x) => {
   const d = cur(); if (!d || d.status !== 'open') return;
   if (!live(d)) { toast('2시간 동안 움직임이 없어 라인 지원이 닫혔어요. 다시 열어 주세요'); closeModal(); if (S.page === 'today') refresh(); return; }
@@ -588,8 +612,11 @@ async function finishRun(d) { // 'play'→'done'을 먼저 바꾼 한 사람만 
 
 // ---------- 다른 사람의 게시판 받기 ----------
 let bseen = null;
+let tseen = '';
 function onBoard(d) {
   const k = d ? d.rid + d.status : '';
+  const tk = d ? d.rid + JSON.stringify(d.talk || {}) : ''; // 소통 표시가 바뀌면 오늘의 내전 라인업도 다시 그림
+  if (tk !== tseen) { const was = tseen; tseen = tk; if (was && k === bseen && S.page === 'today') refresh(); }
   if (bseen === null) { bseen = k; return; }
   if (k === bseen) { if (d?.status === 'open' || (d?.status === 'done' && view())) draw(); return; }
   bseen = k;
