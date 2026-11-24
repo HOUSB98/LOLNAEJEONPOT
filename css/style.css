@@ -2393,3 +2393,8 @@ body.lite .ateam.au-win,body.lite .ateam .kv.au-sold,body.lite .ateam .kv.au-sol
 .au-stats>div{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:1px solid var(--line2);border-radius:10px;background:rgba(255,255,255,.02)}
 .au-stats small{color:var(--mut);font-size:11.5px}.au-stats b{font-size:15px}.au-stats span{color:#aab5c8;font-size:12px}
 @media (max-width:420px){.au-scout{grid-template-columns:minmax(0,1fr)}}
+/* 경매: 예상 소요 시간 · 연장 추천값 */
+.au-est{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin:8px 0;padding:8px 12px;border:1px solid var(--line2);border-radius:9px;background:rgba(217,164,65,.05);font-size:13px;color:#c6cfdd}
+.au-est .ic{width:15px;height:15px;color:var(--gold)}.au-est b{color:var(--gold2)}.au-est small{color:var(--mut);font-size:11.5px}
+.au-rec{display:block;margin-top:4px;color:var(--mut);font-size:11.5px}.au-rec .lnk{font-size:11.5px}
+.au-est .au-rule{flex-basis:100%;padding-left:23px}

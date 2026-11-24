@@ -4,8 +4,19 @@ import { dayKey } from './stats.js';
 import { setDraftTeams } from './today.js';
 import { sendLobbyChat } from './social.js';
 
-const AU = { name: '', role: {}, points: 1000, unit: 10, sec: 20, ext: 8, delay: 15, hcap: {}, hide: true, chat: '', amt: '', as: 0, mode: 'live', batchDraft: {}, dl: [0, 1] };
+const AU = { name: '', role: {}, points: 1000, unit: 10, sec: 20, ext: 5, extTouched: false, delay: 15, hcap: {}, hide: true, chat: '', amt: '', as: 0, mode: 'live', batchDraft: {}, dl: [0, 1] };
 const LOT_START_DELAY_MS = 15_000; // 예전 방(대기시간 설정이 없던 방)의 매물 사이 대기
+// 연장 추천값: 경매 시간의 1/4(3~10초). 20초 → 5초, 30초 → 8초, 10초 → 3초
+export const recExt = (sec) => Math.min(10, Math.max(3, Math.round((+sec || 0) / 4)));
+// 예상 소요 시간(초): 매물 수 = min(참가자, 팀장 수 × 4). 매물 1개 = 대기 + 경매 + 정산(약 0.5초).
+// 빠르면: 경쟁 없음 · 보통: 매물 40%에서 연장 2번 · 길면: 75%에서 연장 2번 + 재경매 2번
+export function auEstimate(cfg, parts, caps) {
+  const n = Math.min(parts, caps * (cfg.size - 1 || 4)); if (!n || caps < 2) return null;
+  const lot = (cfg.delay ?? 15) + cfg.sec + 0.5, ext = cfg.ext;
+  return { n, low: n * lot, mid: n * lot + Math.ceil(n * 0.4) * 2 * ext, high: n * lot + Math.ceil(n * 0.75) * 2 * ext + 2 * lot };
+}
+const fmtDur = (sec) => { const m = Math.floor(sec / 60), s = Math.round(sec % 60); return m ? `${m}분${s ? ` ${s}초` : ''}` : `${s}초`; };
+const estHTML = (e) => (e ? `${ic('clock')}예상 소요 <b>약 ${fmtDur(e.mid)}</b><small>빠르면 ${fmtDur(e.low)} · 길면 ${fmtDur(e.high)} · 경매 ${e.n}번 기준</small>` : `${ic('clock')}<small>팀장 2명 이상과 참가자를 고르면 예상 소요 시간이 나와요</small>`);
 const lotDelay = (r) => (r.cfg.delay ?? LOT_START_DELAY_MS / 1000) * 1000;
 const tok = () => uid() + uid();
 const hostKey = (id) => `naejeon:auhost:${S.key}:${id}`;
@@ -132,6 +143,11 @@ function bestLanes(ids) { // 라인 점수 합이 최대가 되도록 5명을 �
   return best;
 }
 
+const formCfg = () => ({ sec: AU.sec, ext: AU.ext, delay: AU.delay, size: 5 });
+const formEst = () => { const caps = Object.keys(AU.role).filter((k) => AU.role[k] === 2).length, parts = Object.keys(AU.role).filter((k) => AU.role[k] === 1).length; return auEstimate(formCfg(), parts, caps); };
+const recHTML = () => { const r = recExt(AU.sec); return AU.ext === r ? `추천값(경매 시간의 1/4)` : `추천 ${r}초 <button type="button" class="lnk" data-a="auExtRec">적용</button>`; };
+// 입력 중에는 화면 전체를 다시 그리지 않고 추천·예상 시간 글자만 바꾼다(입력칸 커서 유지)
+function formLive() { const a = document.getElementById('au-rec'), b = document.getElementById('au-est'); if (a) a.innerHTML = recHTML(); if (b) b.innerHTML = estHTML(formEst()); }
 function lobbyList() {
   const st = S.st, rooms = col('auctions').filter((r) => !r.deleted).sort((a, b) => b.createdAt - a.createdAt);
   const caps = Object.keys(AU.role).filter((k) => AU.role[k] === 2), parts = Object.keys(AU.role).filter((k) => AU.role[k] === 1);
@@ -159,9 +175,10 @@ function lobbyList() {
       <label class="fld"><span>시작 포인트</span><input id="auP" class="inp" type="number" value="${AU.points}" data-i="auF" data-k="points"></label>
       <label class="fld"><span>입찰 단위</span><input id="auU" class="inp" type="number" value="${AU.unit}" data-i="auF" data-k="unit"></label>
       ${AU.mode === 'live' ? `<label class="fld"><span>경매 시간(초)</span><input id="auS" class="inp" type="number" value="${AU.sec}" data-i="auF" data-k="sec"></label>
-      <label class="fld"><span>입찰 시 최소 남은 시간(초)</span><input id="auE" class="inp" type="number" value="${AU.ext}" data-i="auF" data-k="ext"></label>
+      <label class="fld"><span>입찰 시 최소 남은 시간(초)</span><input id="auE" class="inp" type="number" value="${AU.ext}" data-i="auF" data-k="ext"><small class="au-rec" id="au-rec">${recHTML()}</small></label>
       <label class="fld"><span>매물 사이 대기(초)</span><select id="auD" class="inp" data-c="auDelay">${[5, 10, 15].map((v) => `<option value="${v}" ${AU.delay === v ? 'selected' : ''}>${v}초</option>`).join('')}</select></label>` : ''}
     </div>
+    ${AU.mode === 'live' ? `<p class="au-est" id="au-est">${estHTML(formEst())}</p>` : ''}
     ${AU.mode === 'live' ? '<label class="mini"><input type="checkbox" data-c="auHide" ' + (AU.hide ? 'checked' : '') + '> 경매 순서 비공개 (무작위)</label>' : '<p class="hint">팀장은 매물별 입찰가 합계가 보유 포인트를 넘지 않도록 제출합니다. 낙찰된 금액만 차감됩니다.</p>'}
     <button class="btn pri block big" data-a="auCreate">경매 방 만들기</button>
   </div>`;
@@ -260,6 +277,7 @@ function roomView(id, token) {
   let stage = '';
   if (r.status === 'lobby') {
     stage = `<div class="panel stage"><h2>대기 중</h2><p class="mut">팀장에게 각자의 링크를 보내고, 모두 들어오면 시작하세요.</p>
+      ${r.cfg.mode !== 'batch' ? `<p class="au-est">${estHTML(auEstimate(r.cfg, r.pool.length, r.teams.length))}<small class="au-rule">매물마다 대기 ${r.cfg.delay ?? 15}초 + 경매 ${r.cfg.sec}초 · 마감 ${r.cfg.ext}초 전에 입찰하면 ${r.cfg.ext}초로 연장</small></p>` : ''}
       ${me.host ? `<div class="links"><div class="kv"><span>${ic('eye')}관전 링크</span><span class="grow"></span><button class="btn xs" data-a="auCopy" data-u="${esc(base)}">복사</button><button class="btn xs" data-a="auSendLink" data-u="${esc(base)}" data-label="관전 링크">채팅 전송</button></div>
         <div class="au-online">${r.teams.map((t) => { const on = t.seen && S.store.serverNow() - t.seen < 90e3; return `<span class="au-on ${on ? 'on' : ''}"><i></i>${pname(t.captain)}<small>${on ? '접속 중' : t.seen ? '나감' : '아직 안 들어옴'}</small></span>`; }).join('')}</div>
         ${r.teams.map((t) => `<div class="kv"><span>${ic('crown')}${pname(t.captain)} 팀장 링크</span><span class="grow"></span><button class="btn xs" data-a="auCopy" data-u="${esc(base + '/' + t.token)}">복사</button><button class="btn xs" data-a="auSendLink" data-u="${esc(base + '/' + t.token)}" data-label="${esc(nm(t.captain) + ' 팀장 링크')}">채팅 전송</button></div>`).join('')}</div>
@@ -402,10 +420,16 @@ page('auction', {
     };
   },
 });
-act('auF', (d, el) => { AU[d.k] = d.k === 'name' ? el.value : Math.max(0, +el.value || 0); });
+act('auF', (d, el) => {
+  AU[d.k] = d.k === 'name' ? el.value : Math.max(0, +el.value || 0);
+  if (d.k === 'ext') AU.extTouched = true;
+  if (d.k === 'sec' && !AU.extTouched) { AU.ext = recExt(AU.sec); const e = document.getElementById('auE'); if (e) e.value = AU.ext; } // 연장을 직접 고치기 전에는 경매 시간에 맞춰 따라감
+  if (d.k !== 'name') formLive();
+});
+act('auExtRec', () => { AU.ext = recExt(AU.sec); AU.extTouched = false; const e = document.getElementById('auE'); if (e) e.value = AU.ext; formLive(); });
 act('auHc', (d, el) => { AU.hcap[d.id] = +el.value || 0; });
 act('auHide', (d, el) => { AU.hide = el.checked; });
-act('auDelay', (d, el) => { AU.delay = +el.value || 15; });
+act('auDelay', (d, el) => { AU.delay = +el.value || 15; formLive(); });
 act('auMode', (d, el) => { AU.mode = el.value; refresh(); });
 // r=1: 이름(참가 ↔ 제외, 팀장이면 일반 참가자로) · r=2: 왕관(팀장 ↔ 참가자)
 act('auRole', (d) => { const cur = AU.role[d.id] || 0; AU.role[d.id] = d.r === '2' ? (cur === 2 ? 1 : 2) : cur === 1 ? 0 : 1; refresh(); });
@@ -427,6 +451,7 @@ act('auCreate', async () => {
   if (caps.length < 2) return toast('팀장을 2명 이상 지정해 주세요 (이름 옆 왕관 누르기)');
   if (!parts.length) return toast('경매에 나올 참가자를 선택해 주세요');
   if (!Number.isInteger(AU.unit) || AU.unit < 1 || (AU.mode === 'live' && AU.sec < 5)) return toast('입찰 단위는 1 이상의 정수여야 하며, 실시간 경매 시간은 5초 이상이어야 합니다');
+  if (AU.mode === 'live' && AU.ext < 1) return toast('입찰 시 최소 남은 시간은 1초 이상이어야 합니다');
   for (let i = parts.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [parts[i], parts[j]] = [parts[j], parts[i]]; }
   const id = uid(), host = tok();
   const r = {
@@ -437,7 +462,7 @@ act('auCreate', async () => {
   };
   await S.store.put('auctions', id, r);
   localStorage.setItem(hostKey(id), host);
-  AU.role = {}; AU.name = ''; AU.mode = 'live'; AU.as = 0; AU.batchDraft = {};
+  AU.role = {}; AU.name = ''; AU.mode = 'live'; AU.as = 0; AU.batchDraft = {}; AU.extTouched = false;
   go(`#/auction/${id}/${host}`);
 });
 act('auStart', (d) => tx(d.id, (r, t, err) => { const now = t + err;
