@@ -2317,3 +2317,25 @@ body.lite .bidnow.bump::after,body.lite .bidnow.bump b,body.lite .timer.hot,body
 @media (max-width:860px){#modal .sheet.finder-sheet{margin-top:0;align-self:flex-end}.fd-tip{display:none}}
 /* 손가락으로 좌우 밀기 영역: 세로 스크롤은 브라우저에, 가로는 사이트가 받는다(core.js swipeZone) */
 .car-view,.dpages{touch-action:pan-y}
+/* 휴대폰: 채팅창을 오른쪽으로 밀어 닫기(social.js swipeZone) — 세로 스크롤은 그대로, 가로는 사이트가 받는다 */
+@media (max-width:860px){#chat,#chatlog{touch-action:pan-y}}
+
+/* ---------- 크리스마스 말풍선(시즌·크리스마스 장식 켠 동안, body.xmas) ----------
+   고급스러운 미국식 크리스마스: 상록수 벨벳(남)·크랜베리 벨벳(나) 위에 금박 테두리, 첫 말풍선에 호랑가시나무·금색 리본,
+   내 말풍선엔 아주 옅은 캔디케인 사선. 모두 정지된 그림(움직임 없음) → 성능 영향 없음 */
+body.xmas .cb{color:#f3f0e6;
+  background:radial-gradient(120% 140% at 0 0,rgba(255,255,255,.06),transparent 55%) padding-box,linear-gradient(170deg,#163a2b,#0d2419 62%,#0a1c14) padding-box,
+    linear-gradient(135deg,#f6e3a8,#b8862c 30%,#5e4413 52%,#d9b25e 78%,#fff1c4) border-box;
+  box-shadow:0 10px 22px -14px #000,inset 0 1px 0 rgba(255,241,196,.16),inset 0 -10px 18px -14px rgba(0,0,0,.6)}
+body.xmas .cm.head:not(.me) .cb::before{left:-1px;top:7px;bottom:7px;width:2px;background:linear-gradient(180deg,#e0b65a,#9e1b32 70%,transparent)}
+body.xmas .cm.me .cb{color:#fff4dc;text-shadow:0 1px 0 rgba(60,0,10,.45);
+  background:repeating-linear-gradient(-45deg,rgba(255,255,255,.035) 0 6px,transparent 6px 14px) padding-box,radial-gradient(120% 140% at 100% 0,rgba(255,220,220,.10),transparent 55%) padding-box,linear-gradient(170deg,#7d1426,#5a0d1b 60%,#430812) padding-box,
+    linear-gradient(135deg,#fff1c4,#d9a441 28%,#6b4a12 55%,#e9c46f 80%,#fff6d8) border-box;
+  box-shadow:0 10px 24px -12px rgba(125,20,38,.85),inset 0 1px 0 rgba(255,236,210,.22),inset 0 -10px 18px -14px rgba(0,0,0,.55)}
+/* 첫 말풍선 장식: 남 = 왼쪽 위 호랑가시나무, 나 = 오른쪽 위 금색 리본 */
+body.xmas .cm.head .cb::after{content:"";position:absolute;top:-8px;width:20px;height:16px;background:no-repeat center/contain;pointer-events:none;filter:drop-shadow(0 2px 2px rgba(0,0,0,.55))}
+body.xmas .cm.head:not(.me) .cb::after{left:-7px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 32'%3E%3Cdefs%3E%3ClinearGradient id='l' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%233f8a5c'/%3E%3Cstop offset='1' stop-color='%23163d28'/%3E%3C/linearGradient%3E%3CradialGradient id='b' cx='.35' cy='.35' r='.7'%3E%3Cstop offset='0' stop-color='%23ff6b7d'/%3E%3Cstop offset='.6' stop-color='%23c41a33'/%3E%3Cstop offset='1' stop-color='%236e0716'/%3E%3C/radialGradient%3E%3C/defs%3E%3Cpath d='M19 17C14 9 6 8 1 12c3 1 3 3 2 5 3-1 5 0 5 3 2-2 5-2 6 0 1-2 3-3 5-3z' fill='url(%23l)' stroke='%23d9b25e' stroke-width='.8'/%3E%3Cpath d='M21 17c5-8 13-9 18-5-3 1-3 3-2 5-3-1-5 0-5 3-2-2-5-2-6 0-1-2-3-3-5-3z' fill='url(%23l)' stroke='%23d9b25e' stroke-width='.8'/%3E%3Ccircle cx='17' cy='20' r='4' fill='url(%23b)'/%3E%3Ccircle cx='23.5' cy='19.5' r='4' fill='url(%23b)'/%3E%3Ccircle cx='20' cy='25' r='4' fill='url(%23b)'/%3E%3C/svg%3E")}
+body.xmas .cm.head.me .cb::after{right:-7px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23fff1c4'/%3E%3Cstop offset='.45' stop-color='%23d9a441'/%3E%3Cstop offset='1' stop-color='%237a5414'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M20 14C14 4 3 4 4 12c1 6 10 5 16 2zM20 14c6-10 17-10 16-2-1 6-10 5-16 2z' fill='url(%23g)' stroke='%235e4413' stroke-width='.8'/%3E%3Cpath d='M18 15l-7 15 5-2 2 4 3-16zM22 15l7 15-5-2-2 4-3-16z' fill='url(%23g)' stroke='%235e4413' stroke-width='.8'/%3E%3Ccircle cx='20' cy='14.5' r='3.6' fill='url(%23g)' stroke='%235e4413' stroke-width='.8'/%3E%3C/svg%3E")}
+body.xmas .cb a.chatlink{color:#f6e3a8}
+body.xmas .cb.emo::after{display:none}
+body.lite.xmas .cb::after{filter:none}

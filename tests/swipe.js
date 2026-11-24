@@ -1,4 +1,4 @@
-// 휴대폰에서 손가락으로 좌우 밀기: 케미 듀오 순위(최강·상극)와 홈 명예의 전당.
+// 휴대폰에서 손가락으로 좌우 밀기: 케미 듀오 순위(최강·상극)와 홈 명예의 전당, 채팅창 오른쪽으로 밀어 닫기.
 // 왼쪽으로 밀면 다음, 오른쪽이면 이전, 조금만 밀면 제자리, 세로로 밀면 스크롤(넘기지 않음), PC 마우스 끌기는 그대로(넘기지 않음)
 const { chromium, devices } = require('playwright'); const { makeSeed, client, open, Backend, device } = require('./harness');
 const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) process.exitCode = 1; };
@@ -61,6 +61,26 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   await drag(c.x - c.w * 0.3, c.y, c.x + c.w * 0.3, c.y);
   ok(await ci() === 0, '첫 장에서 오른쪽으로 밀면 제자리');
   const tf = await M.$eval('.car-track', (e) => [e.style.transition, e.style.transform, new DOMMatrix(getComputedStyle(e).transform).m41]); ok(tf[0] === '' && Math.abs(tf[2]) < 0.5, '제자리 복귀 후 트랙 정상(애니메이션 복구): ' + JSON.stringify(tf));
+  // 채팅창: 오른쪽으로 밀어 닫기
+  const closed = () => M.evaluate(() => document.body.classList.contains('chat-closed'));
+  await M.tap('#chatfab'); await M.waitForTimeout(1200);
+  ok(!(await closed()), '채팅창 열림');
+  const W = await M.evaluate(() => innerWidth), H = await M.evaluate(() => innerHeight);
+  await drag(W * 0.3, H * 0.45, W * 0.4, H * 0.45, 6, 40);
+  ok(!(await closed()) && await M.$eval('#chat', (e) => !e.style.transform), '조금만 밀면 제자리(열린 채)');
+  await drag(W * 0.5, H * 0.45, W * 0.45, H * 0.45 - 200);
+  ok(!(await closed()), '세로로 밀면 닫히지 않음(대화 스크롤)');
+  const ib = await M.locator('#chatinp').boundingBox();
+  await drag(ib.x + 10, ib.y + ib.height / 2, ib.x + W * 0.7, ib.y + ib.height / 2);
+  ok(!(await closed()), '입력칸에서 시작한 밀기는 닫지 않음');
+  await drag(W * 0.2, H * 0.45, W * 0.85, H * 0.45);
+  ok(await closed(), '오른쪽으로 밀면 채팅창 닫힘');
+  ok(await M.$eval('#chat', (e) => !e.style.transform && !e.style.transition), '닫힌 뒤 인라인 스타일 정리');
+  ok(await M.$eval('#chatfab', (e) => getComputedStyle(e).display !== 'none'), '채팅 버튼 다시 보임');
+  await M.tap('#chatfab'); await M.waitForTimeout(1200);
+  ok(!(await closed()) && await M.$eval('#chat', (e) => getComputedStyle(e).visibility === 'visible'), '버튼으로 다시 열면 정상');
+  await drag(W * 0.15, H * 0.5, W * 0.15 + 60, H * 0.5, 4, 12);
+  ok(await closed(), '빠르게 튕기면 짧게 밀어도 닫힘');
   console.log('오류:', M.errs.join(' | ') || '없음'); ok(!M.errs.length, '페이지 오류 없음');
 
   // PC: 마우스로 끌어도 넘어가지 않음(지금처럼 버튼), 버튼은 그대로 동작
@@ -73,6 +93,11 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   ok(await ppg() === 1, 'PC 페이지 버튼 그대로 동작');
   await P.click('.dpages[data-k="pa"] + .dnav button:nth-of-type(1)'); await P.waitForTimeout(700);
   ok(await ppg() === 0 && await P.$$eval('.dpages[data-k="pa"] .dpage', (ps) => ps.every((p) => p.classList.contains('on') || !p.style.transform || true)), '앞 페이지 버튼도 동작');
+  // PC 채팅창: 마우스로 끌어도 닫히지 않음
+  await P.evaluate(() => { if (document.body.classList.contains('chat-closed')) document.getElementById('chatfab').click(); }); await P.waitForTimeout(1200);
+  const cb = await P.locator('#chatlog').boundingBox();
+  await P.mouse.move(cb.x + 30, cb.y + 100); await P.mouse.down(); await P.mouse.move(cb.x + 300, cb.y + 100, { steps: 8 }); await P.mouse.up(); await P.waitForTimeout(500);
+  ok(!(await P.evaluate(() => document.body.classList.contains('chat-closed'))), 'PC 채팅창은 마우스로 끌어도 닫히지 않음');
   console.log('오류:', P.errs.join(' | ') || '없음'); ok(!P.errs.length, 'PC 페이지 오류 없음');
   await b.close();
 })();
