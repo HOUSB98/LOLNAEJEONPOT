@@ -3,8 +3,9 @@ import { S, page, act, esc, uid, col, pname, go, refresh, toast, needAdmin, isAd
 import { dayKey } from './stats.js';
 import { setDraftTeams } from './today.js';
 import { sendLobbyChat } from './social.js';
+import { talkOf, talkIcon } from './board.js';
 
-const AU = { name: '', role: {}, points: 1000, unit: 10, sec: 20, ext: 5, extTouched: false, delay: 15, hcap: {}, hide: true, chat: '', amt: '', as: 0, mode: 'live', batchDraft: {}, dl: [0, 1] };
+const AU = { blind: false, name: '', role: {}, points: 1000, unit: 10, sec: 20, ext: 5, extTouched: false, delay: 15, hcap: {}, hide: true, chat: '', amt: '', as: 0, mode: 'live', batchDraft: {}, dl: [0, 1] };
 const LOT_START_DELAY_MS = 15_000; // 예전 방(대기시간 설정이 없던 방)의 매물 사이 대기
 // 연장 추천값: 경매 시간의 1/4(3~10초). 20초 → 5초, 30초 → 8초, 10초 → 3초
 export const recExt = (sec) => Math.min(10, Math.max(3, Math.round((+sec || 0) / 4)));
@@ -27,6 +28,20 @@ const nm = (id) => S.st.P[id]?.name || '?';
 // 팀 색: 팀 순서대로(블루·레드·초록·보라·주황·청록·분홍·노랑). 팀 카드·현재 입찰·입찰 경쟁·낙찰 배너·결과 요약에 같은 색을 써서 누가 이기는지 한눈에
 const TEAM_COLOR = ['#5b8cff', '#f0506e', '#4fd08b', '#b07cff', '#ff9f43', '#3fd0e0', '#ff7ac6', '#e8d35a'];
 export const teamColor = (i) => TEAM_COLOR[((i % TEAM_COLOR.length) + TEAM_COLOR.length) % TEAM_COLOR.length];
+// 익명 경매(cfg.blind): 끝나기 전까지는 매물을 '매물 A·B…'로만 보여 주고 힌트(주라인·라인 점수 모양·최근 흐름·챔피언 성향·소통)만 공개.
+// 화면에서만 숨긴다(방 문서에는 선수 ID가 그대로 있음 — 친구끼리 재미용). 기록 글에도 별칭으로 남기고, 끝나면 한꺼번에 정체 공개
+const blindOn = (r) => !!r?.cfg?.blind && r.status !== 'done';
+const alias = (r, pid) => r.alias?.[pid] || '?';
+const whoT = (r, pid) => (blindOn(r) ? `매물 ${alias(r, pid)}` : nm(pid));
+const who = (r, pid) => (blindOn(r) ? `<span class="au-anon">🎭 매물 ${esc(alias(r, pid))}</span>` : pname(pid));
+const letter = (i) => (i < 26 ? String.fromCharCode(65 + i) : String.fromCharCode(64 + Math.floor(i / 26)) + String.fromCharCode(65 + (i % 26)));
+const ROLE = { Assassin: '암살자', Fighter: '전사', Mage: '마법사', Marksman: '원거리 딜러', Support: '서포터', Tank: '탱커' };
+function champStyle(s) { // 판수 기준 역할군 상위 2개(챔피언 이름은 숨김)
+  const n = {}; let all = 0;
+  for (const [name, v] of Object.entries(s.champs || {})) { const t = S.champBy?.[name]?.tags?.[0]; if (!t || !ROLE[t]) continue; n[t] = (n[t] || 0) + (v.g || 0); all += v.g || 0; }
+  if (all < 3) return '';
+  return Object.entries(n).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([t, g], i) => `<span class="as-role${i ? '' : ' top'}">${ROLE[t]}${i ? '' : ' 위주'} <small>${Math.round((g / all) * 100)}%</small></span>`).join('');
+}
 const tname = (r, i) => (r.teams[i] ? `<span class="au-tn" style="--tc:${teamColor(i)}">${esc(r.teams[i].name)}</span>` : '');
 
 function finish(r) { r.status = 'done'; r.cur = null; say(r, '경매가 끝났습니다.'); return r; }
@@ -38,7 +53,7 @@ function nextItem(r, now) {
     const left = [...r.pool, ...r.unsold]; r.pool = []; r.unsold = [];
     while (left.length && (open = openTeams(r)).length) {
       const ti = open.sort((a, b) => r.teams[b].points - r.teams[a].points || r.teams[a].members.length - r.teams[b].members.length)[0];
-      const pid = left.shift(); r.teams[ti].members.push({ pid, price: 0 }); say(r, `${nm(pid)} → ${r.teams[ti].name} (자동 배정)`);
+      const pid = left.shift(); r.teams[ti].members.push({ pid, price: 0 }); say(r, `${whoT(r, pid)} → ${r.teams[ti].name} (자동 배정)`);
     }
     r.unsold = left;
     return finish(r);
@@ -54,8 +69,8 @@ const snap = (r) => JSON.parse(JSON.stringify({ teams: r.teams.map((t) => ({ poi
 function settle(r, now) {
   const c = r.cur;
   r.undo = snap(r);
-  if (c.team >= 0) { const t = r.teams[c.team]; t.points -= c.bid; t.members.push({ pid: c.pid, price: c.bid }); say(r, `${nm(c.pid)} → ${t.name} · ${c.bid}P 낙찰`); }
-  else { r.unsold.push(c.pid); say(r, `${nm(c.pid)} 유찰`); }
+  if (c.team >= 0) { const t = r.teams[c.team]; t.points -= c.bid; t.members.push({ pid: c.pid, price: c.bid }); say(r, `${whoT(r, c.pid)} → ${t.name} · ${c.bid}P 낙찰`); }
+  else { r.unsold.push(c.pid); say(r, `${whoT(r, c.pid)} 유찰`); }
   return nextItem(r, now);
 }
 const batch = (r) => r.batch || (r.batch = { phase: 'initial', initial: {}, final: {}, ties: [] });
@@ -157,7 +172,7 @@ function lobbyList() {
   const caps = Object.keys(AU.role).filter((k) => AU.role[k] === 2), parts = Object.keys(AU.role).filter((k) => AU.role[k] === 1);
   return `<h1>${ic('auction')}팀 경매</h1>
   <p class="hint">팀장별 포인트로 팀을 구성합니다. 실시간 경매 또는 매물별 일괄 입찰을 선택할 수 있고, 참가자는 같은 방의 진행 상황을 함께 봅니다.</p>
-  ${rooms.length ? `<div class="panel"><div class="ph"><b>경매 방</b>${S.store.allLoaded?.('auctions') === false ? '<small class="mut">최근 2주</small>' : ''}</div>${rooms.map((r) => `<a class="kv link" href="#/auction/${r.id}"><span>${esc(r.name)} <small class="mut">${new Date(r.createdAt).toLocaleDateString('ko')}</small></span><b>${{ lobby: '대기 중', running: '<i class="live"></i>진행 중', paused: '일시정지', done: '완료' }[r.status]} · ${r.teams.length}팀</b></a>`).join('')}${S.store.allLoaded?.('auctions') === false ? `<button class="btn ghost xs block au-old" data-a="auOld" ${AU.oldBusy ? 'disabled' : ''}>${AU.oldBusy ? '불러오는 중…' : '이전 경매 보기'}</button>` : ''}</div>` : S.store.allLoaded?.('auctions') === false ? `<button class="btn ghost xs au-old" data-a="auOld" ${AU.oldBusy ? 'disabled' : ''}>${AU.oldBusy ? '불러오는 중…' : '이전 경매 보기'}</button>` : ''}
+  ${rooms.length ? `<div class="panel"><div class="ph"><b>경매 방</b>${S.store.allLoaded?.('auctions') === false ? '<small class="mut">최근 2주</small>' : ''}</div>${rooms.map((r) => `<a class="kv link" href="#/auction/${r.id}"><span>${esc(r.name)} <small class="mut">${new Date(r.createdAt).toLocaleDateString('ko')}</small></span><b>${{ lobby: '대기 중', running: '<i class="live"></i>진행 중', paused: '일시정지', done: '완료' }[r.status]} · ${r.teams.length}팀${r.cfg?.blind ? ' · 🎭 익명' : ''}</b></a>`).join('')}${S.store.allLoaded?.('auctions') === false ? `<button class="btn ghost xs block au-old" data-a="auOld" ${AU.oldBusy ? 'disabled' : ''}>${AU.oldBusy ? '불러오는 중…' : '이전 경매 보기'}</button>` : ''}</div>` : S.store.allLoaded?.('auctions') === false ? `<button class="btn ghost xs au-old" data-a="auOld" ${AU.oldBusy ? 'disabled' : ''}>${AU.oldBusy ? '불러오는 중…' : '이전 경매 보기'}</button>` : ''}
   <h2>새 경매 만들기</h2>
   <div class="panel">
     <label class="fld"><span>방 이름</span><input id="auName" class="inp" value="${esc(AU.name)}" placeholder="예: 11월 2주차 내전" data-i="auF" data-k="name"></label>
@@ -183,6 +198,7 @@ function lobbyList() {
       <label class="fld"><span>매물 사이 대기(초)</span><select id="auD" class="inp" data-c="auDelay">${[5, 10, 15].map((v) => `<option value="${v}" ${AU.delay === v ? 'selected' : ''}>${v}초</option>`).join('')}</select></label>` : ''}
     </div>
     ${AU.mode === 'live' ? `<p class="au-est" id="au-est">${estHTML(formEst())}</p>` : ''}
+    ${AU.mode === 'live' ? `<label class="mini au-blindopt"><input type="checkbox" data-c="auBlind" ${AU.blind ? 'checked' : ''}> 🎭 익명 경매 <small class="mut">누구인지 숨기고 힌트(주라인·라인 점수 모양·최근 흐름·챔피언 성향·소통)만 보고 입찰 · 끝나면 한꺼번에 공개</small></label>` : ''}
     ${AU.mode === 'live' ? '<label class="mini"><input type="checkbox" data-c="auHide" ' + (AU.hide ? 'checked' : '') + '> 경매 순서 비공개 (무작위)</label>' : '<p class="hint">팀장은 매물별 입찰가 합계가 보유 포인트를 넘지 않도록 제출합니다. 낙찰된 금액만 차감됩니다.</p>'}
     <button class="btn pri block big" data-a="auCreate">경매 방 만들기</button>
   </div>`;
@@ -244,8 +260,8 @@ function banner(r, pid, ti, mine) {
     const price = ti >= 0 ? r.teams[ti].members.find((m) => m.pid === pid)?.price ?? 0 : 0;
     const el = document.createElement('div');
     el.className = `au-banner${ti < 0 ? ' unsold' : ''}${mine ? ' mine' : ''}`; el.setAttribute('aria-live', 'polite');
-    el.innerHTML = ti >= 0 ? `<small>🔨 ${mine ? '우리 팀 낙찰!' : '낙찰'}</small><b>${esc(nm(pid))}</b><span>${tname(r, ti)} · <em class="mono">${price}P</em></span>`
-      : `<small>유찰</small><b>${esc(nm(pid))}</b><span>${r.round === 2 ? '예비로' : '재경매로'}</span>`;
+    el.innerHTML = ti >= 0 ? `<small>🔨 ${mine ? '우리 팀 낙찰!' : '낙찰'}</small><b>${esc(whoT(r, pid))}</b><span>${tname(r, ti)} · <em class="mono">${price}P</em></span>`
+      : `<small>유찰</small><b>${esc(whoT(r, pid))}</b><span>${r.round === 2 ? '예비로' : '재경매로'}</span>`;
     if (ti >= 0) el.style.setProperty('--tc', teamColor(ti));
     document.body.appendChild(el);
     setTimeout(() => el.remove(), 1900);
@@ -274,6 +290,16 @@ function teamFoot(r, t) {
     : `<span class="au-full">팀 완성</span>${miss.length ? `<span class="au-miss">${miss.map((l) => LANE_NAME[l]).join('·')} 주라인 없음</span>` : ''}`;
   return `<div class="au-tf">${lanes}<div class="au-tfn">${note}</div></div>`;
 }
+// 익명 경매가 끝나면 정체 공개: 매물 A부터 차례로 카드가 뒤집힌다(이 기기에서 처음 볼 때만 애니메이션)
+const revealSeen = new Set();
+function revealHTML(r) {
+  const list = Object.entries(r.alias || {}).sort((a, b) => a[1].length - b[1].length || a[1].localeCompare(b[1]));
+  const anim = !revealSeen.has(r.id); revealSeen.add(r.id);
+  return `<div class="au-reveal${anim ? ' anim' : ''}"><div class="ph"><b>🎭 정체 공개</b><small class="mut">익명 경매 · 매물 ${list.length}명</small></div><div class="au-rv">${list.map(([pid, a], i) => {
+    const ti = r.teams.findIndex((t) => t.members.some((m) => m.pid === pid)), m = ti >= 0 ? r.teams[ti].members.find((x) => x.pid === pid) : null;
+    return `<div class="au-rvc" style="--i:${i}${ti >= 0 ? `;--tc:${teamColor(ti)}` : ''}"><small>매물 ${esc(a)}</small><b>${pname(pid)}</b><span>${ti >= 0 ? `${tname(r, ti)} · ${m.price ? m.price + 'P' : '자동 배정'}` : '예비'}</span></div>`;
+  }).join('')}</div></div>`;
+}
 function roomView(id, token) {
   const r = room(id), st = S.st;
   if (!r || r.deleted || r.status === 'deleted') return `<div class="panel empty">이 경매 방은 삭제되어 더 이상 참여할 수 없습니다. <a href="#/auction">경매 목록으로</a></div>`;
@@ -297,15 +323,27 @@ function roomView(id, token) {
       <div class="as-chem">${chem.map((x) => `<span class="${best && best.i === x.i ? 'best' : ''}" title="${esc(x.t.name)} 팀원들과 같은 팀일 때">${esc(x.t.name)} 궁합 <b>${x.wr === null ? '—' : x.wr + '%'}</b><small>${x.g ? x.g + '판' : '기록 없음'}</small></span>`).join('')}</div>
     </div>`;
   };
+  // 익명 경매의 매물 카드: 이름·OVR·티어·챔피언·칭호·궁합 대신 힌트만
+  const blindCard = (pid) => {
+    const s = st.P[pid]; if (!s) return '';
+    const lv = (v) => (v >= 15 ? [3, '강'] : v >= 10 ? [2, '중'] : [1, '약']), tk = talkOf(pid), cs = champStyle(s);
+    return `<div class="item au-blind" data-k="info"><div class="ov big au-q"><b>?</b><small>익명</small></div><div class="au-bh"><h1>🎭 매물 ${esc(alias(r, pid))}</h1>
+      <div class="as-row"><span class="as-k">주라인</span><b>${LANE_ICON[s.mainLane]} ${LANE_NAME[s.mainLane]}</b></div>
+      <div class="au-shape">${LANES.map((l) => { const [k, t] = lv(+s.p.scores?.[l] || 0); return `<span class="lv${k}${l === s.mainLane ? ' main' : ''}" title="${LANE_NAME[l]} ${t}"><i>${LANE_ICON[l]}</i><u><em></em></u><small>${t}</small></span>`; }).join('')}</div>
+      <div class="as-row"><span class="as-k">최근</span>${s.g ? `${dots(s.recent)}${streak(s.cur)}` : '<small>내전 기록 없음</small>'}</div>
+      <div class="as-row"><span class="as-k">성향</span>${cs || '<small>정보 없음</small>'}</div>
+      <div class="as-row"><span class="as-k">소통</span>${tk ? `${talkIcon(tk)}` : '<small>정보 없음</small>'}</div></div></div>`;
+  };
   const teams = r.teams.map((t, i) => `<div data-k="team${i}" class="panel ateam ${c && c.team === i ? 'lead' : ''} ${me.team === i ? 'mine' : ''}${AU.sold?.team === i && Date.now() < AU.sold.until ? ' au-win' : ''}" style="--tc:${teamColor(i)}${AU.sold?.team === i && Date.now() < AU.sold.until ? `;--t:-${Date.now() - AU.sold.at}ms` : ''}">
     <div class="ph"><b class="au-tname"><i class="au-dot"></i>${esc(t.name)}</b>${me.team === i ? '<span class="tag ok">내 팀</span>' : ''}${c?.pass?.[i] ? '<span class="tag au-ps">패스</span>' : ''}<span class="grow"></span><b class="pts">${t.points}P</b></div>
     <div class="kv"><span>${ic('crown')}${pname(t.captain)}</span><small class="mut">팀장</small></div>
-    ${t.members.map((m) => `<div class="kv${m.pid === AU.sold?.pid && Date.now() < AU.sold.until ? ` au-sold" style="--t:-${Date.now() - AU.sold.at}ms` : ''}"><span>${pname(m.pid)} <small class="mut">${LANE_ICON[st.P[m.pid]?.mainLane] || ''}</small></span><b>${m.price}P</b></div>`).join('')}
+    ${t.members.map((m) => `<div class="kv${m.pid === AU.sold?.pid && Date.now() < AU.sold.until ? ` au-sold" style="--t:-${Date.now() - AU.sold.at}ms` : ''}"><span>${who(r, m.pid)} <small class="mut">${LANE_ICON[st.P[m.pid]?.mainLane] || ''}</small></span><b>${m.price}P</b></div>`).join('')}
     ${Array(Math.max(0, r.cfg.size - 1 - t.members.length)).fill('<div class="kv emp"><span>빈 자리</span></div>').join('')}
     ${teamFoot(r, t)}</div>`).join('');
   let stage = '';
   if (r.status === 'lobby') {
     stage = `<div class="panel stage"><h2>대기 중</h2><p class="mut">팀장에게 각자의 링크를 보내고, 모두 들어오면 시작하세요.</p>
+      ${r.cfg.blind ? '<p class="au-blindnote">🎭 <b>익명 경매</b> · 매물은 \'매물 A·B…\'로만 보이고 힌트만 공개돼요. 누구인지는 경매가 모두 끝나면 한꺼번에 공개!</p>' : ''}
       ${r.cfg.mode !== 'batch' ? `<p class="au-est">${estHTML(auEstimate(r.cfg, r.pool.length, r.teams.length))}<small class="au-rule">매물마다 대기 ${r.cfg.delay ?? 15}초 + 경매 ${r.cfg.sec}초 · 마감 ${r.cfg.ext}초 전에 입찰하면 ${r.cfg.ext}초로 연장</small></p>` : ''}
       ${me.host ? `<div class="links"><div class="kv"><span>${ic('eye')}관전 링크</span><span class="grow"></span><button class="btn xs" data-a="auCopy" data-u="${esc(base)}">복사</button><button class="btn xs" data-a="auSendLink" data-u="${esc(base)}" data-label="관전 링크">채팅 전송</button></div>
         <div class="au-online">${r.teams.map((t) => { const on = t.seen && S.store.serverNow() - t.seen < 90e3; return `<span class="au-on ${on ? 'on' : ''}"><i></i>${pname(t.captain)}<small>${on ? '접속 중' : t.seen ? '나감' : '아직 안 들어옴'}</small></span>`; }).join('')}</div>
@@ -314,6 +352,7 @@ function roomView(id, token) {
   } else if (r.status === 'done') {
     stage = `<div class="panel stage"><h2>${ic('flag')}경매 완료</h2>${r.unsold.length ? `<p class="mut">예비: ${r.unsold.map(pname).join(', ')}</p>` : ''}
       ${(() => { const x = resultStats(r); return `<div class="au-stats">${x.top ? `<div><small>💰 최고가</small><b>${pname(x.top.pid)}</b><span>${tname(r, x.top.ti)} · ${x.top.price}P</span></div>` : ''}${x.value ? `<div><small>🍀 가성비</small><b>${pname(x.value.pid)}</b><span>OVR ${x.value.ovr} · ${x.value.price}P</span></div>` : ''}${x.teams.map((t, i) => `<div class="au-st" style="--tc:${teamColor(i)}"><small>${esc(t.name)}</small><b>평균 OVR ${t.avg}</b><span>사용 ${t.used}P · 남은 ${t.points}P</span></div>`).join('')}</div>`; })()}
+      ${r.cfg.blind ? revealHTML(r) : ''}
       <button class="btn block" data-a="auResult" data-id="${r.id}">${ic('copy')}결과 복사 (단톡방에 붙여 넣기)</button>
       ${r.teams.length >= 2 ? `${r.teams.length > 2 ? `<div class="row au-dl">${['블루', '레드'].map((side, k) => `<label class="fld"><span>${side}</span><select class="inp" data-c="auDl" data-i="${k}">${r.teams.map((t, i) => `<option value="${i}" ${Math.min(AU.dl[k], r.teams.length - 1) === i ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>`).join('')}</div>` : ''}
       <button class="btn pri block big" data-a="auToDraft" data-id="${r.id}">${ic('today')}이 팀으로 오늘의 내전 라인업 채우기</button><p class="hint">${r.teams.length > 2 ? '고른 두 팀이' : '첫 번째 팀이 블루, 두 번째 팀이 레드로'} 들어가고 라인은 점수 기준으로 자동 배치됩니다(이후 수정 가능).</p>` : ''}
@@ -330,7 +369,7 @@ function roomView(id, token) {
       <div class="sub"><span class="tag">${r.round === 2 ? '재경매' : '경매'} · 남은 매물 ${r.pool.length}</span><span class="grow"></span><span id="au-timer" class="timer${hot}">--</span></div>
       <div class="au-tbar"><i id="au-tbar"></i></div>
       <div class="au-off" hidden>${ic('alert')}연결이 끊겼어요 · 다시 연결될 때까지 입찰할 수 없어요</div>
-      ${info(c.pid)}${scout(c.pid)}
+      ${blindOn(r) ? blindCard(c.pid) : info(c.pid) + scout(c.pid)}
       <div data-k="bidnow" class="bidnow${lead ? ' lead' : ''}${bidBumped(c) ? ' bump' : ''}"${lead ? ` style="--tc:${teamColor(c.team)}"` : ''}><small>현재 입찰</small><b>${c.bid}P</b><span>${lead ? `${ic('crown')}${tname(r, c.team)}` : '입찰 없음'}</span></div>
       <div data-k="ladder" class="au-ladder">${(c.hist || []).slice(1).map((h) => `<span>${tname(r, h.t)} ${h.v}P</span>`).join('') || '<span class="mut">이 매물의 입찰 기록이 여기 쌓여요</span>'}</div>
       ${bidTeam >= 0 ? `<div data-k="bidbar" class="bidbar">
@@ -341,8 +380,8 @@ function roomView(id, token) {
       ${me.host ? `<div data-k="hostbar" class="row au-hostbar"><button class="btn" data-a="auPause" data-id="${r.id}">${r.status === 'paused' ? '▶ 재개' : '⏸ 일시정지'}</button>${r.status === 'running' && S.store.serverNow() < c.startsAt ? `<button class="btn" data-a="auNow" data-id="${r.id}">⏩ 바로 시작</button>` : ''}${r.undo ? `<button class="btn ghost" data-a="auUndo" data-id="${r.id}" title="직전 낙찰(유찰)을 취소하고 그 선수를 다시 경매">↩ 직전 낙찰 취소</button>` : ''}</div>` : ''}</div>`;
   }
   const queue = r.pool, hideUpcoming = r.cfg.hide && r.status !== 'done';
-  const queueView = hideUpcoming ? `<span class="chip mut">매물 이름 비공개 · ${queue.length}명</span>` : queue.map((p) => `<span class="chip">${pname(p)}</span>`).join('') || '<span class="chip mut">없음</span>';
-  const unsoldView = hideUpcoming ? `<span class="chip mut">유찰 선수 이름 비공개 · ${r.unsold.length}명</span>` : r.unsold.map((p) => `<span class="chip mut">${pname(p)}</span>`).join('');
+  const queueView = hideUpcoming ? `<span class="chip mut">매물 이름 비공개 · ${queue.length}명</span>` : queue.map((p) => `<span class="chip">${who(r, p)}</span>`).join('') || '<span class="chip mut">없음</span>';
+  const unsoldView = hideUpcoming ? `<span class="chip mut">유찰 선수 이름 비공개 · ${r.unsold.length}명</span>` : r.unsold.map((p) => `<span class="chip mut">${who(r, p)}</span>`).join('');
   const canDelete = true; // 진행자는 바로, 그 외에는 관리자 PIN 확인 후(완료된 지난 방도)
   return `<div class="h2row" data-k="head"><a class="btn xs" href="#/auction">← 목록</a><h1>${ic('auction')}${esc(r.name)}</h1><span class="grow"></span><button class="btn xs ghost" data-a="auMute" title="입찰 밀림·낙찰 효과음과 진동">${ic(AU.mute ? 'mute' : 'sound')}</button>${me.host ? '<span class="tag ok">진행자</span>' : ''}${canDelete ? `<button class="btn xs ghost" data-a="auDel" data-id="${r.id}">${me.host ? '방 삭제' : '관리자 삭제'}</button>` : ''}</div>
   <div class="agrid"><div>${stage}
@@ -476,6 +515,7 @@ act('auF', (d, el) => {
 act('auExtRec', () => { AU.ext = recExt(AU.sec); AU.extTouched = false; const e = document.getElementById('auE'); if (e) e.value = AU.ext; formLive(); });
 act('auHc', (d, el) => { AU.hcap[d.id] = +el.value || 0; });
 act('auHide', (d, el) => { AU.hide = el.checked; });
+act('auBlind', (d, el) => { AU.blind = el.checked; });
 act('auDelay', (d, el) => { AU.delay = +el.value || 15; formLive(); });
 act('auMode', (d, el) => { AU.mode = el.value; refresh(); });
 // r=1: 이름(참가 ↔ 제외, 팀장이면 일반 참가자로) · r=2: 왕관(팀장 ↔ 참가자)
@@ -503,13 +543,14 @@ act('auCreate', async () => {
   const id = uid(), host = tok();
   const r = {
     id, name: AU.name.trim() || `${dayKey(Date.now()).slice(5)} 경매`, createdAt: Date.now(), status: 'lobby', host,
-    cfg: { points: AU.points, unit: AU.unit, sec: AU.sec, ext: AU.ext, delay: AU.delay, size: 5, hide: AU.hide, mode: AU.mode },
+    cfg: { points: AU.points, unit: AU.unit, sec: AU.sec, ext: AU.ext, delay: AU.delay, size: 5, hide: AU.hide, mode: AU.mode, ...(AU.mode === 'live' && AU.blind ? { blind: true } : {}) },
     teams: caps.map((pid) => ({ name: nm(pid) + ' 팀', captain: pid, token: tok(), points: Math.max(0, AU.points - (AU.hcap[pid] || 0)), members: [] })),
     pool: parts, unsold: [], round: 1, cur: null, log: [], chat: [],
+    ...(AU.mode === 'live' && AU.blind ? { alias: Object.fromEntries(parts.map((p, i) => [p, letter(i)])) } : {}), // 매물 A·B…(경매 순서와 같음)
   };
   await S.store.put('auctions', id, r);
   localStorage.setItem(hostKey(id), host);
-  AU.role = {}; AU.name = ''; AU.mode = 'live'; AU.as = 0; AU.batchDraft = {}; AU.extTouched = false;
+  AU.role = {}; AU.name = ''; AU.mode = 'live'; AU.blind = false; AU.as = 0; AU.batchDraft = {}; AU.extTouched = false;
   go(`#/auction/${id}/${host}`);
 });
 act('auStart', (d) => tx(d.id, (r, t, err) => { const now = t + err;
@@ -566,7 +607,7 @@ act('auUndo', (d) => {
     r.status = u.status === 'paused' ? 'paused' : 'running';
     const at = now + err + lotDelay(r);
     r.cur = { pid: u.pid, bid: 0, team: -1, startsAt: at, endsAt: at + r.cfg.sec * 1000, ...(r.status === 'paused' ? { left: lotDelay(r) + r.cfg.sec * 1000 } : {}) };
-    say(r, `↩ 진행자가 직전 낙찰을 취소했어요 · ${nm(u.pid)} 다시 경매`);
+    say(r, `↩ 진행자가 직전 낙찰을 취소했어요 · ${whoT(r, u.pid)} 다시 경매`);
     return r;
   }).then((ok) => ok && toast('직전 낙찰을 취소했어요'));
 });

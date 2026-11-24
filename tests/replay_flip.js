@@ -19,7 +19,7 @@ const POS = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'];
   };
   const fA = rofl(M1, true, 'NA1-5000000001.rofl'), fB = rofl(M2, false, 'NA1-5000000002.rofl');
   const A = await client(b, be, 'WORK', 'A'); A.on('dialog', (d) => d.accept());
-  await A.addInitScript((CH) => { if (location.origin !== 'https://site.test') return; localStorage.setItem('naejeon:champs3', JSON.stringify({ ver: '1', at: Date.now(), list: CH.map((id, i) => ({ id, key: i + 1, name: id, img: 'data:image/gif;base64,R0lGODlhAQABAAAAACw=' })) })); }, CH);
+  await A.addInitScript((CH) => { if (location.origin !== 'https://site.test') return; localStorage.setItem('naejeon:champs4', JSON.stringify({ ver: '1', at: Date.now(), list: CH.map((id, i) => ({ id, key: i + 1, name: id, img: 'data:image/gif;base64,R0lGODlhAQABAAAAACw=' })) })); }, CH);
   await open(A, 'replay');
   const get = (id) => A.evaluate(async (id) => { const { S } = await import('/js/core.js'); return JSON.parse(JSON.stringify(S.store.data.matches[id])); }, id);
   const stat = () => A.evaluate(async () => { const { S } = await import('/js/core.js'); return S.st.list.map((s) => [s.id, s.g, s.w, Math.round(s.mmr * 1000)]).sort().join(';'); });

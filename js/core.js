@@ -528,7 +528,8 @@ export { mh };
 // ---------- 챔피언 ----------
 const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
 export const cho = (s) => [...s].map((c) => { const n = c.charCodeAt(0) - 0xac00; return n >= 0 && n < 11172 ? CHO[Math.floor(n / 588)] : c; }).join('');
-const CHAMP_KEY = 'naejeon:champs3';
+const CHAMP_KEY = 'naejeon:champs4'; // 4: 역할군(tags) 추가(익명 경매의 챔피언 성향)
+try { localStorage.removeItem('naejeon:champs3'); } catch {}
 const champCache = () => { try { return JSON.parse(localStorage.getItem(CHAMP_KEY) || 'null'); } catch { return null; } };
 // 챔피언 목록(패치 데이터) 받기를 DB 연결과 동시에 시작한다(app.js 가 접속하자마자 부름). 기기에 반나절 안의 목록이 있으면 받지 않는다.
 // 예전에는 DB 연결이 끝난 뒤에야 받기 시작해서 첫 방문 때 배너·챔피언 그림이 1초 넘게 늦게 떴다
@@ -551,7 +552,7 @@ export async function loadChamps() {
     if (cached && Date.now() - cached.at < 12 * 3600e3) return; // 패치 버전은 반나절마다 다시 확인
     const got = await prefetchChamps(); if (!got) return;
     const { ver, data } = got;
-    const list = Object.values(data).map((c) => ({ id: c.id, key: +c.key, name: c.name, img: `https://ddragon.leagueoflegends.com/cdn/${ver}/img/champion/${c.image.full}` })).sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+    const list = Object.values(data).map((c) => ({ id: c.id, key: +c.key, name: c.name, tags: (c.tags || []).slice(0, 2), img: `https://ddragon.leagueoflegends.com/cdn/${ver}/img/champion/${c.image.full}` })).sort((a, b) => a.name.localeCompare(b.name, 'ko'));
     const o = { ver, list, at: Date.now() };
     localStorage.setItem(KEY, JSON.stringify(o)); set(o); refresh();
   } catch (e) { console.warn('챔피언 목록을 불러오지 못했습니다', e); }
