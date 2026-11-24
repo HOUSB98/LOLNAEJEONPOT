@@ -24,6 +24,10 @@ const room = (id) => S.store.data.auctions?.[id];
 const say = (r, s) => { r.log = [...(r.log || []), { t: Date.now(), s }].slice(-40); };
 const openTeams = (r) => r.teams.map((t, i) => i).filter((i) => r.teams[i].members.length < r.cfg.size - 1);
 const nm = (id) => S.st.P[id]?.name || '?';
+// 팀 색: 팀 순서대로(블루·레드·초록·보라·주황·청록·분홍·노랑). 팀 카드·현재 입찰·입찰 경쟁·낙찰 배너·결과 요약에 같은 색을 써서 누가 이기는지 한눈에
+const TEAM_COLOR = ['#5b8cff', '#f0506e', '#4fd08b', '#b07cff', '#ff9f43', '#3fd0e0', '#ff7ac6', '#e8d35a'];
+export const teamColor = (i) => TEAM_COLOR[((i % TEAM_COLOR.length) + TEAM_COLOR.length) % TEAM_COLOR.length];
+const tname = (r, i) => (r.teams[i] ? `<span class="au-tn" style="--tc:${teamColor(i)}">${esc(r.teams[i].name)}</span>` : '');
 
 function finish(r) { r.status = 'done'; r.cur = null; say(r, '경매가 끝났습니다.'); return r; }
 function nextItem(r, now) {
@@ -240,8 +244,9 @@ function banner(r, pid, ti, mine) {
     const price = ti >= 0 ? r.teams[ti].members.find((m) => m.pid === pid)?.price ?? 0 : 0;
     const el = document.createElement('div');
     el.className = `au-banner${ti < 0 ? ' unsold' : ''}${mine ? ' mine' : ''}`; el.setAttribute('aria-live', 'polite');
-    el.innerHTML = ti >= 0 ? `<small>🔨 ${mine ? '우리 팀 낙찰!' : '낙찰'}</small><b>${esc(nm(pid))}</b><span>${esc(r.teams[ti].name)} · <em class="mono">${price}P</em></span>`
+    el.innerHTML = ti >= 0 ? `<small>🔨 ${mine ? '우리 팀 낙찰!' : '낙찰'}</small><b>${esc(nm(pid))}</b><span>${tname(r, ti)} · <em class="mono">${price}P</em></span>`
       : `<small>유찰</small><b>${esc(nm(pid))}</b><span>${r.round === 2 ? '예비로' : '재경매로'}</span>`;
+    if (ti >= 0) el.style.setProperty('--tc', teamColor(ti));
     document.body.appendChild(el);
     setTimeout(() => el.remove(), 1900);
   }, 0);
@@ -292,8 +297,8 @@ function roomView(id, token) {
       <div class="as-chem">${chem.map((x) => `<span class="${best && best.i === x.i ? 'best' : ''}" title="${esc(x.t.name)} 팀원들과 같은 팀일 때">${esc(x.t.name)} 궁합 <b>${x.wr === null ? '—' : x.wr + '%'}</b><small>${x.g ? x.g + '판' : '기록 없음'}</small></span>`).join('')}</div>
     </div>`;
   };
-  const teams = r.teams.map((t, i) => `<div data-k="team${i}" class="panel ateam ${c && c.team === i ? 'lead' : ''} ${me.team === i ? 'mine' : ''}${AU.sold?.team === i && Date.now() < AU.sold.until ? ` au-win" style="--t:-${Date.now() - AU.sold.at}ms` : ''}">
-    <div class="ph"><b>${esc(t.name)}</b>${me.team === i ? '<span class="tag ok">내 팀</span>' : ''}${c?.pass?.[i] ? '<span class="tag au-ps">패스</span>' : ''}<span class="grow"></span><b class="pts">${t.points}P</b></div>
+  const teams = r.teams.map((t, i) => `<div data-k="team${i}" class="panel ateam ${c && c.team === i ? 'lead' : ''} ${me.team === i ? 'mine' : ''}${AU.sold?.team === i && Date.now() < AU.sold.until ? ' au-win' : ''}" style="--tc:${teamColor(i)}${AU.sold?.team === i && Date.now() < AU.sold.until ? `;--t:-${Date.now() - AU.sold.at}ms` : ''}">
+    <div class="ph"><b class="au-tname"><i class="au-dot"></i>${esc(t.name)}</b>${me.team === i ? '<span class="tag ok">내 팀</span>' : ''}${c?.pass?.[i] ? '<span class="tag au-ps">패스</span>' : ''}<span class="grow"></span><b class="pts">${t.points}P</b></div>
     <div class="kv"><span>${ic('crown')}${pname(t.captain)}</span><small class="mut">팀장</small></div>
     ${t.members.map((m) => `<div class="kv${m.pid === AU.sold?.pid && Date.now() < AU.sold.until ? ` au-sold" style="--t:-${Date.now() - AU.sold.at}ms` : ''}"><span>${pname(m.pid)} <small class="mut">${LANE_ICON[st.P[m.pid]?.mainLane] || ''}</small></span><b>${m.price}P</b></div>`).join('')}
     ${Array(Math.max(0, r.cfg.size - 1 - t.members.length)).fill('<div class="kv emp"><span>빈 자리</span></div>').join('')}
@@ -304,11 +309,11 @@ function roomView(id, token) {
       ${r.cfg.mode !== 'batch' ? `<p class="au-est">${estHTML(auEstimate(r.cfg, r.pool.length, r.teams.length))}<small class="au-rule">매물마다 대기 ${r.cfg.delay ?? 15}초 + 경매 ${r.cfg.sec}초 · 마감 ${r.cfg.ext}초 전에 입찰하면 ${r.cfg.ext}초로 연장</small></p>` : ''}
       ${me.host ? `<div class="links"><div class="kv"><span>${ic('eye')}관전 링크</span><span class="grow"></span><button class="btn xs" data-a="auCopy" data-u="${esc(base)}">복사</button><button class="btn xs" data-a="auSendLink" data-u="${esc(base)}" data-label="관전 링크">채팅 전송</button></div>
         <div class="au-online">${r.teams.map((t) => { const on = t.seen && S.store.serverNow() - t.seen < 90e3; return `<span class="au-on ${on ? 'on' : ''}"><i></i>${pname(t.captain)}<small>${on ? '접속 중' : t.seen ? '나감' : '아직 안 들어옴'}</small></span>`; }).join('')}</div>
-        ${r.teams.map((t) => `<div class="kv"><span>${ic('crown')}${pname(t.captain)} 팀장 링크</span><span class="grow"></span><button class="btn xs" data-a="auCopy" data-u="${esc(base + '/' + t.token)}">복사</button><button class="btn xs" data-a="auSendLink" data-u="${esc(base + '/' + t.token)}" data-label="${esc(nm(t.captain) + ' 팀장 링크')}">채팅 전송</button></div>`).join('')}</div>
+        ${r.teams.map((t, i) => `<div class="kv"><span><i class="au-dot" style="--tc:${teamColor(i)}"></i>${ic('crown')}${pname(t.captain)} 팀장 링크</span><span class="grow"></span><button class="btn xs" data-a="auCopy" data-u="${esc(base + '/' + t.token)}">복사</button><button class="btn xs" data-a="auSendLink" data-u="${esc(base + '/' + t.token)}" data-label="${esc(nm(t.captain) + ' 팀장 링크')}">채팅 전송</button></div>`).join('')}</div>
         <button class="btn pri block big" data-a="auStart" data-id="${r.id}">▶ 경매 시작${r.teams.every((t) => t.seen && S.store.serverNow() - t.seen < 90e3) ? ' · 팀장 모두 접속' : ''}</button>` : `<p>${me.team >= 0 ? `${ic('crown')} <b>${esc(r.teams[me.team].name)}</b> 팀장으로 접속했습니다. 진행자가 시작하면 입찰할 수 있습니다.` : `${ic('eye')} 관전 중입니다.`}</p>`}</div>`;
   } else if (r.status === 'done') {
     stage = `<div class="panel stage"><h2>${ic('flag')}경매 완료</h2>${r.unsold.length ? `<p class="mut">예비: ${r.unsold.map(pname).join(', ')}</p>` : ''}
-      ${(() => { const x = resultStats(r); return `<div class="au-stats">${x.top ? `<div><small>💰 최고가</small><b>${pname(x.top.pid)}</b><span>${esc(r.teams[x.top.ti].name)} · ${x.top.price}P</span></div>` : ''}${x.value ? `<div><small>🍀 가성비</small><b>${pname(x.value.pid)}</b><span>OVR ${x.value.ovr} · ${x.value.price}P</span></div>` : ''}${x.teams.map((t) => `<div><small>${esc(t.name)}</small><b>평균 OVR ${t.avg}</b><span>사용 ${t.used}P · 남은 ${t.points}P</span></div>`).join('')}</div>`; })()}
+      ${(() => { const x = resultStats(r); return `<div class="au-stats">${x.top ? `<div><small>💰 최고가</small><b>${pname(x.top.pid)}</b><span>${tname(r, x.top.ti)} · ${x.top.price}P</span></div>` : ''}${x.value ? `<div><small>🍀 가성비</small><b>${pname(x.value.pid)}</b><span>OVR ${x.value.ovr} · ${x.value.price}P</span></div>` : ''}${x.teams.map((t, i) => `<div class="au-st" style="--tc:${teamColor(i)}"><small>${esc(t.name)}</small><b>평균 OVR ${t.avg}</b><span>사용 ${t.used}P · 남은 ${t.points}P</span></div>`).join('')}</div>`; })()}
       <button class="btn block" data-a="auResult" data-id="${r.id}">${ic('copy')}결과 복사 (단톡방에 붙여 넣기)</button>
       ${r.teams.length >= 2 ? `${r.teams.length > 2 ? `<div class="row au-dl">${['블루', '레드'].map((side, k) => `<label class="fld"><span>${side}</span><select class="inp" data-c="auDl" data-i="${k}">${r.teams.map((t, i) => `<option value="${i}" ${Math.min(AU.dl[k], r.teams.length - 1) === i ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>`).join('')}</div>` : ''}
       <button class="btn pri block big" data-a="auToDraft" data-id="${r.id}">${ic('today')}이 팀으로 오늘의 내전 라인업 채우기</button><p class="hint">${r.teams.length > 2 ? '고른 두 팀이' : '첫 번째 팀이 블루, 두 번째 팀이 레드로'} 들어가고 라인은 점수 기준으로 자동 배치됩니다(이후 수정 가능).</p>` : ''}
@@ -326,8 +331,8 @@ function roomView(id, token) {
       <div class="au-tbar"><i id="au-tbar"></i></div>
       <div class="au-off" hidden>${ic('alert')}연결이 끊겼어요 · 다시 연결될 때까지 입찰할 수 없어요</div>
       ${info(c.pid)}${scout(c.pid)}
-      <div data-k="bidnow" class="bidnow${lead ? ' lead' : ''}${bidBumped(c) ? ' bump' : ''}"><small>현재 입찰</small><b>${c.bid}P</b><span>${lead ? `${ic('crown')}${esc(lead.name)}` : '입찰 없음'}</span></div>
-      <div data-k="ladder" class="au-ladder">${(c.hist || []).slice(1).map((h) => `<span>${esc(r.teams[h.t]?.name || '')} ${h.v}P</span>`).join('') || '<span class="mut">이 매물의 입찰 기록이 여기 쌓여요</span>'}</div>
+      <div data-k="bidnow" class="bidnow${lead ? ' lead' : ''}${bidBumped(c) ? ' bump' : ''}"${lead ? ` style="--tc:${teamColor(c.team)}"` : ''}><small>현재 입찰</small><b>${c.bid}P</b><span>${lead ? `${ic('crown')}${tname(r, c.team)}` : '입찰 없음'}</span></div>
+      <div data-k="ladder" class="au-ladder">${(c.hist || []).slice(1).map((h) => `<span>${tname(r, h.t)} ${h.v}P</span>`).join('') || '<span class="mut">이 매물의 입찰 기록이 여기 쌓여요</span>'}</div>
       ${bidTeam >= 0 ? `<div data-k="bidbar" class="bidbar">
         ${me.host ? `<select class="inp" data-c="auAs">${r.teams.map((t, i) => `<option value="${i}" ${i === bidTeam ? 'selected' : ''}>${esc(t.name)} 대리 입찰</option>`).join('')}</select>` : ''}
         <div class="bids">${b(r.cfg.unit)}${b(r.cfg.unit * 5)}${b(r.cfg.unit * 10)}${(() => { const all = Math.floor(bt.points / r.cfg.unit) * r.cfg.unit; return `<button class="btn bid allin" data-a="auBid" data-id="${r.id}" data-v="all" ${can && all >= min ? '' : 'disabled'} title="남은 포인트를 모두 걸기">올인<small>${all}P</small></button>`; })()}</div>

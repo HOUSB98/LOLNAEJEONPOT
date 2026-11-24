@@ -61,6 +61,9 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   const want = new Set([lanes[0], lanes[4]]).size;
   ok(tf.ok === want && tf.no === 5 - want, `팀 카드 라인 구성: 있는 라인 ${tf.ok}칸 · 없는 라인 ${tf.no}칸`);
   ok(/남은 3자리 · 자리당 300P/.test(tf.txt) && /없음|다 있음/.test(tf.txt), '자리당 포인트(900P ÷ 3자리 = 300P)·없는 라인: ' + tf.txt);
+  const col = await H.evaluate(() => [...document.querySelectorAll('.ateam')].map((e) => getComputedStyle(e).borderTopColor));
+  ok(col.length === 2 && col[0] !== col[1] && /91, 140, 255|0\.3568/.test(col[0]) && /240, 80, 110|0\.9411/.test(col[1]), '팀 색: 팀 카드 위쪽 띠가 팀마다 다름(블루·레드): ' + col.join(' / '));
+  ok(await H.$$eval('.ateam .au-tname .au-dot', (x) => x.length) === 2, '팀 이름 앞에 팀 색 점');
   const sc1 = await H.$eval('#au-tbar', (e) => +(/scaleX\(([\d.]+)\)/.exec(e.style.transform) || [0, -1])[1]);
   await H.waitForTimeout(1500);
   const sc2 = await H.$eval('#au-tbar', (e) => +(/scaleX\(([\d.]+)\)/.exec(e.style.transform) || [0, -1])[1]);
@@ -89,12 +92,15 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   await C1.mouse.move(bb.x, bb.y); await C1.mouse.down();
   await H.evaluate(async (tb) => { const { S } = await import('/js/core.js'); await S.store.tx('auctions', 'live1', (r) => { r.cur.bid = 50; r.cur.team = 1; return r; }); }, null);
   await C1.waitForTimeout(500); await C1.mouse.up(); await C1.waitForTimeout(800);
+  const bn = await H.$eval('[data-k=bidnow]', (e) => ({ tc: e.style.getPropertyValue('--tc'), tn: e.querySelector('.au-tn')?.textContent }));
+  ok(bn.tc === '#f0506e' && bn.tn === 'B팀', `현재 입찰: 최고 입찰 팀 이름·배경이 팀 색(${bn.tn} ${bn.tc})`);
   ok(be.db.auctions.live1.cur.bid === 50 && be.db.auctions.live1.cur.team === 1, `금액이 바뀐 버튼(${bb.v}P → 다른 금액)은 실행 안 함`);
   // 7) 낙찰 배너: B팀 50P 상태로 마감
   await H.evaluate(async () => { const { S } = await import('/js/core.js'); const t = S.store.serverNow(); await S.store.tx('auctions', 'live1', (r) => { r.cur.endsAt = t + 300; return r; }); });
   const ban = await H.waitForSelector('.au-banner', { timeout: 5000 }).then((e) => e.innerText()).catch(() => '');
   const nm3 = await H.evaluate(async (id) => (await import('/js/core.js')).S.st.P[id].name, P[3]);
   ok(/낙찰/.test(ban) && ban.includes(nm3) && /B팀/.test(ban) && /50P/.test(ban), '낙찰 순간 가운데 배너: ' + ban.replace(/\s+/g, ' '));
+  ok(await H.$eval('.au-banner', (e) => e.style.getPropertyValue('--tc') === '#f0506e' && !!e.querySelector('.au-tn')), '낙찰 배너: 낙찰 팀 색 띠·이름');
   ok(await H.$eval('.au-banner', (e) => getComputedStyle(e).pointerEvents) === 'none', '배너는 누르는 것을 막지 않음');
   await H.waitForTimeout(2200);
   ok(!(await H.$('.au-banner')), '배너는 잠시 뒤 사라짐');
