@@ -27,13 +27,20 @@ const NOTE = (m) => console.log('  · ' + m);
   const C1 = await mk('C1'), C2 = await mk('C2'), V = await mk('V');
   await C1.evaluate((h) => (location.hash = h), `${base}/${t0}`); await C2.evaluate((h) => (location.hash = h), `${base}/${t1}`); await V.evaluate((h) => (location.hash = h), base);
   await H.waitForTimeout(2500);
+  await H.waitForFunction(() => document.querySelectorAll('.au-on.on').length === 2, null, { timeout: 25000 }).catch(() => {});
+  ok(await H.$$eval('.au-on.on', (x) => x.length) === 2, '대기실: 팀장 2명 접속 중 표시');
+  ok(/팀장 모두 접속/.test(await H.$eval('[data-a=auStart]', (e) => e.textContent)), '시작 버튼에 팀장 모두 접속');
+  ok(await V.$('.au-online') === null, '관전자에게는 접속 표시 없음(진행자만)');
   await H.click('[data-a=auStart]'); await H.waitForTimeout(1500);
   ok(R().status === 'running' && R().cur, '경매 시작');
   // 바로 시작
   const s0 = R().cur.startsAt;
   ok(!!(await H.$('[data-a=auNow]')), '대기 중 진행자에게 ⏩ 바로 시작 버튼');
+  const st0 = await C1.evaluate(() => window.__snd);
   await H.click('[data-a=auNow]'); await H.waitForTimeout(800);
   ok(R().cur.startsAt < s0 - 2000, '바로 시작: 대기 건너뜀');
+  ok((await C1.evaluate(() => window.__snd)) > st0, '입찰이 시작되면 팀장에게 알림음');
+  ok(!(await H.$('[data-a=auNow]')), '시작되면 바로 시작 버튼 사라짐');
   // 입찰 실패 이유: C2가 화면 갱신 전 같은 금액을 누르는 상황 재현(C1이 먼저 +10, C2 화면은 아직 0P 기준)
   await C2.evaluate(() => { window.__hold = document.querySelector('[data-a=auBid]:not([data-v=amt])')?.dataset.v; });
   await C1.click('[data-a=auBid]:not([data-v=amt])'); await C1.waitForTimeout(150);
@@ -94,9 +101,25 @@ const NOTE = (m) => console.log('  · ' + m);
     while (Date.now() < g2 && R().status !== 'done') await H.waitForTimeout(200);
     ok(R().status === 'done' && R().teams.every((t) => t.members.length === 4), '다시 완료(유찰된 선수는 자리 남은 팀에 자동 배정)');
   } else ok(false, '완료 후 취소할 기록이 없음');
+  await H.waitForSelector('[data-a=auResult]', { timeout: 5000 }).catch(() => {});
+  const txt = await H.evaluate(async (id) => (await import('/js/auction.js')).resultText((await import('/js/core.js')).S.store.data.auctions[id]), rid);
+  ok(/경매 결과/.test(txt) && R().teams.every((t) => txt.includes('[' + t.name + ']')) && (txt.match(/^· /gm) || []).length === 8, '결과 복사 글: 팀별 팀장·선수 8명·낙찰가');
+  console.log(txt.split('\n').map((l) => '      ' + l).join('\n'));
   ok(!!(await H.waitForSelector('[data-a=auToDraft]', { timeout: 5000 }).catch(() => null)), '완료 화면: 라인업 채우기');
   await H.click('[data-a=auToDraft]'); await H.waitForTimeout(800);
   ok((await H.evaluate(() => location.hash)) === '#/today', '라인업으로 이동');
+  // 올인: 남은 포인트(입찰 단위로 내림)를 확인 후 한 번에
+  {
+    const Q = await H.evaluate(async () => (await import('/js/core.js')).S.st.list.slice(0, 6).map((s) => s.id));
+    const now = await C1.evaluate(async () => { const { S } = await import('/js/core.js'); await S.store.syncServerClock(true); return S.store.serverNow(); });
+    await H.evaluate(async (r) => { const { S } = await import('/js/core.js'); await S.store.put('auctions', r.id, r); }, { id: 'ai', name: '올인', createdAt: now, status: 'running', host: 'hx', cfg: { points: 1000, unit: 10, sec: 30, ext: 5, delay: 5, size: 5, hide: false, mode: 'live' }, teams: [{ name: 'A팀', captain: Q[0], token: 'ta', points: 357, members: [] }, { name: 'B팀', captain: Q[1], token: 'tb', points: 1000, members: [] }], pool: Q.slice(3), unsold: [], round: 1, cur: { pid: Q[2], bid: 0, team: -1, startsAt: now - 1000, endsAt: now + 30000 }, log: [], chat: [] });
+    await C1.evaluate(() => (location.hash = '#/auction/ai/ta')); await C1.waitForTimeout(1200);
+    ok(/350P/.test(await C1.$eval('.bid.allin', (e) => e.textContent)), '올인 버튼: 357P → 단위로 내린 350P');
+    let asked = ''; C1.once('dialog', (dl) => { asked = dl.message(); dl.accept(); });
+    await C1.click('.bid.allin'); await C1.waitForTimeout(1200);
+    ok(/350P를 모두 걸까요/.test(asked) && be.db.auctions.ai.cur.bid === 350 && be.db.auctions.ai.cur.team === 0, '확인 후 올인 350P 입찰');
+    ok(await C1.$eval('.bid.allin', (e) => e.disabled), '최고 입찰 팀이면 올인 버튼 꺼짐');
+  }
   // 팀이 3개인 경매: 블루·레드로 넣을 두 팀을 골라 라인업 채우기
   const P = await H.evaluate(async () => (await import('/js/core.js')).S.st.list.slice(0, 15).map((s) => s.id));
   const team = (k) => ({ name: '팀' + k, captain: P[k * 5], token: 'x' + k, points: 100, members: P.slice(k * 5 + 1, k * 5 + 5).map((pid) => ({ pid, price: 10 })) });
