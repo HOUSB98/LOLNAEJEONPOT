@@ -33,6 +33,19 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   const card = await V.$eval('.au-blind', (e) => ({ t: e.innerText.replace(/\s+/g, ' '), shape: e.querySelectorAll('.au-shape span').length }));
   ok(/매물 A/.test(card.t) && card.shape === 5 && /주라인/.test(card.t) && /최근/.test(card.t) && /소통/.test(card.t), '매물 카드: 매물 A + 주라인·라인 점수 모양(5칸)·최근·소통');
   ok(/마법사 위주 100%/.test(card.t), '챔피언 성향: 역할군만(마법사 위주), 챔피언 이름 없음');
+  // 라인 점수: 게이지 없이 평균 이하·평균·평균 이상(라인별 전체 평균 ±1점 = 평균)
+  const lv = await V.evaluate(async (pid) => {
+    const { S } = await import('/js/core.js'), st = S.st, L = ['top', 'jg', 'mid', 'adc', 'sup'], s = st.P[pid];
+    const want = L.map((l) => { const avg = st.list.reduce((a, x) => a + (+x.p.scores?.[l] || 0), 0) / st.list.length, d = (+s.p.scores?.[l] || 0) - avg; return d < -1 ? '평균 이하' : d > 1 ? '평균 이상' : '평균'; });
+    const got = [...document.querySelectorAll('.au-shape span small')].map((e) => e.textContent);
+    return { want, got, gauge: document.querySelectorAll('.au-shape u, .au-shape em[style]').length };
+  }, R().cur.pid);
+  ok(lv.gauge === 0 && JSON.stringify(lv.want) === JSON.stringify(lv.got), '라인 점수: 게이지 없이 평균 이하·평균·평균 이상(평균 ±1점): ' + lv.got.join(','));
+  ok(/부라인/.test(card.t) && /주라인 실전 승률/.test(card.t) && /(평균 이하|평균|평균 이상|기록 적음)/.test(card.t), '추가 힌트: 부라인·주라인 실전 승률 등급');
+  ok(/플레이 스타일/.test(card.t) && /(킬을 많이 내는 편|어시스트형|잘 안 죽는 편|과감한 편|무난한 편|KDA 기록 적음)/.test(card.t), '추가 힌트: 플레이 스타일(KDA 성향)');
+  const sub = await V.evaluate(async (pid) => { const { S } = await import('/js/core.js'), s = S.st.P[pid], L = ['top', 'jg', 'mid', 'adc', 'sup']; return L.filter((l) => l !== s.mainLane).sort((a, b) => (+s.p.scores?.[b] || 0) - (+s.p.scores?.[a] || 0))[0]; }, R().cur.pid);
+  const subName = { top: '탑', jg: '정글', mid: '미드', adc: '원딜', sup: '서폿' }[sub];
+  ok(new RegExp('부라인\\s*' + subName).test(card.t), '부라인 = 주라인 빼고 점수가 가장 높은 라인(' + subName + ')');
   ok(!(await V.$('.au-scout')) && !/OVR \d|MMR/.test(card.t), 'OVR·MMR·모스트·칭호·궁합(스카우팅) 숨김');
   for (const [p, n] of [[H, '진행자'], [C1, '팀장'], [V, '관전자']]) ok(!leak(await p.$eval('#main', (e) => e.innerText)).length, `${n} 화면 어디에도 매물 이름 없음`);
   // 매물 A: C1 입찰 → C2 패스 → 바로 낙찰
@@ -55,8 +68,9 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   await H.waitForTimeout(1200);
   ok(R().status === 'done', '경매 끝까지 진행: ' + R().status);
   const rv = await V.$eval('.au-reveal', (e) => ({ n: e.querySelectorAll('.au-rvc').length, t: e.innerText })).catch(() => ({ n: 0, t: '' }));
-  ok(rv.n === 3 && names.every((n) => rv.t.includes(n)) && /매물 A/.test(rv.t), '끝나면 정체 공개 카드(매물 A·B·C → 이름·팀·가격)');
-  ok(names.every((n) => new RegExp(n + '(?!\\d)').test(rv.t)) && !!(await V.$('.au-reveal.anim')), '공개 카드 애니메이션');
+  ok(rv.n === 3 && names.every((n) => rv.t.includes(n)) && /매물 A/.test(rv.t), '끝나면 전체 선수 공개 카드(매물 A·B·C → 이름·팀·가격)');
+  const delays = await V.$$eval('.au-reveal .au-rvc', (x) => [...new Set(x.map((e) => getComputedStyle(e).animationDelay))]);
+  ok(/전체 선수 공개/.test(rv.t) && delays.length === 1 && delays[0] === '0s', '모든 매물을 한 번에 공개(차례 없이 동시에): ' + delays.join(','));
   ok(leak(await V.$eval('[data-k=team0]', (e) => e.innerText)).length + leak(await V.$eval('[data-k=team1]', (e) => e.innerText)).length === 3, '끝나면 팀 카드에도 실제 이름');
   const errs = [...H.errs, ...C1.errs, ...C2.errs, ...V.errs];
   console.log('오류:', errs.join(' | ') || '없음'); ok(!errs.length, '페이지 오류 없음');

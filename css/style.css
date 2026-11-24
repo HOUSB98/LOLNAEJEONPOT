@@ -2480,20 +2480,33 @@ body.lite .au-banner{animation:aubfade 1.9s linear both}body.lite .au-tbar i{tra
 .item.au-blind{align-items:flex-start}
 .au-q{border-color:rgba(176,124,255,.6)!important;background:radial-gradient(circle at 50% 40%,rgba(176,124,255,.22),transparent 70%)}.au-q b{color:#d9ccff}
 .au-bh{display:grid;gap:7px;min-width:0;flex:1}.au-bh h1{margin:0}
-.au-shape{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;max-width:340px}
-.au-shape span{display:grid;justify-items:center;gap:3px;padding:6px 2px;border:1px solid var(--line2);border-radius:9px;background:var(--panel2)}
-.au-shape span.main{border-color:var(--gold)}
-.au-shape i{font-style:normal;line-height:1}.au-shape i svg{width:14px;height:14px}
-.au-shape u{display:block;width:70%;height:5px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}.au-shape em{display:block;height:100%;border-radius:inherit;background:#6b7d9c}
-.au-shape .lv1 em{width:33%}.au-shape .lv2 em{width:66%;background:var(--teal)}.au-shape .lv3 em{width:100%;background:var(--gold2)}
-.au-shape small{font-size:11px;color:var(--mut)}.au-shape .lv3 small{color:var(--gold2)}
 .as-role{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:99px;border:1px solid var(--line2);font-size:12px}.as-role.top{border-color:rgba(176,124,255,.55);color:#d9ccff}.as-role small{color:var(--mut);font-size:10.5px}
 .au-blind .as-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .au-reveal{margin:10px 0;padding:12px;border:1px solid rgba(176,124,255,.45);border-radius:12px;background:radial-gradient(400px 120px at 50% 0,rgba(176,124,255,.14),transparent 70%)}
 .au-rv{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-top:8px}
 .au-rvc{display:grid;gap:2px;padding:9px 10px;border:1px solid var(--line2);border-top:2px solid var(--tc,var(--line2));border-radius:10px;background:var(--panel2)}
 .au-rvc small{color:#b9a8ef;font-size:11px}.au-rvc b{font-size:15px}.au-rvc span{font-size:11.5px;color:var(--mut)}
-.au-reveal.anim .au-rvc{animation:aurv .6s calc(var(--i) * 140ms) cubic-bezier(.2,.9,.2,1) both}
+.au-reveal.anim .au-rvc{animation:aurv .7s cubic-bezier(.2,.9,.2,1) both}
 @keyframes aurv{0%{opacity:0;transform:perspective(500px) rotateY(90deg)}100%{opacity:1;transform:none}}
 body.lite .au-reveal.anim .au-rvc{animation:none}@media (prefers-reduced-motion:reduce){.au-reveal.anim .au-rvc{animation:none}}
-@media (max-width:420px){.au-shape{gap:4px}.au-shape small{font-size:10px}}
+/* 익명 경매 힌트 칸(보기 쉽게 칸으로 나눔) */
+.au-hg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.au-ht{display:grid;align-content:start;gap:4px;padding:7px 9px;border:1px solid var(--line2);border-radius:9px;background:rgba(255,255,255,.02);min-width:0}
+.au-ht.wide{grid-column:1/-1}
+.au-hk{font-size:11px;color:var(--mut)}.au-hk small{font-size:10.5px;opacity:.8}
+.au-hv{display:flex;flex-wrap:wrap;align-items:center;gap:5px;font-size:13px;min-width:0}.au-hv>small{color:var(--mut);font-size:11.5px}
+.au-hv b svg{width:14px;height:14px;vertical-align:-2px}
+.au-g{padding:1px 8px;border-radius:99px;font-size:12px}
+.g0.au-g{background:rgba(132,148,173,.16);color:#aab5c8}.g1.au-g{background:rgba(63,208,224,.14);color:var(--teal)}.g2.au-g{background:rgba(246,227,168,.16);color:var(--gold2)}
+.au-shape{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;width:100%}
+.au-shape span{display:grid;justify-items:center;gap:2px;padding:6px 2px;border:1px solid var(--line2);border-radius:8px;background:var(--panel2);text-align:center}
+.au-shape span.main{border-color:var(--gold)}
+.au-shape i{font-style:normal;line-height:1}.au-shape i svg{width:14px;height:14px}
+.au-shape em{font-style:normal;font-size:11px;color:#c9d2e0}
+.au-shape small{font-size:11.5px;font-weight:700;white-space:nowrap}
+.au-shape .g0 small{color:#8494ad}.au-shape .g1 small{color:var(--teal)}.au-shape .g2 small{color:var(--gold2)}
+.au-shape .g2{background:rgba(246,227,168,.07)}
+@media (max-width:640px){.au-hg{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:420px){.au-shape{gap:3px}.au-shape small{font-size:10px}.au-shape em{font-size:10px}}
+.as-role{white-space:nowrap}
+@media (max-width:640px){.item.au-blind{display:block}.item.au-blind .au-q{display:none}.au-bh h1{font-size:22px}}
