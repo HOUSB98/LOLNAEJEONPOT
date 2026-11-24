@@ -2367,3 +2367,29 @@ body.lite .ateam.au-win,body.lite .ateam .kv.au-sold,body.lite .ateam .kv.au-sol
 .bids .bid.allin{border-color:rgba(240,80,110,.45);color:#ffd2da}.bids .bid.allin:not([disabled]):hover{background:rgba(240,80,110,.14)}
 .bids:has(.allin){grid-template-columns:repeat(4,1fr)}
 @media (max-width:420px){.bids:has(.allin){grid-template-columns:repeat(2,1fr)}}
+/* ---------- 경매: 진행 중 매물 한눈에(스카우팅) · 입찰 경쟁 · 패스 · 결과 요약 · 연결 끊김 ---------- */
+.au-scout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 14px;margin:10px 0 4px;padding:10px 12px;border:1px solid var(--line2);border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.01))}
+.as-row{display:flex;align-items:center;gap:7px;min-width:0;font-size:13px}
+.as-row small{color:var(--mut);font-size:11.5px;white-space:nowrap}
+.as-k{flex:none;display:inline-flex;align-items:center;gap:3px;min-width:44px;color:#7f8ba1;font-size:11px;font-weight:600;letter-spacing:.02em}.as-k .lic{width:12px;height:12px}
+.as-ch .ci.sm{width:22px;height:22px}
+.as-tt{grid-column:1/-1}.as-tt .chip{font-size:11px;padding:2px 8px}
+.as-chem{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;padding-top:6px;border-top:1px dashed var(--line2)}
+.as-chem span{display:inline-flex;align-items:baseline;gap:5px;padding:3px 9px;border-radius:99px;background:rgba(255,255,255,.03);border:1px solid var(--line);font-size:12px;color:#aab5c8}
+.as-chem span b{color:#e8ecf4}.as-chem span small{color:var(--mut);font-size:10.5px}
+.as-chem span.best{border-color:rgba(217,164,65,.55);background:rgba(217,164,65,.08)}.as-chem span.best b{color:var(--gold2)}
+.au-ladder{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 10px;min-height:20px;margin:-2px 0 8px;font-size:12px;color:#8592a8}
+.au-ladder span:not(.mut){opacity:.85}.au-ladder span:not(.mut)+span:not(.mut){opacity:.6}.au-ladder span:not(.mut)::before{content:"← ";color:#56627a}
+.au-passrow{align-items:center;gap:8px}.au-passrow .hint{margin:0}
+.au-pass[disabled]{opacity:.6}
+.tag.au-ps{background:rgba(145,157,178,.12);color:#aab5c8;border-color:rgba(145,157,178,.3)}
+.bidbar.pending .bids,.bidbar.pending .row{pointer-events:none}
+.bidbar .sending{position:relative;color:transparent!important}
+.bidbar .sending::after{content:"입찰 중…";position:absolute;inset:0;display:grid;place-items:center;color:var(--gold2);font-size:13px;font-weight:700}
+.au-off{margin:0 0 8px;padding:8px 12px;border-radius:9px;background:rgba(240,80,110,.12);border:1px solid rgba(240,80,110,.4);color:#ffc5cf;font-size:13px;display:flex;align-items:center;gap:7px}
+.au-off[hidden]{display:none}
+.bidbar.offline .bids,.bidbar.offline .row{opacity:.4;pointer-events:none}
+.au-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:10px 0}
+.au-stats>div{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:1px solid var(--line2);border-radius:10px;background:rgba(255,255,255,.02)}
+.au-stats small{color:var(--mut);font-size:11.5px}.au-stats b{font-size:15px}.au-stats span{color:#aab5c8;font-size:12px}
+@media (max-width:420px){.au-scout{grid-template-columns:minmax(0,1fr)}}
