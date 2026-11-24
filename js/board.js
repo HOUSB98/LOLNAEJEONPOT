@@ -16,15 +16,21 @@ const COLOR = { ...LANE_COLOR, any: '#d9a441' };
 const ANY_ICON = '<svg class="lic" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3 14.300 9.100 20.800 9.300 15.700 13.300 17.500 19.600 12 16 6.500 19.600 8.300 13.300 3.200 9.300 9.700 9.100z"/></svg>';
 const icon = (o) => (o === 'any' ? ANY_ICON : LANE_ICON[o]);
 
-// 오늘 소통(1~5): 라인 지원 창에서 본인이 그날 기분대로 고른다(선택 사항, 팀 짜기에는 쓰지 않음). meta/board.talk 에 저장되고
-// 오늘의 내전 라인업 칸에 마이크 + 막대로 보인다. 라인 지원을 연 지 16시간이 지나면 보이지 않는다(다음 날 새로)
-export const TALK = ['과묵', '조용', '보통', '수다', '샷콜러'];
+// 소통(1~4: 과묵·조용·수다·샷콜러, 팀 짜기에는 쓰지 않음). 관리 화면 선수 관리에서 고정값(players.talk)을 정할 수 있고,
+// 라인 지원 창에서 본인이 그날 기분대로 바꿀 수 있다(meta/board.tk: 1~4 = 오늘만 이 단계, 0 = 오늘은 표시 안 함, 없으면 고정값).
+// 오늘의 내전 라인업 칸에 마이크 + 막대로 보인다. 라인 지원을 연 지 16시간이 지나면 그날 바꾼 값은 끝나고 고정값으로 돌아간다.
+// (처음 5단계로 저장했던 meta/board.talk 는 쓰지 않는다)
+export const TALK = ['과묵', '조용', '수다', '샷콜러'];
 const TALK_TTL = 16 * 3600e3;
-export const talkIcon = (n, cls = '') => `<span class="tk-ico tkl${n} ${cls}" title="오늘 소통: ${TALK[n - 1]} (${n}/5)" aria-label="오늘 소통 ${TALK[n - 1]}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none"/></svg><span class="tb">${[1, 2, 3, 4, 5].map((k) => `<u class="${k <= n ? 'on' : ''}"></u>`).join('')}</span></span>`;
-export const talkOf = (id) => { const d = cur(); if (!d || !id || !d.talk || S.store.serverNow() - (+d.at || 0) > TALK_TTL) return 0; const n = +d.talk[id]; return n >= 1 && n <= 5 ? n : 0; };
+const tkOk = (n) => Number.isInteger(n) && n >= 1 && n <= TALK.length;
+export const talkIcon = (n, cls = '') => `<span class="tk-ico tkl${n} ${cls}" title="소통: ${TALK[n - 1]} (${n}/${TALK.length})" aria-label="소통 ${TALK[n - 1]}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none"/></svg><span class="tb">${TALK.map((_, k) => `<u class="${k < n ? 'on' : ''}"></u>`).join('')}</span></span>`;
+export const talkFixed = (id) => { const n = +S.st.P[id]?.p?.talk; return tkOk(n) ? n : 0; };
+const tkToday = (d) => (d && d.tk && S.store.serverNow() - (+d.at || 0) <= TALK_TTL ? d.tk : null);
+export const talkOf = (id, d = cur()) => { if (!id) return 0; const t = tkToday(d); if (t && id in t) { const n = +t[id]; return tkOk(n) ? n : 0; } return talkFixed(id); };
 const talkRow = (d) => {
-  const n = +d.talk?.[BD.me] || 0;
-  return `<div class="lp-talk"><span class="lp-tq">${ic('talk')}<b>오늘 소통</b><small>선택 · 라인업 칸에 표시</small></span><span class="lp-tb">${TALK.map((t, i) => `<button class="btn xs ${n === i + 1 ? 'on' : ''}" data-a="bdTalk" data-n="${i + 1}" aria-pressed="${n === i + 1}">${talkIcon(i + 1)}<span>${t}</span></button>`).join('')}</span></div>`;
+  const n = talkOf(BD.me, d), fx = talkFixed(BD.me), own = tkToday(d) && BD.me in d.tk;
+  const note = fx ? (own ? `오늘만 변경 · 기본 ${TALK[fx - 1]} <button type="button" class="lnk" data-a="bdTalk" data-n="fx">기본으로</button>` : `기본값 ${TALK[fx - 1]} (관리자 지정) · 눌러서 오늘만 변경`) : '선택 · 라인업 칸에 표시';
+  return `<div class="lp-talk"><span class="lp-tq">${ic('talk')}<b>오늘 소통</b><small>${note}</small></span><span class="lp-tb">${TALK.map((t, i) => `<button class="btn xs ${n === i + 1 ? 'on' : ''}" data-a="bdTalk" data-n="${i + 1}" aria-pressed="${n === i + 1}">${talkIcon(i + 1)}<span>${t}</span></button>`).join('')}</span></div>`;
 };
 const BD = { me: localStorage.getItem('naejeon:bdme:' + S.key) || '', sel: [], playing: '', timers: [], muted: localStorage.getItem('naejeon:bdmute') === '1', prev: {} };
 const cur = () => { const d = S.store?.data?.meta?.board; return d && d.rid ? d : null; };
@@ -255,9 +261,12 @@ act('bdTalk', async (x) => {
   try {
     await S.store.tx('meta', 'board', (r) => {
       if (!r || r.rid !== rid || !['open', 'done'].includes(r.status)) return null;
-      const talk = { ...(r.talk || {}) };
-      if (+talk[me] === n) delete talk[me]; else talk[me] = n; // 다시 누르면 지움
-      return { ...r, talk };
+      const tk = { ...(tkToday(r) || {}) }, fx = talkFixed(me), now = talkOf(me, r);
+      if (x.n === 'fx') delete tk[me]; // 기본(고정값)으로
+      else if (now === n) { if (fx) tk[me] = 0; else delete tk[me]; } // 지금 단계를 다시 누르면 오늘은 표시 안 함
+      else if (n === fx) delete tk[me]; // 고정값과 같으면 따로 적지 않는다
+      else tk[me] = n;
+      return { ...r, tk };
     });
   } catch (e) { toast('저장 실패: ' + (e.code || e.message)); }
 });
@@ -615,7 +624,7 @@ let bseen = null;
 let tseen = '';
 function onBoard(d) {
   const k = d ? d.rid + d.status : '';
-  const tk = d ? d.rid + JSON.stringify(d.talk || {}) : ''; // 소통 표시가 바뀌면 오늘의 내전 라인업도 다시 그림
+  const tk = d ? d.rid + JSON.stringify(d.tk || {}) : ''; // 소통 표시가 바뀌면 오늘의 내전 라인업도 다시 그림
   if (tk !== tseen) { const was = tseen; tseen = tk; if (was && k === bseen && S.page === 'today') refresh(); }
   if (bseen === null) { bseen = k; return; }
   if (k === bseen) { if (d?.status === 'open' || (d?.status === 'done' && view())) draw(); return; }

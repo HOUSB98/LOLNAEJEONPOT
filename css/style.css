@@ -2440,15 +2440,15 @@ body.lite .au-banner{animation:aubfade 1.9s linear both}body.lite .au-tbar i{tra
   .lp.drawing .ld:has(.ld-row.on) .ld-row.over .ld-c{padding:5px 10px;font-size:13px}
   .lp.drawing .ld:has(.ld-row.on) .ld-row.over .ld-c .ld-p,.lp.drawing .ld:has(.ld-row.on) .ld-row.over .ld-c.won::after{display:none}
 }
-/* 오늘 소통(1~5): 마이크 + 막대. 낮은 단계도 빨강 대신 회색(놀림거리 안 되게) */
+/* 소통(1~4): 마이크 + 막대. 낮은 단계도 빨강 대신 회색(놀림거리 안 되게) */
 .tk-ico{--tc:#8494ad;display:inline-flex;align-items:center;gap:3px;flex:none;color:var(--tc);line-height:1}
 .tk-ico svg{width:13px;height:13px;fill:currentColor;stroke:currentColor;stroke-width:2;stroke-linecap:round}
 .tk-ico svg path{fill:none}
 .tk-ico .tb{display:inline-flex;align-items:flex-end;gap:1.5px;height:11px}
 .tk-ico u{display:block;width:3px;border-radius:1px;background:rgba(255,255,255,.14)}
-.tk-ico u:nth-child(1){height:3px}.tk-ico u:nth-child(2){height:5px}.tk-ico u:nth-child(3){height:7px}.tk-ico u:nth-child(4){height:9px}.tk-ico u:nth-child(5){height:11px}
+.tk-ico u:nth-child(1){height:4px}.tk-ico u:nth-child(2){height:6px}.tk-ico u:nth-child(3){height:8.5px}.tk-ico u:nth-child(4){height:11px}
 .tk-ico u.on{background:currentColor}
-.tk-ico.tkl3{--tc:var(--teal)}.tk-ico.tkl4{--tc:var(--green)}.tk-ico.tkl5{--tc:var(--gold2)}
+.tk-ico.tkl3{--tc:var(--green)}.tk-ico.tkl4{--tc:var(--gold2)}
 .sl-talk{padding:2px 5px;border-radius:99px;background:rgba(0,0,0,.28)}
 .slot.art .sl-talk{background:rgba(0,0,0,.5)}
 .lp-talk{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 12px;border:1px solid var(--line2);border-radius:12px;background:rgba(255,255,255,.02)}
@@ -2456,5 +2456,5 @@ body.lite .au-banner{animation:aubfade 1.9s linear both}body.lite .au-tbar i{tra
 .lp-tb{display:flex;flex-wrap:wrap;gap:6px;margin-left:auto}
 .lp-tb .btn{display:inline-flex;align-items:center;gap:6px;min-height:34px}
 .lp-tb .btn.on{border-color:var(--gold);background:rgba(217,164,65,.14);color:var(--gold2)}
-@media (max-width:640px){.lp-tb{margin-left:0;width:100%;display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}.lp-tb .btn{flex-direction:column;gap:3px;padding:6px 2px;font-size:11px}}
+@media (max-width:640px){.lp-tb{margin-left:0;width:100%;display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}.lp-tb .btn{flex-direction:column;gap:3px;padding:6px 2px;font-size:11px}}
 @media (max-width:860px){.sl-top:has(.sl-talk){flex-wrap:wrap;row-gap:2px}.sl-top:has(.sl-talk) b{flex:1 1 100%;min-width:0}}
