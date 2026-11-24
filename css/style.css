@@ -587,7 +587,11 @@ i.live::after,.pcount i::after{content:"";position:absolute;inset:0;border-radiu
 @keyframes holo{to{background-position:240% 240%}}
 @keyframes cardin{from{opacity:0;transform:rotateY(-70deg) translateX(-40px) scale(.85)}}
 @keyframes grow{from{width:0}}
-@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}}
+/* 움직임 줄이기(윈도 "애니메이션 효과" 끔·PC방 "최적 성능" 등): 반복 횟수를 1로 꼭 함께 줄인다. 길이만 0.01ms로 줄이고 무한 반복을 두면
+   한 프레임마다 애니메이션의 아무 지점이 찍혀 초상화·장식이 아주 빠르게 덜덜 떨리는 것처럼 보인다(CPU도 계속 씀) */
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+/* 화면 밖 구역의 반복 장식은 멈춘다(core.js offscreen). 들어오면 이어서 돈다 */
+.oos::before,.oos::after,.oos *::before,.oos *::after,.oos .xf-glow,.oos .xl-glow,.oos .xhero-sp i,.oos .hero-bg{animation-play-state:paused!important}
 
 /* ---------- 반응형 ---------- */
 @media (max-width:1280px){

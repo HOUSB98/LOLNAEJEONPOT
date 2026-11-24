@@ -157,6 +157,7 @@ export function render() {
   if (pages[S.page].keyed) keyedRender(main, html, entering); else { main.innerHTML = html; KR.shell = null; }
   const t = pageTitle(); if (document.title !== t) document.title = t;
   lazyArt(main);
+  offscreen(main);
   liveMarks(main, entering);
   pages[S.page].after?.(entering);
   if (fid) { const el = document.getElementById(fid); if (el) { el.focus(); try { el.setSelectionRange(sel, sel); } catch {} } }
@@ -231,16 +232,26 @@ function initPerf() {
   if (pref) setLite(pref === '1', false);
   else if ((navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4) setLite(true, false);
   else { // 프레임이 자주 끊기면 자동으로 가볍게: 접속 4초 뒤 한 번, 그 뒤에도 30초마다 2초씩 확인(롤을 켜서 느려진 경우 등)
+    // 끊김 판단: 이 모니터의 한 프레임 시간(빠른 쪽 10% 값 = 60Hz면 약 17ms, 144Hz면 약 7ms)의 1.6배(최소 22ms)보다 늦은 프레임이
+    // 4분의 1을 넘거나, 40ms 넘게 멈춘 프레임이 18개를 넘으면 버벅이는 것으로 본다. 꾸준히 30~40fps로 덜컥거리는 경우도 잡는다.
+    // 한 번 나쁘게 나오면 바로 한 번 더 재서 둘 다 나쁠 때만 바꾼다(접속 직후 그림을 받는 순간 등 잠깐 멈칫한 것은 넘김)
+    const measure = (done) => {
+      const d = []; let last = performance.now();
+      requestAnimationFrame(function f(t) {
+        d.push(t - last); last = t;
+        if (d.length < 121) return requestAnimationFrame(f);
+        d.shift(); // 첫 값은 재기 시작한 시점과의 간격이라 뺀다
+        const base = [...d].sort((a, b) => a - b)[Math.floor(d.length * 0.1)], lim = Math.max(22, base * 1.6);
+        done(d.filter((x) => x > 40).length > 18 || d.filter((x) => x > lim).length > d.length / 4 || base > 28); // base > 28: 빠른 프레임조차 28ms 넘음 = 꾸준히 35fps 아래
+      });
+    };
+    const ok = () => !document.hidden && document.hasFocus() && !document.body.classList.contains('lite') && !localStorage.getItem(LITE_KEY);
     const check = () => {
       if (document.body.classList.contains('lite') || localStorage.getItem(LITE_KEY)) return clearInterval(timer);
-      if (document.hidden || !document.hasFocus()) return; // 다른 창(게임)을 보고 있으면 애니메이션이 멈춰 있으니 재지 않는다
-      let n = 0, slow = 0, last = performance.now();
-      requestAnimationFrame(function f(t) {
-        if (n++ && t - last > 40) slow++;
-        last = t;
-        if (n < 120) return requestAnimationFrame(f);
-        if (slow > 18 && !document.hidden && !document.body.classList.contains('lite') && !localStorage.getItem(LITE_KEY)) { setLite(true, false); clearInterval(timer); toast('화면이 버벅여서 가벼운 모드로 바꿨어요'); }
-      });
+      if (!ok()) return; // 다른 창(게임)을 보고 있으면 애니메이션이 멈춰 있으니 재지 않는다
+      measure((bad) => bad && ok() && measure((bad2) => {
+        if (bad2 && ok()) { setLite(true, false); clearInterval(timer); toast('화면이 버벅여서 가벼운 모드로 바꿨어요'); }
+      }));
     };
     setTimeout(check, 4000);
     const timer = setInterval(check, 30e3);
@@ -393,6 +404,16 @@ function skinFor(s, name) {
 }
 // 화면에 보일 때만 배경 이미지를 받는다: <i data-art="주소"> → 보이면 style="--img:url(주소)"
 let artIO = null;
+// 화면 밖 구역의 반복 장식 멈추기: 본문 구역(#main 바로 아래·.panel)이 화면에서 300px 넘게 벗어나면 oos를 붙인다
+// (style.css에서 그 안의 ::before·::after 장식, 영웅 배너 그림 등의 애니메이션만 멈춤). 다시 가까워지면 떼어 이어서 돈다.
+// 저사양 PC에서 보이지도 않는 장식이 매 프레임 계산되던 것을 줄인다. 새로 그릴 때마다 대상만 다시 등록(가벼움)
+let oosIO = null;
+function offscreen(main) {
+  if (!window.IntersectionObserver) return;
+  oosIO ||= new IntersectionObserver((es) => es.forEach((e) => e.target.classList.toggle('oos', !e.isIntersecting)), { rootMargin: '300px 0px' });
+  oosIO.disconnect();
+  new Set([...main.children, ...main.querySelectorAll('.panel')]).forEach((el) => oosIO.observe(el));
+}
 export function lazyArt(root = document) {
   const els = root.querySelectorAll('[data-art]');
   if (!els.length) return;
