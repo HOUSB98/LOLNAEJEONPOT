@@ -5,7 +5,7 @@ import { exportMatches } from './app.js';
 import { callWorker, hookOn, USAGE, loadUsage, won, WORKER_VER, workerVer } from './hook.js';
 import { WORKER_URL } from './config.js';
 import { gachaAdminHTML } from './gacha.js';
-import { missOf, weightOf, LUCK_MAX } from './board.js';
+import { missOf, weightOf, LUCK_MAX, TALK } from './board.js';
 
 // ---------- 연동 서버: Firebase 사용량 · 디스코드 테스트 · 라이엇 갱신 ----------
 const UZ = { riot: null };
@@ -70,9 +70,9 @@ page('admin', {
     const gone = col('players').filter((p) => p.deleted), adm = isAdmin();
     const tab = admTab(), V = {
       players: () => `<div class="panel"><div class="ph"><b>${ic('users')}선수 관리</b><span class="tag">${st.list.length}명</span><span class="grow"></span><button class="btn xs" data-a="scOut" title="점수 조정을 맡길 사람에게 줄 파일(이름·라인 점수만 들어 있음)">⬇ 점수표 파일</button><button class="btn xs" data-a="scIn" title="조정자가 고친 점수표 파일을 올려 반영(관리자 PIN 필요)">⬆ 점수표 올리기</button><button class="btn xs" data-a="slOpen" title="최근 라인 점수 변경을 익명 게시판 댓글·단톡방에 붙여 넣을 글로 정리">📋 변경 내역 복사</button><button class="btn pri xs" data-a="plEdit" data-id="">＋ 선수 추가</button></div>
-      <div class="lockbar ${adm ? 'open' : ''}">${adm ? `${ic('shield')}<b>관리자 모드</b><span>점수와 주라인을 칸에서 바로 고치면 즉시 저장됩니다. 이 창을 닫기 전까지 유지됩니다.</span><button class="btn xs" data-a="admLock">잠그기</button>` : `${ic('shield')}<b>잠겨 있음</b><span>관리자 PIN을 한 번 입력하면 모든 선수의 점수를 바로 수정할 수 있습니다.</span><button class="btn gold xs" data-a="admUnlock">관리자 PIN 입력</button>`}</div>
-      <div class="tw scw"><table class="tbl edit score ${adm ? '' : 'locked'}"><thead><tr><th class="no">#</th><th class="l">이름</th>${LANES.map((l) => `<th class="lh l-${l}">${LANE_ICON[l]}${LANE_NAME[l]}</th>`).join('')}<th>평균</th><th>주라인</th><th class="l">솔랭 티어</th><th>시작 MMR</th><th></th></tr></thead>
-      <tbody>${st.list.map((s, i) => `<tr><td class="no mono">${i + 1}</td><td class="l nm"><span class="nmc">${LANE_ICON[s.mainLane]}${esc(s.name)}</span></td>${LANES.map((l) => `<td class="scd l-${l} ${s.mainLane === l ? 'main' : ''}" style="--v:${Math.min(100, (+s.p.scores?.[l] || 0) * 5)}%"><input id="sc-${s.id}-${l}" class="inp cell mono" type="number" min="0" max="20" step="0.5" value="${s.p.scores?.[l] ?? 0}" data-c="plScore" data-id="${s.id}" data-l="${l}" ${adm ? '' : 'disabled'}></td>`).join('')}<td class="num mono avg"><b>${s.avg.toFixed(1)}</b></td><td><select class="inp cell" data-c="plMain" data-id="${s.id}" ${adm ? '' : 'disabled'}>${LANES.map((l) => `<option value="${l}" ${s.mainLane === l ? 'selected' : ''}>${LANE_NAME[l]}</option>`).join('')}</select></td><td class="l tier">${esc(s.p.soloTier || '-')}</td><td class="num mono">${s.mmrInit}</td><td><button class="btn xs" data-a="plEdit" data-id="${s.id}">상세</button></td></tr>`).join('') || '<tr><td colspan="11" class="empty">선수가 없습니다.</td></tr>'}</tbody></table></div>
+      <div class="lockbar ${adm ? 'open' : ''}">${adm ? `${ic('shield')}<b>관리자 모드</b><span>점수·주라인·소통을 칸에서 바로 고치면 즉시 저장됩니다. 이 창을 닫기 전까지 유지됩니다.</span><button class="btn xs" data-a="admLock">잠그기</button>` : `${ic('shield')}<b>잠겨 있음</b><span>관리자 PIN을 한 번 입력하면 모든 선수의 점수를 바로 수정할 수 있습니다.</span><button class="btn gold xs" data-a="admUnlock">관리자 PIN 입력</button>`}</div>
+      <div class="tw scw"><table class="tbl edit score ${adm ? '' : 'locked'}"><thead><tr><th class="no">#</th><th class="l">이름</th>${LANES.map((l) => `<th class="lh l-${l}">${LANE_ICON[l]}${LANE_NAME[l]}</th>`).join('')}<th>평균</th><th>주라인</th><th title="라인 지원에서 기본으로 적용, 본인이 그날만 바꿀 수 있음">소통</th><th class="l">솔랭 티어</th><th>시작 MMR</th><th></th></tr></thead>
+      <tbody>${st.list.map((s, i) => `<tr><td class="no mono">${i + 1}</td><td class="l nm"><span class="nmc">${LANE_ICON[s.mainLane]}${esc(s.name)}</span></td>${LANES.map((l) => `<td class="scd l-${l} ${s.mainLane === l ? 'main' : ''}" style="--v:${Math.min(100, (+s.p.scores?.[l] || 0) * 5)}%"><input id="sc-${s.id}-${l}" class="inp cell mono" type="number" min="0" max="20" step="0.5" value="${s.p.scores?.[l] ?? 0}" data-c="plScore" data-id="${s.id}" data-l="${l}" ${adm ? '' : 'disabled'}></td>`).join('')}<td class="num mono avg"><b>${s.avg.toFixed(1)}</b></td><td><select class="inp cell" data-c="plMain" data-id="${s.id}" ${adm ? '' : 'disabled'}>${LANES.map((l) => `<option value="${l}" ${s.mainLane === l ? 'selected' : ''}>${LANE_NAME[l]}</option>`).join('')}</select></td><td><select class="inp cell" data-c="plTalk" data-id="${s.id}" ${adm ? '' : 'disabled'} aria-label="${esc(s.name)} 소통"><option value="0">—</option>${TALK.map((t, k) => `<option value="${k + 1}" ${+s.p.talk === k + 1 ? 'selected' : ''}>${t}</option>`).join('')}</select></td><td class="l tier">${esc(s.p.soloTier || '-')}</td><td class="num mono">${s.mmrInit}</td><td><button class="btn xs" data-a="plEdit" data-id="${s.id}">상세</button></td></tr>`).join('') || '<tr><td colspan="12" class="empty">선수가 없습니다.</td></tr>'}</tbody></table></div>
       ${gone.length ? `<p class="sm mut">숨긴 선수: ${gone.map((p) => `${esc(p.name)} <button class="btn xs ghost" data-a="plRestore" data-id="${p.id}">복구</button>`).join(' ')}</p>` : ''}</div>`,
       play: () => `${luckAdminHTML(st)}${gachaAdminHTML()}`, // 가챠 설정은 안쪽이 3칸이라 반쪽 폭에서는 오히려 길어져서 위아래로 둔다
       server: () => `<div class="panel"><div class="ph"><b>${ic('bolt')}Firebase 사용량</b><small class="mut">무료 한도 대비 오늘 사용량</small><span class="grow"></span>${hookOn() && !/billing/i.test(USAGE.err) ? '<button class="btn xs" data-a="uzLoad">새로고침</button>' : ''}</div>
@@ -253,6 +253,7 @@ act('plEdit', (d) => needAdmin(() => {
     <div class="fgrid five">${LANES.map((l) => `<label class="fld"><span>${LANE_ICON[l]} ${LANE_NAME[l]}</span><input class="inp" name="s_${l}" type="number" min="0" max="20" step="0.5" value="${p.scores?.[l] ?? 10}"></label>`).join('')}</div>
     <div class="fgrid">
       <label class="fld"><span>주라인</span><select class="inp" name="mainLane">${LANES.map((l) => `<option value="${l}" ${p.mainLane === l ? 'selected' : ''}>${LANE_NAME[l]}</option>`).join('')}</select></label>
+      <label class="fld"><span>소통 <small class="mut">라인 지원 기본값</small></span><select class="inp" name="talk"><option value="0">—</option>${TALK.map((t, k) => `<option value="${k + 1}" ${+p.talk === k + 1 ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
       <label class="fld"><span>솔랭 티어 <small class="mut">예: 에메랄드 2 · 33LP</small></span><input class="inp" name="soloTier" value="${esc(p.soloTier || '')}"></label>
       <label class="fld"><span>롤 닉네임 (이름#태그)</span><input class="inp" name="riotId" value="${esc(p.riotId || '')}"></label>
       <label class="fld"><span>시작 MMR 수동 보정 <small class="mut">비우면 자동</small></span><input class="inp" name="mmrInit" type="number" value="${p.mmrInit || ''}" placeholder="${p.id ? initMmr({ ...p, mmrInit: 0 }) : '자동'}"></label>
@@ -271,7 +272,7 @@ act('plEdit', (d) => needAdmin(() => {
     if (p.id) await history('player-edit', p);
     const scores = Object.fromEntries(LANES.map((l) => [l, Math.max(0, Math.min(20, +f.get('s_' + l) || 0))]));
     if (p.id) await logScores(LANES.filter((l) => (+p.scores?.[l] || 0) !== scores[l]).map((l) => ({ pid: id, name: g('name'), lane: l, from: +p.scores?.[l] || 0, to: scores[l] })));
-    await S.store.put('players', id, { ...p, id, name: g('name'), scores, mainLane: g('mainLane'), soloTier: g('soloTier'), riotId: g('riotId'), mmrInit: +g('mmrInit') || 0, solo: { ...o, record: g('record'), peak: g('peak'), pos: g('pos'), most: g('most'), comment: g('comment') }, deleted: false });
+    await S.store.put('players', id, { ...p, id, name: g('name'), scores, mainLane: g('mainLane'), soloTier: g('soloTier'), riotId: g('riotId'), mmrInit: +g('mmrInit') || 0, talk: Math.max(0, Math.min(TALK.length, +g('talk') || 0)), solo: { ...o, record: g('record'), peak: g('peak'), pos: g('pos'), most: g('most'), comment: g('comment') }, deleted: false });
     closeModal(); toast('저장했습니다');
   };
   const hide = el.querySelector('#plHide');
@@ -346,6 +347,11 @@ act('plScore', async (d, el) => {
 act('plMain', async (d, el) => {
   const p = S.store.data.players[d.id]; if (!p || !isAdmin()) return refresh();
   await S.store.patch('players', d.id, { mainLane: el.value }); toast(`${p.name} 주라인 ${LANE_NAME[el.value]} 저장`);
+});
+act('plTalk', async (d, el) => {
+  const p = S.store.data.players[d.id]; if (!p || !isAdmin()) return refresh();
+  const n = +el.value || 0;
+  await S.store.patch('players', d.id, { talk: n }); toast(`${p.name} 소통 ${n ? TALK[n - 1] : '없음'} 저장`);
 });
 act('admUnlock', () => needAdmin(() => { toast('관리자 모드가 켜졌습니다'); refresh(); }));
 act('admLock', () => { S.admin = false; sessionStorage.removeItem('naejeon:admin:' + S.key); toast('잠갔습니다'); refresh(); });
