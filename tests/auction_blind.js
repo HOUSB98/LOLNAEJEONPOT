@@ -31,8 +31,13 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   for (const p of [H, C1, C2, V]) await p.evaluate(async () => { const { S } = await import('/js/core.js'); S.champBy = new Proxy({}, { get: () => ({ tags: ['Mage'] }) }); });
   await H.click('[data-a=auStart]'); await H.waitForTimeout(1200); await H.click('[data-a=auNow]'); await H.waitForTimeout(1200);
   const card = await V.$eval('.au-blind', (e) => ({ t: e.innerText.replace(/\s+/g, ' '), shape: e.querySelectorAll('.au-shape span').length }));
-  ok(/매물 A/.test(card.t) && card.shape === 5 && /주라인/.test(card.t) && /최근/.test(card.t) && /소통/.test(card.t), '매물 카드: 매물 A + 주라인·라인 점수 모양(5칸)·최근·소통');
-  ok(/마법사 위주 100%/.test(card.t), '챔피언 성향: 역할군만(마법사 위주), 챔피언 이름 없음');
+  const keys = await V.$$eval('.au-blind .au-hk', (x) => x.map((e) => e.firstChild.textContent.trim()));
+  ok(/매물 A/.test(card.t) && card.shape === 5 && /최근/.test(card.t) && /소통/.test(card.t), '매물 카드: 매물 A + 라인 점수(5칸)·최근·소통');
+  ok(!keys.includes('주라인') && !keys.includes('챔피언 성향') && !/마법사/.test(card.t) && !(await V.$('.au-shape .main')), '주라인·챔피언 성향은 안 보임(라인 점수 칸의 주라인 강조도 없음): ' + keys.join(','));
+  const lt = await V.evaluate(async (pid) => { const { S } = await import('/js/core.js'), s = S.st.P[pid], ss = ['top', 'jg', 'mid', 'adc', 'sup'].map((l) => +s.p.scores?.[l] || 0).sort((a, b) => b - a); return ss[0] - ss[1] >= 4 ? '한 라인 특화' : ss[0] - ss[4] <= 3 ? '올라운더' : ss[1] - ss[2] >= 2 ? '두 라인형' : '여러 라인 가능'; }, R().cur.pid);
+  ok(keys.includes('라인 유형') && card.t.includes('라인 유형 ' + lt), '라인 유형: ' + lt);
+  const w10 = await V.evaluate(async (pid) => { const { S } = await import('/js/core.js'), r = S.st.P[pid].results.slice(-10), w = (r.filter(Boolean).length / r.length) * 100; return [r.length, w < 45 ? '평균 이하' : w > 55 ? '평균 이상' : '평균']; }, R().cur.pid);
+  ok(new RegExp(`최근 ${w10[0]}판 승률\\s*${w10[1]}`).test(card.t), `최근 ${w10[0]}판 승률 등급: ${w10[1]}`);
   // 라인 점수: 게이지 없이 평균 이하·평균·평균 이상(라인별 전체 평균 ±1점 = 평균)
   const lv = await V.evaluate(async (pid) => {
     const { S } = await import('/js/core.js'), st = S.st, L = ['top', 'jg', 'mid', 'adc', 'sup'], s = st.P[pid];
@@ -56,6 +61,7 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   await V.waitForTimeout(900);
   const vt = await V.$eval('#main', (e) => e.innerText);
   ok(/매물 A/.test(await V.$eval('[data-k=team0]', (e) => e.innerText)) && !leak(vt).length, '팀 카드·기록에도 별칭(이름 안 보임)');
+  ok(!(await V.$('[data-k=team0] .au-lanes')) && !(await V.$eval('[data-k=team0]', (e) => e.innerHTML)).includes('class="lic') && /자리당/.test(await V.$eval('[data-k=team0]', (e) => e.innerText)), '익명 중 팀 카드: 주라인 아이콘·라인 구성 숨김(자리당 포인트는 그대로)');
   ok(R().log.some((l) => /매물 A → .+ 낙찰/.test(l.s)) && !R().log.some((l) => leak(l.s).length), '저장된 기록 글도 별칭');
   // 나머지 두 매물: 바로 시작 → 둘 다 패스(유찰) … 재경매에서 C2 입찰 → 끝까지
   for (let k = 0; k < 6 && R().status !== 'done'; k++) {
