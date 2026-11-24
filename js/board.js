@@ -155,7 +155,8 @@ function openHTML(d) {
     : myFix ? `<button class="btn ghost" data-a="bdUnfix">🔓 고정 해제</button>`
     : meDone ? `<button class="btn ghost" data-a="bdUndo">${ic('edit')}다시 고르기</button>`
     : `<button class="btn pri lp-done" data-a="bdDone" ${mine.length ? '' : 'disabled title="라인을 하나 이상 고르세요 (상관없음도 가능)"'}>✓ 선택 완료</button>`;
-  const ownBtns = own ? `<div class="lp-own"><button class="btn ghost xs" data-a="bdShut">취소하기</button><button class="btn ghost xs" data-a="bdGo" ${d.ids.some((id) => prefs(d, id).length) ? '' : 'disabled'}>${ic('dice')}강제 마감</button></div>` : '';
+  const waiting = d.ids.filter((id) => !isDone(d, id));
+  const ownBtns = own ? `<div class="lp-own">${waiting.length ? `<button class="btn ghost xs" data-a="bdNudge" title="공용 채팅에 남은 사람 이름을 올려 알려요">${ic('bell')}남은 ${waiting.length}명 부르기</button>` : ''}<button class="btn ghost xs" data-a="bdEditOpen">${ic('users')}참가자 편집</button><button class="btn ghost xs" data-a="bdShut">취소하기</button><button class="btn ghost xs" data-a="bdGo" ${d.ids.some((id) => prefs(d, id).length) ? '' : 'disabled'}>${ic('dice')}강제 마감</button></div>` : '';
   return `<div class="lp-h"><div><small><i class="live"></i>LIVE · 모두 같은 화면</small><h2>${ic('users')}라인 지원</h2></div><span class="grow"></span>
       <button class="btn ghost xs" data-a="bdMute" title="효과음">${ic(BD.muted ? 'mute' : 'sound')}</button><button class="btn ghost xs" data-a="bdHide" title="닫기 (라인 지원은 계속 열려 있음)">${ic('x')}</button></div>
     <ol class="lp-steps"><li class="${isMe ? 'done' : 'on'}">내 이름 선택</li><li class="${isMe ? (mine.length ? 'done' : 'on') : ''}">라인 1~3지망 선택</li><li class="${meDone ? 'done' : isMe && mine.length ? 'on' : ''}">선택 완료 누르기</li><li>모두 완료 → 자동 추첨</li></ol>
@@ -165,6 +166,8 @@ function openHTML(d) {
     ${isMe && !BD.roster ? `<div class="lp-sec lp-mini"><span>${ic('user')}<b>${esc(nm(BD.me))}</b>(으)로 지원 중</span><button class="btn ghost xs" data-a="bdRoster">참가자 현황 · 대리 지원</button></div>`
       : `<div class="lp-sec"><div class="lp-sh"><b>참가자</b><small>${isMe ? `<b>${esc(nm(BD.me))}</b>(으)로 지원 중 · 다른 이름을 누르면 대리 지원` : '본인 이름을 눌러 주세요'}</small></div>
       <div class="lp-roster">${d.ids.map(mem).join('')}</div></div>`}
+    ${own && BD.edit ? `<div class="lp-sec lp-edit"><div class="lp-sh"><b>참가자 편집</b><small>누르면 추가 ↔ 제외 · 빠진 사람의 지망은 지워져요 · ${d.ids.length}명</small><span class="grow"></span><button class="btn ghost xs" data-a="bdEditOpen">닫기</button></div>
+      <div class="lp-roster">${S.st.list.map((s) => `<button class="lp-mem ${d.ids.includes(s.id) ? 'done' : ''}" data-a="bdEdit" data-id="${s.id}" style="--lc:${d.ids.includes(s.id) ? '#4fd08b' : '#5a6a84'}">${d.ids.includes(s.id) ? '<i>✓</i>' : '<i class="dot"></i>'}${esc(s.name)}</button>`).join('')}</div></div>` : ''}
     <div class="lp-grid">${OPTS.map((o) => card(d, o)).join('')}</div>
     ${luckTable()}
     <div class="lp-foot"><div class="lp-count"><b class="mono">${doneN}</b> / <span class="mono">${d.ids.length}</span> 완료<span class="lp-prog"><i style="width:${d.ids.length ? (doneN / d.ids.length) * 100 : 0}%"></i></span><small class="lp-ttl">모두 완료하면 자동으로 추첨이 시작돼요${d.by ? ` · 연 사람 ${esc(d.by)}` : ''}</small></div>
@@ -228,7 +231,11 @@ act('bdOpen', async () => {
   notify('board', d.rid); // 디스코드 알림
   sfx('start'); openBoard();
 });
-act('bdMe', (x) => { BD.me = x.id; BD.roster = false; BD.fixing = false; localStorage.setItem('naejeon:bdme:' + S.key, x.id); draw(); });
+act('bdMe', (x) => {
+  // 이미 다른 기기에서 이 이름으로 고르고 있으면 한 번 확인(실수로 남의 지망을 덮어쓰지 않게). 대리 지원은 확인 후 그대로 가능
+  const d = cur(), other = d?.who?.[x.id];
+  if (x.id !== BD.me && other && other !== cid && !confirm(`${nm(x.id)} 님은 다른 기기에서 이미 지원 중이에요.\n이 이름으로 대리 지원할까요? (그 사람이 고른 지망을 바꿀 수 있어요)`)) return;
+  BD.me = x.id; BD.roster = false; BD.fixing = false; localStorage.setItem('naejeon:bdme:' + S.key, x.id); draw(); });
 act('bdRoster', () => { BD.roster = true; draw(); });
 act('bdPick', async (x) => {
   const d = cur(); if (!d || d.status !== 'open') return;
@@ -251,7 +258,7 @@ act('bdPick', async (x) => {
         if (next.length > 3) { toast('3지망까지 고를 수 있어요. 하나를 빼고 다시 골라 주세요'); return null; }
       }
       if (next.length) picks[me] = next; else delete picks[me];
-      return { ...r, picks, upd: S.store.serverNow() };
+      return { ...r, picks, who: { ...(r.who || {}), [me]: cid }, upd: S.store.serverNow() };
     });
   } catch (e) { toast('지원 실패: ' + (e.code || e.message)); }
 });
@@ -266,7 +273,7 @@ act('bdDone', async () => {
   try {
     res = await S.store.tx('meta', 'board', (r) => {
       if (!r || r.rid !== d.rid || r.status !== 'open' || !prefs(r, me).length) return null;
-      const next = { ...r, done: { ...(r.done || {}), [me]: true }, upd: S.store.serverNow() };
+      const next = { ...r, done: { ...(r.done || {}), [me]: true }, who: { ...(r.who || {}), [me]: cid }, upd: S.store.serverNow() };
       if (!allDone(next)) return next;
       return { ...next, status: 'play', startAt: S.store.serverNow() + 1800, ...plan(next), runner: nick() || '익명' }; // 마지막 완료 → 바로 추첨
     });
@@ -289,7 +296,7 @@ act('bdFix', async (x) => {
       if (!r || r.rid !== d.rid || r.status !== 'open' || !r.ids.includes(me)) return null;
       if (fixN(r, x.o) >= 2 && fixOf(r, me) !== x.o) { full = true; return null; }
       const picks = { ...(r.picks || {}) }; delete picks[me];
-      const next = { ...r, picks, fixed: { ...(r.fixed || {}), [me]: x.o }, done: { ...(r.done || {}), [me]: true }, upd: S.store.serverNow() };
+      const next = { ...r, picks, fixed: { ...(r.fixed || {}), [me]: x.o }, done: { ...(r.done || {}), [me]: true }, who: { ...(r.who || {}), [me]: cid }, upd: S.store.serverNow() };
       if (!allDone(next)) return next;
       return { ...next, status: 'play', startAt: S.store.serverNow() + 1800, ...plan(next), runner: nick() || '익명' };
     });
@@ -323,6 +330,42 @@ act('bdUndo', async () => {
   } catch (e) { toast('실패: ' + (e.code || e.message)); }
 });
 act('bdHide', () => closeModal());
+act('bdEditOpen', () => { BD.edit = !BD.edit; draw(); });
+// 연 사람·관리자: 진행 중에 참가자 추가/제외(늦게 온 사람 때문에 다시 열지 않아도 되게). 빠진 사람의 지망·고정·완료는 지운다.
+// 남은 사람이 모두 완료 상태가 되면 다른 완료와 똑같이 바로 추첨
+act('bdEdit', async (x) => {
+  const d = cur(); if (!d || d.status !== 'open' || !isOwner(d)) return;
+  if (!live(d)) { toast('2시간 동안 움직임이 없어 라인 지원이 닫혔어요. 다시 열어 주세요'); closeModal(); return; }
+  const id = x.id, adding = !d.ids.includes(id);
+  if (!adding && d.ids.length <= 2) return toast('참가자는 2명 이상이어야 해요');
+  if (!adding && (prefs(d, id).length || fixOf(d, id)) && !confirm(`${nm(id)} 님을 빼면 고른 지망이 지워져요. 뺄까요?`)) return;
+  await S.store.syncServerClock?.();
+  let res = null;
+  try {
+    res = await S.store.tx('meta', 'board', (r) => {
+      if (!r || r.rid !== d.rid || r.status !== 'open' || r.ids.includes(id) !== !adding) return null;
+      if (!adding && r.ids.length <= 2) return null;
+      const drop = (o) => { const n = { ...(o || {}) }; delete n[id]; return n; };
+      const next = adding ? { ...r, ids: [...r.ids, id], upd: S.store.serverNow() }
+        : { ...r, ids: r.ids.filter((v) => v !== id), picks: drop(r.picks), done: drop(r.done), fixed: drop(r.fixed), who: drop(r.who), upd: S.store.serverNow() };
+      if (adding || !allDone(next)) return next;
+      return { ...next, status: 'play', startAt: S.store.serverNow() + 1800, ...plan(next), runner: nick() || '익명' };
+    });
+  } catch (e) { return toast('편집 실패: ' + (e.code || e.message)); }
+  if (!res) return;
+  toast(adding ? `${nm(id)} 님을 추가했어요` : `${nm(id)} 님을 뺐어요`);
+  const r = S.store.mode === 'local' ? cur() : res;
+  if (r?.status === 'play' && r.rid === d.rid) { BD.edit = false; BD.runner = r.rid; bseen = r.rid + r.status; play(r); }
+});
+// 연 사람: 아직 완료하지 않은 사람을 공용 채팅으로 부르기(30초에 한 번)
+act('bdNudge', () => {
+  const d = cur(); if (!d || d.status !== 'open' || !isOwner(d)) return;
+  if (Date.now() - (BD.nudged || 0) < 30e3) return toast('조금 뒤에 다시 부를 수 있어요');
+  const w = d.ids.filter((id) => !isDone(d, id)); if (!w.length) return;
+  BD.nudged = Date.now();
+  sysChat(`🔔 라인 지원: ${w.map(nm).join(', ')} 님의 선택을 기다리고 있어요`);
+  toast('공용 채팅으로 불렀어요');
+});
 act('bdMute', () => { BD.muted = !BD.muted; localStorage.setItem('naejeon:bdmute', BD.muted ? '1' : '0'); document.querySelectorAll('.lp [data-a="bdMute"]').forEach((x) => (x.innerHTML = ic(BD.muted ? 'mute' : 'sound'))); });
 act('bdShut', async () => {
   const d = cur(); if (!d) return;
@@ -338,7 +381,6 @@ act('bdLineup', () => { closeModal(); go('#/today'); });
 // 2·3라운드: 아직 자리가 없는 사람만 2지망 → 3지망으로 넘어가 남은 자리 안에서 같은 방식으로 정한다.
 // 라운드마다 라인을 처리하는 순서는 무작위. 끝까지 남은 사람(상관없음·지망 실패·미지원)은 빈 자리에 무작위 배치.
 // 블루·레드는 무작위. 이후 교체는 라인업에서 직접 한다.
-const PK = ['p04', 'adc', Date.UTC(2026, 10, 23, 16)];
 function plan(d) {
   const P = Object.fromEntries(d.ids.map((id) => [id, prefs(d, id)]));
   const slots = Object.fromEntries(LANES.map((l) => [l, []])), steps = [], rankOf = {}, L = luckDoc();
@@ -352,9 +394,7 @@ function plan(d) {
       const pre = [...slots[l]];
       // 1지망 라운드만 보정 가중치를 쓴다. 쓴 가중치는 단계 기록(w)에 남겨 추첨 장면에서 그대로 보여 준다
       const ws = r === 0 ? c.map((id) => weightOf(missOf(id, L))) : c.map(() => 1);
-      const k = c.length >= 3 && l === PK[1] && Date.now() < PK[2] ? c.indexOf(PK[0]) : -1;
-      const pc = k < 0 ? c : c.filter((_, i) => i !== k), pw = k < 0 ? ws : ws.filter((_, i) => i !== k);
-      const got = c.length <= free ? c : r === 0 ? weightedPick(pc, pw, free) : shuffle(pc).slice(0, free);
+      const got = c.length <= free ? c : r === 0 ? weightedPick(c, ws, free) : shuffle(c).slice(0, free);
       steps.push({ round: r + 1, lane: l, kind: c.length > free ? 'roll' : 'direct', cands: c, pick: got, pre, ...(r === 0 ? { w: ws } : {}) });
       got.forEach((id) => { slots[l].push(id); rankOf[id] = r + 1; });
       left = left.filter((id) => !got.includes(id));
