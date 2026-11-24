@@ -2330,3 +2330,18 @@ body.xchat #chat header{overflow:visible}
 body.lite .xswag .xs-img{filter:none}
 @keyframes xtmag{0%,100%{opacity:0;transform:scale(.4) rotate(0)}50%{opacity:1;transform:scale(1.4) rotate(45deg)}}
 @keyframes xtstar{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.06);opacity:.85}}
+/* 좁은 휴대폰(320~380px: 갤럭시 폴드 접은 화면·아이폰 SE 1세대 등): 경기 카드·가챠 확률표가 화면 밖으로 잘리지 않게.
+   넓은 화면은 그대로(이 구간에서만 칸이 내용보다 좁아질 수 있게 하고, 긴 이름은 …로 줄임) */
+@media (max-width:380px){
+  .mlist{grid-template-columns:minmax(0,1fr)}
+  .vs{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .vs .team{min-width:0}
+  .pl{gap:4px;min-width:0}.pl a{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pl small{flex:none;font-size:11px;letter-spacing:-.02em}
+  .pl>svg{width:13px;height:13px;flex:none}.pl .ci.sm{width:22px;height:22px;flex:none;font-size:9px}
+  .vs .team{padding-left:9px;padding-right:9px}
+  .gc-tbl td,.gc-tbl th{padding:6px 5px}.gc-tbl td.l{white-space:normal}
+}
+/* 새해 시작 화면: 언덕 마을 창문 불빛이 은은하게 깜빡임(빠져 있던 움직임 정의). 창문마다 박자를 어긋나게 */
+@keyframes xswin{0%,100%{opacity:1}45%{opacity:.4}60%{opacity:.85}}
+.ny-win:nth-of-type(2){animation-delay:-.8s}.ny-win:nth-of-type(3){animation-delay:-1.7s}.ny-win:nth-of-type(4){animation-delay:-2.4s}
+body.lite .ny-win{animation:none}

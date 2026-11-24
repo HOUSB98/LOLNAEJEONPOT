@@ -123,7 +123,14 @@ export const NAV = [
   ['', 'COMMUNITY'], ['talk', '익명 게시판'],
   ['', 'CREDITS'], ['admin', '관리'], ['scores', '점수 변동'], ['maker', '제작자'],
 ];
-export function go(hash) { location.hash = hash; }
+// 브라우저 탭 제목: 'NAEJEONPOT · 내전 기록실'(홈) / '랭킹 · NAEJEONPOT' / 선수 카드는 '이름 · 선수 카드 · NAEJEONPOT'
+function pageTitle() {
+  if (S.page === 'home') return 'NAEJEONPOT · 내전 기록실';
+  const nm = NAV.find((n) => n[0] === S.page)?.[1] || '';
+  const who = (S.page === 'players' || S.page === 'chem') && S.arg[0] && S.st?.P?.[S.arg[0]]?.name;
+  return [who, nm, 'NAEJEONPOT'].filter(Boolean).join(' · ');
+}
+export function go(hash) { if (MH.backing) MH.next = hash; else location.hash = hash; } // 창 기록을 되돌리는 중이면 끝난 뒤에 이동
 function parseHash() {
   const [p, ...arg] = location.hash.replace(/^#\/?/, '').split('/');
   S.page = pages[p] ? p : 'home'; S.arg = arg.map(decodeURIComponent);
@@ -146,6 +153,7 @@ export function render() {
   // (예전에는 넣은 뒤 void offsetWidth 로 페이지 전체 배치를 억지로 계산시켜 다시 걸어서 휴대폰 첫 화면이 0.4초 멈칫했다.)
   if (entering) { main.classList.add('enter'); clearTimeout(render.t); render.t = setTimeout(() => main.classList.remove('enter'), 900); }
   main.innerHTML = pages[S.page].render(...S.arg);
+  const t = pageTitle(); if (document.title !== t) document.title = t;
   lazyArt(main);
   liveMarks(main, entering);
   pages[S.page].after?.(entering);
@@ -237,7 +245,21 @@ export function initShell() {
     if (el && acts[el.getAttribute(attr)]) acts[el.getAttribute(attr)](el.dataset, el, e);
   });
   on('click', 'data-a'); on('change', 'data-c'); on('input', 'data-i');
-  window.addEventListener('hashchange', () => { parseHash(); window.scrollTo(0, 0); document.getElementById('main').scrollTop = 0; render(); });
+  // 화면 이동: 새로 간 화면은 맨 위에서, 뒤로·앞으로 가기로 돌아온 화면은 보던 위치에서(방문 기록 칸마다 번호를 붙여 위치를 기억)
+  const main = document.getElementById('main'), POS = new Map();
+  let cur = WH.state?.k || 0;
+  const tag = () => { if (!WH.state?.k) { cur = Date.now() + Math.random(); try { WH.replaceState({ ...(WH.state || {}), k: cur }, ''); } catch {} } else cur = WH.state.k; };
+  tag();
+  window.addEventListener('hashchange', () => {
+    POS.set(cur, [window.scrollY, main.scrollTop]); // 떠나는 화면의 위치
+    const back = WH.state?.k && POS.has(WH.state.k);
+    tag(); parseHash();
+    window.scrollTo(0, 0); main.scrollTop = 0; render();
+    if (back) { // 그린 뒤 보던 위치로(늦게 그려지는 화면을 위해 한 번 더)
+      const [y, my] = POS.get(cur), to = () => { if (WH.state?.k !== cur) return; window.scrollTo(0, y); main.scrollTop = my; };
+      to(); requestAnimationFrame(to); setTimeout(to, 350);
+    }
+  });
   parseHash(); render();
 }
 
@@ -412,14 +434,52 @@ export function burst(x = innerWidth / 2, y = innerHeight / 2, n = 140) {
 }
 
 // ---------- 모달 ----------
+// 휴대폰 '뒤로 가기'로 창 닫기: 창을 열면 같은 주소로 방문 기록을 한 칸 쌓고(주소는 그대로), 뒤로 가기가 오면 페이지 대신 창만 닫는다.
+// 창을 버튼·바깥·Esc로 닫으면 쌓아 둔 한 칸을 되돌려 놓는다(그 뒤 뒤로 가기 한 번이 헛돌지 않게). 되돌리는 중에 다른 화면으로 가라는
+// 요청(go·창 안의 링크)이 오면 되돌리기가 끝난 뒤에 간다(먼저 가면 되돌리기가 새 화면을 지워 버림). window.history: 이 파일의 history()와 이름이 겹침
+const MH = { on: false, backing: false, next: null };
+const WH = window.history;
+const mhPush = () => { try { WH.pushState({ ...(WH.state || {}), npModal: 1 }, ''); MH.on = true; } catch {} };
 export function modal(html, cls = '') {
   const m = document.getElementById('modal');
   m.innerHTML = `<div class="sheet ${cls}">${html}</div>`; m.classList.add('on');
+  if (!MH.on && !MH.backing) mhPush();
   return m.firstElementChild;
 }
-export function closeModal() { const m = document.getElementById('modal'); m.classList.remove('on'); m.innerHTML = ''; }
+function shut() { const m = document.getElementById('modal'); m.classList.remove('on'); m.innerHTML = ''; }
+export function closeModal() {
+  shut();
+  if (MH.on) { MH.on = false; MH.backing = true; try { WH.back(); } catch { MH.backing = false; } }
+}
+addEventListener('popstate', () => {
+  const open = document.getElementById('modal')?.classList.contains('on');
+  if (MH.backing) { // 우리가 되돌린 것
+    MH.backing = false;
+    if (MH.next) { const h = MH.next; MH.next = null; location.hash = h; }
+    else if (open && !MH.on) mhPush(); // 되돌리는 사이에 새 창이 열렸으면 그 창 몫으로 다시 한 칸
+    return;
+  }
+  if (MH.on && open) { // 사용자가 뒤로 가기
+    if (document.querySelector('#modal .lock')) { mhPush(); return; } // 꼭 끝내야 하는 창은 닫지 않는다(바깥 누르기와 같음)
+    MH.on = false; shut();
+  }
+});
+if (WH.state?.npModal) { MH.backing = true; try { WH.back(); } catch { MH.backing = false; } } // 창이 열린 채 새로고침했으면 남은 한 칸 정리
 act('close', closeModal);
 document.addEventListener('click', (e) => { if (e.target.id === 'modal' && !e.target.querySelector('.lock')) closeModal(); });
+// 창 안의 사이트 링크(예: 더보기 메뉴)는 창을 닫고(기록 되돌리기) 난 뒤에 이동
+document.addEventListener('click', (e) => {
+  const a = e.target.closest?.('#modal a[href^="#/"]'); if (!a || !MH.on || e.defaultPrevented || e.button || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  e.preventDefault(); const h = a.getAttribute('href');
+  setTimeout(() => { if (document.getElementById('modal').classList.contains('on')) closeModal(); go(h); }, 0);
+}, true);
+// PC: Esc로 창 닫기(바깥을 누른 것과 같음 — 꼭 끝내야 하는 창은 그대로). 빠른 이동 창은 자기 처리
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape' || e.isComposing || e.defaultPrevented) return;
+  const m = document.getElementById('modal');
+  if (!m.classList.contains('on') || m.querySelector('.lock, .finder')) return;
+  e.preventDefault(); closeModal();
+});
 const mh = (title) => `<div class="mh"><b>${title}</b><button class="btn ghost xs" data-a="close">${ic('x')}</button></div>`;
 export { mh };
 

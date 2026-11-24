@@ -6,7 +6,7 @@
 // 선수 카드 적용: players/{id}.champ + skin{champ,num,name,tier}
 // 데이터: gacha/{선수id} = { starter(처음 고른 기본 챔피언 id), daily{day,champ,skin}(오늘 쓴 출석권), pinHash, used{champ,skin}, bought{champ,skin}, shards, champs{챔피언id:개수}, skins{스킨id:{n,c,num,name,tier}}, log[] }
 //         (구독하지 않는 컬렉션이라 접속자 화면에 퍼지지 않는다. 가챠 화면에서만 한 번씩 읽는다)
-import { S, page, act, esc, refresh, toast, sha, needAdmin, ic, burst, settings, modal, closeModal, mh, pickChamp, sigChamp, canPickChamp, DEFAULT_CHAMP, tileUrl, presetCard, fmtDT } from './core.js';
+import { S, page, act, go, esc, refresh, toast, sha, needAdmin, ic, burst, settings, modal, closeModal, mh, pickChamp, sigChamp, canPickChamp, DEFAULT_CHAMP, tileUrl, presetCard, fmtDT } from './core.js';
 import { notify } from './hook.js';
 import { sysChat } from './social.js';
 // 이 등급 이상 스킨을 뽑으면 사이트 채팅과 디스코드에 알린다
@@ -420,7 +420,7 @@ function renderDeco() {
   box.querySelector('input[type=password]')?.focus();
 }
 act('decoOpen', (d) => openDeco(d.id));
-act('decoGo', () => { closeModal(); location.hash = '#/gacha'; });
+act('decoGo', () => { closeModal(); go('#/gacha'); });
 
 // ---------- 관리 화면: 선수별 가챠 현황 (버튼을 누를 때만 선수 수만큼 읽는다) ----------
 const ADM = { rows: null, busy: false };
