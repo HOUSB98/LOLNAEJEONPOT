@@ -175,6 +175,8 @@ page('today', {
     const full = isFull(d);
     // 우세 팀(점수 합이 더 높은 팀 = 예상 승률이 더 높은 팀): 10명이 다 차고 점수가 다를 때만. 차이가 클수록 빛이 진해진다(--wi 0.35~1)
     const fav = full && pb !== 50 ? (pb > 50 ? 'blue' : 'red') : '', wi = Math.min(1, Math.max(0.35, (Math.max(pb, 100 - pb) - 50) / 30));
+    // 팀 합 소통(보여 주기만, 팀 짜기에는 안 씀): 고른 사람들의 합 · 몇 명이 골랐는지. 아무도 안 골랐으면 표시 안 함
+    const tkSum = (ids) => { const v = ids.filter(Boolean).map((id) => talkOf(id)).filter(Boolean); return v.length ? `<em class="sb-tk" title="소통 합(과묵 1 · 조용 2 · 수다 3 · 샷콜러 4) · ${v.length}명이 고름">🎙<span class="sb-tl">소통</span><b class="mono">${v.reduce((a, b) => a + b, 0)}</b><span class="sb-tn">· ${v.length}명</span></em>` : ''; };
     const slot = (side, i) => {
       const id = d[side][i], l = LANES[i], s = st.P[id];
       const ch = d.champs[side][i], art = ch && artUrl(ch) ? ` art" style="--img:url('${artUrl(ch)}')` : '';
@@ -190,9 +192,9 @@ page('today', {
     return `<div class="h2row td-h"><h1>${ic('today')}${edit ? `경기 수정 <span class="mono">#${st.MI[edit.id]?.no ?? ''}</span>` : '오늘의 내전'}</h1><span class="tag ${full ? 'ok' : ''}">${filled}/10 배치</span><span class="grow"></span>
       ${edit ? '<a class="btn" href="#/matches">취소</a>' : `<button class="btn gold" data-a="tAi" ${full ? '' : 'disabled'} title="${full ? '라인은 그대로 두고, 점수 차이가 가장 작아지도록 블루·레드를 나눕니다 (높은 원딜·높은 서폿은 같은 팀 안 됨)' : '10명을 모두 배치하면 쓸 수 있어요'}">${ic('bolt')}AI<span class="m-hide"> 추천</span></button><button class="btn gold gbtn ${boardLive() ? 'bd-on' : ''}" data-a="tBoard" title="라인 지원: 모두 함께 원하는 라인 고르기 → 몰린 라인은 추첨">${ic('users')}<span><span class="n-hide">라인 </span>${boardLive() ? '지원 중' : '지원'}</span></button><button class="btn gold" data-a="tDice">${ic('dice')}<span class="n-hide">라인 </span>주사위</button>${ddMenu(`<button data-a="tSwap">${ic('swap')}진영 교체</button><button class="danger" data-a="tClear">${ic('trash')}비우기</button>`)}`}</div>
     <section class="arena">
-      <div class="scorebar" style="--wi:${fav ? wi.toFixed(2) : 0}"><div class="sb blue${fav === 'blue' ? ' fav' : ''}">${fav === 'blue' ? FAV_RING : ''}<small>BLUE TEAM</small><b class="mono" data-live="bs">${ev.bs.toFixed(1)}</b><span>평균 MMR ${ev.mmrB ? Math.round(ev.mmrB) : '—'}</span></div>
+      <div class="scorebar" style="--wi:${fav ? wi.toFixed(2) : 0}"><div class="sb blue${fav === 'blue' ? ' fav' : ''}">${fav === 'blue' ? FAV_RING : ''}<small>BLUE TEAM</small><b class="mono" data-live="bs">${ev.bs.toFixed(1)}</b><span>평균 MMR ${ev.mmrB ? Math.round(ev.mmrB) : '—'}</span>${tkSum(d.blue)}</div>
         <div class="sb-mid">${winRing(pb, full, any, filled, wi)}</div>
-        <div class="sb red${fav === 'red' ? ' fav' : ''}">${fav === 'red' ? FAV_RING : ''}<small>RED TEAM</small><b class="mono" data-live="rs">${ev.rs.toFixed(1)}</b><span>평균 MMR ${ev.mmrR ? Math.round(ev.mmrR) : '—'}</span></div></div>
+        <div class="sb red${fav === 'red' ? ' fav' : ''}">${fav === 'red' ? FAV_RING : ''}<small>RED TEAM</small><b class="mono" data-live="rs">${ev.rs.toFixed(1)}</b><span>평균 MMR ${ev.mmrR ? Math.round(ev.mmrR) : '—'}</span>${tkSum(d.red)}</div></div>
       <div class="prob"><i style="width:${pb}%"></i></div>
       ${ev.lanes.map((x, i) => { const g = x.bs - x.rs, both = x.b && x.r; return `<div class="lrow" style="--d:${i}">${slot('blue', i)}
         <div class="lmid">${LANE_ICON[x.lane]}<small class="${both ? (g > 0 ? 'blue' : g < 0 ? 'red' : '') : ''} mono">${both ? (g === 0 ? 'EVEN' : (g > 0 ? '◀ ' : '') + Math.abs(g).toFixed(1) + (g < 0 ? ' ▶' : '')) : LANE_NAME[x.lane]}</small></div>
