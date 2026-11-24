@@ -26,11 +26,19 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   ok(/옛날 7/.test(await H.$eval('#main', (e) => e.innerText)) && !/삭제되어/.test(await H.$eval('#main', (e) => e.innerText)), '오래된 방도 정상 표시');
   await H.evaluate(() => (location.hash = '#/auction/nope')); await H.waitForTimeout(1000);
   ok(/삭제되어/.test(await H.$eval('#main', (e) => e.innerText)), '없는 방은 기존처럼 안내');
+  // 2-1) 완료된 지난 방: 진행자 링크가 아니어도 '관리자 삭제'(관리자 PIN 확인 후) → 목록에서 사라짐
+  await H.evaluate(() => (location.hash = '#/auction/r1')); await H.waitForTimeout(900);
+  ok(/관리자 삭제/.test(await H.$eval('[data-a=auDel]', (e) => e.textContent).catch(() => '')), '완료된 방에도 관리자 삭제 버튼(관전자 화면)');
+  H.once('dialog', (d) => d.accept());
+  await H.click('[data-a=auDel]'); await H.waitForSelector('#pin', { timeout: 3000 });
+  await H.fill('#pin', '1234'); await H.press('#pin', 'Enter'); await H.waitForTimeout(1200);
+  ok(be.db.auctions.r1.deleted === true && !!be.db.auctions.r1.id, '관리자 PIN 확인 후 완료된 방 삭제(지우지 않고 deleted 표시)');
+  ok(!(await H.$$eval('.kv.link', (x) => x.map((e) => e.textContent))).some((t) => /최근 1/.test(t)), '삭제한 방은 목록에서 사라짐');
   // 3) 이전 경매 보기 → 전체
   await H.evaluate(() => (location.hash = '#/auction')); await H.waitForTimeout(600);
   be.reset();
   await H.click('[data-a=auOld]'); await H.waitForTimeout(1200);
-  ok(await H.$$eval('.kv.link', (x) => x.length) === 9 && !(await H.$('[data-a=auOld]')), "'이전 경매 보기' → 9개 모두, 버튼 사라짐");
+  ok(await H.$$eval('.kv.link', (x) => x.length) === 8 && !(await H.$('[data-a=auOld]')), "'이전 경매 보기' → 삭제한 1개 빼고 8개 모두, 버튼 사라짐");
   // 4) 백업은 전체 경매 포함(새 탭에서 최근만 받은 상태로)
   const H2 = await client(b, be, 'WORK', 'H2'); await open(H2, 'home', 600);
   await H2.evaluate(() => (location.hash = '#/auction')); await H2.waitForTimeout(1000);
