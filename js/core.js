@@ -152,12 +152,39 @@ export function render() {
   // 화면 전환 효과: 새 화면의 요소는 새로 만들어지므로, 내용을 넣기 전에 enter 를 붙여 두면 효과가 처음부터 걸린다.
   // (예전에는 넣은 뒤 void offsetWidth 로 페이지 전체 배치를 억지로 계산시켜 다시 걸어서 휴대폰 첫 화면이 0.4초 멈칫했다.)
   if (entering) { main.classList.add('enter'); clearTimeout(render.t); render.t = setTimeout(() => main.classList.remove('enter'), 900); }
-  main.innerHTML = pages[S.page].render(...S.arg);
+  const html = pages[S.page].render(...S.arg);
+  if (pages[S.page].keyed) keyedRender(main, html, entering); else { main.innerHTML = html; KR.shell = null; }
   const t = pageTitle(); if (document.title !== t) document.title = t;
   lazyArt(main);
   liveMarks(main, entering);
   pages[S.page].after?.(entering);
   if (fid) { const el = document.getElementById(fid); if (el) { el.focus(); try { el.setSelectionRange(sel, sel); } catch {} } }
+}
+// 바뀐 구역만 다시 그리기(keyed: true인 화면 — 지금은 경매). data-k가 붙은 구역마다 지난번 그림과 글자 그대로 비교해
+// 달라진 구역만 갈아 끼운다. 구역 바깥 뼈대(shell)가 달라졌거나 처음 그리는 화면이면 예전처럼 통째로 그린다.
+// 효과: 입찰 하나에 화면 전체를 다시 배치하지 않음(저사양 휴대폰 끊김↓), 진행 중인 타이머 글자·스크롤 등 건드리지 않은 구역은 그대로
+const KR = { shell: null, parts: new Map() };
+function keyedRender(main, html, entering) {
+  const tpl = document.createElement('template'); tpl.innerHTML = html;
+  const parts = new Map(), hs = new Map();
+  tpl.content.querySelectorAll('[data-k]').forEach((e) => { if (!e.parentElement?.closest('[data-k]')) parts.set(e.dataset.k, e); });
+  for (const [k, e] of parts) { hs.set(k, e.outerHTML); e.replaceWith(document.createComment('k:' + k)); }
+  const box = document.createElement('div'); box.append(tpl.content.cloneNode(true)); const shell = box.innerHTML;
+  const same = !entering && KR.shell === shell && parts.size === KR.parts.size && [...parts.keys()].every((k) => KR.parts.has(k));
+  if (same) {
+    for (const [k, e] of parts) {
+      if (KR.parts.get(k) === hs.get(k)) continue;
+      const old = main.querySelector(`[data-k="${k}"]`); if (!old) { KR.shell = null; return keyedRender(main, html, true); }
+      old.replaceWith(e);
+    }
+  } else {
+    // 통째로: 뼈대의 자리표시를 실제 구역으로 되돌려 넣는다
+    const walker = document.createTreeWalker(box, NodeFilter.SHOW_COMMENT); const cs = [];
+    while (walker.nextNode()) cs.push(walker.currentNode);
+    cs.forEach((c) => { const k = c.data.startsWith('k:') && c.data.slice(2); if (k && parts.has(k)) c.replaceWith(parts.get(k)); });
+    main.replaceChildren(...box.childNodes);
+  }
+  KR.shell = shell; KR.parts = hs;
 }
 // 실시간 숫자가 바뀌는 순간 한 번 반짝: data-live="키" 가 붙은 요소의 글자를 지난번 그림과 비교해, 바뀌었으면 0.8초 효과를 한 번 건다.
 // 화면을 새로 열 때(처음 그림)는 비교하지 않는다. 읽기·쓰기 없음, 가벼운 모드·동작 줄이기에선 끔.
