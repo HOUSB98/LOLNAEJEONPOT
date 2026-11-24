@@ -8,6 +8,7 @@ import { duoRank, dayKey } from './stats.js';
 import { watchDice } from './dice.js';
 import { watchBoard } from './board.js';
 import './players.js';
+import './finder.js';
 import './gacha.js';
 import { lazyPage } from './core.js';
 // 자주 안 쓰는 화면은 들어갈 때 받는다. 접속 후 한가할 때 미리 받아 두므로 보통은 기다림 없이 열린다.
