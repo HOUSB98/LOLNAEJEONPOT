@@ -338,7 +338,7 @@ function roomView(id, token) {
   const queue = r.pool, hideUpcoming = r.cfg.hide && r.status !== 'done';
   const queueView = hideUpcoming ? `<span class="chip mut">매물 이름 비공개 · ${queue.length}명</span>` : queue.map((p) => `<span class="chip">${pname(p)}</span>`).join('') || '<span class="chip mut">없음</span>';
   const unsoldView = hideUpcoming ? `<span class="chip mut">유찰 선수 이름 비공개 · ${r.unsold.length}명</span>` : r.unsold.map((p) => `<span class="chip mut">${pname(p)}</span>`).join('');
-  const canDelete = me.host || ['lobby', 'running', 'paused'].includes(r.status);
+  const canDelete = true; // 진행자는 바로, 그 외에는 관리자 PIN 확인 후(완료된 지난 방도)
   return `<div class="h2row" data-k="head"><a class="btn xs" href="#/auction">← 목록</a><h1>${ic('auction')}${esc(r.name)}</h1><span class="grow"></span><button class="btn xs ghost" data-a="auMute" title="입찰 밀림·낙찰 효과음과 진동">${ic(AU.mute ? 'mute' : 'sound')}</button>${me.host ? '<span class="tag ok">진행자</span>' : ''}${canDelete ? `<button class="btn xs ghost" data-a="auDel" data-id="${r.id}">${me.host ? '방 삭제' : '관리자 삭제'}</button>` : ''}</div>
   <div class="agrid"><div>${stage}
     <div class="panel" data-k="queue"><div class="ph"><b>대기 매물 ${r.pool.length}</b><small class="mut">${hideUpcoming ? '다음 매물 비공개' : '경매 순서 공개'}</small></div><div class="chips">${queueView}</div>
@@ -670,7 +670,7 @@ act('auDel', (d) => {
   const me = myRole(current, S.arg[1]);
   const remove = () => {
     if (!me.host && !isAdmin()) return toast('관리자 권한이 필요합니다');
-    if (!confirm('이 경매 방을 삭제할까요? 진행 중인 경매는 모든 참가자에게 즉시 종료됩니다.')) return;
+    if (!confirm(current.status === 'done' ? '이 경매 방을 목록에서 삭제할까요? (기록은 DB에 남아 복구할 수 있어요)' : '이 경매 방을 삭제할까요? 진행 중인 경매는 모든 참가자에게 즉시 종료됩니다.')) return;
     tx(d.id, (r) => {
       if (!me.host && !isAdmin()) return null;
       r.deleted = true; r.status = 'deleted'; r.cur = null;
