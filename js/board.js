@@ -1,7 +1,7 @@
 // 라인 지원: 참가자가 원하는 라인(탑~서폿·상관없음)을 직접 고르고 '선택 완료'를 누른다. 모두 완료하면 자동으로 추첨이 시작되고,
 // 2명 넘게 몰린 라인은 무작위로 2명을 뽑아 라인업에 넣는다. 연 사람·관리자는 취소하거나 강제 마감할 수 있다.
 // meta/board 문서 하나로 모든 접속자가 같은 지원 현황과 같은 추첨 장면을 같은 시각에 본다(시작 시각은 서버 시계 기준).
-import { S, act, isAdmin, esc, modal, closeModal, mh, toast, burst, refresh, ic, LANES, LANE_NAME, LANE_ICON, LANE_COLOR } from './core.js';
+import { S, act, go, isAdmin, esc, modal, closeModal, mh, toast, burst, refresh, ic, LANES, LANE_NAME, LANE_ICON, LANE_COLOR } from './core.js';
 import { setDraftTeams, placedIds } from './today.js';
 import { aiBalance } from './stats.js';
 import { notify } from './hook.js';
@@ -331,7 +331,7 @@ act('bdShut', async () => {
   await S.store.put('meta', 'board', { ...d, status: 'closed' }).catch(() => {});
   closeModal();
 });
-act('bdLineup', () => { closeModal(); location.hash = '#/today'; });
+act('bdLineup', () => { closeModal(); go('#/today'); });
 
 // ---------- 추첨 계획: 지망 단계별 추첨 ----------
 // 1라운드: 모두 1지망으로. 남은 자리 이하면 바로 확정, 넘치면 무작위로 남은 자리만큼 뽑는다.
