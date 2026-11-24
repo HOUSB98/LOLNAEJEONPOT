@@ -42,6 +42,20 @@ function champStyle(s) { // 판수 기준 역할군 상위 2개(챔피언 이름
   if (all < 3) return '';
   return Object.entries(n).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([t, g], i) => `<span class="as-role${i ? '' : ' top'}">${ROLE[t]}${i ? '' : ' 위주'} <small>${Math.round((g / all) * 100)}%</small></span>`).join('');
 }
+// 익명 경매 힌트의 기준값(리그 전체): 라인별 평균 점수, KDA 기록 5판 이상인 선수들의 평균 킬·데스·어시스트. 화면을 그릴 때 한 번(24명 정도라 가벼움)
+function blindBase(st) {
+  const L = st.list.length || 1, lavg = Object.fromEntries(LANES.map((l) => [l, st.list.reduce((a, s) => a + (+s.p.scores?.[l] || 0), 0) / L]));
+  const kd = st.list.filter((s) => s.kdaG >= 5), avg = (j) => (kd.length ? kd.reduce((a, s) => a + s.kda[j] / s.kdaG, 0) / kd.length : 0);
+  return { lavg, k: avg(0), d: avg(1), a: avg(2) };
+}
+function kdaStyle(s, H) { // 리그 평균과 비교한 한두 단어(KDA 기록 5판 이상)
+  if (!(s.kdaG >= 5) || !H.k) return '';
+  const k = s.kda[0] / s.kdaG, d = s.kda[1] / s.kdaG, a = s.kda[2] / s.kdaG, out = [];
+  if (k >= H.k * 1.2) out.push('킬을 많이 내는 편');
+  if (a >= H.a * 1.2) out.push('어시스트형');
+  if (d <= H.d * 0.8) out.push('잘 안 죽는 편'); else if (d >= H.d * 1.2) out.push('과감한 편(데스 많음)');
+  return (out.length ? out.slice(0, 2) : ['무난한 편']).map((t) => `<span class="as-role">${t}</span>`).join('');
+}
 const tname = (r, i) => (r.teams[i] ? `<span class="au-tn" style="--tc:${teamColor(i)}">${esc(r.teams[i].name)}</span>` : '');
 
 function finish(r) { r.status = 'done'; r.cur = null; say(r, '경매가 끝났습니다.'); return r; }
@@ -290,12 +304,12 @@ function teamFoot(r, t) {
     : `<span class="au-full">팀 완성</span>${miss.length ? `<span class="au-miss">${miss.map((l) => LANE_NAME[l]).join('·')} 주라인 없음</span>` : ''}`;
   return `<div class="au-tf">${lanes}<div class="au-tfn">${note}</div></div>`;
 }
-// 익명 경매가 끝나면 정체 공개: 매물 A부터 차례로 카드가 뒤집힌다(이 기기에서 처음 볼 때만 애니메이션)
+// 익명 경매가 끝나면 모든 매물을 한 번에 공개(이 기기에서 처음 볼 때만 뒤집기 애니메이션)
 const revealSeen = new Set();
 function revealHTML(r) {
   const list = Object.entries(r.alias || {}).sort((a, b) => a[1].length - b[1].length || a[1].localeCompare(b[1]));
   const anim = !revealSeen.has(r.id); revealSeen.add(r.id);
-  return `<div class="au-reveal${anim ? ' anim' : ''}"><div class="ph"><b>🎭 정체 공개</b><small class="mut">익명 경매 · 매물 ${list.length}명</small></div><div class="au-rv">${list.map(([pid, a], i) => {
+  return `<div class="au-reveal${anim ? ' anim' : ''}"><div class="ph"><b>🎭 전체 선수 공개</b><small class="mut">익명 경매 · 매물 ${list.length}명</small></div><div class="au-rv">${list.map(([pid, a], i) => {
     const ti = r.teams.findIndex((t) => t.members.some((m) => m.pid === pid)), m = ti >= 0 ? r.teams[ti].members.find((x) => x.pid === pid) : null;
     return `<div class="au-rvc" style="--i:${i}${ti >= 0 ? `;--tc:${teamColor(ti)}` : ''}"><small>매물 ${esc(a)}</small><b>${pname(pid)}</b><span>${ti >= 0 ? `${tname(r, ti)} · ${m.price ? m.price + 'P' : '자동 배정'}` : '예비'}</span></div>`;
   }).join('')}</div></div>`;
@@ -324,15 +338,25 @@ function roomView(id, token) {
     </div>`;
   };
   // 익명 경매의 매물 카드: 이름·OVR·티어·챔피언·칭호·궁합 대신 힌트만
+  // 익명 경매의 매물 카드: 이름·OVR·티어·챔피언·칭호·궁합 대신 힌트만(등급·구간으로). 칸별로 나눠 한눈에
   const blindCard = (pid) => {
     const s = st.P[pid]; if (!s) return '';
-    const lv = (v) => (v >= 15 ? [3, '강'] : v >= 10 ? [2, '중'] : [1, '약']), tk = talkOf(pid), cs = champStyle(s);
+    const H = blindBase(st), tk = talkOf(pid), cs = champStyle(s), sc = (l) => +s.p.scores?.[l] || 0;
+    const sub = LANES.filter((l) => l !== s.mainLane).sort((a, b) => sc(b) - sc(a))[0];
+    const ml = s.lanes?.[s.mainLane], mwr = ml?.g >= 5 ? (ml.w / ml.g) * 100 : null;
+    const g3 = (k) => `<b class="au-g g${k}">${['평균 이하', '평균', '평균 이상'][k]}</b>`;
+    const tile = (k, v, wide = '') => `<div class="au-ht${wide}"><span class="au-hk">${k}</span><div class="au-hv">${v}</div></div>`;
     return `<div class="item au-blind" data-k="info"><div class="ov big au-q"><b>?</b><small>익명</small></div><div class="au-bh"><h1>🎭 매물 ${esc(alias(r, pid))}</h1>
-      <div class="as-row"><span class="as-k">주라인</span><b>${LANE_ICON[s.mainLane]} ${LANE_NAME[s.mainLane]}</b></div>
-      <div class="au-shape">${LANES.map((l) => { const [k, t] = lv(+s.p.scores?.[l] || 0); return `<span class="lv${k}${l === s.mainLane ? ' main' : ''}" title="${LANE_NAME[l]} ${t}"><i>${LANE_ICON[l]}</i><u><em></em></u><small>${t}</small></span>`; }).join('')}</div>
-      <div class="as-row"><span class="as-k">최근</span>${s.g ? `${dots(s.recent)}${streak(s.cur)}` : '<small>내전 기록 없음</small>'}</div>
-      <div class="as-row"><span class="as-k">성향</span>${cs || '<small>정보 없음</small>'}</div>
-      <div class="as-row"><span class="as-k">소통</span>${tk ? `${talkIcon(tk)}` : '<small>정보 없음</small>'}</div></div></div>`;
+      <div class="au-hg">
+        ${tile('주라인', `<b>${LANE_ICON[s.mainLane]} ${LANE_NAME[s.mainLane]}</b>`)}
+        ${tile('부라인', sub ? `<b>${LANE_ICON[sub]} ${LANE_NAME[sub]}</b>` : '<small>—</small>')}
+        ${tile('주라인 실전 승률', mwr === null ? '<small>기록 적음(5판 미만)</small>' : g3(mwr < 45 ? 0 : mwr > 55 ? 2 : 1))}
+        ${tile('라인 점수 <small>(라인별 전체 평균 ±1점 = 평균)</small>', `<div class="au-shape">${LANES.map((l) => { const d = sc(l) - H.lavg[l], k = d < -1 ? 0 : d > 1 ? 2 : 1; return `<span class="g${k}${l === s.mainLane ? ' main' : ''}" title="${LANE_NAME[l]} ${['평균 이하', '평균', '평균 이상'][k]}"><i>${LANE_ICON[l]}</i><em>${LANE_NAME[l]}</em><small>${['평균 이하', '평균', '평균 이상'][k]}</small></span>`; }).join('')}</div>`, ' wide')}
+        ${tile('최근 흐름', s.g ? `${dots(s.recent)}${streak(s.cur)}` : '<small>내전 기록 없음</small>')}
+        ${tile('플레이 스타일', kdaStyle(s, H) || '<small>KDA 기록 적음</small>')}
+        ${tile('챔피언 성향', cs || '<small>정보 없음</small>')}
+        ${tile('소통', tk ? talkIcon(tk) + `<small>${['과묵', '조용', '수다', '샷콜러'][tk - 1] || ''}</small>` : '<small>정보 없음</small>')}
+      </div></div></div>`;
   };
   const teams = r.teams.map((t, i) => `<div data-k="team${i}" class="panel ateam ${c && c.team === i ? 'lead' : ''} ${me.team === i ? 'mine' : ''}${AU.sold?.team === i && Date.now() < AU.sold.until ? ' au-win' : ''}" style="--tc:${teamColor(i)}${AU.sold?.team === i && Date.now() < AU.sold.until ? `;--t:-${Date.now() - AU.sold.at}ms` : ''}">
     <div class="ph"><b class="au-tname"><i class="au-dot"></i>${esc(t.name)}</b>${me.team === i ? '<span class="tag ok">내 팀</span>' : ''}${c?.pass?.[i] ? '<span class="tag au-ps">패스</span>' : ''}<span class="grow"></span><b class="pts">${t.points}P</b></div>
