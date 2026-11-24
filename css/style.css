@@ -2458,3 +2458,7 @@ body.lite .au-banner{animation:aubfade 1.9s linear both}body.lite .au-tbar i{tra
 .lp-tb .btn.on{border-color:var(--gold);background:rgba(217,164,65,.14);color:var(--gold2)}
 @media (max-width:640px){.lp-tb{margin-left:0;width:100%;display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}.lp-tb .btn{flex-direction:column;gap:3px;padding:6px 2px;font-size:11px}}
 @media (max-width:860px){.sl-top:has(.sl-talk){flex-wrap:wrap;row-gap:2px}.sl-top:has(.sl-talk) b{flex:1 1 100%;min-width:0}}
+/* 팀 합 소통(점수판) · 선수 관리 표의 소통 칸은 잠겨 있어도 누구나 */
+.sb .sb-tk{display:inline-flex;align-items:center;gap:4px;margin-top:3px;font-style:normal;font-size:11.5px;color:#aeb9cc;white-space:nowrap}.sb .sb-tk span{font-size:inherit;color:inherit}
+@media (max-width:420px){.sb .sb-tk .sb-tl{display:none}}.sb .sb-tk b{font-size:13px;line-height:1;color:var(--gold2)}
+.tbl.locked .inp.cell.tk-cell{pointer-events:auto;border-color:var(--line2);background:#070b13;cursor:pointer;-webkit-appearance:auto;appearance:auto}

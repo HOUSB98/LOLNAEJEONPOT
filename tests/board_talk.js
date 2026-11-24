@@ -13,16 +13,16 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   await A.evaluate(() => { const t = document.querySelector('[data-a=admTab][data-t=players],[data-a=admTab][data-tab=players]'); t?.click(); }); await A.waitForTimeout(500);
   const sel = await A.$$eval('select[data-c=plTalk]', (x) => x.map((e) => [e.disabled, [...e.options].map((o) => o.textContent).join(',')]));
   ok(sel.length > 10 && sel[0][1] === '—,과묵,조용,수다,샷콜러', '선수 관리 표에 소통 칸(—·과묵·조용·수다·샷콜러, 보통 없음)');
-  ok(sel[0][0] === true, '잠겨 있으면 소통 칸도 잠김');
-  await A.click('[data-a=admUnlock]'); await A.waitForSelector('#pin'); await A.fill('#pin', '1234'); await A.press('#pin', 'Enter'); await A.waitForTimeout(800);
+  ok(sel[0][0] === false && await A.$eval('select[data-c=plMain]', (e) => e.disabled), '관리자 모드가 아니어도 소통 칸은 열려 있음(주라인 등은 잠김)');
   const pids = await A.$$eval('select[data-c=plTalk]', (x) => x.map((e) => e.dataset.id));
-  // 첫 번째 선수: 표에서 샷콜러(4) 고정
+  // 첫 번째 선수: 관리자 PIN 없이 표에서 샷콜러(4)
   await A.selectOption(`select[data-c=plTalk][data-id="${pids[0]}"]`, '4'); await A.waitForTimeout(700);
-  ok(be.db.players[pids[0]].talk === 4, '표 칸에서 고정값 저장(샷콜러 = 4)');
+  ok(be.db.players[pids[0]].talk === 4 && !(await A.$('#pin')), '관리자가 아니어도 표 칸에서 저장(샷콜러 = 4, PIN 안 물음)');
+  await A.click('[data-a=admUnlock]'); await A.waitForSelector('#pin'); await A.fill('#pin', '1234'); await A.press('#pin', 'Enter'); await A.waitForTimeout(800);
   // 두 번째 선수: 상세 창에서 과묵(1)
   await A.click(`[data-a=plEdit][data-id="${pids[1]}"]`); await A.waitForSelector('#plf select[name=talk]');
   await A.selectOption('#plf select[name=talk]', '1'); await A.click('#plf .btn.pri'); await A.waitForTimeout(800);
-  ok(be.db.players[pids[1]].talk === 1 && be.db.players[pids[1]].scores, '상세 창에서도 고정값 저장(과묵 = 1, 다른 정보 그대로)');
+  ok(be.db.players[pids[1]].talk === 1 && be.db.players[pids[1]].scores, '관리자 상세 창에서도 저장(과묵 = 1, 다른 정보 그대로)');
   await A.selectOption(`select[data-c=plTalk][data-id="${pids[2]}"]`, '3'); await A.waitForTimeout(500);
   await A.selectOption(`select[data-c=plTalk][data-id="${pids[2]}"]`, '0'); await A.waitForTimeout(700);
   ok(be.db.players[pids[2]].talk === 0, "'—'로 고정값 지우기");
@@ -66,6 +66,9 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   await A.waitForTimeout(700);
   const ic = await A.$$eval('.arena .slot .sl-talk', (x) => x.map((e) => e.className + '|' + e.title + '|' + e.querySelectorAll('u.on').length));
   ok(ic.length === 3 && ic.some((t) => /tkl4/.test(t) && /샷콜러/.test(t) && /\|4$/.test(t)) && ic.some((t) => /tkl3/.test(t) && /수다/.test(t)) && ic.some((t) => /tkl1/.test(t) && /과묵/.test(t) && /\|1$/.test(t)), '라인업 칸: 고정값(샷콜러·과묵)·오늘 고른 값(수다), 막대 = 단계: ' + ic.join(', '));
+  const sums = await A.$$eval('.scorebar .sb-tk', (x) => x.map((e) => e.innerText.replace(/\s+/g, ' ')));
+  ok(sums.length === 2 && /소통\s*7\s*· 2명/.test(sums[0]) && /소통\s*1\s*· 1명/.test(sums[1]), '점수판에 팀 합 소통(블루 샷콜러4+수다3 = 7·2명, 레드 과묵 1·1명): ' + sums.join(' / '));
+  ok(await M.$$eval('.scorebar .sb-tk', (x) => x.length === 2 && x.every((e) => e.getBoundingClientRect().width > 30)), '휴대폰 점수판에도 팀 합 소통');
   ok(await M.$eval('.arena .slot .sl-talk', (e) => e.getBoundingClientRect().width > 10).catch(() => false) && await M.$eval('.arena .slot.blue .sl-top b', (e) => e.getBoundingClientRect().width > 20), '휴대폰 라인업에도 보이고 이름도 가려지지 않음');
   await A.evaluate(async (id) => { const { S } = await import('/js/core.js'); await S.store.tx('meta', 'board', (r) => ({ ...r, tk: { ...r.tk, [id]: 2 } })); }, pids[1]);
   await M.waitForTimeout(900);
