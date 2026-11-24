@@ -531,6 +531,7 @@ page('champs', {
     const picked = all.filter((c) => c.g), totalPicks = picked.reduce((a, c) => a + c.g, 0);
     if (!picked.length) return `<h1>${ic('champs')}챔피언 분석</h1><div class="panel empty">챔피언 기록이 없습니다. 경기 입력 때 챔피언을 고르면 이곳에 티어와 통계가 쌓입니다.</div>`;
     const val = { tier: (c) => c.tier || 9, g: (c) => c.g, w: (c) => c.w, wr: (c) => (c.g ? c.w / c.g : -1), ban: (c) => c.ban };
+    CH.rows = all.map((c) => ({ name: c.name, key: c.name.replace(/\s/g, ''), tier: c.tier, g: c.g, w: c.w }));
     const rows = [...all].sort((a, b) => CH.dir * (val[CH.sort](a) - val[CH.sort](b)) || b.g - a.g || b.w - a.w);
     const th = (k, t) => `<th class="s ${CH.sort === k ? 'on' : ''}" data-a="chSort" data-k="${k}">${t}${CH.sort === k ? (CH.dir < 0 ? ' ▾' : ' ▴') : ''}</th>`;
     const q2 = picked.filter((c) => c.g >= 2), best = [...q2].sort((a, b) => b.w / b.g - a.w / a.g || b.g - a.g)[0], worst = [...q2].sort((a, b) => a.w / a.g - b.w / b.g || b.g - a.g)[0];
@@ -547,7 +548,7 @@ page('champs', {
     const marks = {};
     if (CH.lane === 'all') LANES.forEach((l) => laneTierList(l).forEach((c) => { if (c.mark && marks[c.name] !== 'op') marks[c.name] = c.mark; }));
     const tl = CH.lane === 'all' ? picked.map((c) => ({ ...c, mark: marks[c.name] })) : laneTierList(CH.lane);
-    return `<div class="h2row"><h1>${ic('champs')}챔피언 분석</h1><span class="tag">${picked.length}종 · ${totalPicks}픽 · 다양성 ${Math.round((picked.length / totalPicks) * 100)}%</span><span class="grow"></span><input id="chq" class="inp" placeholder="챔피언 검색" value="${esc(CH.q)}" data-i="chQ"></div>
+    return `<div class="h2row"><h1>${ic('champs')}챔피언 분석</h1><span class="tag">${picked.length}종 · ${totalPicks}픽 · 다양성 ${Math.round((picked.length / totalPicks) * 100)}%</span><span class="grow"></span><span class="chq-w"><input id="chq" class="inp" placeholder="챔피언 검색" value="${esc(CH.q)}" data-i="chQ" autocomplete="off" aria-controls="chq-r"><span class="chq-r" id="chq-r" hidden></span></span></div>
     <div class="chtop">
       <div class="stat gold toprank"><small>MOST PICKED · 선택 순위 TOP ${topN.length}</small><div class="trk">${topN.map((c, i) => `<div class="trk-r r${i + 1}" style="--d:${i}"><i class="mono">${i + 1}</i>${champIcon(c.name, 'sm')}<span>${esc(c.name)}</span><u><s style="width:${(c.g / topMax) * 100}%"></s></u><b class="mono">${c.g}<small>픽</small></b><em class="mono ${wrClass(pct(c.w, c.g))}">${pct(c.w, c.g)}%</em></div>`).join('')}</div></div>
       ${best ? ins('HIGHEST WIN RATE', '최고 승률 (2픽 이상)', best.name, `${best.g}전 ${best.w}승 · ${pct(best.w, best.g)}%`, 'teal') : '<div></div>'}
@@ -582,11 +583,33 @@ page('champs', {
 act('chLane', (d) => { CH.lane = d.l; refresh(); });
 act('chSort', (d) => { if (CH.sort === d.k) CH.dir *= -1; else { CH.sort = d.k; CH.dir = d.k === 'tier' ? 1 : -1; } refresh(); });
 // 검색: 화면 전체를 다시 그리지 않고 표의 줄만 숨김/보임(입력칸이 바뀌지 않아 한글 조합이 끊기지 않음)
+// + 검색창 바로 아래에 결과(최대 8개: 아이콘·티어·픽·승률)를 작게 띄우고, 누르면 아래 전체 통계 표의 그 줄로 이동해 반짝
+function chSuggest() {
+  const box = document.getElementById('chq-r'); if (!box) return;
+  const q = CH.q.replace(/\s/g, '');
+  if (!q) { box.hidden = true; box.innerHTML = ''; return; }
+  const hit = (CH.rows || []).filter((c) => c.key.includes(q)).sort((a, b) => (b.key.startsWith(q) - a.key.startsWith(q)) || b.g - a.g || a.name.localeCompare(b.name, 'ko'));
+  box.innerHTML = hit.length ? hit.slice(0, 8).map((c) => `<button type="button" class="chq-i" data-a="chGo" data-n="${esc(c.key)}">${champIcon(c.name, 'sm')}<b>${esc(c.name)}</b>${c.tier ? `<span class="tbadge t${c.tier}">${c.tier}</span>` : ''}<small>${c.g ? `${c.g}픽 · 승률 ${pct(c.w, c.g)}%` : '기록 없음'}</small></button>`).join('') + (hit.length > 8 ? `<small class="chq-more">그 외 ${hit.length - 8}개는 아래 표에서</small>` : '')
+    : '<small class="chq-more">검색 결과가 없어요</small>';
+  box.hidden = false;
+}
 act('chQ', (d, el) => {
   CH.q = el.value; const q = CH.q.replace(/\s/g, ''), tb = document.getElementById('chtb'); if (!tb) return refresh();
   let any = false; tb.querySelectorAll('tr[data-n]').forEach((tr) => { const on = !q || tr.dataset.n.includes(q); tr.hidden = !on; any ||= on; });
   const none = tb.querySelector('.ch-none'); if (none) none.hidden = any;
+  chSuggest();
 });
+act('chGo', (d) => {
+  const box = document.getElementById('chq-r'); if (box) box.hidden = true;
+  const tr = document.querySelector(`#chtb tr[data-n="${CSS.escape(d.n)}"]`); if (!tr) return;
+  tr.hidden = false;
+  tr.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  tr.classList.remove('ch-hit'); void tr.offsetWidth; tr.classList.add('ch-hit');
+});
+// 검색창을 다시 누르면 결과 다시 보이기, 바깥을 누르거나 Esc면 닫기(검색어·표 거르기는 그대로)
+document.addEventListener('focusin', (e) => { if (e.target.id === 'chq' && CH.q.trim()) chSuggest(); });
+document.addEventListener('pointerdown', (e) => { const box = document.getElementById('chq-r'); if (box && !box.hidden && !e.target.closest('.chq-w')) box.hidden = true; });
+document.addEventListener('keydown', (e) => { if (e.key !== 'Escape' || e.isComposing) return; const box = document.getElementById('chq-r'); if (box && !box.hidden) { box.hidden = true; e.stopPropagation(); } }, true);
 
 // ---------- 피어리스 현황 ----------
 export function seriesUsed(seriesId, exceptMatchId) {

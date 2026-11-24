@@ -29,9 +29,25 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   ok(await A.evaluate(() => window.__tb === document.getElementById('chtb')), '검색해도 표를 새로 그리지 않고 줄만 숨김');
   const shown = await A.$$eval('#chtb tr[data-n]:not([hidden])', (x) => x.map((e) => e.dataset.n));
   ok(shown.length >= 1 && shown.every((n) => n.includes(word)) && shown.includes(target), `검색 결과만 보임(${shown.length}개)`);
+  // 검색창 아래 결과 목록
+  const sg = await A.$$eval('#chq-r .chq-i', (x) => x.map((e) => ({ n: e.dataset.n, t: e.innerText.replace(/\s+/g, ' ') })));
+  ok(!(await A.$eval('#chq-r', (e) => e.hidden)) && sg.length === shown.length && sg.every((x) => x.n.includes(word)) && sg.every((x) => /픽 · 승률 \d+%|기록 없음/.test(x.t)), `검색창 아래 결과 ${sg.length}개(이름·픽·승률): ` + sg.map((x) => x.t).join(' / '));
+  ok(await A.evaluate(() => document.getElementById('chq') === window.__inp), '결과 목록을 띄워도 입력칸은 그대로');
+  await A.evaluate(() => window.scrollTo(0, 0)); await A.waitForTimeout(200);
+  await A.click(`#chq-r .chq-i[data-n="${sg[0].n}"]`); await A.waitForTimeout(900);
+  const go = await A.evaluate((n) => { const tr = document.querySelector(`#chtb tr[data-n="${n}"]`), r = tr.getBoundingClientRect(); return { inView: r.top >= 0 && r.bottom <= innerHeight, hit: tr.classList.contains('ch-hit'), closed: document.getElementById('chq-r').hidden }; }, sg[0].n);
+  ok(go.inView && go.hit && go.closed, '결과를 누르면 아래 표의 그 줄로 이동해 반짝, 목록은 닫힘');
+  await A.focus('#chq'); await A.waitForTimeout(200);
+  ok(!(await A.$eval('#chq-r', (e) => e.hidden)), '검색창을 다시 누르면 결과 다시 보임');
+  await A.keyboard.press('Escape'); await A.waitForTimeout(150);
+  ok(await A.$eval('#chq-r', (e) => e.hidden) && await A.inputValue('#chq') === word, 'Esc면 목록만 닫힘(검색어 그대로)');
+  await A.focus('#chq'); await A.waitForTimeout(150); await A.mouse.click(5, 400); await A.waitForTimeout(150);
+  ok(await A.$eval('#chq-r', (e) => e.hidden), '바깥을 누르면 목록 닫힘');
   await A.fill('#chq', '없는챔피언이름'); await A.waitForTimeout(200);
+  ok(/검색 결과가 없어요/.test(await A.$eval('#chq-r', (e) => e.innerText)), '결과 없으면 목록에도 안내');
   ok(await A.$eval('#chtb .ch-none', (e) => !e.hidden) && (await A.$$eval('#chtb tr[data-n]:not([hidden])', (x) => x.length)) === 0, '결과 없으면 "검색 결과가 없습니다"');
   await A.fill('#chq', ''); await A.waitForTimeout(200);
+  ok(await A.$eval('#chq-r', (e) => e.hidden), '검색어를 지우면 목록 닫힘');
   ok((await A.$$eval('#chtb tr[data-n]:not([hidden])', (x) => x.length)) === all.length && await A.$eval('#chtb .ch-none', (e) => e.hidden), '지우면 전체 다시 보임');
   // 검색어를 둔 채 정렬하거나 다른 화면에 다녀와도 검색 유지
   await A.fill('#chq', word); await A.waitForTimeout(200);
