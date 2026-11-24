@@ -206,7 +206,7 @@ function cue(kind) {
   if (AU.mute) return;
   try {
     ACX ||= new (window.AudioContext || window.webkitAudioContext)(); if (ACX.state === 'suspended') ACX.resume();
-    const N = { outbid: [[330, 0, 0.12], [262, 0.13, 0.16]], sold: [[523, 0, 0.1], [659, 0.1, 0.18]], win: [[523, 0, 0.1], [659, 0.1, 0.1], [784, 0.2, 0.28]] }[kind];
+    const N = { start: [[784, 0, 0.09], [988, 0.09, 0.14]], outbid: [[330, 0, 0.12], [262, 0.13, 0.16]], sold: [[523, 0, 0.1], [659, 0.1, 0.18]], win: [[523, 0, 0.1], [659, 0.1, 0.1], [784, 0.2, 0.28]] }[kind];
     const t0 = ACX.currentTime;
     for (const [f, at, d] of N) {
       const o = ACX.createOscillator(), g = ACX.createGain(); o.type = 'sine'; o.frequency.value = f;
@@ -246,10 +246,12 @@ function roomView(id, token) {
   if (r.status === 'lobby') {
     stage = `<div class="panel stage"><h2>대기 중</h2><p class="mut">팀장에게 각자의 링크를 보내고, 모두 들어오면 시작하세요.</p>
       ${me.host ? `<div class="links"><div class="kv"><span>${ic('eye')}관전 링크</span><span class="grow"></span><button class="btn xs" data-a="auCopy" data-u="${esc(base)}">복사</button><button class="btn xs" data-a="auSendLink" data-u="${esc(base)}" data-label="관전 링크">채팅 전송</button></div>
+        <div class="au-online">${r.teams.map((t) => { const on = t.seen && S.store.serverNow() - t.seen < 90e3; return `<span class="au-on ${on ? 'on' : ''}"><i></i>${pname(t.captain)}<small>${on ? '접속 중' : t.seen ? '나감' : '아직 안 들어옴'}</small></span>`; }).join('')}</div>
         ${r.teams.map((t) => `<div class="kv"><span>${ic('crown')}${pname(t.captain)} 팀장 링크</span><span class="grow"></span><button class="btn xs" data-a="auCopy" data-u="${esc(base + '/' + t.token)}">복사</button><button class="btn xs" data-a="auSendLink" data-u="${esc(base + '/' + t.token)}" data-label="${esc(nm(t.captain) + ' 팀장 링크')}">채팅 전송</button></div>`).join('')}</div>
-        <button class="btn pri block big" data-a="auStart" data-id="${r.id}">▶ 경매 시작</button>` : `<p>${me.team >= 0 ? `${ic('crown')} <b>${esc(r.teams[me.team].name)}</b> 팀장으로 접속했습니다. 진행자가 시작하면 입찰할 수 있습니다.` : `${ic('eye')} 관전 중입니다.`}</p>`}</div>`;
+        <button class="btn pri block big" data-a="auStart" data-id="${r.id}">▶ 경매 시작${r.teams.every((t) => t.seen && S.store.serverNow() - t.seen < 90e3) ? ' · 팀장 모두 접속' : ''}</button>` : `<p>${me.team >= 0 ? `${ic('crown')} <b>${esc(r.teams[me.team].name)}</b> 팀장으로 접속했습니다. 진행자가 시작하면 입찰할 수 있습니다.` : `${ic('eye')} 관전 중입니다.`}</p>`}</div>`;
   } else if (r.status === 'done') {
     stage = `<div class="panel stage"><h2>${ic('flag')}경매 완료</h2>${r.unsold.length ? `<p class="mut">예비: ${r.unsold.map(pname).join(', ')}</p>` : ''}
+      <button class="btn block" data-a="auResult" data-id="${r.id}">${ic('copy')}결과 복사 (단톡방에 붙여 넣기)</button>
       ${r.teams.length >= 2 ? `${r.teams.length > 2 ? `<div class="row au-dl">${['블루', '레드'].map((side, k) => `<label class="fld"><span>${side}</span><select class="inp" data-c="auDl" data-i="${k}">${r.teams.map((t, i) => `<option value="${i}" ${Math.min(AU.dl[k], r.teams.length - 1) === i ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>`).join('')}</div>` : ''}
       <button class="btn pri block big" data-a="auToDraft" data-id="${r.id}">${ic('today')}이 팀으로 오늘의 내전 라인업 채우기</button><p class="hint">${r.teams.length > 2 ? '고른 두 팀이' : '첫 번째 팀이 블루, 두 번째 팀이 레드로'} 들어가고 라인은 점수 기준으로 자동 배치됩니다(이후 수정 가능).</p>` : ''}
       ${me.host && r.undo ? `<button class="btn ghost block" data-a="auUndo" data-id="${r.id}">↩ 직전 낙찰 취소</button>` : ''}</div>`;
@@ -267,7 +269,7 @@ function roomView(id, token) {
       <div class="bidnow${lead ? ' lead' : ''}${bidBumped(c) ? ' bump' : ''}"><small>현재 입찰</small><b>${c.bid}P</b><span>${lead ? `${ic('crown')}${esc(lead.name)}` : '입찰 없음'}</span></div>
       ${bidTeam >= 0 ? `<div class="bidbar">
         ${me.host ? `<select class="inp" data-c="auAs">${r.teams.map((t, i) => `<option value="${i}" ${i === bidTeam ? 'selected' : ''}>${esc(t.name)} 대리 입찰</option>`).join('')}</select>` : ''}
-        <div class="bids">${b(r.cfg.unit)}${b(r.cfg.unit * 5)}${b(r.cfg.unit * 10)}</div>
+        <div class="bids">${b(r.cfg.unit)}${b(r.cfg.unit * 5)}${b(r.cfg.unit * 10)}${(() => { const all = Math.floor(bt.points / r.cfg.unit) * r.cfg.unit; return `<button class="btn bid allin" data-a="auBid" data-id="${r.id}" data-v="all" ${can && all >= min ? '' : 'disabled'} title="남은 포인트를 모두 걸기">올인<small>${all}P</small></button>`; })()}</div>
         <div class="row"><input id="auAmt" class="inp grow" type="number" inputmode="numeric" placeholder="직접 입력 (${min}P 이상)" value="${esc(AU.amt)}" data-i="auAmt"><button class="btn pri" data-a="auBid" data-id="${r.id}" data-v="amt" ${can ? '' : 'disabled'}>입찰</button></div>
         <p class="hint">${bt.members.length >= r.cfg.size - 1 ? '팀이 가득 찼습니다.' : c.team === bidTeam ? '현재 최고 입찰 팀입니다.' : `${esc(bt.name)} 잔여 ${bt.points}P`}</p></div>` : `<p class="mut">${ic('eye')} 관전 중 — 팀장 링크로 들어오면 입찰할 수 있습니다.</p>`}
       ${me.host ? `<div class="row au-hostbar"><button class="btn" data-a="auPause" data-id="${r.id}">${r.status === 'paused' ? '▶ 재개' : '⏸ 일시정지'}</button>${r.status === 'running' && S.store.serverNow() < c.startsAt ? `<button class="btn" data-a="auNow" data-id="${r.id}">⏩ 바로 시작</button>` : ''}${r.undo ? `<button class="btn ghost" data-a="auUndo" data-id="${r.id}" title="직전 낙찰(유찰)을 취소하고 그 선수를 다시 경매">↩ 직전 낙찰 취소</button>` : ''}</div>` : ''}</div>`;
@@ -295,6 +297,15 @@ function tick() {
   if (S.page !== 'auction' || !S.arg[0]) { clearInterval(timer); timer = 0; return; }
   const r = room(S.arg[0]), el = document.getElementById('au-timer');
   if (!r || r.deleted || r.status === 'deleted') { clearInterval(timer); timer = 0; return; }
+  if (r.status === 'lobby') { // 대기실: 팀장은 1분마다 '접속 중' 표시를 남기고(시작하면 멈춤), 진행자 화면은 20초마다 표시를 새로 그린다
+    const me = myRole(r, S.arg[1]);
+    if (me.team >= 0 && document.visibilityState === 'visible' && Date.now() - (AU.seenAt || 0) > 60e3) {
+      AU.seenAt = Date.now(); const ti = me.team;
+      tx(r.id, (x, t) => (x.status === 'lobby' && x.teams[ti] ? ((x.teams[ti].seen = t), x) : null));
+    }
+    if (me.host && Date.now() - (AU.lobbyAt || 0) > 20e3) { AU.lobbyAt = Date.now(); refresh(); }
+    return;
+  }
   if (!r.cur || !el) return;
   const c = r.cur;
   if (!S.store.serverClockReady?.()) {
@@ -310,6 +321,11 @@ function tick() {
   const waiting = now < c.startsAt, bar = document.querySelector('.bidbar');
   if (bar && bar.classList.contains('wait') !== waiting) bar.classList.toggle('wait', waiting); // 대기 중엔 입찰 버튼을 흐리게(누르면 '아직 시작 전' 안내)
   if (!waiting) document.querySelector('[data-a=auNow]')?.remove(); // 시작되면 '바로 시작' 버튼은 치운다
+  if (waiting) AU.waitPid = c.pid;
+  else if (AU.waitPid === c.pid && r.status === 'running') { // 대기 → 입찰 시작 순간: 자리가 남은 팀장에게 짧은 알림음 한 번
+    AU.waitPid = '';
+    const me = myRole(r, S.arg[1]); if (me.team >= 0 && r.teams[me.team].members.length < r.cfg.size - 1) cue('start');
+  }
   if (waiting) { el.textContent = `곧 시작 ${Math.ceil((c.startsAt - now) / 1000)}`; el.className = 'timer'; return; }
   const left = c.endsAt - now;
   el.textContent = left > 0 ? `⏱ ${Math.ceil(left / 1000)}초` : '낙찰 처리 중…';
@@ -405,7 +421,8 @@ act('auPause', (d) => tx(d.id, (r, now, err) => {
 act('auBid', async (d) => {
   const r0 = room(d.id); if (!r0?.cur) return;
   const me = myRole(r0, S.arg[1]), ti = me.host ? Math.min(AU.as, r0.teams.length - 1) : me.team, pid = r0.cur.pid;
-  const v = d.v === 'amt' ? Math.floor(+AU.amt) : +d.v;
+  const v = d.v === 'amt' ? Math.floor(+AU.amt) : d.v === 'all' ? Math.floor((r0.teams[ti]?.points || 0) / r0.cfg.unit) * r0.cfg.unit : +d.v;
+  if (d.v === 'all' && v >= r0.cur.bid + r0.cfg.unit && !confirm(`남은 포인트 ${v}P를 모두 걸까요?`)) return;
   if (!v || v < r0.cur.bid + r0.cfg.unit) return toast(r0.cur.team >= 0 && d.v !== 'amt' ? `${r0.teams[r0.cur.team]?.name || '다른 팀'}이 먼저 ${r0.cur.bid}P를 불렀어요 · 다음 최소 ${r0.cur.bid + r0.cfg.unit}P` : `${r0.cur.bid + r0.cfg.unit}P 이상 입찰해야 합니다`);
   if (r0.cur.team === ti) return toast('이미 우리 팀이 최고 입찰이에요');
   if (v % r0.cfg.unit) return toast(`입찰 단위는 ${r0.cfg.unit}P입니다`);
@@ -447,6 +464,20 @@ act('auNow', (d) => tx(d.id, (r, now, err) => {
   const c = r.cur; if (r.status !== 'running' || !c || now - err >= c.startsAt) return null;
   const at = now + err; c.endsAt = at + r.cfg.sec * 1000; c.startsAt = at; return r;
 }));
+// 경매 결과를 글로 복사: 팀별 팀장·선수·낙찰가·남은 포인트(카톡·디스코드에 그대로 붙여 넣을 수 있게)
+export function resultText(r) {
+  const L = [`🏆 ${/경매$/.test(r.name) ? r.name : r.name + ' 경매'} 결과`];
+  r.teams.forEach((t) => {
+    const used = t.members.reduce((a, m) => a + (m.price || 0), 0);
+    L.push('', `[${t.name}] 사용 ${used}P · 남은 ${t.points}P`, `👑 ${nm(t.captain)} (팀장)`, ...t.members.map((m) => `· ${nm(m.pid)} ${m.price ? m.price + 'P' : '(자동 배정)'}`));
+  });
+  if (r.unsold.length) L.push('', `예비: ${r.unsold.map(nm).join(', ')}`);
+  return L.join('\n');
+}
+act('auResult', async (d) => {
+  const r = room(d.id); if (!r) return; const t = resultText(r);
+  try { await navigator.clipboard.writeText(t); toast('경매 결과를 복사했어요'); } catch { prompt('아래 내용을 복사하세요', t); }
+});
 act('auMute', () => { AU.mute = !AU.mute; try { localStorage.setItem('naejeon:aumute', AU.mute ? '1' : '0'); } catch {} refresh(); });
 act('auDl', (d, el) => { AU.dl[+d.i] = +el.value; });
 act('auBatchBid', (d, el) => {
