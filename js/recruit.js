@@ -2,7 +2,7 @@
 // 저장: meta/recruit = { when(내전 시작 시각 ms), by(시작한 닉네임), at, list: { 기기 id: { n: 닉네임, at } } }
 //   meta는 모두가 이미 실시간으로 받고 있는 묶음이라 따로 구독이 늘지 않는다(누가 참가할 때마다 접속자마다 읽기 1).
 //   시작 시각 + 6시간이 지나면 끝난 모집으로 보고 보여 주지 않는다(문서는 지우지 않고 다음 모집이 덮어쓴다).
-// 카톡 카드는 보내는 순간의 인원이 찍힌다(카카오 카드는 보낸 뒤에 바뀌지 않음). '참가하러 가기'를 누르면 사이트에서 실시간 인원을 본다.
+// 카톡 카드에는 시간만 넣는다(카카오 카드는 보낸 뒤에 바뀌지 않음). '참가하러 가기'를 누르면 사이트에서 실시간 인원을 본다.
 import { S, act, esc, ic, toast, modal, closeModal, mh, refresh, moreHooks } from './core.js';
 import { cid, nick } from './social.js';
 import { kakaoWarm, shareKakao } from './kakao.js';
@@ -19,14 +19,13 @@ const dayWord = (t) => {
   return diff === 0 ? '오늘' : diff === 1 ? '내일' : k(d) < k(n) ? '지난' : `${d.getMonth() + 1}월 ${d.getDate()}일`;
 };
 const dateLabel = (t) => { const d = new Date(t); return `${d.getMonth() + 1}월 ${d.getDate()}일 (${'일월화수목금토'[d.getDay()]})`; };
-// 카톡 카드 내용(kakao.js가 부름)
+// 카톡 카드 내용(kakao.js가 부름): 시간만 알리고 지원 인원·지원자 이름은 넣지 않는다
+// (카톡 카드는 보낸 뒤에 바뀌지 않아 인원이 금방 옛 숫자가 되므로. 실시간 인원은 사이트 오늘의 내전 화면에서)
 export function recruitCard() {
-  const d = doc(), on = recruitOn(d), ps = on ? people(d) : [], n = ps.length;
-  const lines = [on ? `${dateLabel(d.when)} ${fmtTime(d.when)} 시작` : dateLabel(Date.now())];
-  if (on) lines.push(n >= NEED ? `${n}명 지원 · 인원이 다 모였어요!` : `지금 ${n}명 지원 · ${NEED - n}명 더 필요해요`);
-  if (n) lines.push(`지원: ${ps.slice(0, 10).map((p) => p.n).join(', ')}${n > 10 ? ` 외 ${n - 10}명` : ''}`);
+  const d = doc(), on = recruitOn(d);
+  const lines = [on ? `${dateLabel(d.when)} ${fmtTime(d.when)} 시작` : dateLabel(Date.now()), "아래 버튼을 눌러 사이트에서 '참가'해 주세요"];
   const title = on ? `${dayWord(d.when)} ${fmtTime(d.when)} 내전 하실 분!` : '오늘 내전 하실 분 구해요!';
-  return { title, desc: lines.join('\n'), hash: '#/today', text: `${title}\n${lines.join('\n')}\n사이트에서 '참가'를 눌러 주세요`, button: '참가하러 가기' };
+  return { title, desc: lines.join('\n'), hash: '#/today', text: `${title}\n${lines.join('\n')}`, button: '참가하러 가기' };
 }
 
 // ---------- 오늘의 내전 화면 위쪽 모집 칸 ----------

@@ -19,7 +19,7 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   await A.click('#modal.on [data-a=rcTime][data-v="22:00"]');
   await A.click('#modal.on [data-a=rcShare]'); await A.waitForTimeout(900);
   const r1 = await A.evaluate(() => ({ o: window.__kk[0], key: window.__kkKey }));
-  ok(r1.key === '6316315a1de926afd006fa59bc5bcf1c' && r1.o?.objectType === 'feed' && /^(오늘|내일) 오후 10:00 내전 하실 분!$/.test(r1.o.content.title) && /\d+월 \d+일 \([일월화수목금토]\) 오후 10:00 시작/.test(r1.o.content.description) && /지금 1명 지원 · 9명 더 필요해요/.test(r1.o.content.description) && /지원: A/.test(r1.o.content.description), '모집 카드: 시간·지원 인원·지원자: ' + JSON.stringify(r1.o?.content));
+  ok(r1.key === '6316315a1de926afd006fa59bc5bcf1c' && r1.o?.objectType === 'feed' && /^(오늘|내일) 오후 10:00 내전 하실 분!$/.test(r1.o.content.title) && /\d+월 \d+일 \([일월화수목금토]\) 오후 10:00 시작/.test(r1.o.content.description) && !/지원:|명 지원|더 필요/.test(r1.o.content.description) && /사이트에서 '참가'해 주세요/.test(r1.o.content.description), '모집 카드: 시간만(지원 인원·지원자는 넣지 않음): ' + JSON.stringify(r1.o?.content));
   ok(/\/og\.png$/.test(r1.o.content.imageUrl) && /\?k=test#\/today$/.test(r1.o.content.link.webUrl) && r1.o.buttons[0].title === '참가하러 가기' && r1.o.buttons[0].link.mobileWebUrl === r1.o.content.link.webUrl, '버튼 "참가하러 가기" → 초대 코드 + 오늘의 내전 화면');
   await A.evaluate(() => (window.__kk = []));
   // 2) 경기 상세
