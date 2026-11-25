@@ -9,7 +9,7 @@ import { FIREBASE_CONFIG } from './config.js';
 const WATCHED = ['players', 'matches', 'meta', 'presence', 'chat', 'posts'];
 const PRESENCE_MS = 15 * 60e3; // 접속 표시는 12분 안에 신호가 있는 사람만 보이므로, 처음 읽을 때 15분 안의 기록만 받는다
 const CHAT_LIMIT = 20; // 채팅은 문서가 계속 쌓이므로 최근 20개만 구독한다(기록 자체는 DB에 남는다). 채팅창이 닫혀 있으면 1개(chatFull)
-const INC = ['matches', 'players']; // 마지막 수정 시각(upd) 이후 바뀐 문서만 받는 컬렉션(하루 1번은 전체)
+const INC = ['matches', 'players']; // 마지막 수정 시각(upd) 이후 바뀐 문서만 받는 컬렉션(7일에 1번은 전체, 하루 1번 문서 수 확인)
 const POST_LIMIT = 5; // 익명 게시판도 최근 5개만 실시간으로 받고(나머지는 접어 두고 읽지 않음), 이전 글은 '더 보기'를 누를 때 10개씩 한 번만 읽는다
 const FUSE_MSG = '저장이 너무 잦아 이 화면의 저장을 잠시 멈췄어요. 새로고침해 주세요';
 const clean = (o) => JSON.parse(JSON.stringify(o)); // Firestore는 undefined를 받지 않는다
@@ -149,17 +149,30 @@ async function firebaseStore(key, onChange, opt = {}) {
   setTimeout(() => startCols.forEach((col) => cached[col] && mark(col)), 4000); // 캐시가 있으면 4초, 없으면(첫 방문·빈 컬렉션) 12초까지 서버를 기다린다
   setTimeout(() => startCols.forEach(mark), 12000);
   // 경기 기록·선수(INC): 기기에 저장된 기록(Firestore 로컬 캐시)을 먼저 쓰고, 서버에서는 마지막 수정 시각(upd) 이후에 바뀐 문서만 받는다.
-  // 하루에 한 번은 전체를 다시 받아 혹시 빠진 것을 맞추고, upd 가 없는 예전 문서에는 이때 upd 를 채워 넣는다.
+  // 전체 다시 받기는 7일에 한 번(예전 하루 1번 → 사람·기기마다 하루에 경기 수만큼 읽던 것이 가장 큰 읽기였다). 대신 하루에 한 번은
+  // 서버의 문서 수만 세어(내려받지 않음, 1,000개당 읽기 1번) 기기 캐시와 다르면(빠진 문서가 있으면) 바로 전체를 다시 받는다.
+  // upd 가 없는 예전 문서가 있으면 전체를 받으며 upd 를 채운다.
   // upd 는 사이트의 저장(put·patch·tx → stamp)과 연동 서버의 라이엇 갱신(worker.js patchWrite 의 updateTransforms)이 서버 시각으로 붙인다.
+  const FULL_MS = 7 * 864e5, CNT_MS = 864e5;
   const fullKey = (col) => 'naejeon:' + (col === 'matches' ? 'mfull' : 'pfull') + ':' + key;
-  async function incQuery(col, src) {
+  const cntKey = (col) => 'naejeon:' + (col === 'matches' ? 'mcnt' : 'pcnt') + ':' + key;
+  async function incQuery(col, src, force) {
     const base = {};
-    try { (await fs.getDocsFromCache(src)).forEach((d) => (base[d.id] = { ...d.data(), id: d.id })); } catch {}
+    if (!force) try { (await fs.getDocsFromCache(src)).forEach((d) => (base[d.id] = { ...d.data(), id: d.id })); } catch {}
     const docs = Object.values(base), ups = docs.map((d) => d.upd?.toMillis?.()).filter(Number.isFinite);
     const lastFull = +localStorage.getItem(fullKey(col)) || 0;
-    const inc = docs.length > 0 && ups.length > 0 && docs.every((d) => d.upd) && Date.now() - lastFull < 24 * 3600e3;
+    const inc = !force && docs.length > 0 && ups.length > 0 && docs.every((d) => d.upd) && Date.now() - lastFull < FULL_MS;
     return inc ? { q: fs.query(src, fs.where('upd', '>=', fs.Timestamp.fromMillis(Math.max(...ups)))), base, inc } : { q: src, base: {}, inc };
   }
+  // 하루 한 번 문서 수 확인(바뀐 것만 받는 중일 때만, 화면을 그린 뒤 뒤에서). 다르면 그 컬렉션만 전체로 다시 구독
+  const countCheck = (col, src, n) => {
+    if (Date.now() - (+localStorage.getItem(cntKey(col)) || 0) < CNT_MS) return;
+    setTimeout(() => fs.getCountFromServer(src).then((r) => {
+      const total = r.data().count;
+      try { localStorage.setItem(cntKey(col), String(Date.now())); } catch {}
+      if (total !== n && !isPaused && UNSUB[col]) { console.warn(`[store] ${col}: 기기 ${n}개 · 서버 ${total}개 → 전체 다시 받기`); try { UNSUB[col](); } catch {} delete UNSUB[col]; sub(col, true); }
+    }).catch(() => {}), 5000);
+  };
   const backfilled = {};
   const backfill = (col, m) => { // upd 가 없는 예전 문서에 수정 시각을 한 번 채운다(한 번만, 쓰기 = 그 문서 수)
     if (backfilled[col] || !Object.values(m).some((d) => !d.upd)) return; backfilled[col] = true;
@@ -168,24 +181,26 @@ async function firebaseStore(key, onChange, opt = {}) {
   };
   // 채팅: 채팅창이 열려 있으면 최근 20개, 닫혀 있으면 최신 1개만(새 메시지 알림용). 열고 닫을 때 chatFull()로 바꿔 다시 구독한다
   let chatOn = !!opt.chatOpen;
-  const sub = async (col) => {
+  const sub = async (col, force = false) => {
     const src = fs.collection(db, 'leagues', key, col);
     const lim = col === 'chat' ? (chatOn ? CHAT_LIMIT : 1) : col === 'posts' ? POST_LIMIT : 0;
     let q = lim ? fs.query(src, fs.orderBy('at', 'desc'), fs.limit(lim)) : src, base = null, inc = false;
     if (col === 'presence') q = fs.query(src, fs.where('at', '>', Date.now() - PRESENCE_MS)); // 그 뒤에 들어오는 신호는 at 이 더 크므로 계속 받는다
-    if (INC.includes(col)) { ({ q, base, inc } = await incQuery(col, src)); if (inc) { data[col] = { ...base }; cached[col] = true; } }
+    if (INC.includes(col)) { ({ q, base, inc } = await incQuery(col, src, force)); if (inc) { data[col] = { ...base }; cached[col] = true; } }
     if (isPaused && col !== 'meta') return; // 준비 중에 쉬기가 시작됐으면 구독하지 않는다
+    let fullPending = INC.includes(col) && !inc;
     UNSUB[col] = fs.onSnapshot(q, { includeMetadataChanges: true }, (snap) => {
       const fromServer = !snap.metadata.fromCache, first = !seen[col];
-      if (!first && !snap.docChanges().length) return; // 내용은 그대로이고 상태 표시만 바뀐 알림은 무시(다시 그리지 않음)
+      if (!first && !snap.docChanges().length && !(fullPending && fromServer)) return; // 내용은 그대로이고 상태 표시만 바뀐 알림은 무시(다시 그리지 않음)
       const m = base ? { ...base } : {};
       snap.forEach((d) => (m[d.id] = { ...d.data(), id: d.id }));
       data[col] = m;
       if (first && !fromServer) { cached[col] = snap.size > 0 || cached[col]; return; } // 캐시 값: 담아만 두고 서버 확인을 기다린다
-      if (INC.includes(col) && !inc && fromServer && first) { try { localStorage.setItem(fullKey(col), String(Date.now())); } catch {} backfill(col, m); }
+      if (fullPending && fromServer) { fullPending = false; try { localStorage.setItem(fullKey(col), String(Date.now())); localStorage.setItem(cntKey(col), String(Date.now())); } catch {} backfill(col, m); } // 전체를 받았으면 7일 시계·문서 수 확인 시계를 새로
       mark(col);
       onChange(col);
     }, (err) => { console.error(err); mark(col); onChange('error', err); });
+    if (inc) countCheck(col, src, Object.keys(base).length);
   };
   startCols.forEach((col) => { data[col] = {}; sub(col); });
   // 채팅창을 열면(또는 열 것 같으면) 20개로, 닫으면 1개로 다시 구독. 기기 캐시에 있는 채팅이 먼저 보이고 서버 값이 뒤따른다
