@@ -22,7 +22,8 @@ const LAZY_GET = [
 ];
 setTimeout(() => (window.requestIdleCallback || setTimeout)(() => LAZY_GET.forEach((g) => g().catch(() => {}))), 6000);
 import { watchPosts, postsChanged } from './talk.js';
-import { xmasOn, SEASON } from './season.js'; // 크리스마스·새해 장식 코드는 시즌에만 받는다
+import { xmasOn, SEASON } from './season.js';
+import { kakaoBtn } from './kakao.js'; // 카카오톡 공유 버튼(경기 상세·랭킹) // 크리스마스·새해 장식 코드는 시즌에만 받는다
 
 const num = (v, cls = '') => `<td class="num ${cls}">${v}</td>`;
 export function stat(icon, label, value, sub, tone = '') {
@@ -327,7 +328,7 @@ page('rank', {
       <span class="sp-rk mono">${i + 1}</span><small>${medal[i]}</small><b>${esc(s.name)}</b>
       <span class="sp-meta">${LANE_ICON[s.mainLane]}${LANE_NAME[s.mainLane]}<i></i>${s.g ? `${s.wr}% · ${s.g}판` : '출전 없음'}${s.titles[0] ? `<i></i>${s.titles[0].e} ${s.titles[0].n}` : ''}</span>
       <span class="sp-val"><em class="mono">${s.ovr}</em><small>OVR</small></span></a>`).join('');
-    return `<div class="h2row"><h1>${ic('rank')}랭킹</h1><span class="tag gold">SEASON LADDER</span><span class="grow"></span>
+    return `<div class="h2row"><h1>${ic('rank')}랭킹</h1><span class="tag gold">SEASON LADDER</span><span class="grow"></span>${kakaoBtn('rank')}
       <div class="seg">${[['all', '종합'], ['score', '라인 점수'], ['lane', '라인별 승률']].map(([k, t]) => `<button class="${LB.view === k ? 'on' : ''}" data-a="lbView" data-v="${k}">${t}</button>`).join('')}</div>
       <label class="mini">최소 <input class="inp xs" type="number" min="0" value="${LB.min}" data-c="lbMin"> 판</label></div>
     <div class="stats">
@@ -476,7 +477,7 @@ act('matchDetail', (d) => {
   modal(`${mh(`경기 #${mi.no} 상세`)}
     <div class="sub mdsub"><span class="mono">${fmtDT(m.at)}</span>${min ? `<span class="mono">${Math.floor(min)}분 ${String(Math.round((min % 1) * 60)).padStart(2, '0')}초</span>` : ''}<span>예상 블루 ${Math.round(mi.pBlue * 100)}%</span><span>점수 ${mi.bs} : ${mi.rs}</span>${mi.upset ? '<span class="tag bad">UPSET</span>' : ''}</div>
     ${team('blue')}${team('red')}
-    <div class="row md-act"><span class="mut sm grow">${has ? '리플레이 기록이 적용된 경기입니다.' : '직접 입력한 기록이라 라인업과 KDA만 있습니다. 이 경기의 리플레이(.rofl)를 넣으면 CS·골드·피해량·시야·아이템이 채워집니다.'}</span><button class="btn ghost" data-a="matchSwap" data-id="${m.id}" title="블루와 레드를 거꾸로 기록했을 때: 두 팀의 진영만 맞바꿔요(선수·챔피언·KDA·승패는 그대로)">${ic('swap')}진영 바꾸기</button><button class="btn ${has ? '' : 'gold'}" data-a="matchReplay" data-id="${m.id}">${has ? '리플레이 교체' : '리플레이 넣기'}</button></div>`, 'xwide');
+    <div class="row md-act"><span class="mut sm grow">${has ? '리플레이 기록이 적용된 경기입니다.' : '직접 입력한 기록이라 라인업과 KDA만 있습니다. 이 경기의 리플레이(.rofl)를 넣으면 CS·골드·피해량·시야·아이템이 채워집니다.'}</span>${kakaoBtn('match', m.id)}<button class="btn ghost" data-a="matchSwap" data-id="${m.id}" title="블루와 레드를 거꾸로 기록했을 때: 두 팀의 진영만 맞바꿔요(선수·챔피언·KDA·승패는 그대로)">${ic('swap')}진영 바꾸기</button><button class="btn ${has ? '' : 'gold'}" data-a="matchReplay" data-id="${m.id}">${has ? '리플레이 교체' : '리플레이 넣기'}</button></div>`, 'xwide');
 });
 // 진영 바꾸기: 블루/레드를 거꾸로 적은 경기를 바로잡는다. 두 팀이 통째로 자리를 바꿀 뿐 누가 누구와 한 팀이었는지, 누가 이겼는지는 그대로다.
 // 바꾸는 값: 선수 목록·챔피언·밴·승리 진영·저장 당시 점수(bs↔rs, 블루 예상 승률 → 1-값). KDA·리플레이 기록(stats)은 선수 id 기준이라 그대로.

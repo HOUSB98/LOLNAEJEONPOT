@@ -2305,3 +2305,8 @@ body.lite #chtb tr.ch-hit td{animation:none;background:rgba(217,164,65,.14)}
 #verbar .btn{min-height:30px;padding:0 12px}
 #verbar .vb-x{display:grid;place-items:center;width:30px;height:30px;border:0;border-radius:50%;background:transparent;color:var(--mut);cursor:pointer}#verbar .vb-x:hover{color:var(--text)}#verbar .vb-x .ic{width:15px;height:15px}
 @keyframes vbin{from{opacity:0;transform:translate(-50%,-10px)}}
+/* 카카오톡 공유 버튼(js/kakao.js): 카카오 노란색 + 말풍선 */
+.btn.kk-btn{background:#fee500;border-color:#fee500;color:rgba(0,0,0,.85);font-weight:700}
+.btn.kk-btn:hover{background:#ffeb3b;border-color:#ffeb3b;color:#000}
+.btn.kk-btn .kk-ic{width:17px;height:17px;flex:none;color:#000}
+.btn.kk-btn::after{display:none}
