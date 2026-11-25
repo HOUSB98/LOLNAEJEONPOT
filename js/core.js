@@ -53,6 +53,11 @@ const I = {
   bell: '<path d="M6 16v-5a6 6 0 0 1 12 0v5l1.500 2h-15zM10 20.500a2 2 0 0 0 4 0"/>',
   save: '<path d="M5 4h11l3 3v13H5zM8 4v5h7V4M8 20v-6h8v6"/>',
   lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  unlock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.600-1.800"/>',
+  mask: '<path d="M3.500 5.500c2.800 1.200 5.700 1.200 8.500 0v5c0 2.900-1.900 5-4.250 5S3.500 13.400 3.500 10.500z"/><path d="M6 9h.01M9.500 9h.01M6.300 12.300c.900.700 2 .700 2.900 0"/><path d="M13.500 9.200c2.300.900 4.700.900 7 0V14c0 2.800-1.700 4.800-4 4.800-1.400 0-2.600-.700-3.300-1.900"/><path d="M15.300 12.300h.01M18.700 12.300h.01M15.400 15.700c.700-.500 1.700-.500 2.400 0"/>',
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.500 11a6.500 6.500 0 0 0 13 0M12 17.500V21M9 21h6"/>',
+  coin: '<circle cx="12" cy="12" r="8.500"/><path d="M14.600 9.300c-.500-.800-1.400-1.200-2.600-1.200-1.400 0-2.500.700-2.500 1.800 0 2.600 5 1.400 5 4 0 1.100-1.100 1.900-2.500 1.900-1.200 0-2.100-.500-2.600-1.300M12 6.800v1.300M12 15.900v1.300"/>',
+  leaf: '<path d="M5 19C5 11 10 6 19.500 4.500 18.500 13.500 13 19 5 19z"/><path d="M5 19l7.500-7.500"/>',
   eye: '<path d="M2 12s3.500-7 10-7 10 7 10 7-3.500 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
   sound: '<path d="M4 9v6h4l5 4V5L8 9zM16 9a4 4 0 0 1 0 6M18.500 6.500a8 8 0 0 1 0 11"/>',
@@ -162,7 +167,7 @@ export function render() {
   pages[S.page].after?.(entering);
   if (fid) { const el = document.getElementById(fid); if (el) { el.focus(); try { el.setSelectionRange(sel, sel); } catch {} } }
 }
-// 바뀐 구역만 다시 그리기(keyed: true인 화면 — 지금은 경매). data-k가 붙은 구역마다 지난번 그림과 글자 그대로 비교해
+// 바뀐 구역만 다시 그리기(keyed: true인 화면 — 경매·오늘의 내전). data-k가 붙은 구역마다 지난번 그림과 글자 그대로 비교해
 // 달라진 구역만 갈아 끼운다. 구역 바깥 뼈대(shell)가 달라졌거나 처음 그리는 화면이면 예전처럼 통째로 그린다.
 // 효과: 입찰 하나에 화면 전체를 다시 배치하지 않음(저사양 휴대폰 끊김↓), 진행 중인 타이머 글자·스크롤 등 건드리지 않은 구역은 그대로
 const KR = { shell: null, parts: new Map() };
@@ -215,7 +220,7 @@ export const moreHooks = []; // 더보기 창 아래쪽 버튼을 다른 모듈�
 act('tabMore', () => {
   let grp = '';
   const body = NAV.map(([p, t]) => (p ? `<a class="mm-it ${p === S.page ? 'on' : ''}" href="#/${p}" data-a="close">${ic(p)}<span>${t}</span></a>` : `${grp ? '</div>' : ''}<h6>${(grp = t)}</h6><div class="mm-g">`)).join('') + '</div>';
-  modal(`${mh('메뉴')}<div class="mm">${body}</div><div class="row mm-foot">${liteBtn()}${moreHooks.map((f) => f()).join('')}<button class="btn" data-a="copyLink">초대 링크 복사</button></div>`, 'more-sheet');
+  modal(`${mh('메뉴')}<div class="mm">${body}</div><div class="row mm-foot">${liteBtn()}${diagBtn()}${moreHooks.map((f) => f()).join('')}<button class="btn" data-a="copyLink">초대 링크 복사</button></div>`, 'more-sheet');
 });
 // ---------- 가벼운 모드 (PC방·저사양·게임과 같이 켜 둘 때) ----------
 // 장식용 반복 애니메이션·흐림 효과·배경 캔버스를 끈다. 저장된 선택이 없으면 기기 사양과 처음 몇 초의 프레임으로 자동 결정한다.
@@ -259,6 +264,61 @@ function initPerf() {
   const idle = () => document.body.classList.toggle('idle', document.hidden || !document.hasFocus());
   addEventListener('blur', idle); addEventListener('focus', idle); document.addEventListener('visibilitychange', idle);
 }
+// ---------- 새 버전 알림 ----------
+// 사이트를 고쳐 올리면(index.html의 V가 바뀜) 열어 둔 화면은 옛 파일로 계속 돈다. 화면이 보이는 동안 10분마다, 그리고 다른 창에서
+// 돌아올 때(2분 넘게 지났으면) index.html만 새로 받아(약 3KB, DB 읽기 없음) V를 비교해, 다르면 위쪽에 '새 버전' 띠를 띄운다.
+// 저절로 새로고침하지 않는다(경매·라인 지원 중일 수 있어서). 닫으면 그 버전에 대해서는 다시 띄우지 않는다
+const VER = { at: 0, busy: false, shown: '' };
+async function verCheck() {
+  if (!window.NP_V || VER.busy || document.hidden) return;
+  VER.busy = true; VER.at = Date.now();
+  try {
+    const t = await (await fetch(location.pathname + '?vc=' + Date.now(), { cache: 'no-store' })).text();
+    const v = (t.match(/var V = '([^']+)'/) || [])[1];
+    if (v && v !== window.NP_V && v !== VER.shown) verBar(v);
+  } catch {} finally { VER.busy = false; }
+}
+function verBar(v) {
+  VER.shown = v;
+  document.getElementById('verbar')?.remove();
+  document.body.insertAdjacentHTML('beforeend', `<div id="verbar" role="status"><span>${ic('bolt')}새 버전이 나왔어요</span><button class="btn pri xs" data-a="verReload">새로고침</button><button class="vb-x" data-a="verClose" aria-label="닫기">${ic('x')}</button></div>`);
+}
+act('verReload', () => location.reload());
+act('verClose', () => document.getElementById('verbar')?.remove());
+function initVer() {
+  if (!window.NP_V || !window.fetch) return;
+  setInterval(verCheck, 10 * 60e3);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - VER.at > 2 * 60e3) verCheck(); });
+}
+// ---------- 진단 정보 복사 ----------
+// 다른 PC에서 '버벅인다'고 할 때 원인을 찾으려고: 화면 주사율·실제 프레임·해상도·배율·브라우저·그래픽카드·설정(가벼운 모드·움직임 줄이기)을
+// 글로 모아 복사한다(이름·기록 같은 개인 정보는 넣지 않음). 2초 동안 프레임을 잰다
+function gpuName() {
+  try { const g = document.createElement('canvas').getContext('webgl'); if (!g) return '없음(WebGL 꺼짐)'; const x = g.getExtension('WEBGL_debug_renderer_info'); return (x ? g.getParameter(x.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER)) || '알 수 없음'; } catch { return '알 수 없음'; }
+}
+const frameStats = (ms = 2000) => new Promise((res) => {
+  const d = []; let last = performance.now(); const t0 = last;
+  requestAnimationFrame(function f(t) { d.push(t - last); last = t; if (t - t0 < ms) return requestAnimationFrame(f); d.shift(); const s = [...d].sort((a, b) => a - b), base = s[Math.floor(s.length * 0.1)] || 16.7; res({ fps: Math.round(d.length / (ms / 1000)), hz: Math.round(1000 / base), slow: Math.round((d.filter((x) => x > Math.max(22, base * 1.6)).length / (d.length || 1)) * 100), max: Math.round(s[s.length - 1] || 0) }); });
+});
+act('diagCopy', async () => {
+  toast('2초 동안 화면을 재고 있어요…');
+  const f = await frameStats(), n = navigator, b = document.body.classList, ua = n.userAgentData;
+  const brand = ua?.brands?.filter((x) => !/Not.?A.?Brand/i.test(x.brand)).map((x) => x.brand + ' ' + x.version).join(', ');
+  const lines = [
+    '[NAEJEONPOT 진단 정보]',
+    `사이트 버전: ${window.NP_V || '?'}`,
+    `화면: ${screen.width}×${screen.height} · 배율 ${devicePixelRatio} · 창 ${innerWidth}×${innerHeight} · 확대 ${Math.round((outerWidth / innerWidth) * 100) || '?'}%`,
+    `프레임: 실제 ${f.fps}fps · 모니터 약 ${f.hz}Hz · 늦은 프레임 ${f.slow}% · 가장 긴 멈춤 ${f.max}ms`,
+    `설정: 가벼운 모드 ${b.contains('lite') ? 'ON' : 'OFF'}(${localStorage.getItem(LITE_KEY) ? '직접 선택' : '자동'}) · 움직임 줄이기 ${matchMedia('(prefers-reduced-motion: reduce)').matches ? 'ON' : 'OFF'} · 시즌 장식 ${b.contains('xmas') || b.contains('newyear') ? 'ON' : 'OFF'} · 창 활성 ${document.hasFocus() ? '예' : '아니오'}`,
+    `기기: 코어 ${n.hardwareConcurrency || '?'} · 메모리 ${n.deviceMemory ? n.deviceMemory + 'GB↑' : '?'} · 그래픽 ${gpuName()}`,
+    `브라우저: ${brand || ''} · ${ua?.platform || n.platform || ''}`,
+    `UA: ${n.userAgent}`,
+    `연결: ${n.connection?.effectiveType || '?'}${n.connection?.saveData ? ' · 데이터 절약' : ''}`,
+  ];
+  const txt = lines.join('\n');
+  try { await navigator.clipboard.writeText(txt); toast('진단 정보를 복사했어요. 단톡방에 붙여 넣어 보내 주세요'); } catch { prompt('아래 내용을 복사해 보내 주세요', txt); }
+});
+const diagBtn = () => `<button class="btn ghost xs diag-btn" data-a="diagCopy" title="화면이 버벅일 때 원인을 찾기 위한 정보(주사율·프레임·해상도·브라우저·그래픽카드)를 복사">${ic('copy')}진단 복사</button>`;
 act('liteToggle', () => { const on = !document.body.classList.contains('lite'); setLite(on); toast(on ? '가벼운 모드: 장식 효과를 줄였어요' : '가벼운 모드를 껐어요'); });
 const liteBtn = () => `<button class="btn ghost xs lite-btn ${document.body.classList.contains('lite') ? 'on' : ''}" data-a="liteToggle" title="장식 효과를 줄여 PC방·저사양 PC·게임과 함께 켜 둘 때 가볍게">${ic('bolt')}가벼운 모드 <u>${document.body.classList.contains('lite') ? 'ON' : 'OFF'}</u></button>`;
 const navFold = () => { try { return JSON.parse(localStorage.getItem('naejeon:navfold')) || []; } catch { return []; } };
@@ -270,8 +330,8 @@ act('navGrp', (d) => {
 });
 export function initShell() {
   document.getElementById('brandlogo').innerHTML = logo(false, 40);
-  initPerf();
-  document.querySelector('.sidefoot')?.insertAdjacentHTML('beforeend', liteBtn());
+  initPerf(); initVer();
+  document.querySelector('.sidefoot')?.insertAdjacentHTML('beforeend', liteBtn() + diagBtn());
   tabbar();
   // 왼쪽 메뉴: 큰 분류(LEAGUE·ANALYSIS…) 제목을 누르면 접고 편다. 접은 분류도 지금 보고 있는 메뉴 하나는 보여 준다. 접은 상태는 이 브라우저에 기억
   const fold = navFold();
