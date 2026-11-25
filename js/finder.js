@@ -1,6 +1,6 @@
 // 빠른 이동: Ctrl+K(맥은 ⌘K) 또는 / 를 누르면 작은 검색창이 뜨고, 페이지·선수 이름(초성 가능)으로 바로 간다.
 // 누를 때만 그려서 평소 성능에는 영향이 없다. 읽기·쓰기 없음(이미 받아 둔 선수 목록만 쓴다).
-import { S, act, esc, cho, go, ic, modal, closeModal, NAV, LANE_ICON, LANE_NAME, moreHooks } from './core.js';
+import { S, act, esc, cho, go, ic, modal, closeModal, NAV_ALL, LANE_ICON, LANE_NAME, moreHooks } from './core.js';
 
 const F = { q: '', sel: 0, items: [] };
 const isOpen = () => !!document.querySelector('#modal.on .finder');
@@ -11,7 +11,7 @@ function rank(name, q) {
   const i = n.indexOf(q); if (i === 0) return 0; if (i > 0) return 1;
   return cho(n).includes(q) ? 2 : -1;
 }
-const PAGES = () => NAV.filter(([p]) => p).map(([p, t]) => ({ k: 'page', id: p, name: t, alt: p, href: '#/' + p }));
+const PAGES = () => NAV_ALL.filter(([p]) => p).map(([p, t]) => ({ k: 'page', id: p, name: t, alt: p, href: '#/' + p }));
 function search(raw) {
   const q = norm(raw);
   const pages = PAGES().map((x) => ({ ...x, r: Math.min(...[rank(x.name, q), rank(x.alt, q)].filter((r) => r >= 0).concat(9)) }));

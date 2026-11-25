@@ -93,6 +93,19 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   ok(await M.$$eval('.fm .dots i', (x) => x.length && x.every((e) => parseFloat(getComputedStyle(e).fontSize) >= 11)), '홈 요즘 폼 승패 글씨 11px 이상');
   ok(await M.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), '휴대폰 가로 넘침 없음');
   errs.push(...M.errs);
+  // 7) 왼쪽 메뉴 정리: 홈·내 페이지(묶음 제목 없음) + 3묶음(내전·기록·분석·즐길 거리), 즐길 거리는 처음엔 접힘, 맨 아래 관리·제작자 작은 버튼 줄
+  const N = await client(b, be, 'WORK', 'N'); await open(N, 'home', 800);
+  const nv = await N.evaluate(() => ({ top: [...document.querySelectorAll('#nav .nav-top a')].map((a) => a.dataset.p), heads: [...document.querySelectorAll('#nav .nav-h h6')].map((e) => e.textContent), fun: document.querySelector('#nav .nav-g[data-g="즐길 거리"]')?.classList.contains('fold'), funVis: [...document.querySelectorAll('#nav .nav-g[data-g="즐길 거리"] a')].filter((a) => a.offsetParent).length, mini: [...document.querySelectorAll('#side .side-mini a')].map((a) => a.dataset.p), inNav: !!document.querySelector('#nav a[data-p=admin], #nav a[data-p=maker]') }));
+  ok(nv.top.join() === 'home,me' && nv.heads.join() === '내전,기록·분석,즐길 거리', '왼쪽 메뉴: 맨 위 홈·내 페이지 + 묶음 3개(내전 · 기록·분석 · 즐길 거리)');
+  ok(nv.fun && nv.funVis === 0, "'즐길 거리'는 처음엔 접힌 채로");
+  ok(nv.mini.join() === 'admin,maker' && !nv.inNav, '관리·제작자는 메뉴 맨 아래 작은 버튼 줄로');
+  await N.click('#nav .nav-h[data-g="즐길 거리"]'); await N.waitForTimeout(200);
+  ok(await N.evaluate(() => [...document.querySelectorAll('#nav .nav-g[data-g="즐길 거리"] a')].filter((a) => a.offsetParent).length === 2 && JSON.parse(localStorage.getItem('naejeon:navfold')).length === 0), '눌러서 펼치면 가챠·익명 게시판이 보이고 그 상태를 기억');
+  await N.click('#side .side-mini a[data-p=maker]'); await N.waitForTimeout(800);
+  ok(await N.evaluate(() => location.hash === '#/maker' && document.title === '제작자 · NAEJEONPOT' && document.querySelector('#side .side-mini a.on')?.dataset.p === 'maker'), '작은 버튼으로 제작자 화면(탭 제목·선택 표시)');
+  errs.push(...N.errs);
+  await M.tap('#tabbar [data-p=more]'); await M.waitForTimeout(500);
+  ok(await M.evaluate(() => [...document.querySelectorAll('#modal.on .mm h6')].map((e) => e.textContent).join() === '내전,기록·분석,즐길 거리,설정·정보' && document.querySelectorAll('#modal.on .mm-it').length === 15), '휴대폰 메뉴 창도 같은 묶음 + 설정·정보(관리·제작자), 15개');
   console.log('오류:', errs.join(' | ') || '없음'); ok(!errs.length, '페이지 오류 없음');
   await b.close();
 })();
