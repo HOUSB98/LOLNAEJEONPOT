@@ -1,5 +1,6 @@
 // 오늘의 내전: 라인업 보드(점수·예상승률·해설) + 경기 결과 입력/수정
 import { S, page, act, esc, uid, pname, go, refresh, ddMenu, champIcon, artUrl, toast, pickChamp, pickPlayer, history, ic, dots, burst, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
+import { kakaoBtn } from './kakao.js';
 import { evalLineup, commentary, bestDuo, aiBalance } from './stats.js';
 import { notify } from './hook.js';
 import { seriesUsed, matchCard } from './app.js';
@@ -215,7 +216,7 @@ page('today', {
       </div>` : ''}
       <button class="btn pri block big" data-a="tSave">${edit ? '수정 내용 저장' : '경기 결과 저장'}</button>
     </div>
-    ${lastSaved && !edit && S.st.MI[lastSaved] ? `<div class="sec-h"><h2>방금 기록한 경기</h2></div>${matchCard(S.store.data.matches[lastSaved])}` : ''}`;
+    ${lastSaved && !edit && S.st.MI[lastSaved] ? `<div class="sec-h"><h2>방금 기록한 경기</h2><span class="grow"></span>${kakaoBtn('match', lastSaved)}</div>${matchCard(S.store.data.matches[lastSaved])}` : ''}`;
   },
 });
 

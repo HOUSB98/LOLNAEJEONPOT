@@ -1,0 +1,51 @@
+// 카카오톡 공유: 경기 상세·랭킹·오늘 방금 기록한 경기·경매 결과에 노란 '카톡 공유' 버튼. 누르면 카드(제목·설명·대표 그림·사이트 버튼)로 공유.
+// 링크에는 초대 코드(?k=)와 화면 주소만(경매는 관전 주소만, 팀장 토큰 없음). 카카오 SDK를 못 받으면 글 복사로 대신. 실제 카카오 서버로는 보내지 않음(시험에서 막음)
+const { chromium } = require('playwright'); const { makeSeed, client, device, open, Backend } = require('./harness');
+const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) process.exitCode = 1; };
+(async () => {
+  const b = await chromium.launch(); const seed = await makeSeed(b);
+  const be = new Backend(); for (const [c, d] of Object.entries(seed)) be.seed(c, d);
+  const errs = [];
+  const stub = () => { window.__kk = []; window.Kakao = { _i: false, isInitialized() { return this._i; }, init(k) { this._i = true; window.__kkKey = k; }, Share: { sendDefault(o) { window.__kk.push(o); } } }; };
+  const A = await client(b, be, 'WORK', 'A'); await A.addInitScript(stub);
+  // 1) 랭킹
+  await open(A, 'rank', 800);
+  ok(await A.$eval('.h2row [data-a=kkShare][data-t=rank]', (e) => getComputedStyle(e).backgroundColor === 'rgb(254, 229, 0)' && /카톡 공유/.test(e.innerText)).catch(() => false), '랭킹 머리에 노란 카톡 공유 버튼');
+  await A.click('.h2row [data-a=kkShare]'); await A.waitForTimeout(400);
+  const r1 = await A.evaluate(() => ({ o: window.__kk[0], key: window.__kkKey }));
+  ok(r1.key === '6316315a1de926afd006fa59bc5bcf1c' && r1.o?.objectType === 'feed' && /랭킹 TOP/.test(r1.o.content.title) && /1\. .+ OVR \d+/.test(r1.o.content.description), '랭킹 카드: TOP 5 · OVR · 승률: ' + r1.o?.content.description.split('\n')[0]);
+  ok(/\/og\.png$/.test(r1.o.content.imageUrl) && /\?k=test#\/rank$/.test(r1.o.content.link.webUrl) && r1.o.buttons[0].link.mobileWebUrl === r1.o.content.link.webUrl, '대표 그림·링크(초대 코드 + 랭킹 화면)');
+  // 2) 경기 상세
+  await open(A, 'matches', 800);
+  await A.evaluate(() => document.querySelector('[data-a=matchDetail]')?.click()); await A.waitForTimeout(600);
+  ok(!!(await A.$('#modal.on .md-act [data-a=kkShare][data-t=match]')), '경기 상세에 카톡 공유 버튼');
+  await A.click('#modal.on [data-a=kkShare]'); await A.waitForTimeout(400);
+  const m = await A.evaluate(() => window.__kk[1]);
+  ok(/^경기 #\d+ · (블루|레드) 승리/.test(m?.content.title) && /블루: .+\n레드: .+/.test(m.content.description) && /#\/matches$/.test(m.content.link.webUrl), '경기 카드: 번호·승리 팀·두 팀 라인업: ' + m?.content.title);
+  // 3) 경매 결과(끝난 방): 관전 링크만
+  const rid = await A.evaluate(async () => { const { S } = await import('/js/core.js'); const r = Object.values(S.store.data.auctions || {})[0]; return r?.id; });
+  await A.evaluate(async () => { const { S } = await import('/js/core.js'); await S.store.need('auctions'); });
+  const anyId = await A.evaluate(async () => { const { S } = await import('/js/core.js'); const r = Object.values(S.store.data.auctions).find((x) => !x.deleted); await S.store.patch('auctions', r.id, { status: 'done' }); return r.id; });
+  await A.evaluate((id) => (location.hash = '#/auction/' + id), anyId); await A.waitForTimeout(1200);
+  const ab = await A.$('[data-a=kkShare][data-t=auction]');
+  ok(!!ab, '끝난 경매에 "카톡으로 결과 공유" 버튼');
+  if (ab) { await ab.click(); await A.waitForTimeout(600); }
+  const au = await A.evaluate(() => window.__kk[window.__kk.length - 1]);
+  ok(/경매 결과$/.test(au?.content.title || '') && new RegExp(`#/auction/${anyId}$`).test(au.content.link.webUrl) && !/tk\d/.test(au.content.link.webUrl + au.content.description), '경매 카드: 팀별 명단, 링크는 관전 주소(팀장 토큰 없음)');
+  errs.push(...A.errs);
+  // 4) 카카오 SDK를 못 받으면(막힘) 글 복사로 대신
+  const B = await client(b, be, 'WORK', 'B', { ctx: await device(b, be, 'WORK', 'B', { permissions: ['clipboard-read', 'clipboard-write'] }) });
+  await open(B, 'rank', 800);
+  await B.click('.h2row [data-a=kkShare]'); await B.waitForTimeout(1500);
+  const clip = await B.evaluate(() => navigator.clipboard.readText()).catch(() => '');
+  ok(/랭킹 TOP/.test(clip) && /\?k=test#\/rank/.test(clip), '카카오를 못 열면 공유할 글을 복사(단톡방에 붙여 넣기)');
+  ok(/카카오톡을 열 수 없어/.test(await B.$eval('#toast', (e) => e.textContent).catch(() => '')), '복사했다고 안내');
+  errs.push(...B.errs.filter((e) => !/kakao/i.test(e)));
+  // 5) 휴대폰: 버튼이 화면 밖으로 밀리지 않음
+  const M = await client(b, be, 'WORK', 'M', { ctx: await device(b, be, 'WORK', 'M', { viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true }) });
+  await M.addInitScript(stub); await open(M, 'rank', 800);
+  ok(await M.evaluate(() => { const e = document.querySelector('[data-a=kkShare]'); const r = e.getBoundingClientRect(); return r.right <= innerWidth && r.height >= 32 && document.documentElement.scrollWidth <= innerWidth + 1; }), '휴대폰 랭킹: 버튼이 화면 안에, 가로 넘침 없음');
+  errs.push(...M.errs);
+  console.log('오류:', errs.join(' | ') || '없음'); ok(!errs.length, '페이지 오류 없음');
+  await b.close();
+})();

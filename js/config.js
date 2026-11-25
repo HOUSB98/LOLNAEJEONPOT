@@ -12,3 +12,7 @@ export const FIREBASE_CONFIG = {
 // 연동 서버(Cloudflare Worker) 주소. 디스코드 알림·Firebase 사용량·라이엇 전적 자동 갱신에 쓴다.
 // 비워 두면 해당 기능만 꺼지고 사이트는 그대로 동작한다. 설정 방법은 worker/README.md 참고.
 export const WORKER_URL = 'https://naejeonpot.idairo0401.workers.dev';
+
+// 카카오톡 공유(js/kakao.js)용 카카오 JavaScript 키. 사이트 코드에 공개되는 종류의 키다(비밀 아님).
+// 카카오 개발자 콘솔에 등록한 사이트 주소(https://housb98.github.io)에서만 동작한다. 비워 두면 카톡 공유 버튼이 숨는다.
+export const KAKAO_JS_KEY = '6316315a1de926afd006fa59bc5bcf1c';

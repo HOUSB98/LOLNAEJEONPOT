@@ -1,5 +1,6 @@
 // 팀 경매: 팀장이 한정 포인트로 선수를 한 명씩 입찰. 타이머·입찰은 DB 트랜잭션으로 모든 접속자에게 동기화된다.
 import { S, page, act, esc, uid, col, pname, go, refresh, toast, needAdmin, isAdmin, ic, champIcon, sigChamp, dots, streak, titleChips, LANES, LANE_NAME, LANE_ICON, LANE_COLOR } from './core.js';
+import { kakaoBtn } from './kakao.js';
 import { dayKey } from './stats.js';
 import { setDraftTeams } from './today.js';
 import { sendLobbyChat } from './social.js';
@@ -376,7 +377,7 @@ function roomView(id, token) {
     stage = `<div class="panel stage"><h2>${ic('flag')}경매 완료</h2>${r.unsold.length ? `<p class="mut">예비: ${r.unsold.map(pname).join(', ')}</p>` : ''}
       ${(() => { const x = resultStats(r); return `<div class="au-stats">${x.top ? `<div><small>${ic('coin', 'ie')}최고가</small><b>${pname(x.top.pid)}</b><span>${tname(r, x.top.ti)} · ${x.top.price}P</span></div>` : ''}${x.value ? `<div><small>${ic('leaf', 'ie')}가성비</small><b>${pname(x.value.pid)}</b><span>OVR ${x.value.ovr} · ${x.value.price}P</span></div>` : ''}${x.teams.map((t, i) => `<div class="au-st" style="--tc:${teamColor(i)}"><small>${esc(t.name)}</small><b>평균 OVR ${t.avg}</b><span>사용 ${t.used}P · 남은 ${t.points}P</span></div>`).join('')}</div>`; })()}
       ${r.cfg.blind ? revealHTML(r) : ''}
-      <button class="btn block" data-a="auResult" data-id="${r.id}">${ic('copy')}결과 복사 (단톡방에 붙여 넣기)</button>
+      <button class="btn block" data-a="auResult" data-id="${r.id}">${ic('copy')}결과 복사 (단톡방에 붙여 넣기)</button>${kakaoBtn('auction', r.id, '카톡으로 결과 공유').replace('class="btn kk-btn"', 'class="btn block kk-btn"')}
       ${r.teams.length >= 2 ? `${r.teams.length > 2 ? `<div class="row au-dl">${['블루', '레드'].map((side, k) => `<label class="fld"><span>${side}</span><select class="inp" data-c="auDl" data-i="${k}">${r.teams.map((t, i) => `<option value="${i}" ${Math.min(AU.dl[k], r.teams.length - 1) === i ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>`).join('')}</div>` : ''}
       <button class="btn pri block big" data-a="auToDraft" data-id="${r.id}">${ic('today')}이 팀으로 오늘의 내전 라인업 채우기</button><p class="hint">${r.teams.length > 2 ? '고른 두 팀이' : '첫 번째 팀이 블루, 두 번째 팀이 레드로'} 들어가고 라인은 점수 기준으로 자동 배치됩니다(이후 수정 가능).</p>` : ''}
       ${me.host && r.undo ? `<button class="btn ghost block" data-a="auUndo" data-id="${r.id}">↩ 직전 낙찰 취소</button>` : ''}</div>`;
