@@ -24,7 +24,7 @@ setTimeout(() => (window.requestIdleCallback || setTimeout)(() => LAZY_GET.forEa
 import { watchPosts, postsChanged } from './talk.js';
 import { xmasOn, SEASON } from './season.js';
 import { kakaoBtn } from './kakao.js'; // 카카오톡 공유 버튼(경기 상세)
-import { mountRecruit, onRecruit } from './recruit.js'; // 오늘 내전 모집(시간·참가 인원·카톡) // 크리스마스·새해 장식 코드는 시즌에만 받는다
+import { mountRecruit, onRecruit, recruitHomeBar } from './recruit.js'; // 오늘 내전 모집(시간·참가 인원·카톡) // 크리스마스·새해 장식 코드는 시즌에만 받는다
 
 const num = (v, cls = '') => `<td class="num ${cls}">${v}</td>`;
 export function stat(icon, label, value, sub, tone = '') {
@@ -227,7 +227,7 @@ page('home', {
     const hof = hofList(), top = st.list.filter((s) => s.g >= 3).sort((a, b) => b.ovr - a.ovr).slice(0, 3), nt0 = notices(), nt = nt0.map((_, i) => nt0[(i - (NT.off % nt0.length) + nt0.length) % nt0.length]);
     const last = [...st.matches].slice(-2).reverse();
     HERO.flip = 0;
-    return `
+    return `${recruitHomeBar()}
     <section class="hero">
       <div class="hero-bg on" style="--img:url('${hero?.url || ''}')"></div><div class="hero-bg alt"></div>
       <div class="hero-in">

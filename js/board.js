@@ -2,6 +2,7 @@
 // 2명 넘게 몰린 라인은 무작위로 2명을 뽑아 라인업에 넣는다. 연 사람·관리자는 취소하거나 강제 마감할 수 있다.
 // meta/board 문서 하나로 모든 접속자가 같은 지원 현황과 같은 추첨 장면을 같은 시각에 본다(시작 시각은 서버 시계 기준).
 import { S, act, go, isAdmin, esc, modal, closeModal, mh, toast, burst, refresh, ic, LANES, LANE_NAME, LANE_ICON, LANE_COLOR } from './core.js';
+import { recruitIds } from './recruit.js'; // 오늘 내전 모집 참가자(라인 지원 참가자로 미리 골라 둠)
 import { setDraftTeams, placedIds } from './today.js';
 import { aiBalance } from './stats.js';
 import { notify } from './hook.js';
@@ -221,14 +222,14 @@ function openBoard() {
 }
 
 // ---------- 열기·지원 ----------
-// 처음 창을 열 때만(비어 있으면) 배치된 선수·최근 내전 참가자로 채운다. 창 안에서 모두 해제하면 빈 채로 둔다
+// 처음 창을 열 때만(비어 있으면) 오늘 내전 모집 참가자(2명 이상) → 배치된 선수 → 최근 내전 참가자 순서로 채운다. 창 안에서 모두 해제하면 빈 채로 둔다
 function setup(fresh) {
-  const st = S.st, last = st.matches[st.matches.length - 1];
-  if (fresh && !BD.sel.length) { const p = placedIds(); BD.sel = p.length >= 2 ? p : last ? [...last.blue, ...last.red] : []; }
+  const st = S.st, last = st.matches[st.matches.length - 1], rc = recruitIds();
+  if (fresh && !BD.sel.length) { const p = placedIds(); BD.sel = rc.length >= 2 ? [...rc] : p.length >= 2 ? p : last ? [...last.blue, ...last.red] : []; }
   const list = [...st.list].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
   const html = `${mh(`${ic('users')}라인 지원 열기`)}
     <p class="mut">오늘 내전에 참가할 사람을 고르세요. 라인 지원을 열면 <b class="good">접속한 모든 사람의 화면에 함께 뜹니다.</b> 각자 원하는 라인을 고르고 <b>선택 완료</b>를 누르면, 모두 완료한 순간 자동으로 추첨해서 라인업에 넣습니다.</p>
-    <div class="ph"><b>참가자</b><span class="tag ${BD.sel.length === 10 ? 'ok' : ''}">${BD.sel.length}명</span><span class="grow"></span>${last ? '<button class="btn xs" data-a="bdRecent">최근 내전 참가자</button>' : ''}<button class="btn xs ghost" data-a="bdNone">해제</button></div>
+    <div class="ph"><b>참가자</b><span class="tag ${BD.sel.length === 10 ? 'ok' : ''}">${BD.sel.length}명</span><span class="grow"></span>${rc.length ? `<button class="btn xs" data-a="bdRecruit">모집 참가자 ${rc.length}명</button>` : ''}${last ? '<button class="btn xs" data-a="bdRecent">최근 내전 참가자</button>' : ''}<button class="btn xs ghost" data-a="bdNone">해제</button></div>
     <div class="chipsel">${list.map((s) => `<button class="${BD.sel.includes(s.id) ? 'on' : ''}" data-a="bdSel" data-id="${s.id}">${esc(s.name)}</button>`).join('')}</div>
     <button class="btn pri block big" data-a="bdOpen" ${BD.sel.length >= 2 ? '' : 'disabled'}>${BD.sel.length >= 2 ? `${BD.sel.length}명으로 라인 지원 열기` : '참가자를 2명 이상 고르세요'}</button>`;
   const open = document.querySelector('#modal.on .sheet.lp-setup');
@@ -238,6 +239,7 @@ act('tBoard', () => (live(cur()) ? openBoard() : setup(true)));
 act('bdSel', (x) => { BD.sel = BD.sel.includes(x.id) ? BD.sel.filter((i) => i !== x.id) : [...BD.sel, x.id]; setup(); });
 act('bdRecent', () => { const l = S.st.matches[S.st.matches.length - 1]; if (l) BD.sel = [...l.blue, ...l.red]; setup(); });
 act('bdNone', () => { BD.sel = []; setup(); });
+act('bdRecruit', () => { const rc = recruitIds(); if (rc.length) BD.sel = [...rc]; setup(); });
 act('bdOpen', async () => {
   if (BD.sel.length < 2) return;
   await S.store.syncServerClock?.();
