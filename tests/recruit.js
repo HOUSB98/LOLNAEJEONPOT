@@ -33,7 +33,7 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   ok(await M.$eval('#main .rc-box .rc-p.me', (e) => e.innerText).catch(() => '') === '영희', '내 이름은 노란 테두리로 표시');
   // 카드에 지금 인원
   await A.click('#main .rc-box [data-a=rcShare]'); await A.waitForTimeout(700);
-  ok(/지금 2명 지원 · 8명 더 필요해요/.test(await A.evaluate(() => window.__kk.at(-1)?.content.description || '')), '다시 보내면 카드에 지금 인원(2명 · 8명 더)');
+  ok(!/지원:|명 지원|철수|영희/.test(await A.evaluate(() => window.__kk.at(-1)?.content.description || 'x지원:')), '카톡 카드에는 지원 인원·지원자 이름이 나오지 않음');
   // 시간 바꾸기: 지원자 유지
   await A.click('#main .rc-box [data-a=rcOpen]'); await A.waitForTimeout(300);
   await A.click('#modal.on [data-a=rcTime][data-v="22:00"]'); await A.click('#modal.on [data-a=rcShare]'); await A.waitForTimeout(900);
