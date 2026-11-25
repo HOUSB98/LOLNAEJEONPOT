@@ -23,7 +23,7 @@ const LAZY_GET = [
 setTimeout(() => (window.requestIdleCallback || setTimeout)(() => LAZY_GET.forEach((g) => g().catch(() => {}))), 6000);
 import { watchPosts, postsChanged } from './talk.js';
 import { xmasOn, SEASON } from './season.js';
-import { kakaoBtn } from './kakao.js'; // 카카오톡 공유 버튼(경기 상세·랭킹) // 크리스마스·새해 장식 코드는 시즌에만 받는다
+import { kakaoBtn, mountRecruit } from './kakao.js'; // 카카오톡 공유 버튼(경기 상세) · 내전 모집 버튼 // 크리스마스·새해 장식 코드는 시즌에만 받는다
 
 const num = (v, cls = '') => `<td class="num ${cls}">${v}</td>`;
 export function stat(icon, label, value, sub, tone = '') {
@@ -328,7 +328,7 @@ page('rank', {
       <span class="sp-rk mono">${i + 1}</span><small>${medal[i]}</small><b>${esc(s.name)}</b>
       <span class="sp-meta">${LANE_ICON[s.mainLane]}${LANE_NAME[s.mainLane]}<i></i>${s.g ? `${s.wr}% · ${s.g}판` : '출전 없음'}${s.titles[0] ? `<i></i>${s.titles[0].e} ${s.titles[0].n}` : ''}</span>
       <span class="sp-val"><em class="mono">${s.ovr}</em><small>OVR</small></span></a>`).join('');
-    return `<div class="h2row"><h1>${ic('rank')}랭킹</h1><span class="tag gold">SEASON LADDER</span><span class="grow"></span>${kakaoBtn('rank')}
+    return `<div class="h2row"><h1>${ic('rank')}랭킹</h1><span class="tag gold">SEASON LADDER</span><span class="grow"></span>
       <div class="seg">${[['all', '종합'], ['score', '라인 점수'], ['lane', '라인별 승률']].map(([k, t]) => `<button class="${LB.view === k ? 'on' : ''}" data-a="lbView" data-v="${k}">${t}</button>`).join('')}</div>
       <label class="mini">최소 <input class="inp xs" type="number" min="0" value="${LB.min}" data-c="lbMin"> 판</label></div>
     <div class="stats">
@@ -756,6 +756,6 @@ window.NP_OK = 1; // index.html의 시작 확인(이 줄까지 왔다면 모든 
     await S.store.ready;
   } catch (e) { document.getElementById('splash')?.remove(); main.innerHTML = `<div class="panel landing"><h1>연결 실패</h1><p>${esc(e.message || e)}</p><p class="hint">js/config.js 의 Firebase 설정과 Firestore 규칙을 확인하세요.</p></div>`; return; }
   await SEASON.ready; // 시즌이 아니면 바로 끝난다. 시즌이면 시작 화면 장식 전에 받아 둔다(DB 연결과 동시에 받으므로 보통 기다리지 않는다)
-  metaDiff(); up = true; watchDice(true); watchBoard(true); watchPosts(true); initShell(); initSocial(); SEASON.x?.initXmas(); SEASON.n?.initNewYear(); loadChamps();
+  metaDiff(); up = true; watchDice(true); watchBoard(true); watchPosts(true); initShell(); mountRecruit(); initSocial(); SEASON.x?.initXmas(); SEASON.n?.initNewYear(); loadChamps();
   checkPause();
 })();

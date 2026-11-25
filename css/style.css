@@ -2310,3 +2310,6 @@ body.lite #chtb tr.ch-hit td{animation:none;background:rgba(217,164,65,.14)}
 .btn.kk-btn:hover{background:#ffeb3b;border-color:#ffeb3b;color:#000}
 .btn.kk-btn .kk-ic{width:17px;height:17px;flex:none;color:#000}
 .btn.kk-btn::after{display:none}
+/* 왼쪽 위: '내전 시작'과 '내전 모집'(카톡)을 반씩 */
+.side-cta>.kk-side,.side-cta>a.btn.gold.block{flex:1 1 0;min-width:0;padding:7px 2px;gap:3px;white-space:nowrap;font-size:13.5px}
+.side-cta>.kk-side .kk-ic{width:15px;height:15px}
