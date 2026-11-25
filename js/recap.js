@@ -2,7 +2,7 @@
 // 저장하는 값은 없다. 그해 경기만 골라 stats.js의 compute()로 다시 계산한다(화면을 열 때 한 번, 기록이 바뀌면 다시).
 // 해는 '내전 날짜'(새벽 6시 전 경기는 전날, stats.js dayKey) 기준. MMR 성장은 전체 기록의 경기별 MMR(hist)에서 그해 처음과 끝을 비교한다.
 // 메뉴·홈 배너는 11월 20일 ~ 1월 31일에만 보이고(core.js recapSeason), 주소로는 언제나 열린다. 처음 들어갈 때 코드를 받는다(app.js lazyPage).
-import { S, page, act, esc, ic, refresh, col, settings, fmtDT, LANES, LANE_NAME, LANE_ICON, recapYear } from './core.js';
+import { S, page, act, esc, ic, refresh, col, settings, fmtDT, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, artUrl, recapYear } from './core.js';
 import { compute, chem, dayKey, pct } from './stats.js';
 import { kakaoBtn } from './kakao.js';
 import { nick } from './social.js';
@@ -78,9 +78,13 @@ export function recapCard(year) {
   return { title, desc: lines.join('\n'), hash: `#/recap/${year}`, text: `${title}\n${lines.join('\n')}`, button: '결산 보러 가기' };
 }
 
+// 수상 칸(작은 타일): 아이콘 · 상 이름 · 이름 · 기록 · 2·3위나 기준. 받을 사람이 없으면 흐린 칸(빈 자리가 생기지 않게 항상 6칸)
 const award = (cls, icon, label, who, stat, sub = '') => `<div class="rcp-aw ${cls}"><span class="rcp-ai">${ic(icon)}</span><small>${label}</small><b>${who}</b><em>${stat}</em>${sub ? `<i>${sub}</i>` : ''}</div>`;
-const none = (label, icon, why) => `<div class="rcp-aw dim"><span class="rcp-ai">${ic(icon)}</span><small>${label}</small><b>—</b><em>${why}</em></div>`;
+const none = (label, icon, why, cls = '') => `<div class="rcp-aw dim ${cls}"><span class="rcp-ai">${ic(icon)}</span><small>${label}</small><b>—</b><em>${why}</em></div>`;
 const rk = (arr, f, n = 3) => arr.slice(1, n).map((x, i) => `${i + 2}위 ${f(x)}`).join(' · ');
+const initial = (s) => esc(String(s?.name || '?').trim().slice(0, 1));
+const topChamp = (s) => Object.entries(s?.champs || {}).sort((a, b) => b[1].g - a[1].g || b[1].w - a[1].w)[0]?.[0] || '';
+const bg = (ch) => (ch ? ` style="--img:url('${artUrl(ch)}')"` : '');
 
 function mine(d) {
   const ids = d.list.map((s) => s.id);
@@ -90,20 +94,20 @@ function mine(d) {
     R.pid = ids.includes(v) ? v : d.list.find((s) => squash(s.name) === k)?.id || '';
   }
   const opts = [...d.list].sort((a, b) => a.name.localeCompare(b.name, 'ko')).map((s) => `<option value="${s.id}" ${s.id === R.pid ? 'selected' : ''}>${nm(s)}</option>`).join('');
-  const s = d.y.P[R.pid];
-  const head = `<div class="ph"><b>${ic('me')}내 결산</b><span class="grow"></span><select class="inp rcp-sel" data-c="rcpMe" aria-label="선수 고르기"><option value="">선수 고르기</option>${opts}</select></div>`;
+  const s = d.y.P[R.pid], s0 = s;
+  const head = `<div class="ph"><b>${ic('me')}내 결산</b><small class="mut">${s0 ? `${nm(s0)}의 ${R.year}년` : '이름을 골라 보세요'}</small><span class="grow"></span><select class="inp rcp-sel" data-c="rcpMe" aria-label="선수 고르기"><option value="">선수 고르기</option>${opts}</select></div>`;
   if (!s) return `<section class="panel rcp-me" data-k="me">${head}<p class="mut">이름을 고르면 올해 내 기록을 한눈에 볼 수 있어요.</p></section>`;
   const c = chem(d.y, s.id, 3), g = d.grow.find((x) => x.s.id === s.id);
   const lane = LANES.filter((l) => s.lanes[l].g).sort((a, b) => s.lanes[b].g - s.lanes[a].g)[0];
   const ch = Object.entries(s.champs).sort((a, b) => b[1].g - a[1].g || b[1].w - a[1].w)[0];
   const rankAt = d.mvp.findIndex((x) => x.id === s.id);
-  const cell = (k, v, sub = '') => `<div><small>${k}</small><b>${v}</b>${sub ? `<em>${sub}</em>` : ''}</div>`;
+  const cell = (k, v, sub = '', tone = '') => `<div class="${tone}"><small>${k}</small><b>${v}</b>${sub ? `<em>${sub}</em>` : ''}</div>`;
   return `<section class="panel rcp-me" data-k="me">${head}
     <div class="rcp-mg">
-      ${cell('출전', `${s.g}판`, `전체 ${d.most.findIndex((x) => x.id === s.id) + 1}위`)}
-      ${cell('승률', `${pct(s.w, s.g)}%`, `${s.w}승 ${s.g - s.w}패`)}
-      ${cell('MVP 순위', rankAt >= 0 ? `${rankAt + 1}위` : '—', rankAt >= 0 ? `자격 ${d.mvp.length}명 중` : `${d.minG}판부터 자격`)}
-      ${cell('최장 연승', `${s.maxStreak}연승`)}
+      ${cell('출전', `${s.g}판`, `전체 ${d.most.findIndex((x) => x.id === s.id) + 1}위`, 'teal')}
+      ${cell('승률', `${pct(s.w, s.g)}%`, `${s.w}승 ${s.g - s.w}패`, 'gold')}
+      ${cell('MVP 순위', rankAt >= 0 ? `${rankAt + 1}위` : '—', rankAt >= 0 ? `자격 ${d.mvp.length}명 중` : `${d.minG}판부터 자격`, 'gold')}
+      ${cell('최장 연승', `${s.maxStreak}연승`, '', 'red')}
       ${cell('MMR 변화', g ? `${g.d >= 0 ? '+' : ''}${Math.round(g.d)}` : '—', g ? `${Math.round(g.from)} → ${Math.round(g.to)}` : '5판부터')}
       ${cell('많이 간 라인', lane ? `${LANE_ICON[lane]} ${LANE_NAME[lane]}` : '—', lane ? wrTxt(s.lanes[lane]) : '')}
       ${cell('많이 쓴 챔피언', ch ? esc(ch[0]) : '—', ch ? wrTxt(ch[1]) : '')}
@@ -133,45 +137,57 @@ page('recap', {
     const mv = S0(d.mvp), mo = S0(d.most), wi = S0(d.wins), sk = S0(d.streak), up = S0(d.upset), gr = d.grow[0] && d.grow[0].d > 0 ? d.grow[0] : null;
     const peakM = Math.max(1, ...d.month);
     const own = d.owner(d.champTop);
-    const hero = `<section class="panel rcp-hero" data-k="hr">
-      <div class="rcp-ht"><small>NAEJEONPOT · ${esc(settings().leagueName || '')}</small><h2>${yr} 연말 결산</h2><p class="mut">한 해 동안 함께한 내전을 숫자로 돌아봐요</p></div>
+    const mch = topChamp(mv);
+    const hero = `<section class="panel rcp-hero" data-k="hr"><span class="rcp-wm mono" aria-hidden="true">${yr}</span>
+      <div class="rcp-ht"><small>NAEJEONPOT · ${esc(settings().leagueName || '')} · YEAR IN REVIEW</small><h2>${yr} 연말 결산</h2><p class="mut">한 해 동안 함께한 내전을 숫자로 돌아봐요</p></div>
+      <div class="rcp-share">${kakaoBtn('recap', yr, '카톡으로 결산 공유')}</div>
       <div class="rcp-kp">
         <div><b class="mono">${d.ms.length}</b><small>경기</small></div>
         <div><b class="mono">${d.days}</b><small>내전한 날</small></div>
         <div><b class="mono">${d.list.length}</b><small>참가 소환사</small></div>
         <div><b class="mono">${d.durN ? Math.round(d.playMs / 3600000) : '—'}</b><small>${d.durN ? `시간 플레이(${d.durN}판 기준)` : '플레이 시간(리플레이 필요)'}</small></div>
-      </div>
-      <div class="rcp-share">${kakaoBtn('recap', yr, '카톡으로 결산 공유')}</div></section>`;
-    const awards = `<section class="rcp-aws" data-k="aw">
-      ${mv ? award('gold big', 'crown', '올해의 MVP', nm(mv), `${wrTxt(mv)}`, `기준: ${d.minG}판 이상(최다 출전의 절반·최소 10판) 중 보정 승률 (승+5)/(판+10) 1위${d.mvp.length > 1 ? ` · ${rk(d.mvp, (x) => nm(x))}` : ''}`) : none('올해의 MVP', 'crown', `${d.minG}판 이상 뛴 사람이 아직 없어요`)}
-      ${mo ? award('teal', 'today', '개근상 (최다 출전)', nm(mo), `${mo.g}판 출전`, rk(d.most, (x) => `${nm(x)} ${x.g}판`)) : ''}
-      ${wi ? award('', 'star', '최다 승리', nm(wi), `${wi.w}승`, rk(d.wins, (x) => `${nm(x)} ${x.w}승`)) : ''}
-      ${sk && sk.maxStreak > 1 ? award('red', 'flame', '최장 연승', nm(sk), `${sk.maxStreak}연승`, [rk(d.streak, (x) => `${nm(x)} ${x.maxStreak}연승`), `${d.minG}판 이상 뛴 사람이 먼저`].filter(Boolean).join(' · ')) : ''}
-      ${gr ? award('purple', 'bolt', '성장상 (MMR 상승)', nm(gr.s), `+${Math.round(gr.d)} (${Math.round(gr.from)} → ${Math.round(gr.to)})`, `그해 5판 이상 · ${d.minG}판 이상 뛴 사람이 먼저`) : ''}
-      ${up ? award('', 'dice', '업셋 장인', nm(up), `업셋 승리 ${up.upsetWins}번`, '예상 승률 40% 미만 팀으로 승리') : ''}
+      </div></section>`;
+    // 수상: 왼쪽 큰 MVP 카드(그 사람이 가장 많이 쓴 챔피언 그림) + 오른쪽 6칸
+    const mvpCard = mv ? `<div class="rcp-aw mvp"${bg(mch)}><span class="rcp-ai">${ic('crown')}</span><small>올해의 MVP</small><b>${nm(mv)}</b><em>${wrTxt(mv)}</em>
+        <span class="rcp-mvx">${d.mvp.slice(1, 3).map((x, i) => `<span><u>${i + 2}위</u>${nm(x)}<small class="mono">${pct(x.w, x.g)}%</small></span>`).join('')}</span>
+        <i>기준: ${d.minG}판 이상(최다 출전의 절반·최소 10판) 중 보정 승률 (승+5)/(판+10) 1위${mch ? ` · 대표 챔피언 ${esc(mch)}` : ''}</i></div>`
+      : none('올해의 MVP', 'crown', `${d.minG}판 이상 뛴 사람이 아직 없어요`, 'mvp');
+    const hot = d.busy ? award('gold', 'cal', '가장 뜨거웠던 날', `${d.busy[0].slice(5).replace('-', '/')}`, `하루 ${d.busy[1]}경기`, d.day && d.day.w > 1 ? `하루 최다 승리 ${nm(d.day.s)} ${d.day.w}승` : '') : none('가장 뜨거웠던 날', 'cal', '기록 없음');
+    const awards = `<section class="rcp-aws" data-k="aw">${mvpCard}
+      ${mo ? award('teal', 'today', '개근상 (최다 출전)', nm(mo), `${mo.g}판 출전`, rk(d.most, (x) => `${nm(x)} ${x.g}판`)) : none('개근상', 'today', '기록 없음')}
+      ${wi ? award('blue', 'star', '최다 승리', nm(wi), `${wi.w}승`, rk(d.wins, (x) => `${nm(x)} ${x.w}승`)) : none('최다 승리', 'star', '기록 없음')}
+      ${sk && sk.maxStreak > 1 ? award('red', 'flame', '최장 연승', nm(sk), `${sk.maxStreak}연승`, rk(d.streak, (x) => `${nm(x)} ${x.maxStreak}연승`)) : none('최장 연승', 'flame', '2연승 이상 없음')}
+      ${gr ? award('purple', 'bolt', '성장상 (MMR 상승)', nm(gr.s), `+${Math.round(gr.d)}`, `${Math.round(gr.from)} → ${Math.round(gr.to)}`) : none('성장상', 'bolt', 'MMR이 오른 사람 없음')}
+      ${up ? award('green', 'dice', '업셋 장인', nm(up), `업셋 승리 ${up.upsetWins}번`, '예상 40% 미만 팀으로 승리') : none('업셋 장인', 'dice', '업셋 승리 없음')}
+      ${hot}
     </section><p class="hint rcp-rule" data-k="rl">${ic('scale')}순위 기준: 판수가 적은 사람이 앞서지 않게, MVP는 ${d.minG}판(최다 출전의 절반·최소 10판) 이상만 후보이고 ${RCP_RULE}. 연승·성장상도 ${d.minG}판 이상 뛴 사람이 먼저예요.</p>`;
     const duo = `<section class="panel rcp-duo" data-k="du"><div class="ph"><b>${ic('users')}베스트 듀오</b><small class="mut">같은 팀 ${d.minDuo}판 이상 · 보정 승률 순</small></div>
-      ${d.duo.length ? `<ol class="rcp-ol">${d.duo.map((x) => `<li><b>${x.ids.map((id) => nm(d.y.P[id])).join(' <i>&amp;</i> ')}</b><span class="mono">${wrTxt(x)}</span></li>`).join('')}</ol>` : '<p class="mut sm">같은 팀으로 여러 판 이기며 뛴 조합이 아직 없어요</p>'}
-      ${d.riv ? `<div class="rcp-riv"><small>최다 맞대결</small><b>${nm(d.y.P[d.riv.a])} <i>vs</i> ${nm(d.y.P[d.riv.b])}</b><span class="mono">${d.riv.g}번 · ${d.riv.w} : ${d.riv.g - d.riv.w}</span></div>` : ''}</section>`;
-    const lanes = `<section class="panel rcp-lanes" data-k="ln"><div class="ph"><b>${ic('rank')}라인별 1위</b><small class="mut">그 라인을 가장 많이 간 사람의 30% 이상 · 보정 승률 순</small></div>
-      <ul class="rcp-lg">${d.lanes.map(({ l, s, min }) => `<li><small>${LANE_ICON[l]} ${LANE_NAME[l]}</small>${s ? `<b>${nm(s)}</b><em class="mono">${wrTxt(s.lanes[l])}</em>` : `<b class="mut">—</b><em>${min}판 이상 없음</em>`}</li>`).join('')}</ul></section>`;
+      ${d.duo.length ? `<ol class="rcp-ol">${d.duo.map((x) => { const [a, b] = x.ids.map((id) => d.y.P[id]); return `<li><span class="rcp-av"><i>${initial(a)}</i><i>${initial(b)}</i></span><b>${nm(a)} <i>&amp;</i> ${nm(b)}</b><span class="rcp-wr"><em class="mono">${pct(x.w, x.g)}%</em><small>${x.w}승 ${x.g - x.w}패</small></span></li>`; }).join('')}</ol>` : '<p class="mut sm">같은 팀으로 여러 판 이기며 뛴 조합이 아직 없어요</p>'}
+      ${d.riv ? `<div class="rcp-riv"><small>${ic('flame')}최다 맞대결</small><b>${nm(d.y.P[d.riv.a])} <i>vs</i> ${nm(d.y.P[d.riv.b])}</b><span class="mono">${d.riv.g}번 · ${d.riv.w} : ${d.riv.g - d.riv.w}</span></div>` : ''}</section>`;
+    const lanes = `<section class="panel rcp-lanes" data-k="ln"><div class="ph"><b>${ic('rank')}라인별 1위</b><small class="mut">그 라인 최다 판수의 30% 이상 · 보정 승률</small></div>
+      <ul class="rcp-lg">${d.lanes.map(({ l, s, min }) => `<li style="--lc:${LANE_COLOR[l]}"><small>${LANE_ICON[l]} ${LANE_NAME[l]}</small>${s ? `<b>${nm(s)}</b><em class="mono">${pct(s.lanes[l].w, s.lanes[l].g)}%<u>${s.lanes[l].g}판</u></em>` : `<b class="mut">—</b><em>${min}판 이상 없음</em>`}</li>`).join('')}</ul></section>`;
+    const cc = (label, c, line, sub) => `<div class="rcp-cc"${bg(c?.name)}><small>${label}</small>${c ? `<b>${esc(c.name)}</b><em class="mono">${line}</em>${sub ? `<i>${sub}</i>` : ''}` : `<b class="mut">—</b><em>${line}</em>`}</div>`;
     const champ = `<section class="panel rcp-ch" data-k="ch"><div class="ph"><b>${ic('champs')}챔피언</b></div>
       <div class="rcp-cg">
-        <div><small>가장 많이 나온 챔피언</small>${d.champTop ? `<b>${esc(d.champTop.name)}</b><em class="mono">${d.champTop.g}판 · 승률 ${pct(d.champTop.w, d.champTop.g)}%</em>${own ? `<i>가장 많이 쓴 사람 ${nm(own.s)} (${own.n}판)</i>` : ''}` : '<b class="mut">—</b><em>챔피언 기록 없음</em>'}</div>
-        <div><small>가장 잘 이긴 챔피언</small>${d.champBest ? `<b>${esc(d.champBest.name)}</b><em class="mono">${wrTxt(d.champBest)}</em><i>${d.minC}판 이상 · 보정 승률</i>` : `<b class="mut">—</b><em>${d.minC}판 이상 나온 챔피언 없음</em>`}</div>
-        <div><small>가장 많이 밴된 챔피언</small>${d.champBan ? `<b>${esc(d.champBan.name)}</b><em class="mono">${d.champBan.ban}번 밴</em>` : '<b class="mut">—</b><em>밴 기록 없음</em>'}</div>
+        ${cc('가장 많이 나온 챔피언', d.champTop, d.champTop ? `${d.champTop.g}판 · 승률 ${pct(d.champTop.w, d.champTop.g)}%` : '챔피언 기록 없음', own ? `가장 많이 쓴 사람 ${nm(own.s)} (${own.n}판)` : '')}
+        ${cc('가장 잘 이긴 챔피언', d.champBest, d.champBest ? wrTxt(d.champBest) : `${d.minC}판 이상 나온 챔피언 없음`, d.champBest ? `${d.minC}판 이상 · 보정 승률` : '')}
+        ${cc('가장 많이 밴된 챔피언', d.champBan, d.champBan ? `${d.champBan.ban}번 밴` : '밴 기록 없음', '')}
       </div></section>`;
     const mu = d.y.sum.maxUpset;
-    const scenes = `<section class="panel rcp-sc" data-k="sc"><div class="ph"><b>${ic('mega')}명장면</b></div><ul class="rcp-ul">
-      ${mu ? `<li><small>최대 업셋</small><b>예상 ${Math.round(mu.p * 100)}% 팀의 승리</b><span>${fmtDT(mu.m.at)} · ${(mu.m.winner === 'blue' ? mu.m.blue : mu.m.red).map((id) => nm(d.y.P[id])).join(' · ')}</span></li>` : ''}
-      ${d.longest ? `<li><small>가장 긴 경기</small><b>${mins(d.longest.dur)}</b><span>${fmtDT(d.longest.at)} · ${d.longest.winner === 'blue' ? '블루' : '레드'} 승리</span></li>` : ''}
-      ${d.kill && d.kill.k > 0 ? `<li><small>한 경기 최다 킬</small><b>${nm(d.y.P[d.kill.id])} ${d.kill.k}킬</b><span>${fmtDT(d.kill.m.at)} · ${d.kill.kda.join('/')}${d.kill.m.champs ? ` · ${esc((d.kill.m.blue.includes(d.kill.id) ? d.kill.m.champs.blue : d.kill.m.champs.red)?.[(d.kill.m.blue.includes(d.kill.id) ? d.kill.m.blue : d.kill.m.red).indexOf(d.kill.id)] || '')}` : ''}</span></li>` : ''}
-      ${d.day && d.day.w > 1 ? `<li><small>하루 최다 승리</small><b>${nm(d.day.s)} ${d.day.w}승</b><span>${d.day.d.slice(5).replace('-', '/')} · ${d.day.g}판 중</span></li>` : ''}
-      ${d.busy ? `<li><small>가장 뜨거웠던 날</small><b>${d.busy[1]}경기</b><span>${d.busy[0].slice(5).replace('-', '/')}</span></li>` : ''}
-    </ul></section>`;
-    const months = `<section class="panel rcp-mo" data-k="mo"><div class="ph"><b>${ic('cal')}월별 경기 수</b></div>
-      <div class="rcp-bars">${d.month.map((v, i) => `<div class="${v === peakM && v ? 'pk' : ''}"><em class="mono">${v || ''}</em><i style="height:${Math.round((v / peakM) * 100)}%"></i><small>${i + 1}월</small></div>`).join('')}</div></section>`;
-    return `${top}${hero}${awards}<div class="rcp-2" data-k="r2">${duo}${lanes}</div>${mine(d)}<div class="rcp-2" data-k="r3">${champ}${scenes}</div>${months}`;
+    const scene = (icon, label, main, sub) => `<li><span class="rcp-si">${ic(icon)}</span><small>${label}</small><b>${main}</b><span>${sub}</span></li>`;
+    const kch = d.kill?.m.champs ? (d.kill.m.blue.includes(d.kill.id) ? d.kill.m.champs.blue : d.kill.m.champs.red)?.[(d.kill.m.blue.includes(d.kill.id) ? d.kill.m.blue : d.kill.m.red).indexOf(d.kill.id)] || '' : '';
+    const scList = [
+      mu && scene('dice', '최대 업셋', `예상 ${Math.round(mu.p * 100)}% 팀의 승리`, `${fmtDT(mu.m.at)} · ${(mu.m.winner === 'blue' ? mu.m.blue : mu.m.red).map((id) => nm(d.y.P[id])).join(' · ')}`),
+      d.longest && scene('clock', '가장 긴 경기', mins(d.longest.dur), `${fmtDT(d.longest.at)} · ${d.longest.winner === 'blue' ? '블루' : '레드'} 승리`),
+      d.kill && d.kill.k > 0 && scene('flame', '한 경기 최다 킬', `${nm(d.y.P[d.kill.id])} ${d.kill.k}킬`, `${fmtDT(d.kill.m.at)} · ${d.kill.kda.join('/')}${kch ? ` · ${esc(kch)}` : ''}`),
+      d.day && d.day.w > 1 && scene('star', '하루 최다 승리', `${nm(d.day.s)} ${d.day.w}승`, `${d.day.d.slice(5).replace('-', '/')} · ${d.day.g}판 중`),
+      d.busy && scene('cal', '가장 뜨거웠던 날', `${d.busy[1]}경기`, d.busy[0].slice(5).replace('-', '/')),
+    ].filter(Boolean);
+    const scenes = `<section class="panel rcp-sc" data-k="sc"><div class="ph"><b>${ic('mega')}명장면</b></div>${scList.length ? `<ul class="rcp-ul">${scList.join('')}</ul>` : '<p class="mut sm">아직 명장면이 없어요</p>'}</section>`;
+    const pm = d.month.indexOf(peakM);
+    const months = `<section class="panel rcp-mo" data-k="mo"><div class="ph"><b>${ic('cal')}월별 경기 수</b>${d.month[pm] ? `<small class="mut">가장 많이 한 달 <b class="rcp-pk">${pm + 1}월 · ${d.month[pm]}경기</b></small>` : ''}</div>
+      <div class="rcp-bars">${d.month.map((v, i) => `<div class="${v === peakM && v ? 'pk' : ''}${v ? '' : ' z'}"><em class="mono">${v || ''}</em><i style="height:${Math.round((v / peakM) * 100)}%"></i><small>${i + 1}월</small></div>`).join('')}</div></section>`;
+    return `${top}${hero}${awards}<div class="rcp-2 a" data-k="r2">${duo}${lanes}</div>${mine(d)}<div class="rcp-2 b" data-k="r3">${champ}${scenes}</div>${months}`;
   },
   after() {
     if (S.arg[0]) { try { history.replaceState(null, '', location.pathname + location.search + '#/recap'); } catch {} S.arg = []; }
