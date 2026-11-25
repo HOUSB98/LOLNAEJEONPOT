@@ -2410,6 +2410,7 @@ body.lite #chtb tr.ch-hit td{animation:none;background:rgba(217,164,65,.14)}
 .rcp-aw small{font-size:12px;font-weight:700;color:var(--mut)}.rcp-aw b{font-size:20px;line-height:1.25;overflow-wrap:anywhere}.rcp-aw em{font-style:normal;font-size:13px;color:var(--c);font-weight:700}
 .rcp-aw i{font-style:normal;font-size:12px;color:var(--mut);line-height:1.5;margin-top:2px}
 .rcp-aw.dim{opacity:.7}
+.rcp-rule{margin:-4px 0 14px;display:flex;gap:6px;align-items:flex-start}.rcp-rule .ic{width:14px;height:14px;flex:none;margin-top:3px}
 .rcp-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0 0 14px}.rcp-2>.panel{margin:0;min-width:0}
 .rcp-ol{margin:4px 0 0;padding:0;list-style:none;counter-reset:r}
 .rcp-ol li{counter-increment:r;display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}.rcp-ol li:last-child{border-bottom:0}
