@@ -5,6 +5,7 @@
 //   meta는 모두가 이미 실시간으로 받고 있는 묶음이라 따로 구독이 늘지 않는다(누가 참가할 때마다 접속자마다 읽기 1).
 //   시작 시각 + 6시간이 지나면 끝난 모집으로 보고 보여 주지 않는다(문서는 지우지 않고 다음 모집이 덮어쓴다).
 // 카톡 카드에는 시간만 넣는다(카카오 카드는 보낸 뒤에 바뀌지 않음). '참가하러 가기'를 누르면 사이트에서 실시간 인원을 본다.
+// 대기자(2026-11-25): 누른 순서(at)대로 앞 10명이 참가, 11번째부터 대기. 참가자가 빠지면 대기 1번이 저절로 참가가 된다(따로 저장하지 않고 순서로 정함).
 import { S, act, page, esc, ic, toast, modal, closeModal, mh, refresh, moreHooks } from './core.js';
 import { cid, nick } from './social.js';
 import { kakaoWarm, shareKakao } from './kakao.js';
@@ -15,7 +16,10 @@ const doc = () => S.store?.data?.meta?.recruit || null;
 export const recruitOn = (d = doc()) => !!(d && +d.when && Date.now() < +d.when + LIVE_MS);
 const people = (d = doc()) => Object.entries(d?.list || {}).map(([id, v]) => ({ id, pid: v?.pid || '', g: !!v?.g, n: (v?.pid && S.st?.P?.[v.pid]?.name) || v?.n || '?', at: +v?.at || 0 })).sort((a, b) => a.at - b.at);
 // 라인 지원 창이 참가자를 미리 골라 둘 때 쓰는 선수 id 목록(진행 중인 모집, 지금 선수 목록에 있는 사람만)
-export const recruitIds = () => (recruitOn() ? people().map((p) => p.pid).filter((id) => id && S.st?.P?.[id]) : []);
+export const recruitIds = () => (recruitOn() ? people().slice(0, NEED).map((p) => p.pid).filter((id) => id && S.st?.P?.[id]) : []);
+// 참가(앞 10명)·대기(11번째부터) 나누기
+const split = (ps) => ({ main: ps.slice(0, NEED), wait: ps.slice(NEED) });
+const waitTag = (k) => (k ? `<span class="tag rc-wt">대기 ${k}</span>` : '');
 const ME_KEY = 'naejeon:rcme';
 const squash = (x) => String(x || '').replace(/\s/g, '').toLowerCase();
 const myPid = () => { try { const v = localStorage.getItem(ME_KEY); if (v && S.st?.P?.[v]) return v; } catch {} const k = squash(nick()); return (k && S.st?.list?.find((s) => squash(s.name) === k)?.id) || ''; };
@@ -44,13 +48,15 @@ export function recruitPanel() {
       <p class="mut sm">시간을 정하고 카톡으로 모집 글을 보내면, 친구들이 이 화면에서 자기 이름을 눌러 참가해요.<br>참가 인원은 라인 지원과 따로 세고, 라인 지원을 열 때 참가자가 미리 골라져요.</p>
       <button class="btn kk-btn big" data-a="rcOpen">${KK_SM}시간 정하고 모집 시작</button></section>`;
   }
-  const ps = people(d), n = ps.length, mine = myPid(), meIn = !!(mine && d.list?.[mine]);
+  const ps = people(d), { main, wait } = split(ps), n = main.length, mine = myPid(), meIn = !!(mine && d.list?.[mine]);
+  const chip = (p, w) => `<span class="rc-p${isMe(p) ? ' me' : ''}${w ? ' wait' : ''}">${w ? `<em>${w}</em>` : ''}${esc(p.n)}</span>`;
   const slots = Array.from({ length: NEED }, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('');
   return `<section class="panel rc-box" data-k="rc">
     <div class="rc-top"><span class="rc-ic">${ic('users')}</span><div class="rc-h"><b>${dayWord(d.when)} ${fmtTime(d.when)} 내전 모집</b><small class="mut">${esc(d.by || '')}님이 시작 · 라인 지원과 따로 세는 참가 인원</small></div>
-      <span class="grow"></span><b class="rc-n mono${n >= NEED ? ' full' : ''}">${n}<small>/${NEED}</small></b></div>
-    <div class="rc-slots" aria-label="지원 ${n}명">${slots}</div>
-    <div class="rc-ppl">${ps.map((p) => `<span class="rc-p${isMe(p) ? ' me' : ''}">${esc(p.n)}</span>`).join('') || '<span class="mut sm">아직 지원한 사람이 없어요</span>'}</div>
+      <span class="grow"></span><span class="rc-nw"><b class="rc-n mono${n >= NEED ? ' full' : ''}">${n}<small>/${NEED}</small></b>${waitTag(wait.length)}</span></div>
+    <div class="rc-slots" aria-label="참가 ${n}명${wait.length ? `, 대기 ${wait.length}명` : ''}">${slots}</div>
+    <div class="rc-ppl">${main.map((p) => chip(p)).join('') || '<span class="mut sm">아직 지원한 사람이 없어요</span>'}</div>
+    ${wait.length ? `<div class="rc-ppl rc-wait"><small class="rc-wl">대기</small>${wait.map((p, i) => chip(p, i + 1)).join('')}<small class="mut rc-wn">참가자가 빠지면 순서대로 자동 참가</small></div>` : ''}
     <div class="rc-act"><button class="btn ${meIn ? 'ghost' : 'pri'} rc-join" data-a="rcPick">${ic('users')}${meIn ? '이름 골라 참가 · 취소' : '이름 골라 참가'}</button>
       <div class="rc-sub"><button class="btn ghost" data-a="rcOpen">${ic('clock')}시간 바꾸기</button>${KAKAO_JS_KEY ? `<button class="btn kk-btn" data-a="rcShare">${KK_SM}카톡으로 모집</button>` : ''}</div></div>
   </section>`;
@@ -58,8 +64,8 @@ export function recruitPanel() {
 // 홈 맨 위 띠: 모집 중일 때만 '오늘 오후 9:00 내전 모집 중 · 4/10 · 참가하기'(누르면 오늘의 내전 화면)
 export function recruitHomeBar() {
   const d = doc(); if (!recruitOn(d)) return '';
-  const n = people(d).length;
-  return `<a class="rc-home" href="#/recruit"><span class="rc-ic">${ic('users')}</span><span class="rc-ht"><b>${dayWord(d.when)} ${fmtTime(d.when)} 내전 모집<span class="m-hide"> 중</span></b><small>라인 지원과 따로 세는 참가 인원</small></span><span class="grow"></span><b class="rc-n mono${n >= NEED ? ' full' : ''}">${n}<small>/${NEED}</small></b><span class="btn pri xs">${n >= NEED ? '모집 보기' : '참가하기'}</span></a>`;
+  const { main, wait } = split(people(d)), n = main.length;
+  return `<a class="rc-home" href="#/recruit"><span class="rc-ic">${ic('users')}</span><span class="rc-ht"><b>${dayWord(d.when)} ${fmtTime(d.when)} 내전 모집<span class="m-hide"> 중</span></b><small>라인 지원과 따로 세는 참가 인원</small></span><span class="grow"></span><span class="rc-nw"><b class="rc-n mono${n >= NEED ? ' full' : ''}">${n}<small>/${NEED}</small></b>${waitTag(wait.length)}</span><span class="btn pri xs">${n >= NEED ? '대기 신청' : '참가하기'}</span></a>`;
 }
 const KK_SM = '<svg class="kk-ic" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3.500C6.800 3.500 2.600 6.800 2.600 10.900c0 2.600 1.700 4.900 4.300 6.200l-.900 3.300c-.100.300.300.600.600.400l3.900-2.600c.500.100 1 .100 1.500.100 5.200 0 9.400-3.300 9.400-7.400S17.200 3.500 12 3.500z"/></svg>';
 
@@ -75,7 +81,7 @@ function draw() {
       <p class="mut sm">시간을 정하고 카톡으로 보내면, 친구들이 사이트에서 <b>참가</b>를 눌러 지원해요. 지원 인원은 오늘의 내전 화면 위쪽에 실시간으로 보여요.</p>
       <div class="rc-row"><small>날짜</small><div class="seg">${[[0, '오늘'], [1, '내일']].map(([v, t]) => `<button class="${RC.day === v ? 'on' : ''}" data-a="rcDay" data-v="${v}">${t}</button>`).join('')}</div></div>
       <div class="rc-row"><small>시작 시간</small><div class="seg rc-times">${['20:00', '21:00', '22:00', '23:00'].map(pick).join('')}</div><input class="inp rc-tin mono" type="time" value="${RC.time}" data-c="rcTimeIn" aria-label="직접 입력"></div>
-      ${on ? `<div class="rc-now"><b>${dayWord(d.when)} ${fmtTime(d.when)}</b> 모집 중 · 지원 ${ps.length}명${ps.length ? ` (${ps.map((p) => esc(p.n)).join(', ')})` : ''}</div>` : ''}
+      ${on ? `<div class="rc-now"><b>${dayWord(d.when)} ${fmtTime(d.when)}</b> 모집 중 · 참가 ${Math.min(ps.length, NEED)}명${ps.length ? ` (${ps.slice(0, NEED).map((p) => esc(p.n)).join(', ')})` : ''}${ps.length > NEED ? ` · 대기 ${ps.length - NEED}명 (${ps.slice(NEED).map((p) => esc(p.n)).join(', ')})` : ''}</div>` : ''}
       <div class="rc-row"><small>나도 참가</small><select class="inp rc-mesel" data-c="rcMe"><option value="">참가 안 함</option>${list.map((s) => `<option value="${s.id}" ${RC.me === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></div>
       <div class="row rc-go"><button class="btn" data-a="close">닫기</button><span class="grow"></span>${KAKAO_JS_KEY ? `<button class="btn kk-btn" data-a="rcShare" data-save="1">${KK_SM}저장하고 카톡으로 보내기</button>` : `<button class="btn pri" data-a="rcSave">저장</button>`}</div>
     </div>`;
@@ -98,6 +104,9 @@ async function save() {
   const [h, m] = RC.time.split(':').map(Number), base = new Date(); base.setHours(h, m, 0, 0); base.setDate(base.getDate() + RC.day);
   const when = base.getTime();
   if (when + LIVE_MS < Date.now()) { toast('이미 지난 시간이에요'); return false; }
+  // 이미 참가한 사람이 있는 모집의 시간을 바꿀 때는 한 번 묻는다(명단은 그대로)
+  const cur = doc(), k = recruitOn(cur) ? people(cur).length : 0;
+  if (k && +cur.when !== when && !confirm(`이미 ${k}명이 참가했어요.\n시작 시간을 ${dayWord(+cur.when)} ${fmtTime(+cur.when)} → ${dayWord(when)} ${fmtTime(when)}(으)로 바꿀까요?\n참가자 명단은 그대로 유지돼요.`)) return false;
   const me = view()?.querySelector('[data-c=rcMe]')?.value ?? RC.me, n = nick() || '익명', t = Date.now();
   if (me) try { localStorage.setItem(ME_KEY, me); } catch {}
   await S.store.tx('meta', 'recruit', (r) => {
@@ -116,14 +125,17 @@ act('rcShare', async (d) => {
 // 참가: 이름 고르기 창. 선수 이름을 누르면 바로 참가 ↔ 취소(누구나, 친구 대신도 가능). 참가한 이름은 노란색
 function pickHTML() {
   const d = doc(), on = recruitOn(d), ps = on ? people(d) : [], inSet = new Set(ps.map((p) => p.pid).filter(Boolean)), mine = myPid();
+  const wn = new Map(ps.slice(NEED).map((p, i) => [p.id, i + 1])), nMain = Math.min(ps.length, NEED); // 대기 순번(11번째부터)
+  const wb = (id) => (wn.has(id) ? ` wait" data-w="대기${wn.get(id)}` : '');
   const list = [...(S.st?.list || [])].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
   const extra = ps.filter((p) => !p.pid && !p.g), guests = ps.filter((p) => p.g); // extra: 예전 방식(기기 기준) 참가자, guests: 선수 목록에 없는 사람(이름 입력)
   return `${mh(`${ic('users')}참가할 이름 고르기`)}
     <div class="rc-pick">
       ${on ? `<p class="mut sm"><b>${dayWord(d.when)} ${fmtTime(d.when)}</b> 내전 · 이름을 누르면 바로 <b class="good">참가</b>, 다시 누르면 취소예요. 친구 대신 눌러 줘도 돼요.</p>` : '<p class="mut">모집이 끝났어요. 왼쪽 위(휴대폰은 메뉴) \'내전 모집\'으로 새로 시작해 주세요.</p>'}
-      <div class="ph"><b>참가</b><span class="tag ${ps.length >= NEED ? 'ok' : ''}">${ps.length}/${NEED}명</span></div>
-      <div class="chipsel rc-chips">${list.map((s) => `<button class="${inSet.has(s.id) ? 'on' : ''}${s.id === mine ? ' mine' : ''}" data-a="rcToggle" data-id="${s.id}" ${on ? '' : 'disabled'}>${esc(s.name)}</button>`).join('')}</div>
-      ${guests.length ? `<div class="ph"><b>목록에 없는 사람</b></div><div class="chipsel rc-chips">${guests.map((p) => `<button class="on" data-a="rcGuestOff" data-id="${esc(p.id)}" title="누르면 참가 취소">${esc(p.n)}</button>`).join('')}</div>` : ''}
+      <div class="ph"><b>참가</b><span class="tag ${nMain >= NEED ? 'ok' : ''}">${nMain}/${NEED}명</span>${waitTag(wn.size)}</div>
+      ${nMain >= NEED && on ? '<p class="mut sm rc-full">10명이 다 찼어요. 지금 누르면 <b>대기</b>로 들어가고, 참가자가 빠지면 순서대로 자동 참가돼요.</p>' : ''}
+      <div class="chipsel rc-chips">${list.map((s) => `<button class="${inSet.has(s.id) ? 'on' : ''}${s.id === mine ? ' mine' : ''}${wb(s.id)}" data-a="rcToggle" data-id="${s.id}" ${on ? '' : 'disabled'}>${esc(s.name)}</button>`).join('')}</div>
+      ${guests.length ? `<div class="ph"><b>목록에 없는 사람</b></div><div class="chipsel rc-chips">${guests.map((p) => `<button class="on${wb(p.id)}" data-a="rcGuestOff" data-id="${esc(p.id)}" title="누르면 참가 취소">${esc(p.n)}</button>`).join('')}</div>` : ''}
       ${on ? `<div class="rc-guest"><input class="inp" id="rc-gname" maxlength="12" placeholder="목록에 없는 사람 이름" autocomplete="off"><button class="btn" data-a="rcGuest">${ic('plus')}추가</button></div>` : ''}
       ${extra.length ? `<p class="mut sm">이름 없이 참가: ${extra.map((p) => esc(p.n)).join(', ')}${extra.some((p) => p.id === cid) ? ' <button class="lnk" data-a="rcOldOff">내 참가 취소</button>' : ''}</p>` : ''}
       <button class="btn block" data-a="close">닫기</button>
@@ -134,17 +146,17 @@ const redrawPick = () => { const v = pickView(); if (v) { const box = v.closest(
 act('rcPick', () => { modal(pickHTML(), 'tall rc-pick-sheet'); });
 act('rcToggle', (x) => acts_toggle(x.id));
 async function acts_toggle(id) {
-  const x = { id }, t = Date.now(); let joined = false;
+  const x = { id }, t = Date.now(); let joined = false, pos = 0;
   try {
     const ok = await S.store.tx('meta', 'recruit', (r) => {
       if (!recruitOn(r)) return null;
       const list = { ...(r.list || {}) };
-      if (list[x.id]) delete list[x.id]; else { list[x.id] = { n: S.st.P[x.id]?.name || '?', pid: x.id, by: cid, at: t }; joined = true; }
+      if (list[x.id]) delete list[x.id]; else { list[x.id] = { n: S.st.P[x.id]?.name || '?', pid: x.id, by: cid, at: t }; joined = true; pos = Object.keys(list).length; }
       return { ...r, list };
     });
     if (!ok) return toast('모집이 끝났어요');
     if (joined) try { localStorage.setItem(ME_KEY, x.id); } catch {} // 처음 고른 이름을 '나'로 기억(이후 다른 이름을 눌러도 바뀜)
-    toast(`${S.st.P[x.id]?.name || ''} ${joined ? '참가!' : '참가 취소'}`);
+    toast(`${S.st.P[x.id]?.name || ''} ${joined ? (pos > NEED ? `대기 ${pos - NEED}번으로 신청했어요 (빠지는 사람이 생기면 자동 참가)` : '참가!') : '참가 취소'}`);
   } catch (e) { toast('저장하지 못했어요: ' + (e.message || e)); }
 }
 // 선수 목록에 없는 사람(처음 오는 친구 등): 이름을 적어 참가. 키는 'g:이름'이라 같은 이름은 한 명. 라인 지원 미리 고르기에는 쓰지 않음(선수가 아니라서)
@@ -155,14 +167,24 @@ act('rcGuest', async () => {
   if (same) { el.value = ''; return acts_toggle(same.id); } // 선수 이름이면 그 선수로
   const key = 'g:' + squash(n).replace(/[.#$/\[\]]/g, '');
   try {
-    const ok = await S.store.tx('meta', 'recruit', (r) => { if (!recruitOn(r)) return null; if (r.list?.[key]) return null; return { ...r, list: { ...(r.list || {}), [key]: { n, g: true, by: cid, at: Date.now() } } }; });
-    toast(ok ? `${n} 참가!` : '이미 참가했거나 모집이 끝났어요'); if (ok && el) el.value = '';
+    let pos = 0;
+    const ok = await S.store.tx('meta', 'recruit', (r) => { if (!recruitOn(r)) return null; if (r.list?.[key]) return null; pos = Object.keys(r.list || {}).length + 1; return { ...r, list: { ...(r.list || {}), [key]: { n, g: true, by: cid, at: Date.now() } } }; });
+    toast(ok ? `${n} ${pos > NEED ? `대기 ${pos - NEED}번으로 신청했어요` : '참가!'}` : '이미 참가했거나 모집이 끝났어요'); if (ok && el) el.value = '';
   } catch (e) { toast('저장하지 못했어요: ' + (e.message || e)); }
 });
 act('rcGuestOff', async (x) => { await S.store.tx('meta', 'recruit', (r) => { if (!r?.list?.[x.id]) return null; const list = { ...r.list }; delete list[x.id]; return { ...r, list }; }).then(() => toast('참가 취소')).catch(() => {}); });
 act('rcOldOff', async () => { await S.store.tx('meta', 'recruit', (r) => { if (!r?.list?.[cid]) return null; const list = { ...r.list }; delete list[cid]; return { ...r, list }; }).catch(() => {}); });
 // 모집 문서가 바뀌면: 오늘의 내전 화면·열려 있는 모집 창을 다시 그림(app.js가 부름)
-export function onRecruit() { if (S.page === 'recruit') refresh(); else if (S.page === 'home') homeBar(); redraw(); redrawPick(); }
+export function onRecruit() { promoted(); if (S.page === 'recruit') refresh(); else if (S.page === 'home') homeBar(); redraw(); redrawPick(); }
+// 대기에서 참가로 올라간 사람 알림(같은 모집 안에서 직전에 대기였던 사람이 앞 10명 안으로 들어오면 한 번)
+let lastSplit = null;
+function promoted() {
+  const d = doc(), on = recruitOn(d), ps = on ? people(d) : [], now = { when: on ? +d.when : 0, by: on ? d.by : '', at: on ? +d.at : 0, main: new Set(ps.slice(0, NEED).map((p) => p.id)), wait: new Set(ps.slice(NEED).map((p) => p.id)) };
+  const prev = lastSplit; lastSplit = now;
+  if (!prev || !on || prev.at !== now.at) return; // 첫 화면·새 모집은 알리지 않음
+  const up = ps.filter((p) => prev.wait.has(p.id) && now.main.has(p.id));
+  if (up.length) toast(`${up.map((p) => p.n).join(', ')}님이 대기에서 참가로 올라갔어요`);
+}
 // 홈은 화면 전체를 다시 그리지 않고 맨 위 모집 띠만 넣고·바꾸고·뺀다(배너 그림·움직임이 처음부터 다시 시작되지 않게)
 function homeBar() {
   const main = document.getElementById('main'), old = main?.querySelector(':scope > .rc-home'), html = recruitHomeBar();

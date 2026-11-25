@@ -10,7 +10,7 @@ import { watchBoard } from './board.js';
 import './players.js';
 import './finder.js';
 import './gacha.js';
-import { lazyPage, swipeZone, swiping } from './core.js';
+import { lazyPage, swipeZone, swiping, recapSeason, recapYear } from './core.js';
 // 자주 안 쓰는 화면은 들어갈 때 받는다. 접속 후 한가할 때 미리 받아 두므로 보통은 기다림 없이 열린다.
 const LAZY_GET = [
   lazyPage('replay', () => import('./replay.js'), ['matchReplay']),
@@ -19,6 +19,7 @@ const LAZY_GET = [
   lazyPage('scores', () => import('./scores.js')),
   lazyPage('maker', () => import('./maker.js')),
   lazyPage('me', () => import('./me.js')),
+  lazyPage('recap', () => import('./recap.js')),
 ];
 setTimeout(() => (window.requestIdleCallback || setTimeout)(() => LAZY_GET.forEach((g) => g().catch(() => {}))), 6000);
 import { watchPosts, postsChanged } from './talk.js';
@@ -218,6 +219,8 @@ function formPanel() {
     <div class="fmg"><div><small class="fmh hot">${ic('flame')}상승세</small>${hot.map(li).join('') || '<p class="mut sm">3판 이상 뛴 선수가 없습니다.</p>'}</div>
       <div><small class="fmh cold">${ic('alert')}반등 필요</small>${cold.map(li).join('') || '<p class="mut sm">—</p>'}</div></div></section>`;
 }
+// 홈 연말 결산 띠: 11/20 ~ 1/31, 그해 경기가 있을 때만(누르면 #/recap)
+const recapBar = (st) => { if (!recapSeason()) return ''; const y = recapYear(); if (!st.matches.some((m) => +dayKey(m.at).slice(0, 4) === y)) return ''; return `<a class="rcp-home" href="#/recap"><span class="rcp-hi">${ic('recap')}</span><span class="rcp-htx"><b>${y} 연말 결산</b><small>올해의 MVP · 개근상 · 베스트 듀오 · 내 결산</small></span><span class="grow"></span><span class="btn gold xs">보러 가기</span></a>`; };
 page('home', {
   render() {
     const st = S.st, x = st.sum, now = new Date();
@@ -227,7 +230,7 @@ page('home', {
     const hof = hofList(), top = st.list.filter((s) => s.g >= 3).sort((a, b) => b.ovr - a.ovr).slice(0, 3), nt0 = notices(), nt = nt0.map((_, i) => nt0[(i - (NT.off % nt0.length) + nt0.length) % nt0.length]);
     const last = [...st.matches].slice(-2).reverse();
     HERO.flip = 0;
-    return `${recruitHomeBar()}
+    return `${recruitHomeBar()}${recapBar(st)}
     <section class="hero">
       <div class="hero-bg on" style="--img:url('${hero?.url || ''}')"></div><div class="hero-bg alt"></div>
       <div class="hero-in">
@@ -255,7 +258,7 @@ page('home', {
         <section class="car" id="car">
           <div class="sec-h"><h2>${ic('crown')}명예의 전당</h2><span class="grow"></span><button class="btn ghost xs" data-a="carGo" data-d="-1">‹</button><button class="btn ghost xs" data-a="carGo" data-d="1">›</button></div>
           <div class="car-view"><div class="car-track" style="transform:translateX(-${HM.i * 100}%)">${hof.map(([i, en, ko, a, b, tone, ch]) => `<article class="hslide ${tone}" style="--img:url('${artUrl(ch)}')"><div class="hs-ic">${ic(i)}</div><small>${en}</small><span>${ko}</span><b>${a}</b><em>${b}</em></article>`).join('')}</div></div>
-          <div class="car-dots">${hof.map((_, i) => `<i class="${i === HM.i ? 'on' : ''}" data-a="carSet" data-i="${i}"></i>`).join('')}</div>
+          <div class="car-dots">${hof.map((_, i) => `<i class="${i === HM.i ? 'on' : ''}" data-a="carSet" data-i="${i}" title="${i + 1}번째 보기" aria-label="${i + 1}번째 보기"></i>`).join('')}</div>
         </section>
         <section class="panel podium"><div class="sec-h"><h2>${ic('rank')}POWER RANKING</h2><a class="mut sm" href="#/rank">전체 보기 →</a></div>
           ${top.map((s, i) => `<a class="pod p${i + 1}" href="#/players/${s.id}" style="--img:url('${artUrl(sigChamp(s))}')"><i class="mono">${i + 1}</i><div><b>${esc(s.name)}</b><small>${LANE_ICON[s.mainLane]} ${LANE_NAME[s.mainLane]} · ${s.wr}% · ${s.g}판</small></div><em class="mono">${s.ovr}</em></a>`).join('') || '<p class="mut">3판 이상 출전한 선수가 생기면 표시됩니다.</p>'}

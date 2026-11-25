@@ -1,11 +1,31 @@
 // 관리: 내보내기/백업, 선수 관리, 시트 데이터 가져오기, 설정, 삭제 복구, 칭호 도감
 import { S, page, act, esc, uid, col, settings, pname, refresh, fmtDT, toast, download, csv, modal, closeModal, mh, sha, needAdmin, isAdmin, history, ic, LANES, LANE_NAME, LANE_ICON } from './core.js';
-import { TITLES, DEFAULTS, initMmr } from './stats.js';
+import { TITLES, DEFAULTS, initMmr, calibrate, CAL_MIN, winProb } from './stats.js';
 import { exportMatches } from './app.js';
 import { callWorker, hookOn, USAGE, loadUsage, won, WORKER_VER, workerVer } from './hook.js';
 import { WORKER_URL } from './config.js';
 import { gachaAdminHTML } from './gacha.js';
 import { missOf, weightOf, LUCK_MAX, TALK } from './board.js';
+
+// ---------- 예측 보정: 지금까지 경기 결과로 예상승률 스케일 다시 맞추기 ----------
+const pc1 = (v) => (v == null ? '-' : (v * 100).toFixed(1) + '%');
+function calHTML(st, cfg) {
+  const c = calibrate(st, cfg.scale), enough = c.n >= CAL_MIN;
+  const gain = c.cur.loss - c.rec.loss, worth = enough && !c.capped && Math.abs(c.best - c.scale) >= 1 && gain >= 0.002;
+  const ten = (sc) => Math.round(winProb(10, sc) * 100);
+  const table = (b) => `<table class="tbl cal-t"><thead><tr><th>예상(유리한 팀)</th><th>경기</th><th>예상 평균</th><th>실제 승률</th></tr></thead><tbody>${b.map((x) => `<tr><td class="l">${x.hi > 1 ? `${Math.round(x.lo * 100)}% 이상` : `${Math.round(x.lo * 100)}~${Math.round(x.hi * 100)}%`}</td><td class="mono">${x.n}</td><td class="mono">${pc1(x.pred)}</td><td class="mono ${x.n >= 5 ? (Math.abs(x.real - x.pred) <= Math.max(0.05, 2 * Math.sqrt((x.pred * (1 - x.pred)) / x.n)) ? 'good' : 'bad') : ''}">${pc1(x.real)}</td></tr>`).join('')}</tbody></table>`;
+  const msg = !enough ? `점수 차가 있었던 경기가 ${c.n}판이에요. ${CAL_MIN}판 이상 쌓이면 추천값을 계산해요(적으면 우연에 크게 흔들려요).`
+    : c.capped ? '라인 점수 차와 실제 결과의 관계가 아주 약해요. 스케일을 바꾸기보다 선수 라인 점수를 다시 점검해 보는 게 좋아요.'
+    : worth ? `추천 스케일 <b class="mono">${c.best}</b> (지금 ${c.scale}) · 10점 차 예상 ${ten(c.scale)}% → <b>${ten(c.best)}%</b>`
+    : `지금 스케일 <b class="mono">${c.scale}</b>이 실제 결과와 잘 맞아요(추천 ${c.best}, 차이가 작아 바꿀 필요 없음).`;
+  return `<div class="panel cal"><div class="ph"><b>${ic('target')}예측 보정</b><small class="mut">지금까지 ${c.total}판의 실제 결과로 예상승률 맞추기</small></div>
+    <div class="cal-k"><span><small>라인 점수 예측 적중률</small><b class="mono">${c.hitScore.pct ?? '-'}%</b><em>${c.hitScore.n}판</em></span><span><small>MMR 예측 적중률(참고)</small><b class="mono">${c.hitMmr.pct ?? '-'}%</b><em>${c.hitMmr.n}판</em></span><span><small>블루 진영 승률</small><b class="mono">${c.blue ?? '-'}%</b><em>${c.total}판</em></span></div>
+    <p class="cal-msg">${msg}</p>
+    <div class="cal-2"><div><b class="sm">지금 스케일 ${c.scale}</b>${table(c.cur.bins)}<small class="mut">로그 손실 ${c.cur.loss.toFixed(4)} · 브라이어 ${c.cur.brier.toFixed(4)}</small></div>${worth ? `<div><b class="sm">추천 스케일 ${c.best}</b>${table(c.rec.bins)}<small class="mut">로그 손실 ${c.rec.loss.toFixed(4)} · 브라이어 ${c.rec.brier.toFixed(4)} (낮을수록 정확)</small></div>` : ''}</div>
+    ${worth ? `<div class="row wrapr"><button class="btn pri" data-a="calApply" data-v="${c.best}">${ic('target')}추천 스케일 ${c.best} 적용</button></div>` : ''}
+    <p class="hint">스케일은 '누가 유리한가'는 바꾸지 않고 '몇 % 유리한가'만 바꿔요. 그래서 적중률은 그대로이고, 예상 60%인 경기에서 실제로 10판 중 6판쯤 이기도록 맞춰져요(표의 실제 승률이 예상 평균에 가까울수록 정확, 판수를 감안해 우연한 차이 안이면 초록·벗어나면 빨강). 적용하면 오늘의 내전 예상승률과 앞으로 저장하는 경기에 쓰여요. 이미 저장된 경기는 기록 당시 예상승률을 그대로 쓰고${c.noSnap ? `, 기록 당시 값이 없는 옛 경기 ${c.noSnap}판만 새 값으로 다시 계산돼 업셋 수가 조금 바뀔 수 있어요` : ''}. 언제든 위 설정에서 되돌릴 수 있어요.</p></div>`;
+}
+act('calApply', (d) => { const v = +d.v; if (!(v >= 1)) return; if (!confirm(`예상승률 스케일을 ${settings().scale ?? DEFAULTS.scale} → ${v}(으)로 바꿀까요?`)) return; needAdmin(async () => { await S.store.patch('meta', 'settings', { scale: v }); toast(`스케일을 ${v}(으)로 바꿨어요`); }); });
 
 // ---------- 연동 서버: Firebase 사용량 · 디스코드 테스트 · 라이엇 갱신 ----------
 const UZ = { riot: null };
@@ -90,7 +110,7 @@ page('admin', {
         <label class="fld"><span>&nbsp;</span><button class="btn pri">설정 저장</button></label>
       </form>
       <p class="hint">예상승률 = 1 / (1 + 10^(−점수차/스케일)). 현재 10점 차 = ${Math.round(100 / (1 + Math.pow(10, -10 / cfg.scale)))}%. MMR은 솔랭 티어를 시작값으로 경기마다 Elo 방식으로 변합니다.</p>
-      <div class="row wrapr"><button class="btn ghost" data-a="pinChange">${ic('lock')}관리자 PIN 변경</button><span class="mut sm">리그 코드: ${esc(S.key)}</span></div></div></div><div class="adm-col"><div class="panel"><div class="ph"><b>${ic('save')}내보내기 · 백업</b></div>
+      <div class="row wrapr"><button class="btn ghost" data-a="pinChange">${ic('lock')}관리자 PIN 변경</button><span class="mut sm">리그 코드: ${esc(S.key)}</span></div></div>${calHTML(st, cfg)}</div><div class="adm-col"><div class="panel"><div class="ph"><b>${ic('save')}내보내기 · 백업</b></div>
       <div class="row wrapr"><button class="btn" data-a="exportCsv">⬇ 경기 기록 CSV</button><button class="btn" data-a="exportPlayers">⬇ 선수 CSV</button><button class="btn" data-a="backup">⬇ 전체 백업 (JSON)</button><button class="btn ghost" data-a="restore">⬆ 백업 복원</button></div>
       <div class="row wrapr"><span class="mut sm">로고 내려받기</span><a class="btn xs" href="brand/naejeonpot-logo-1024.png" download>⬇ PNG 1024</a><a class="btn xs" href="brand/naejeonpot-logo-512.png" download>⬇ PNG 512</a><a class="btn xs" href="brand/naejeonpot-icon-512.png" download title="아래 MAISON 글씨 없는 아이콘">⬇ 아이콘 PNG</a><a class="btn xs ghost" href="brand/naejeonpot-logo.svg" download title="확대해도 깨지지 않는 벡터 파일">⬇ SVG</a></div>
       <p class="hint">${S.store.mode === 'local' ? `${ic('alert')}` + ' 지금은 체험 모드라 데이터가 이 브라우저에만 저장됩니다. Firebase를 연결하면 친구들과 실시간으로 공유됩니다(README 참고).' : '데이터는 Firebase에 저장됩니다. Firestore 무료 요금제는 오래 안 써도 일시정지되지 않지만, 가끔 전체 백업을 내려받아 두세요.'}</p></div>
