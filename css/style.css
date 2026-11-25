@@ -2333,6 +2333,9 @@ body.lite #chtb tr.ch-hit td{animation:none;background:rgba(217,164,65,.14)}
 .rc-p.me{border-color:rgba(254,229,0,.6);color:#fee500}
 .rc-act{display:flex;align-items:center;gap:8px;margin-top:12px}
 .rc-sub{display:flex;gap:8px;margin-left:auto}
+/* 이름 고르기 창: 안내 · 참가 머리 · 이름 칩 · 목록에 없는 사람 · 닫기 사이 간격(붙어 보이던 것) */
+.rc-pick{display:flex;flex-direction:column;gap:14px}.rc-pick>p,.rc-pick>.ph{margin:0}.rc-pick>.ph{display:flex;align-items:center;gap:8px}.rc-pick>.rc-guest{padding-top:14px;border-top:1px solid var(--line)}.rc-pick>.btn.block{margin-top:2px;min-height:46px}
+@media (max-width:860px){.rc-pick{gap:12px}.rc-pick .rc-chips{gap:8px}.rc-pick .rc-guest .inp,.rc-pick .rc-guest .btn{min-height:46px}}
 .rc-chips button.mine:not(.on){border-color:rgba(254,229,0,.45)}
 .rc-chips button.on{background:linear-gradient(180deg,#ffe94d,#f2cf1c);border-color:#fee500;color:#1a1400}
 /* 홈 맨 위 모집 띠(recruitHomeBar) */

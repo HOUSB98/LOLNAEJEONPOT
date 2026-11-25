@@ -33,6 +33,8 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   await M.tap('#main .rc-box [data-a=rcPick]'); await M.waitForTimeout(500);
   const chips = await M.$$eval('#modal.on .rc-chips button', (x) => x.map((e) => [e.dataset.id, e.classList.contains('on')]));
   ok(chips.length === ids.length && chips.find((c) => c[0] === ids[0])[1] === true, '이름 고르기 창: 모든 선수 이름, 이미 참가한 이름은 노란색');
+  const gp = await M.evaluate(() => { const g = (q) => document.querySelector('#modal.on ' + q).getBoundingClientRect(); const c = g('.rc-chips'), i = g('.rc-guest'), x = g('.rc-pick>.btn.block'); return { a: Math.round(i.top - c.bottom), b: Math.round(x.top - i.bottom) }; });
+  ok(gp.a >= 10 && gp.b >= 10, '휴대폰 이름 고르기 창: 이름 칩 · 이름 입력 · 닫기 사이 간격(붙지 않음): ' + JSON.stringify(gp));
   be.reset();
   await M.tap(`#modal.on [data-a=rcToggle][data-id="${ids[1]}"]`); await M.waitForTimeout(800);
   ok((be.byCol['reads:meta'] || 0) <= 4, `참가 한 번에 읽기 ${be.byCol['reads:meta'] || 0}번`);
