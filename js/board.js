@@ -51,6 +51,7 @@ const rnd = (n) => crypto.getRandomValues(new Uint32Array(1))[0] % n;
 const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 export const boardLive = () => live(cur());
 // 지망: picks[선수] = ['top','mid','any'] 처럼 1~3지망 목록(예전 문서의 문자열 한 개도 1지망으로 읽는다)
+const myPrefs = (d) => (BD.opt && BD.opt.rid === d.rid ? BD.opt.p : prefs(d, BD.me)); // 내가 방금 누른 지망을 저장이 끝나기 전에도 바로 보여 줌
 const prefs = (d, id) => { const v = d.picks?.[id]; return Array.isArray(v) ? v.filter(Boolean) : v ? [v] : []; };
 const RANK = ['1지망', '2지망', '3지망'];
 // 완료: done[선수] = true. 모두 완료하면 마지막으로 누른 사람의 쓰기에서 바로 추첨 단계로 넘어간다.
@@ -131,27 +132,40 @@ function sfx(kind) {
 }
 
 // ---------- 지원 화면 ----------
+// 라인 카드(2026-11-25): 각 라인에 몇 명이 지원했는지(1·2·3지망 인원·몰림 상태·막대)는 보여 주지 않는다(눈치 보지 않고 원하는 라인을 고르게).
+// 라인 고정 인원만 모두에게 보인다(몰래 고정한 사람이 없게). 대신 카드에 내 그 라인 기록(판수·승률·라인 점수)과 최근 배정 기록을 보여 준다(나에게만)
 function card(d, o) {
-  const rankN = [0, 1, 2].map((r) => d.ids.filter((id) => !fixOf(d, id) && prefs(d, id)[r] === o).length), n = rankN[0];
-  const fx = o === 'any' ? 0 : fixN(d, o), cap = 2 - fx, full = o !== 'any' && cap <= 0;
-  const prevN = Object.values(BD.prev).filter((v) => (Array.isArray(v) ? v[0] : v) === o).length;
-  const myRank = BD.me ? prefs(d, BD.me).indexOf(o) : -1;
-  const state = o === 'any' ? '' : full ? '<span class="lp-st fix">고정으로 마감</span>' : n > cap ? `<span class="lp-st hot">1지망 ${n - cap}명 초과 · 추첨</span>` : n === cap ? '<span class="lp-st ok">딱 맞음</span>' : `<span class="lp-st low">${cap - n}자리 남음</span>`;
+  const fx = o === 'any' ? 0 : fixN(d, o), full = o !== 'any' && 2 - fx <= 0;
+  const myRank = BD.me ? myPrefs(d).indexOf(o) : -1;
+  const state = full ? '<span class="lp-st fix">고정으로 마감</span>' : '';
   return `<button class="lp-card ${myRank >= 0 ? 'mine' : ''} ${o === 'any' ? 'any' : ''} ${full ? 'full' : ''}" data-a="bdPick" data-o="${o}" style="--lc:${COLOR[o]}" ${d.status !== 'open' || (BD.me && isDone(d, BD.me)) ? 'disabled' : ''}>
     <span class="lp-ch"><i class="lp-ico">${icon(o)}</i><b>${NAME[o]}</b>${myRank >= 0 ? `<em class="r${myRank + 1}">${RANK[myRank]}</em>` : ''}</span>
-    <span class="lp-meta">${o === 'any' ? '빈 자리에 배치' : '모집 2명'}${fx ? `<span class="lp-fx">${ic('lock', 'ie')}고정 ${fx}</span>` : ''}${state}</span>
-    <span class="lp-bar"><i style="width:${o === 'any' ? 0 : Math.min(100, (fx + n) * 50)}%"></i></span>
-    <span class="lp-cnt ${n !== prevN ? 'bump' : ''}"><small>1지망</small><b class="mono">${n}</b>명<i class="lp-dots">${Array.from({ length: fx }, () => '<u class="fx" title="고정"></u>').join('')}${Array.from({ length: Math.max(n, o === 'any' ? 0 : cap) }, (_, i) => `<u class="${i < n ? 'on' : ''}"></u>`).join('')}</i></span>
-    <span class="lp-sub">2지망 <b>${rankN[1]}</b> · 3지망 <b>${rankN[2]}</b></span>
+    <span class="lp-meta">${o === 'any' ? '빈 자리에 배치' : '모집 2명'}${o === 'any' ? '' : `<span class="lp-fx${fx ? ' on' : ''}" title="이 라인을 고정한 사람 수(모두에게 보여요)">${ic('lock', 'ie')}고정 ${fx}/2</span>`}${state}</span>
+    ${myLane(o)}
   </button>`;
 }
+// 내 라인 기록(카드 안, 나에게만): 전체 판수·승률·라인 점수 + 최근 10판 중 이 라인 횟수·마지막으로 간 날. '상관없음' 카드는 최근 5판 라인 순서
+const REC = { st: null, me: '', v: null };
+function myRec() {
+  if (REC.st === S.st && REC.me === BD.me) return REC.v;
+  const me = BD.me, out = [];
+  if (me && S.st?.matches) for (let i = S.st.matches.length - 1; i >= 0 && out.length < 10; i--) { const m = S.st.matches[i], b = m.blue.indexOf(me), r = m.red.indexOf(me); if (b >= 0 || r >= 0) out.push({ lane: LANES[b >= 0 ? b : r], at: m.at, win: m.winner === (b >= 0 ? 'blue' : 'red') }); }
+  REC.st = S.st; REC.me = me; REC.v = out; return out;
+}
+const ago = (t) => { const d = Math.floor((Date.now() - t) / 864e5); return d <= 0 ? '오늘' : d === 1 ? '어제' : `${d}일 전`; };
+function myLane(o) {
+  const s = BD.me && S.st?.P?.[BD.me];
+  if (!s) return '<span class="lp-mine dim">이름을 고르면 내 라인 기록이 보여요</span>';
+  const rec = myRec();
+  if (o === 'any') return `<span class="lp-mine"><small>내 최근 ${Math.min(5, rec.length)}판 라인</small><span class="lp-seq">${rec.slice(0, 5).map((x) => `<i class="${x.win ? 'w' : 'l'}" style="--lc:${COLOR[x.lane]}" title="${NAME[x.lane]} ${x.win ? '승' : '패'}">${icon(x.lane)}</i>`).join('') || '<em>기록 없음</em>'}</span></span>`;
+  const v = s.lanes[o] || { g: 0, w: 0 }, sc = +s.p.scores?.[o] || 0, n = rec.filter((x) => x.lane === o).length, last = rec.find((x) => x.lane === o);
+  return `<span class="lp-mine"><span class="lp-rec"><b class="mono">${v.g ? Math.round((v.w / v.g) * 100) + '%' : '—'}</b><small>${v.g ? `${v.g}판 ${v.w}승` : '아직 안 가 봄'}</small><span class="lp-sc" title="라인 점수">${sc}점</span></span><small class="lp-rct">최근 10판 중 <b>${n}</b>번${last ? ` · ${ago(last.at)}` : ''}</small></span>`;
+}
 // 내 1지망 당첨 확률(나에게만 보인다): 지금 그 라인 1지망 인원·보정 기준, 누가 고르거나 바꿀 때마다 다시 계산
+// 내 1지망 보정(나에게만): 확률·경쟁 인원은 라인별 지원 인원을 알려 주게 되므로 보여 주지 않고 보정 단계·가중치만
 function chanceHTML(d, id) {
-  const m = missOf(id), w = weightOf(m), c = firstChance(d, id);
-  const boost = m ? `보정 ${m}단계 · 가중치 ${xw(w)}` : '보정 없음';
-  if (!c) return `<span class="lp-chance"><b>${boost}</b><small>${prefs(d, id)[0] === 'any' ? '1지망이 상관없음이라 1지망 추첨이 없어요' : '1지망을 고르면 당첨 확률이 보여요'}</small></span>`;
-  const tag = c.n <= c.free ? '경쟁 없음 · 확정' : `${c.n}명 중 ${c.free}명`;
-  return `<span class="lp-chance" style="--lc:${COLOR[c.lane]}">1지망 ${icon(c.lane)}${NAME[c.lane]} 당첨 확률 <b class="mono">${pctTxt(c.p)}</b><small>${tag} · ${boost}</small></span>`;
+  const m = missOf(id), w = weightOf(m);
+  return `<span class="lp-chance"><b>${m ? `1지망 보정 ${m}단계 · 가중치 ${xw(w)}` : '1지망 보정 없음'}</b><small>${m ? '1지망이 몰려 추첨할 때 그만큼 더 잘 뽑혀요' : '1지망 추첨에서 떨어지면 다음에 가중치가 올라가요'}</small></span>`;
 }
 // 보정 현황(모두에게 보인다): 누가 어느 라인을 골랐는지는 없고 떨어진 횟수와 가중치만
 function luckTable() {
@@ -161,7 +175,7 @@ function luckTable() {
     ${rows.length ? `<div class="lp-lrows">${rows.map((id) => `<span class="lp-lr"><b>${esc(nm(id))}</b><small>${missOf(id, L)}번 떨어짐</small><em class="mono">${xw(weightOf(missOf(id, L)))}</em></span>`).join('')}</div>` : ''}</details>`;
 }
 function openHTML(d) {
-  const doneN = d.ids.filter((id) => isDone(d, id)).length, isMe = d.ids.includes(BD.me), mine = isMe ? prefs(d, BD.me) : [], meDone = isMe && isDone(d, BD.me), own = isOwner(d);
+  const doneN = d.ids.filter((id) => isDone(d, id)).length, isMe = d.ids.includes(BD.me), mine = isMe ? myPrefs(d) : [], meDone = isMe && isDone(d, BD.me), own = isOwner(d);
   const myFix = isMe ? fixOf(d, BD.me) : '';
   const mem = (id) => {
     const p = prefs(d, id)[0], me = id === BD.me, ok = isDone(d, id);
@@ -206,17 +220,26 @@ function finalHTML(d) {
     ${d.ai ? `<p class="lf-ai center">${ic('bolt')}AI 추천 배치 · 점수 <b class="blue">${(+d.ai.bs).toFixed(1)}</b> : <b class="red">${(+d.ai.rs).toFixed(1)}</b> (차이 ${(+d.ai.diff).toFixed(1)})</p>` : ''}
     <div class="lp-foot center">${isOwner(d) ? '' : '<span class="mut sm">AI 추천은 연 사람만 쓸 수 있어요</span>'}${isOwner(d) ? `<button class="btn gold" data-a="bdAi" ${LANES.every((l) => d.result?.[l]?.[0] && d.result?.[l]?.[1]) ? '' : 'disabled title="빈 자리가 있으면 쓸 수 없어요"'}>${ic('bolt')}AI 추천</button>` : ''}<button class="btn pri" data-a="bdLineup">${ic('today')}라인업 확인</button><button class="btn ghost" data-a="bdClose">닫기</button></div>`;
 }
+// 다시 그리기: 바뀐 게 없으면 화면을 건드리지 않고, 누르고 있는 동안(손가락·마우스가 눌린 사이)에는 미뤘다가 뗀 뒤에 그린다
+// (여럿이 동시에 고를 때 누르는 사이에 카드가 새로 그려지면 클릭이 사라져 한 번에 안 눌리던 문제)
 function draw() {
   const el = view(), d = cur();
   if (!el || !d || BD.playing === d.rid) return;
+  if (BD.hold) { BD.later = true; return; }
+  const html = d.status === 'done' ? finalHTML(d) : openHTML(d);
+  if (html === BD.html && el.firstElementChild) { BD.prev = { ...(d.picks || {}) }; return; }
   el.classList.remove('drawing');
-  el.innerHTML = d.status === 'done' ? finalHTML(d) : openHTML(d);
-  if (d.status === 'open' && el.querySelector('.lp-cnt.bump')) sfx('pick');
+  el.innerHTML = html; BD.html = html;
   BD.prev = { ...(d.picks || {}) };
 }
+for (const [ev, on] of [['pointerdown', 1], ['pointerup', 0], ['pointercancel', 0]]) document.addEventListener(ev, (e) => {
+  if (on) { if (e.target.closest?.('#modal.on .lp')) BD.hold = true; return; }
+  if (!BD.hold) return;
+  BD.hold = false; if (BD.later) { BD.later = false; setTimeout(draw, 0); } // 클릭이 먼저 처리되게 한 박자 뒤
+}, true);
 function openBoard() {
   const d = cur(); if (!d) return;
-  modal('<div class="lp"></div>', 'lp-sheet');
+  modal('<div class="lp"></div>', 'lp-sheet'); BD.html = '';
   BD.prev = { ...(d.picks || {}) };
   if (d.status === 'play') play(d); else draw();
 }
@@ -280,7 +303,19 @@ act('bdPick', async (x) => {
   if (isDone(d, BD.me)) { toast("완료한 뒤에는 바꿀 수 없어요. '다시 고르기'를 누른 뒤 고쳐 주세요"); return; }
   if (x.o !== 'any' && fixN(d, x.o) >= 2 && !prefs(d, BD.me).includes(x.o)) { toast(`${NAME[x.o]} 자리는 고정한 사람으로 이미 꽉 찼어요`); return; }
   const me = BD.me, rid = d.rid;
+  // 바로 반영: 저장 결과를 기다리지 않고 내 화면의 지망을 먼저 바꾼다(저장은 누른 순서대로 하나씩)
+  const base = myPrefs(d);
+  let guess;
+  if (base.includes(x.o)) guess = base.filter((v) => v !== x.o);
+  else { const lanes = base.filter((v) => v !== 'any'), any = base.includes('any') || x.o === 'any'; guess = [...(x.o === 'any' ? lanes : [...lanes, x.o]), ...(any ? ['any'] : [])]; }
+  if (guess.length > 3) { toast('3지망까지 고를 수 있어요. 하나를 빼고 다시 골라 주세요'); return; }
+  BD.opt = { rid, p: guess }; BD.optN = (BD.optN || 0) + 1; draw();
   sfx('pick');
+  const job = (BD.q || Promise.resolve()).then(() => pickTx(x, me, rid));
+  BD.q = job.catch(() => {});
+  await job.finally(() => { if (--BD.optN <= 0) { BD.optN = 0; BD.opt = null; draw(); } });
+});
+async function pickTx(x, me, rid) {
   try {
     await S.store.tx('meta', 'board', (r) => {
       if (!r || r.rid !== rid || r.status !== 'open' || isDone(r, me)) return null;
@@ -296,7 +331,7 @@ act('bdPick', async (x) => {
       return { ...r, picks, who: { ...(r.who || {}), [me]: cid }, upd: S.store.serverNow() };
     });
   } catch (e) { toast('지원 실패: ' + (e.code || e.message)); }
-});
+}
 act('bdDone', async () => {
   const d = cur(); if (!d || d.status !== 'open') return;
   if (!live(d)) { toast('2시간 동안 움직임이 없어 라인 지원이 닫혔어요. 다시 열어 주세요'); closeModal(); if (S.page === 'today') refresh(); return; }
