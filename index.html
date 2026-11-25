@@ -44,13 +44,13 @@
 </script>
 <script>
 (function () {
-  var V = '20261125d'; window.NP_V = V; // NP_V: 열어 둔 화면이 새 버전이 나왔는지 비교하는 값(core.js initVer)
-  var JS = ['app', 'core', 'stats', 'store', 'config', 'social', 'season', 'today', 'board', 'dice', 'talk', 'players', 'hook', 'gacha', 'finder', 'kakao', 'me', 'admin', 'auction', 'replay', 'maker', 'scores', 'xmas', 'newyear'];
+  var V = '20261125e'; window.NP_V = V; // NP_V: 열어 둔 화면이 새 버전이 나왔는지 비교하는 값(core.js initVer)
+  var JS = ['app', 'core', 'stats', 'store', 'config', 'social', 'season', 'today', 'board', 'dice', 'talk', 'players', 'hook', 'gacha', 'finder', 'kakao', 'recruit', 'me', 'admin', 'auction', 'replay', 'maker', 'scores', 'xmas', 'newyear'];
   var ok = !!(window.HTMLScriptElement && HTMLScriptElement.supports && HTMLScriptElement.supports('importmap'));
   var q = ok ? '?v=' + V : '', map = {};
   JS.forEach(function (n) { map['./js/' + n + '.js'] = './js/' + n + '.js' + q; });
   // 처음 화면에 필요한 모듈은 한꺼번에 미리 받는다(연쇄 다운로드 지연 방지). 시즌 장식 코드는 시즌에만
-  var d = new Date(), md = (d.getMonth() + 1) * 100 + d.getDate(), pre = JS.slice(0, 16);
+  var d = new Date(), md = (d.getMonth() + 1) * 100 + d.getDate(), pre = JS.slice(0, 17);
   if (md >= 1116 && md <= 1226) pre.push('xmas'); else if (md <= 115) pre.push('newyear');
   var season = (md >= 1116 && md <= 1226) || md <= 115; // 시즌 장식 스타일(css/season.css)은 시즌 기간에만 받는다(js/season.js 날짜와 같게)
   document.write((ok ? '<script type="importmap">' + JSON.stringify({ imports: map }) + '<\/script>' : '')

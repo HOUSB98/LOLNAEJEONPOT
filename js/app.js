@@ -23,7 +23,8 @@ const LAZY_GET = [
 setTimeout(() => (window.requestIdleCallback || setTimeout)(() => LAZY_GET.forEach((g) => g().catch(() => {}))), 6000);
 import { watchPosts, postsChanged } from './talk.js';
 import { xmasOn, SEASON } from './season.js';
-import { kakaoBtn, mountRecruit } from './kakao.js'; // 카카오톡 공유 버튼(경기 상세) · 내전 모집 버튼 // 크리스마스·새해 장식 코드는 시즌에만 받는다
+import { kakaoBtn } from './kakao.js'; // 카카오톡 공유 버튼(경기 상세)
+import { mountRecruit, onRecruit } from './recruit.js'; // 오늘 내전 모집(시간·참가 인원·카톡) // 크리스마스·새해 장식 코드는 시즌에만 받는다
 
 const num = (v, cls = '') => `<td class="num ${cls}">${v}</td>`;
 export function stat(icon, label, value, sub, tone = '') {
@@ -667,6 +668,7 @@ function onStore(c) {
     if (ch.settings) refresh(true); else if (ch.todayDraft && S.page === 'today') refresh();
     if (ch.scorelog && (S.page === 'home' || S.page === 'scores')) refresh();
     if (ch.pause) checkPause();
+    if (ch.recruit) onRecruit();
     return;
   }
   if (c === 'posts') { watchPosts(); postsChanged(); if (S.page === 'talk') refresh(); return; }
