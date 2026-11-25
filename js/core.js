@@ -10,6 +10,7 @@ export const pname = (id) => esc(S.st?.P[id]?.name || S.store.data.players?.[id]
 
 // ---------- 아이콘 (선형 SVG) ----------
 const I = {
+  recap: '<path d="M4 11h16v10H4zM3 7h18v4H3zM12 7v14M12 7C10.500 4 7 3.200 7 5.300S10 7 12 7zm0 0c1.500-3 5-3.800 5-1.700S14 7 12 7z"/>',
   home: '<path d="M3 10.5 12 3l9 7.500V21h-6v-6H9v6H3z"/>',
   rank: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
   today: '<path d="M14.500 17.500 3 6V3h3l11.500 11.500M13 19l6-6M16 16l4 4M14.500 6.500 18 3h3v3l-3.500 3.500M5 14l4 4M7 17l-3 3"/>',
@@ -123,10 +124,13 @@ export function lazyPage(id, load, actNames = []) {
   return get;
 }
 // 왼쪽 메뉴(휴대폰 메뉴 창도 같은 묶음): 홈·내 페이지는 묶음 없이 맨 위, 나머지는 3묶음. ['', 이름] = 묶음 제목
+// 연말 결산(js/recap.js): 11월 20일 ~ 1월 31일에만 메뉴·홈 배너에 보인다(주소 #/recap 은 언제나 열림). 1월에는 지난해 결산
+export function recapSeason(d = new Date()) { const md = (d.getMonth() + 1) * 100 + d.getDate(); return md >= 1120 || md <= 131; }
+export const recapYear = (d = new Date()) => (d.getMonth() === 0 ? d.getFullYear() - 1 : d.getFullYear());
 export const NAV = [
   ['home', '홈'], ['me', '내 페이지'],
   ['', '내전'], ['today', '오늘의 내전'], ['matches', '경기 기록'], ['auction', '팀 경매'], ['replay', '리플레이 분석'],
-  ['', '기록·분석'], ['rank', '랭킹'], ['players', '선수 카드'], ['champs', '챔피언'], ['chem', '케미'], ['scores', '점수 변동'],
+  ['', '기록·분석'], ['rank', '랭킹'], ['players', '선수 카드'], ['champs', '챔피언'], ['chem', '케미'], ['scores', '점수 변동'], ...(recapSeason() ? [['recap', '연말 결산']] : []),
   ['', '즐길 거리'], ['gacha', '가챠'], ['talk', '익명 게시판'],
 ];
 // 거의 안 쓰는 화면: PC는 왼쪽 메뉴 맨 아래 작은 버튼 줄, 휴대폰은 메뉴 창 맨 아래 묶음

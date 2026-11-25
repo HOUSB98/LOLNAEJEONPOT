@@ -25,7 +25,7 @@ const SITE = () => location.origin + location.pathname; // 예: https://housb98.
 const linkTo = (hash) => SITE() + location.search + hash; // 초대 링크(?k=)를 그대로 붙여 친구가 눌러서 바로 열 수 있게
 const OG = () => SITE().replace(/[^/]*$/, '') + 'og.png';
 const KK = '<svg class="kk-ic" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3.500C6.800 3.500 2.600 6.800 2.600 10.900c0 2.600 1.700 4.900 4.300 6.200l-.900 3.300c-.100.300.300.600.600.400l3.900-2.600c.500.100 1 .100 1.500.100 5.200 0 9.400-3.300 9.400-7.400S17.200 3.500 12 3.500z"/></svg>';
-// 공유 버튼(t: match·auction·recruit, id: 경기·경매 id). warm: 그릴 때 SDK를 미리 받기(모든 화면에 있는 버튼은 false → 마우스를 올리거나 손가락이 닿을 때 받음)
+// 공유 버튼(t: match·auction·recruit·recap, id: 경기·경매 id). warm: 그릴 때 SDK를 미리 받기(모든 화면에 있는 버튼은 false → 마우스를 올리거나 손가락이 닿을 때 받음)
 export const kakaoBtn = (t, id = '', label = '카톡 공유', warm = true) => (KAKAO_JS_KEY ? (warm && setTimeout(kakaoWarm, 0), `<button class="btn kk-btn" data-a="kkShare" data-t="${t}" data-id="${esc(id)}" title="카카오톡 단톡방에 카드로 공유">${KK}${label}</button>`) : '');
 
 // 공유할 내용 만들기: { title, desc, hash, text(대신 복사할 글) }
@@ -33,6 +33,8 @@ const names = (ids) => (ids || []).filter(Boolean).map((id) => pname(id)).join('
 const BUILD = {
   // 오늘 내전 모집(js/recruit.js): 시작 시각·지원 인원·지원자 이름
   async recruit() { return (await import('./recruit.js')).recruitCard(); },
+  // 연말 결산(js/recap.js): 경기 수·MVP·개근상·베스트 듀오, 링크는 그해 결산 화면
+  async recap(id) { return (await import('./recap.js')).recapCard(id); },
   match(id) {
     const m = S.store.data.matches?.[id], mi = S.st.MI?.[id]; if (!m) return null;
     const win = m.winner === 'blue' ? '블루' : '레드';

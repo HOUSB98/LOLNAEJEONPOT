@@ -61,7 +61,7 @@ export function compute(playerList, matchList, settings) {
     const upset = pWin < 0.4;
     const day = dayKey(m.at);
     dayCount[day] = (dayCount[day] || 0) + 1;
-    MI[m.id] = { no: idx + 1, bs, rs, pBlue, upset, delta, day };
+    MI[m.id] = { no: idx + 1, bs, rs, pBlue, upset, delta, day, eb }; // eb: 경기 직전 MMR로 본 블루 기대 승률(예측 보정 비교용)
     (seriesMap[m.seriesId || m.id] ||= []).push(m);
     if (bw) blueW++;
     if (Math.abs(pBlue - 0.5) > 0.005) { hitN++; if (pWin > 0.5) hit++; }
@@ -196,6 +196,32 @@ export function compute(playerList, matchList, settings) {
       active: list.filter((s) => s.g).length, best5, best10, hof, maxG, mostIds: list.filter((s) => s.g === maxG && maxG).map((s) => s.id),
       winStreak: [...list].sort((a, b) => b.cur - a.cur)[0], loseStreak: [...list].sort((a, b) => a.cur - b.cur)[0],
     },
+  };
+}
+
+// ---------- 예측 보정(관리 > 설정) ----------
+// 예상승률 = 1 / (1 + 10^(−점수차/스케일)). 스케일은 '점수 몇 점 차이가 몇 % 유리한가'를 정한다(작을수록 점수 차에 민감).
+// 지금까지 경기마다 '기록 당시 라인 점수 차(블루−레드)'와 실제 결과로, 결과를 가장 잘 설명하는 스케일(로그 손실 최소)을 찾는다.
+// 스케일은 '누가 유리한가'를 바꾸지 않으므로 적중률은 그대로이고, '몇 %'가 실제 승률과 맞아지게 한다(60%라고 하면 실제로 10판 중 6판 정도 이김).
+export const CAL_MIN = 30, CAL_BINS = [[0.5, 0.55], [0.55, 0.6], [0.6, 0.65], [0.65, 0.7], [0.7, 1.01]];
+export function calibrate(st, scale = st.cfg.scale) {
+  const rows = st.matches.map((m) => { const mi = st.MI[m.id]; return { d: mi.bs - mi.rs, w: m.winner === 'blue' ? 1 : 0, eb: mi.eb, snap: m.snap?.pBlue != null }; });
+  const use = rows.filter((r) => Math.abs(r.d) > 1e-9), n = use.length; // 점수가 똑같았던 경기는 스케일과 상관없이 50%라 뺀다
+  const loss = (sc) => use.reduce((a, r) => { const p = Math.min(1 - 1e-9, Math.max(1e-9, winProb(r.d, sc))); return a - Math.log(r.w ? p : 1 - p); }, 0) / (n || 1);
+  const brier = (sc) => use.reduce((a, r) => a + (winProb(r.d, sc) - r.w) ** 2, 0) / (n || 1);
+  let best = scale, bl = loss(scale);
+  for (let sc = 5; sc <= 200 + 1e-9; sc += 0.5) { const l = loss(sc); if (l < bl - 1e-12) { bl = l; best = sc; } }
+  const bins = (sc) => CAL_BINS.map(([lo, hi]) => {
+    const g = use.map((r) => { const p = winProb(r.d, sc), fav = p >= 0.5; return { p: fav ? p : 1 - p, win: fav ? r.w : 1 - r.w }; }).filter((x) => x.p >= lo && x.p < hi);
+    return { lo, hi, n: g.length, pred: g.length ? g.reduce((a, x) => a + x.p, 0) / g.length : null, real: g.length ? g.reduce((a, x) => a + x.win, 0) / g.length : null };
+  });
+  const hitOf = (f) => { const v = rows.map(f).filter((x) => x !== null); return v.length ? { n: v.length, pct: pct(v.filter(Boolean).length, v.length) } : { n: 0, pct: null }; };
+  return {
+    n, total: rows.length, scale, best, capped: best >= 200, noSnap: rows.filter((r) => !r.snap).length,
+    cur: { loss: loss(scale), brier: brier(scale), bins: bins(scale) }, rec: { loss: bl, brier: brier(best), bins: bins(best) },
+    hitScore: hitOf((r) => (Math.abs(r.d) > 1e-9 ? (r.d > 0) === !!r.w : null)), // 라인 점수가 높은 팀이 이긴 비율
+    hitMmr: hitOf((r) => (r.eb != null && Math.abs(r.eb - 0.5) > 0.005 ? (r.eb > 0.5) === !!r.w : null)), // 경기 직전 MMR이 높은 팀이 이긴 비율(참고)
+    blue: pct(rows.filter((r) => r.w).length, rows.length),
   };
 }
 

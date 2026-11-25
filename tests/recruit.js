@@ -87,8 +87,41 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   // 시간 바꾸기: 명단 유지
   await A.evaluate(() => (location.hash = '#/recruit')); await A.waitForTimeout(600);
   await A.click('#main .rc-box [data-a=rcOpen]'); await A.waitForTimeout(300);
-  await A.click('#modal.on [data-a=rcTime][data-v="22:00"]'); await A.click('#modal.on [data-a=rcShare]'); await A.waitForTimeout(900);
-  ok(new Date(R().when).getHours() === 22 && Object.keys(R().list).length === 3, '시간을 22:00으로 바꿔도 참가자 3명 그대로');
+  // 참가자가 있으면 시간 바꾸기 전에 확인 창: 취소하면 그대로, 확인하면 바뀜
+  const before = R().when; let dmsg = '';
+  A.once('dialog', (dg) => { dmsg = dg.message(); dg.dismiss(); });
+  await A.click('#modal.on [data-a=rcTime][data-v="22:00"]'); await A.click('#modal.on [data-a=rcShare]'); await A.waitForTimeout(700);
+  ok(/이미 3명이 참가했어요/.test(dmsg) && /오후 10:00/.test(dmsg) && /명단은 그대로/.test(dmsg) && R().when === before && !!(await A.$('#modal.on .rc-m')), '시간 바꾸기 확인 창(참가 3명·바뀔 시간 안내) → 취소하면 시간 그대로·창 유지: ' + JSON.stringify(dmsg));
+  A.once('dialog', (dg) => dg.accept());
+  await A.click('#modal.on [data-a=rcShare]'); await A.waitForTimeout(900);
+  ok(new Date(R().when).getHours() === 22 && Object.keys(R().list).length === 3, '확인하면 22:00으로 바뀌고 참가자 3명 그대로');
+  // 같은 시간으로 다시 저장하면 묻지 않음
+  let asked = false; const onD = (dg) => { asked = true; dg.dismiss(); }; A.on('dialog', onD);
+  await A.click('#main .rc-box [data-a=rcOpen]'); await A.waitForTimeout(300); await A.click('#modal.on [data-a=rcShare]'); await A.waitForTimeout(700);
+  A.off('dialog', onD); ok(!asked, '시간을 안 바꾸고 저장하면 확인 창 없음');
+  // 대기자: 10명이 차면 11번째부터 대기, 참가자가 빠지면 대기 1번이 자동 참가
+  await A.evaluate(async (ids) => { const { S } = await import('/js/core.js'); const t = Date.now(); await S.store.tx('meta', 'recruit', (r) => { const list = {}; ids.slice(0, 12).forEach((id, i) => (list[id] = { n: S.st.P[id].name, pid: id, by: 'x', at: t - 60000 + i * 1000 })); return { ...r, list }; }); }, ids);
+  await A.waitForTimeout(700);
+  const wv = await A.$eval('#main .rc-box', (e) => ({ n: e.querySelector('.rc-n').innerText.replace(/\s/g, ''), wt: e.querySelector('.rc-wt')?.innerText, main: e.querySelectorAll('.rc-ppl:not(.rc-wait) .rc-p').length, wait: [...e.querySelectorAll('.rc-wait .rc-p')].map((x) => x.innerText.replace(/\s/g, '')) }));
+  ok(wv.n === '10/10' && wv.wt === '대기 2' && wv.main === 10 && wv.wait.join(',') === `1${P[ids[10]]},2${P[ids[11]]}`, '12명: 참가 10/10 + 대기 2(누른 순서대로 11·12번째): ' + JSON.stringify(wv));
+  ok(await A.evaluate(async () => (await import('/js/recruit.js')).recruitIds().length) === 10, '라인 지원 미리 고르기는 참가 10명만(대기 제외)');
+  await A.evaluate(() => (location.hash = '#/home')); await A.waitForTimeout(500);
+  ok(await A.$eval('#main .rc-home', (e) => /10\/10/.test(e.innerText.replace(/\s/g, '')) && /대기2/.test(e.innerText.replace(/\s/g, '')) && /대기 신청/.test(e.innerText)).catch(() => false), "홈 띠: 10/10 · 대기 2 · '대기 신청'");
+  await A.evaluate(() => (location.hash = '#/recruit')); await A.waitForTimeout(500);
+  await A.click('#main .rc-box [data-a=rcPick]'); await A.waitForTimeout(400);
+  const pk = await A.evaluate((id) => { const b = document.querySelector(`#modal.on [data-a=rcToggle][data-id="${id}"]`); return { wait: b.classList.contains('wait'), w: b.dataset.w, full: !!document.querySelector('#modal.on .rc-full'), wt: document.querySelector('#modal.on .ph .rc-wt')?.innerText }; }, ids[10]);
+  ok(pk.wait && pk.w === '대기1' && pk.full && pk.wt === '대기 2', "이름 고르기 창: 대기자는 점선 + '대기1', 다 찼다는 안내: " + JSON.stringify(pk));
+  await A.click(`#modal.on [data-a=rcToggle][data-id="${ids[12]}"]`); await A.waitForTimeout(800);
+  ok(/대기 3번으로 신청/.test(await A.$eval('#toast', (e) => e.textContent).catch(() => '')) && Object.keys(R().list).length === 13, '13번째로 누르면 "대기 3번으로 신청" 안내');
+  await A.click(`#modal.on [data-a=rcToggle][data-id="${ids[12]}"]`); await A.waitForTimeout(600);
+  await A.click('#modal.on [data-a=close]'); await A.waitForTimeout(300);
+  await M.evaluate(() => (location.hash = '#/recruit')); await M.waitForTimeout(600);
+  await A.evaluate(async (id) => { const { S } = await import('/js/core.js'); await S.store.tx('meta', 'recruit', (r) => { const list = { ...r.list }; delete list[id]; return { ...r, list }; }); }, ids[3]);
+  await A.waitForTimeout(800);
+  const pr = await M.evaluate(() => ({ t: document.getElementById('toast')?.textContent || '', n: document.querySelector('#main .rc-n')?.innerText.replace(/\s/g, ''), wt: document.querySelector('#main .rc-box .rc-wt')?.innerText || '' }));
+  ok(pr.n === '10/10' && pr.wt === '대기 1' && new RegExp(`${P[ids[10]]}님이 대기에서 참가로`).test(pr.t), '참가자 1명이 빠지면 대기 1번이 자동 참가(다른 기기에도 안내): ' + JSON.stringify(pr));
+  await A.evaluate(async (ids) => { const { S } = await import('/js/core.js'); await S.store.tx('meta', 'recruit', (r) => { const list = {}; for (const id of [ids[0], ids[2], ids[1]]) list[id] = r.list[id] || { n: S.st.P[id].name, pid: id, by: 'x', at: Date.now() }; return { ...r, list }; }); }, ids);
+  await A.waitForTimeout(600);
   await A.evaluate(() => (location.hash = '#/today')); await A.waitForTimeout(500);
   ok(await A.$$eval('#main .lrow', (x) => x.length) === 5 && !!(await A.$('#main [data-a=tSave]')), '오늘의 내전 라인업·결과 저장은 그대로');
   await A.evaluate(() => (location.hash = '#/recruit')); await A.waitForTimeout(500);
