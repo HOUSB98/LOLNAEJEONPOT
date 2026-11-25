@@ -27,8 +27,8 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
     const ms = Object.values(S.store.data.matches).filter((m) => !m.deleted && m.winner && dk(m.at) === Y);
     const g = {}, w = {}; ms.forEach((m) => ['blue', 'red'].forEach((s) => m[s].forEach((id) => { g[id] = (g[id] || 0) + 1; if (m.winner === s) w[id] = (w[id] || 0) + 1; })));
     const live = Object.keys(g).filter((id) => S.store.data.players[id] && !S.store.data.players[id].deleted);
-    const maxG = Math.max(...live.map((id) => g[id])), minG = Math.max(5, Math.ceil(maxG * 0.3));
-    const adj = (id) => ((w[id] || 0) + 2) / (g[id] + 4);
+    const maxG = Math.max(...live.map((id) => g[id])), minG = Math.max(10, Math.ceil(maxG * 0.5));
+    const adj = (id) => ((w[id] || 0) + 5) / (g[id] + 10);
     const mvp = live.filter((id) => g[id] >= minG).sort((a, b) => adj(b) - adj(a) || g[b] - g[a])[0];
     const most = live.sort((a, b) => g[b] - g[a] || (w[b] || 0) - (w[a] || 0))[0];
     const nm = (id) => S.store.data.players[id].name;
@@ -38,6 +38,8 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   ok(got.kp[0] === String(want.n) && got.kp[1] === String(want.days) && got.kp[2] === String(want.ppl), `경기 ${want.n} · 내전한 날 ${want.days} · 참가 ${want.ppl}명이 따로 계산한 값과 같음: ` + JSON.stringify(got.kp));
   const mv = got.aw.find((x) => x[0] === '올해의 MVP'), mo = got.aw.find((x) => /개근상/.test(x[0]));
   ok(mv && mv[1] === want.mvp && new RegExp(`${want.minG}판 이상`).test(mv[3]), `MVP = 보정 승률 1위(${want.minG}판 이상) ${want.mvp}: ` + JSON.stringify(mv));
+  const lowest = await A.evaluate(async (Y) => { const r = (await import('/js/recap.js')).recapData(Y); return { mvpMin: Math.min(...r.mvp.map((x) => x.g)), minG: r.minG, streakOk: r.streak.findIndex((x) => x.g < r.minG) === -1 || r.streak.slice(r.streak.findIndex((x) => x.g < r.minG)).every((x) => x.g < r.minG), growOk: r.grow.findIndex((x) => x.s.g < r.minG) === -1 || r.grow.slice(r.grow.findIndex((x) => x.s.g < r.minG)).every((x) => x.s.g < r.minG), duoMin: Math.min(...r.duo.map((x) => x.g)), minDuo: r.minDuo }; }, Y);
+  ok(lowest.mvpMin >= lowest.minG && lowest.streakOk && lowest.growOk && lowest.duoMin >= lowest.minDuo, '판수 적은 사람: MVP 후보에서 빠지고, 연승·성장 순위는 자격 판수를 채운 사람 뒤로, 듀오는 자격 판수 이상만: ' + JSON.stringify(lowest));
   ok(mo && mo[1] === want.most && mo[2] === `${want.mostG}판 출전`, `개근상 = 최다 출전 ${want.most} ${want.mostG}판`);
   const months = await A.$$eval('.rcp-bars em', (x) => x.reduce((a, e) => a + (+e.innerText || 0), 0));
   ok(months === want.n, '월별 막대 합 = 그해 경기 수');
