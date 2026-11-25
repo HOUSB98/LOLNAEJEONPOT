@@ -663,6 +663,7 @@ function onStore(c) {
   if (c === 'presence') return renderPresence();
   if (c === 'auctions') { if (S.page === 'auction') refresh(); return; }
   if (c === 'meta') {
+    if (closedCheck()) return;
     const ch = metaDiff();
     if (ch.dice) watchDice();
     if (ch.board || ch.luck) watchBoard(); // 1지망 보정이 바뀌면 열려 있는 라인 지원 화면의 확률도 다시 그린다
@@ -762,5 +763,14 @@ window.NP_OK = 1; // index.html의 시작 확인(이 줄까지 왔다면 모든 
   } catch (e) { document.getElementById('splash')?.remove(); main.innerHTML = `<div class="panel landing"><h1>연결 실패</h1><p>${esc(e.message || e)}</p><p class="hint">js/config.js 의 Firebase 설정과 Firestore 규칙을 확인하세요.</p></div>`; return; }
   await SEASON.ready; // 시즌이 아니면 바로 끝난다. 시즌이면 시작 화면 장식 전에 받아 둔다(DB 연결과 동시에 받으므로 보통 기다리지 않는다)
   metaDiff(); up = true; watchDice(true); watchBoard(true); watchPosts(true); initShell(); mountRecruit(); initSocial(); SEASON.x?.initXmas(); SEASON.n?.initNewYear(); loadChamps();
-  checkPause();
+  checkPause(); closedCheck();
 })();
+// 초대 링크를 바꾼 뒤 옛 링크(meta/closed가 있는 리그)로 들어오면: 실시간 구독을 끊고 안내 화면만 보여 준다(새 링크는 알려 주지 않음)
+// 링크를 바꾼 관리자 본인 화면은 결과 창을 보고 있어야 하므로 이번 접속에서는 띄우지 않는다(S.rotating)
+function closedCheck() {
+  const c = S.store?.data?.meta?.closed; if (!c?.at || S.rotating) return false;
+  if (document.getElementById('np-closed')) return true;
+  try { S.store.pause?.(); } catch {}
+  document.body.insertAdjacentHTML('beforeend', `<div id="np-closed" class="np-closed" role="alertdialog" aria-modal="true"><div class="panel">${logo(true, 72)}<h1>이 초대 링크는 더 이상 쓰지 않아요</h1><p>관리자가 ${new Date(c.at).toLocaleDateString('ko-KR')}에 초대 링크를 새로 만들었어요.<br>단톡방이나 관리자에게 <b>새 초대 링크</b>를 받아 들어와 주세요.</p><p class="hint">기록은 모두 새 링크로 옮겨졌어요. 이 주소로는 더 이상 저장되지 않아요.</p></div></div>`);
+  return true;
+}

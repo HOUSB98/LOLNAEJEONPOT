@@ -5,6 +5,7 @@ import { exportMatches } from './app.js';
 import { callWorker, hookOn, USAGE, loadUsage, won, WORKER_VER, workerVer } from './hook.js';
 import { WORKER_URL } from './config.js';
 import { gachaAdminHTML } from './gacha.js';
+import { nick } from './social.js';
 import { missOf, weightOf, LUCK_MAX, TALK } from './board.js';
 
 // ---------- 예측 보정: 지금까지 경기 결과로 예상승률 스케일 다시 맞추기 ----------
@@ -25,6 +26,36 @@ function calHTML(st, cfg) {
     ${worth ? `<div class="row wrapr"><button class="btn pri" data-a="calApply" data-v="${c.best}">${ic('target')}추천 스케일 ${c.best} 적용</button></div>` : ''}
     <p class="hint">스케일은 '누가 유리한가'는 바꾸지 않고 '몇 % 유리한가'만 바꿔요. 그래서 적중률은 그대로이고, 예상 60%인 경기에서 실제로 10판 중 6판쯤 이기도록 맞춰져요(표의 실제 승률이 예상 평균에 가까울수록 정확, 판수를 감안해 우연한 차이 안이면 초록·벗어나면 빨강). 적용하면 오늘의 내전 예상승률과 앞으로 저장하는 경기에 쓰여요. 이미 저장된 경기는 기록 당시 예상승률을 그대로 쓰고${c.noSnap ? `, 기록 당시 값이 없는 옛 경기 ${c.noSnap}판만 새 값으로 다시 계산돼 업셋 수가 조금 바뀔 수 있어요` : ''}. 언제든 위 설정에서 되돌릴 수 있어요.</p></div>`;
 }
+// ---------- 초대 링크 새로 만들기: 모든 기록을 새 코드로 복사하고 옛 코드는 닫는다(meta/closed, 문서는 지우지 않음) ----------
+const ROT_COLS = ['players', 'matches', 'meta', 'chat', 'posts', 'comments', 'auctions', 'history', 'reveals', 'gacha', 'ops']; // presence(접속 표시)는 옮기지 않음
+const newKey = () => { const a = crypto.getRandomValues(new Uint8Array(20)); return [...a].map((b) => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join(''); };
+const rotHTML = () => `<div class="panel rot"><div class="ph"><b>${ic('lock')}초대 링크 새로 만들기</b><small class="mut">링크가 밖으로 퍼졌을 때</small></div>
+  <p class="sm">모든 기록(선수·경기·설정·채팅·게시판·경매·가챠)을 새 초대 코드로 옮기고, 지금 링크로 들어오는 사람에게는 "이 초대 링크는 더 이상 쓰지 않아요" 안내만 보여 줘요. 옛 기록은 지우지 않아요.</p>
+  <p class="hint">내전·경매가 진행 중이지 않을 때 해 주세요(옮기는 동안 저장된 내용은 빠질 수 있어요). 기록이 많을수록 한 번에 읽기·쓰기가 문서 수만큼 들어요.</p>
+  <div class="row wrapr"><button class="btn ghost" data-a="keyRotate">${ic('lock')}새 초대 링크 만들기</button></div></div>`;
+act('keyRotate', () => needAdmin(async () => {
+  if (S.store.mode !== 'firebase' && S.store.mode !== 'local') return;
+  if (!confirm('초대 링크를 새로 만들까요?\n\n· 모든 기록을 새 링크로 옮겨요\n· 지금 링크는 닫혀서 "새 링크를 받아 주세요" 안내만 보여요\n· 끝나면 새 링크를 단톡방에 다시 공유해야 해요')) return;
+  const nk = newKey(), old = S.key;
+  modal(`${mh('초대 링크 옮기는 중')}<p class="mut" id="rot-p">준비 중…</p><p class="hint">창을 닫거나 새로고침하지 마세요.</p>`);
+  try {
+    const n = await S.store.copyTo(nk, ROT_COLS, (c, k) => { const el = document.getElementById('rot-p'); if (el) el.textContent = `옮기는 중… ${c} (지금까지 ${k}개)`; });
+    S.rotating = true; // 내 화면에는 '닫힌 링크' 안내를 띄우지 않음(결과 창을 봐야 하므로)
+    await S.store.put('meta', 'closed', { at: Date.now(), by: nick() || '' });
+    const url = location.origin + location.pathname + '?k=' + nk;
+    const rule = `match /leagues/{key}/{col}/{id} {\n  allow read: if key.size() >= 15 && key != '${old}';\n  allow create, update: if key.size() >= 15 && key != '${old}';\n  allow delete: if false;\n}`;
+    modal(`${mh('새 초대 링크가 만들어졌어요')}<div class="rot-done">
+      <p>기록 <b>${n.toLocaleString('ko-KR')}개</b>를 옮겼어요. 지금 링크는 닫혔어요.</p>
+      <div class="rot-url"><input class="inp mono" readonly value="${esc(url)}" id="rot-url"><button class="btn pri" data-a="rotCopy">복사</button></div>
+      <ol class="rot-todo"><li><b>새 링크를 단톡방에 공유</b>하고, 예전 링크는 쓰지 말라고 알려 주세요.</li>
+        <li><b>연동 서버(Cloudflare Worker)</b>: 대시보드 → Worker → 설정 → 변수의 <code>LEAGUE_KEY</code>를 새 코드 <code class="mono">${nk}</code>로 바꾸고 저장해 주세요(디스코드 알림·라이엇 갱신용).</li>
+        <li><b>옛 링크 완전 차단(권장)</b>: Firebase 콘솔 → Firestore → 규칙에서 아래처럼 바꾸고 게시하면, 옛 코드로는 DB를 직접 읽는 것도 막혀요.<pre class="rot-rule">${esc(rule)}</pre></li>
+        <li>새 링크에서는 관리자 PIN을 한 번 다시 입력해야 해요(PIN은 그대로).</li></ol>
+      <div class="row"><span class="grow"></span><a class="btn gold" href="${esc(url)}">새 링크로 이동</a></div></div>`, 'rot-sheet');
+  } catch (e) { closeModal(); toast('옮기지 못했어요(옛 링크는 그대로예요): ' + (e.message || e)); }
+}));
+act('rotCopy', async () => { const v = document.getElementById('rot-url')?.value || ''; try { await navigator.clipboard.writeText(v); toast('새 링크를 복사했어요'); } catch { prompt('아래 링크를 복사해 주세요', v); } });
+
 act('calApply', (d) => { const v = +d.v; if (!(v >= 1)) return; if (!confirm(`예상승률 스케일을 ${settings().scale ?? DEFAULTS.scale} → ${v}(으)로 바꿀까요?`)) return; needAdmin(async () => { await S.store.patch('meta', 'settings', { scale: v }); toast(`스케일을 ${v}(으)로 바꿨어요`); }); });
 
 // ---------- 연동 서버: Firebase 사용량 · 디스코드 테스트 · 라이엇 갱신 ----------
@@ -110,7 +141,7 @@ page('admin', {
         <label class="fld"><span>&nbsp;</span><button class="btn pri">설정 저장</button></label>
       </form>
       <p class="hint">예상승률 = 1 / (1 + 10^(−점수차/스케일)). 현재 10점 차 = ${Math.round(100 / (1 + Math.pow(10, -10 / cfg.scale)))}%. MMR은 솔랭 티어를 시작값으로 경기마다 Elo 방식으로 변합니다.</p>
-      <div class="row wrapr"><button class="btn ghost" data-a="pinChange">${ic('lock')}관리자 PIN 변경</button><span class="mut sm">리그 코드: ${esc(S.key)}</span></div></div>${calHTML(st, cfg)}</div><div class="adm-col"><div class="panel"><div class="ph"><b>${ic('save')}내보내기 · 백업</b></div>
+      <div class="row wrapr"><button class="btn ghost" data-a="pinChange">${ic('lock')}관리자 PIN 변경</button><span class="mut sm">리그 코드: ${esc(S.key)}</span></div></div>${calHTML(st, cfg)}${rotHTML()}</div><div class="adm-col"><div class="panel"><div class="ph"><b>${ic('save')}내보내기 · 백업</b></div>
       <div class="row wrapr"><button class="btn" data-a="exportCsv">⬇ 경기 기록 CSV</button><button class="btn" data-a="exportPlayers">⬇ 선수 CSV</button><button class="btn" data-a="backup">⬇ 전체 백업 (JSON)</button><button class="btn ghost" data-a="restore">⬆ 백업 복원</button></div>
       <div class="row wrapr"><span class="mut sm">로고 내려받기</span><a class="btn xs" href="brand/naejeonpot-logo-1024.png" download>⬇ PNG 1024</a><a class="btn xs" href="brand/naejeonpot-logo-512.png" download>⬇ PNG 512</a><a class="btn xs" href="brand/naejeonpot-icon-512.png" download title="아래 MAISON 글씨 없는 아이콘">⬇ 아이콘 PNG</a><a class="btn xs ghost" href="brand/naejeonpot-logo.svg" download title="확대해도 깨지지 않는 벡터 파일">⬇ SVG</a></div>
       <p class="hint">${S.store.mode === 'local' ? `${ic('alert')}` + ' 지금은 체험 모드라 데이터가 이 브라우저에만 저장됩니다. Firebase를 연결하면 친구들과 실시간으로 공유됩니다(README 참고).' : '데이터는 Firebase에 저장됩니다. Firestore 무료 요금제는 오래 안 써도 일시정지되지 않지만, 가끔 전체 백업을 내려받아 두세요.'}</p></div>

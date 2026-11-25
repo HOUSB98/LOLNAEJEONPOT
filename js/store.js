@@ -43,6 +43,7 @@ function localStore(key, onChange) {
     serverClockErr: () => 0,
     syncServerClock: async () => 0,
     clockSoon: async () => 0,
+    async copyTo(nk, cols, prog) { let n = 0; for (const c of cols) { const v = localStorage.getItem(k(c)); if (v) { localStorage.setItem(`naejeon:${nk}:${c}`, v); n += Object.keys(JSON.parse(v) || {}).length; } prog?.(c, n); } return n; },
     need: async () => {}, needDoc: async () => {}, unneed() {}, loaded: () => true, allLoaded: () => true, // 체험 모드는 모든 컬렉션을 이미 들고 있다
     chatFull() {}, countSince: async (col, field, gt) => Object.values(data[col] || {}).filter((d) => d[field] > gt).length,
     pause() {}, isPaused: () => false, // 체험 모드는 사용량이 없으니 쉬지 않는다
@@ -255,6 +256,18 @@ async function firebaseStore(key, onChange, opt = {}) {
     // field 가 gt 보다 큰 문서 수(내려받지 않음, 1,000개당 읽기 1번). 닫힌 채팅창의 '안 읽은 채팅' 숫자
     countSince: async (col, field, gt) => (await fs.getCountFromServer(fs.query(fs.collection(db, 'leagues', key, col), fs.where(field, '>', gt)))).data().count,
     // 쉬기 시작: meta 외 모든 실시간 구독을 끊는다(화면에 이미 받은 기록은 그대로 둔다). 다시 열 때는 새로고침으로 처음부터 시작
+    // 초대 링크 바꾸기(관리 > 설정): 이 리그의 문서를 새 코드 아래로 그대로 복사(옛 문서는 지우지 않음). 컬렉션마다 전체 읽기 1번 + 문서마다 쓰기 1번
+    async copyTo(nk, cols, prog) {
+      let n = 0;
+      for (const c of cols) {
+        const snap = await fs.getDocs(fs.collection(db, 'leagues', key, c));
+        let b = fs.writeBatch(db), k = 0;
+        for (const d of snap.docs) { b.set(fs.doc(db, 'leagues', nk, c, d.id), d.data()); n++; if (++k === 400) { await b.commit(); b = fs.writeBatch(db); k = 0; } }
+        if (k) await b.commit();
+        prog?.(c, n);
+      }
+      return n;
+    },
     pause() { isPaused = true; for (const [c, u] of Object.entries(UNSUB)) if (c !== 'meta') { try { u(); } catch {} delete UNSUB[c]; } Object.keys(LZ).forEach(unneed); },
     isPaused: () => isPaused,
     watchDoc: (col, id, onData, onError) => fs.onSnapshot(ref(col, id), (snap) => {
