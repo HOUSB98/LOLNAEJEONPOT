@@ -8,7 +8,7 @@ const dec = (v) => (v && typeof v === 'object' ? (v.__ts !== undefined ? new Tim
 export const initializeApp = () => ({}); export const persistentLocalCache = () => ({}); export const persistentMultipleTabManager = () => ({});
 export const initializeFirestore = () => ({}); export const getFirestore = () => ({});
 export const collection = (db, ...p) => ({ kind: 'col', col: p[p.length - 1], cs: [] });
-export const doc = (db, ...p) => ({ kind: 'doc', col: p[p.length - 2], id: p[p.length - 1] });
+export const doc = (db, ...p) => ({ kind: 'doc', col: p[p.length - 2], id: p[p.length - 1], lg: p[p.length - 3] });
 export const where = (f, op, v) => ({ t: 'where', f, op, v: enc(v) });
 export const orderBy = (f, d) => ({ t: 'order', f: f && f.__docId ? '__id' : f, d });
 export const limit = (n) => ({ t: 'limit', n });
@@ -46,3 +46,5 @@ export async function runTransaction(db, fn) {
   }
   throw new Error('transaction failed');
 }
+// 묶음 쓰기(초대 링크 바꾸기 store.copyTo): 가짜 백엔드는 리그 하나만 다루므로 실제로 쓰지 않고 window.__batch 에 [리그 코드, 컬렉션, id]만 남긴다
+export const writeBatch = () => { const w = []; return { set: (ref, d) => w.push([ref.lg, ref.col, ref.id, enc(d)]), commit: async () => { (window.__batch ||= []).push(...w); } }; };
