@@ -2353,3 +2353,13 @@ body.lite #chtb tr.ch-hit td{animation:none;background:rgba(217,164,65,.14)}
 .rc-guest{display:flex;gap:8px}.rc-guest .inp{flex:1;min-width:0}
 .rc-ht b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:860px){.rc-ht b{font-size:14px}.rc-home .btn.xs{padding:0 10px;min-height:32px}}
+/* 왼쪽 메뉴 정리(2026-11-25): 맨 위 홈·내 페이지(묶음 제목 없음) · 맨 아래 관리·제작자 작은 버튼 줄 · 휴대폰 메뉴 창 '설정·정보' */
+#nav .nav-top{margin-bottom:4px}
+.side-mini{display:flex;gap:4px;margin:6px 0 2px;padding-top:6px;border-top:1px solid var(--line)}
+.side-mini a{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:30px;padding:4px 6px;border-radius:8px;font-size:12px;font-weight:600;color:#7b879c;text-decoration:none;transition:color .15s,background .15s}
+.side-mini a .ic{width:14px;height:14px}
+.side-mini a:hover,.side-mini a.on{color:var(--gold2);background:rgba(217,164,65,.08)}
+@media (max-width:860px){.side-mini{display:none}}
+.mm-g.mm-mini .mm-it{min-height:0;padding:10px 6px}
+/* 묶음 제목이 한글이 되어 글자 사이 간격을 줄임(영문 대문자용 넓은 간격이면 '즐 길 거 리'처럼 띄어 보임) */
+#nav .nav-h h6,.sheet.more-sheet .mm h6{letter-spacing:.06em}

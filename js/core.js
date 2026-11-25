@@ -122,17 +122,22 @@ export function lazyPage(id, load, actNames = []) {
   actNames.forEach((n) => { const f = (...a) => get().then(() => acts[n] !== f && acts[n](...a)).catch(() => toast('잠시 뒤 다시 눌러 주세요')); acts[n] = f; });
   return get;
 }
+// 왼쪽 메뉴(휴대폰 메뉴 창도 같은 묶음): 홈·내 페이지는 묶음 없이 맨 위, 나머지는 3묶음. ['', 이름] = 묶음 제목
 export const NAV = [
-  ['', 'LEAGUE'], ['home', '홈'], ['me', '내 페이지'], ['rank', '랭킹'], ['matches', '경기 기록'], ['players', '선수 카드'],
-  ['', 'ANALYSIS'], ['champs', '챔피언'], ['chem', '케미'],
-  ['', 'PLAY'], ['today', '오늘의 내전'], ['gacha', '가챠'], ['auction', '팀 경매'], ['replay', '리플레이 분석'],
-  ['', 'COMMUNITY'], ['talk', '익명 게시판'],
-  ['', 'CREDITS'], ['admin', '관리'], ['scores', '점수 변동'], ['maker', '제작자'],
+  ['home', '홈'], ['me', '내 페이지'],
+  ['', '내전'], ['today', '오늘의 내전'], ['matches', '경기 기록'], ['auction', '팀 경매'], ['replay', '리플레이 분석'],
+  ['', '기록·분석'], ['rank', '랭킹'], ['players', '선수 카드'], ['champs', '챔피언'], ['chem', '케미'], ['scores', '점수 변동'],
+  ['', '즐길 거리'], ['gacha', '가챠'], ['talk', '익명 게시판'],
 ];
+// 거의 안 쓰는 화면: PC는 왼쪽 메뉴 맨 아래 작은 버튼 줄, 휴대폰은 메뉴 창 맨 아래 묶음
+export const NAV_MINI = [['admin', '관리'], ['maker', '제작자']];
+export const NAV_ALL = [...NAV, ...NAV_MINI]; // 탭 제목·빠른 이동 검색에 쓰는 전체 목록
+// 묶음 나누기: [{ t: 묶음 이름('' = 맨 위 묶음 없음), items: [[화면, 이름, 표시]] }]
+const navGroups = () => { const g = [{ t: '', items: [] }]; NAV.forEach((n) => (n[0] ? g[g.length - 1].items.push(n) : g.push({ t: n[1], items: [] }))); return g.filter((x) => x.items.length); };
 // 브라우저 탭 제목: 'NAEJEONPOT · 내전 기록실'(홈) / '랭킹 · NAEJEONPOT' / 선수 카드는 '이름 · 선수 카드 · NAEJEONPOT'
 function pageTitle() {
   if (S.page === 'home') return 'NAEJEONPOT · 내전 기록실';
-  const nm = NAV.find((n) => n[0] === S.page)?.[1] || pages[S.page]?.title || ''; // 왼쪽 메뉴에 없는 화면(내전 모집)은 page()의 title
+  const nm = NAV_ALL.find((n) => n[0] === S.page)?.[1] || pages[S.page]?.title || ''; // 왼쪽 메뉴에 없는 화면(내전 모집)은 page()의 title
   const who = (S.page === 'players' || S.page === 'chem') && S.arg[0] && S.st?.P?.[S.arg[0]]?.name;
   return [who, nm, 'NAEJEONPOT'].filter(Boolean).join(' · ');
 }
@@ -150,7 +155,7 @@ export function render() {
   if (S.dirty) { S.st = compute(col('players'), col('matches'), settings()); S.dirty = false; }
   const main = document.getElementById('main');
   const f = document.activeElement, fid = f && main.contains(f) ? f.id : '', sel = fid && f.selectionStart;
-  document.querySelectorAll('#nav a').forEach((a) => a.classList.toggle('on', a.dataset.p === S.page));
+  document.querySelectorAll('#nav a, #side .side-mini a').forEach((a) => a.classList.toggle('on', a.dataset.p === S.page));
   document.querySelectorAll('#tabbar [data-p]').forEach((a) => a.classList.toggle('on', a.dataset.p === S.page || (a.dataset.p === 'more' && !TABS.includes(S.page))));
   document.getElementById('league').textContent = settings().leagueName || '친구 내전 리그';
   const route = S.page + '/' + S.arg.join('/'), entering = route !== lastRoute;
@@ -210,7 +215,7 @@ export function liveMarks(root, entering) {
 const TABS = ['home', 'rank', 'today', 'matches'];
 const MORE_IC = '<svg class="ic" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
 function tabbar() {
-  const nm = Object.fromEntries(NAV.filter((n) => n[0]).map(([p, t]) => [p, t]));
+  const nm = Object.fromEntries(NAV_ALL.filter((n) => n[0]).map(([p, t]) => [p, t]));
   const short = { matches: '기록', today: '내전' };
   const el = document.createElement('nav'); el.id = 'tabbar';
   el.innerHTML = TABS.map((p) => `<a href="#/${p}" data-p="${p}" class="${p === 'today' ? 'tb-main' : ''}"><i>${ic(p)}</i><span>${short[p] || nm[p]}</span></a>`).join('') + `<button data-p="more" data-a="tabMore"><i>${MORE_IC}</i><span>더보기</span></button>`;
@@ -218,8 +223,8 @@ function tabbar() {
 }
 export const moreHooks = []; // 더보기 창 아래쪽 버튼을 다른 모듈이 덧붙일 때 쓴다
 act('tabMore', () => {
-  let grp = '';
-  const body = NAV.map(([p, t]) => (p ? `<a class="mm-it ${p === S.page ? 'on' : ''}" href="#/${p}" data-a="close">${ic(p)}<span>${t}</span></a>` : `${grp ? '</div>' : ''}<h6>${(grp = t)}</h6><div class="mm-g">`)).join('') + '</div>';
+  const it = ([p, t]) => `<a class="mm-it ${p === S.page ? 'on' : ''}" href="#/${p}" data-a="close">${ic(p)}<span>${t}</span></a>`;
+  const body = [...navGroups(), { t: '설정·정보', items: NAV_MINI, mini: true }].map((g) => `${g.t ? `<h6>${g.t}</h6>` : ''}<div class="mm-g${g.mini ? ' mm-mini' : ''}">${g.items.map(it).join('')}</div>`).join('');
   modal(`${mh('메뉴')}<div class="mm">${body}</div><div class="row mm-foot">${liteBtn()}${diagBtn()}${moreHooks.map((f) => f()).join('')}<button class="btn" data-a="copyLink">초대 링크 복사</button></div>`, 'more-sheet');
 });
 // ---------- 가벼운 모드 (PC방·저사양·게임과 같이 켜 둘 때) ----------
@@ -321,7 +326,8 @@ act('diagCopy', async () => {
 const diagBtn = () => `<button class="btn ghost xs diag-btn" data-a="diagCopy" title="화면이 버벅일 때 원인을 찾기 위한 정보(주사율·프레임·해상도·브라우저·그래픽카드)를 복사">${ic('copy')}진단 복사</button>`;
 act('liteToggle', () => { const on = !document.body.classList.contains('lite'); setLite(on); toast(on ? '가벼운 모드: 장식 효과를 줄였어요' : '가벼운 모드를 껐어요'); });
 const liteBtn = () => `<button class="btn ghost xs lite-btn ${document.body.classList.contains('lite') ? 'on' : ''}" data-a="liteToggle" title="장식 효과를 줄여 PC방·저사양 PC·게임과 함께 켜 둘 때 가볍게">${ic('bolt')}가벼운 모드 <u>${document.body.classList.contains('lite') ? 'ON' : 'OFF'}</u></button>`;
-const navFold = () => { try { return JSON.parse(localStorage.getItem('naejeon:navfold')) || []; } catch { return []; } };
+// 접은 묶음(이 브라우저에 기억). 한 번도 접거나 편 적이 없으면 '즐길 거리'만 접힌 채로 시작(지금 보는 메뉴는 접혀도 보임)
+const navFold = () => { try { const v = localStorage.getItem('naejeon:navfold'); return v === null ? ['즐길 거리'] : JSON.parse(v) || []; } catch { return []; } };
 act('navGrp', (d) => {
   const f = navFold(), on = !f.includes(d.g), next = on ? [...f, d.g] : f.filter((x) => x !== d.g);
   try { localStorage.setItem('naejeon:navfold', JSON.stringify(next)); } catch {}
@@ -333,11 +339,13 @@ export function initShell() {
   initPerf(); initVer();
   document.querySelector('.sidefoot')?.insertAdjacentHTML('beforeend', liteBtn() + diagBtn());
   tabbar();
-  // 왼쪽 메뉴: 큰 분류(LEAGUE·ANALYSIS…) 제목을 누르면 접고 편다. 접은 분류도 지금 보고 있는 메뉴 하나는 보여 준다. 접은 상태는 이 브라우저에 기억
+  // 왼쪽 메뉴: 묶음(내전·기록·분석·즐길 거리) 제목을 누르면 접고 편다. 접은 묶음도 지금 보고 있는 메뉴 하나는 보여 준다. 접은 상태는 이 브라우저에 기억
   const fold = navFold();
-  let grp = '';
-  document.getElementById('nav').innerHTML = NAV.map(([p, t, soon]) => (p ? `<a href="#/${p}" data-p="${p}">${ic(p)}<span>${t}</span>${soon ? `<em>${soon}</em>` : ''}</a>`
-    : `${grp ? '</div>' : ''}<button type="button" class="nav-h ${fold.includes(t) ? 'fold' : ''}" data-a="navGrp" data-g="${(grp = t)}" aria-expanded="${!fold.includes(t)}"><h6>${t}</h6><i class="nav-chev"></i></button><div class="nav-g ${fold.includes(t) ? 'fold' : ''}" data-g="${t}">`)).join('') + '</div>';
+  const link = ([p, t, soon]) => `<a href="#/${p}" data-p="${p}">${ic(p)}<span>${t}</span>${soon ? `<em>${soon}</em>` : ''}</a>`;
+  document.getElementById('nav').innerHTML = navGroups().map(({ t, items }) => (t
+    ? `<button type="button" class="nav-h ${fold.includes(t) ? 'fold' : ''}" data-a="navGrp" data-g="${t}" aria-expanded="${!fold.includes(t)}"><h6>${t}</h6><i class="nav-chev"></i></button><div class="nav-g ${fold.includes(t) ? 'fold' : ''}" data-g="${t}">${items.map(link).join('')}</div>`
+    : `<div class="nav-g nav-top">${items.map(link).join('')}</div>`)).join('');
+  document.getElementById('nav').insertAdjacentHTML('afterend', `<div class="side-mini">${NAV_MINI.map(([p, t]) => `<a href="#/${p}" data-p="${p}" title="${t}">${ic(p)}<span>${t}</span></a>`).join('')}</div>`);
   document.getElementById('mode').innerHTML = S.store.mode === 'local' ? '<span class="tag warn" title="이 브라우저에만 저장됩니다">체험 모드</span>' : ''; // 실제 리그에서는 표시하지 않는다(사이드바 공간 절약)
   // 누르는 사이에 화면이 다시 그려지면(다른 사람이 입찰·지원) 누른 버튼이 새 버튼으로 바뀌어 클릭이 사라진다(PC 마우스).
   // 누를 때의 버튼(이름·data 값)을 기억해 두고, 뗀 자리에 똑같은 버튼이 있으면 그 버튼을 누른 것으로 처리한다(이때 브라우저는 클릭을 아예 보내지 않음).
