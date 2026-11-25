@@ -11,13 +11,16 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   // PC 닉네임 = 첫 번째 선수 이름(내 이름 자동 선택), 휴대폰 닉네임은 선수와 무관
   const A = await client(b, be, 'WORK', P[ids[0]]); await A.addInitScript(stub);
   const M = await client(b, be, 'WORK', '영희폰', { ctx: await device(b, be, 'WORK', '영희폰', { viewport: { width: 390, height: 800 }, isMobile: true, hasTouch: true }) }); await M.addInitScript(stub);
-  await open(A, 'home', 800); await open(M, 'today', 800);
+  await open(A, 'home', 800); await open(M, 'recruit', 800);
   const R = () => be.db.meta.recruit, names = () => Object.values(R().list).map((x) => x.n).sort().join(',');
   ok(!(await A.$('#main .rc-home')), '모집 전: 홈에 모집 띠 없음');
   await A.evaluate(() => (location.hash = '#/today')); await A.waitForTimeout(600);
-  ok(await A.$eval('#main .rc-bar', (e) => /시간을 정하고 카톡으로/.test(e.innerText)).catch(() => false), '모집 전: 오늘의 내전 위쪽에 얇은 안내 줄');
+  ok(!(await A.$('#main .rc-box, #main .rc-empty, #main .rc-bar')), '오늘의 내전 화면에는 모집 칸이 없음(따로 만든 내전 모집 화면으로 옮김)');
+  await A.click('#side .kk-side'); await A.waitForTimeout(600);
+  ok(await A.evaluate(() => location.hash === '#/recruit' && document.title === '내전 모집 · NAEJEONPOT'), "왼쪽 위 '내전 모집' → 내전 모집 화면(탭 제목 '내전 모집')");
+  ok(await A.$eval('#main .rc-empty', (e) => /진행 중인 모집이 없어요/.test(e.innerText)).catch(() => false) && !!(await A.$('#main .rc-how')), '모집 전: 빈 칸(시간 정하고 모집 시작) + 사용법');
   // 시작: 21:30, 나도 참가 = 닉네임과 같은 선수가 자동 선택
-  await A.click('#main .rc-bar [data-a=rcOpen]'); await A.waitForTimeout(300);
+  await A.click('#main .rc-empty [data-a=rcOpen]'); await A.waitForTimeout(300);
   ok(await A.$eval('#modal.on [data-c=rcMe]', (e) => e.value) === ids[0], `모집 창 '나도 참가': 닉네임과 같은 선수(${P[ids[0]]})가 자동 선택`);
   await A.fill('#modal.on [data-c=rcTimeIn]', '21:30'); await A.dispatchEvent('#modal.on [data-c=rcTimeIn]', 'change');
   await A.click('#modal.on [data-a=rcShare]'); await A.waitForTimeout(900);
@@ -44,19 +47,35 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   await A.click('#modal.on [data-a=close]'); await M.tap('#modal.on [data-a=close]'); await A.waitForTimeout(300);
   const pa = await A.$eval('#main .rc-box', (e) => ({ n: e.querySelector('.rc-n').innerText.replace(/\s/g, ''), ppl: [...e.querySelectorAll('.rc-p')].map((x) => [x.innerText, x.classList.contains('me')]) }));
   ok(pa.n === '2/10' && pa.ppl.length === 2 && pa.ppl.find((x) => x[0] === P[ids[0]])[1], '모집 칸 2/10 · 내 이름(닉네임과 같은 선수)은 노란 테두리');
+  // 목록에 없는 사람(이름 입력)
+  await M.tap('#main .rc-box [data-a=rcPick]'); await M.waitForTimeout(400);
+  await M.fill('#rc-gname', '손님 민지'); await M.tap('#modal.on [data-a=rcGuest]'); await M.waitForTimeout(800);
+  ok(Object.values(R().list).some((x) => x.g && x.n === '손님 민지') && await M.$eval('#modal.on', (e) => /목록에 없는 사람/.test(e.innerText) && /손님 민지/.test(e.innerText)), '목록에 없는 사람: 이름을 적어 참가(손님 민지)');
+  await M.fill('#rc-gname', '손님 민지'); await M.tap('#modal.on [data-a=rcGuest]'); await M.waitForTimeout(600);
+  ok(Object.values(R().list).filter((x) => x.n === '손님 민지').length === 1, '같은 이름은 한 번만');
+  await M.tap('#modal.on [data-a=rcGuestOff]'); await M.waitForTimeout(700);
+  ok(!Object.values(R().list).some((x) => x.g), '손님 이름을 누르면 참가 취소');
+  await M.tap('#modal.on [data-a=close]'); await M.waitForTimeout(300);
+  // 카톡 카드 링크(#/recruit/join)로 들어오면 이름 고르기 창이 바로 열림
+  const J = await client(b, be, 'WORK', 'J'); await J.addInitScript(stub); await open(J, 'recruit/join', 900);
+  ok(await J.evaluate(() => !!document.querySelector('#modal.on .rc-pick') && location.hash === '#/recruit'), "카톡 '참가하러 가기'(#/recruit/join)로 오면 이름 고르기 창이 바로 열림(주소는 #/recruit로)");
+  await J.close();
   // 홈 띠
   await A.evaluate(() => (location.hash = '#/home')); await A.waitForTimeout(700);
   const hb = await A.$eval('#main .rc-home', (e) => ({ t: e.innerText.replace(/\s+/g, ' '), h: e.getAttribute('href'), first: e === document.querySelector('#main').firstElementChild })).catch(() => null);
-  ok(hb && /오늘 오후 9:30 내전 모집 중/.test(hb.t) && /2\s*\/10/.test(hb.t) && /참가하기/.test(hb.t) && hb.h === '#/today' && hb.first, '홈 맨 위 띠: "오늘 오후 9:30 내전 모집 중 · 2/10 · 참가하기" → 오늘의 내전');
+  ok(hb && /오늘 오후 9:30 내전 모집 중/.test(hb.t) && /2\s*\/10/.test(hb.t) && /참가하기/.test(hb.t) && hb.h === '#/recruit' && hb.first, '홈 맨 위 띠: "오늘 오후 9:30 내전 모집 중 · 2/10 · 참가하기" → 내전 모집 화면');
   await M.evaluate(() => (location.hash = '#/home')); await M.waitForTimeout(700);
+  await M.evaluate(() => { window.__hero = document.querySelector('#main .hero'); window.__bg = document.querySelector('#main .hero-bg.on'); });
   await A.evaluate(async (id) => { const { S } = await import('/js/core.js'); await S.store.tx('meta', 'recruit', (r) => ({ ...r, list: { ...r.list, [id]: { n: 'x', pid: id, by: 'c', at: Date.now() } } })); }, ids[3]); await A.waitForTimeout(800);
   ok(/3\s*\/10/.test(await M.$eval('#main .rc-home', (e) => e.innerText)) && await M.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), '휴대폰 홈 띠도 바로 3/10, 가로 넘침 없음');
+  ok(await M.evaluate(() => window.__hero === document.querySelector('#main .hero') && window.__bg === document.querySelector('#main .hero-bg.on')), '누가 참가해도 홈은 띠만 바뀜(배너는 다시 그리지 않음)');
+  ok(await M.$eval('#main .rc-home .rc-ht b', (e) => e.getBoundingClientRect().height < 24 && getComputedStyle(e).whiteSpace === 'nowrap'), '휴대폰 홈 띠 제목은 한 줄');
   await M.tap('#main .rc-home'); await M.waitForTimeout(700);
-  ok(await M.evaluate(() => location.hash === '#/today' && !!document.querySelector('#main .rc-box')), '띠를 누르면 오늘의 내전 모집 칸으로');
+  ok(await M.evaluate(() => location.hash === '#/recruit' && !!document.querySelector('#main .rc-box')), '띠를 누르면 내전 모집 화면으로');
   // 휴대폰 버튼 배치: 참가 버튼 넓게, 아래 줄에 시간 바꾸기·카톡 반씩
   const lay = await M.evaluate(() => { const j = document.querySelector('.rc-box .rc-join').getBoundingClientRect(), s = [...document.querySelectorAll('.rc-box .rc-sub .btn')].map((e) => e.getBoundingClientRect()), box = document.querySelector('.rc-box').getBoundingClientRect(); return { jw: j.width / box.width, two: s.length === 2 && Math.abs(s[0].top - s[1].top) < 2 && Math.abs(s[0].width - s[1].width) < 3 && s[0].top > j.bottom - 1 }; });
   ok(lay.jw > 0.85 && lay.two, '휴대폰: 참가 버튼은 한 줄 넓게, 아래 줄에 시간 바꾸기·카톡으로 모집이 반씩');
-  // 라인 지원: 모집 참가자를 미리 골라 둠
+  // 라인 지원(오늘의 내전): 모집 참가자를 미리 골라 둠
   await A.evaluate(() => (location.hash = '#/today')); await A.waitForTimeout(600);
   await A.click('[data-a=tBoard]'); await A.waitForTimeout(600);
   const sel = await A.$$eval('#modal.on [data-a=bdSel].on', (x) => x.map((e) => e.dataset.id).sort());
@@ -66,13 +85,16 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   ok((await A.$$eval('#modal.on [data-a=bdSel].on', (x) => x.length)) === 3, "'모집 참가자' 버튼으로 다시 3명 선택");
   await A.click('#modal.on [data-a=close]'); await A.waitForTimeout(300);
   // 시간 바꾸기: 명단 유지
+  await A.evaluate(() => (location.hash = '#/recruit')); await A.waitForTimeout(600);
   await A.click('#main .rc-box [data-a=rcOpen]'); await A.waitForTimeout(300);
   await A.click('#modal.on [data-a=rcTime][data-v="22:00"]'); await A.click('#modal.on [data-a=rcShare]'); await A.waitForTimeout(900);
   ok(new Date(R().when).getHours() === 22 && Object.keys(R().list).length === 3, '시간을 22:00으로 바꿔도 참가자 3명 그대로');
-  ok(await A.$$eval('#main .lrow', (x) => x.length) === 5 && !!(await A.$('#main [data-a=tSave]')), '라인업·결과 저장은 그대로');
+  await A.evaluate(() => (location.hash = '#/today')); await A.waitForTimeout(500);
+  ok(await A.$$eval('#main .lrow', (x) => x.length) === 5 && !!(await A.$('#main [data-a=tSave]')), '오늘의 내전 라인업·결과 저장은 그대로');
+  await A.evaluate(() => (location.hash = '#/recruit')); await A.waitForTimeout(500);
   // 끝(시작 + 6시간)
   await A.evaluate(async () => { const { S } = await import('/js/core.js'); await S.store.tx('meta', 'recruit', (r) => ({ ...r, when: Date.now() - 7 * 3600e3 })); }); await A.waitForTimeout(800);
-  ok(!!(await A.$('#main .rc-bar')) && !(await A.$('#main .rc-box')), '시작 + 6시간이 지나면 모집 끝 → 안내 줄');
+  ok(!!(await A.$('#main .rc-empty')) && !(await A.$('#main .rc-box')), '시작 + 6시간이 지나면 모집 끝 → 빈 칸');
   await A.evaluate(() => (location.hash = '#/home')); await A.waitForTimeout(500);
   ok(!(await A.$('#main .rc-home')), '홈 띠도 사라짐');
   await A.evaluate(() => (location.hash = '#/today')); await A.waitForTimeout(500);

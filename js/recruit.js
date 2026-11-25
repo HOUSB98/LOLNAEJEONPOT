@@ -5,7 +5,7 @@
 //   meta는 모두가 이미 실시간으로 받고 있는 묶음이라 따로 구독이 늘지 않는다(누가 참가할 때마다 접속자마다 읽기 1).
 //   시작 시각 + 6시간이 지나면 끝난 모집으로 보고 보여 주지 않는다(문서는 지우지 않고 다음 모집이 덮어쓴다).
 // 카톡 카드에는 시간만 넣는다(카카오 카드는 보낸 뒤에 바뀌지 않음). '참가하러 가기'를 누르면 사이트에서 실시간 인원을 본다.
-import { S, act, esc, ic, toast, modal, closeModal, mh, refresh, moreHooks } from './core.js';
+import { S, act, page, esc, ic, toast, modal, closeModal, mh, refresh, moreHooks } from './core.js';
 import { cid, nick } from './social.js';
 import { kakaoWarm, shareKakao } from './kakao.js';
 import { KAKAO_JS_KEY } from './config.js';
@@ -13,13 +13,13 @@ import { KAKAO_JS_KEY } from './config.js';
 const NEED = 10, LIVE_MS = 6 * 3600e3;
 const doc = () => S.store?.data?.meta?.recruit || null;
 export const recruitOn = (d = doc()) => !!(d && +d.when && Date.now() < +d.when + LIVE_MS);
-const people = (d = doc()) => Object.entries(d?.list || {}).map(([id, v]) => ({ id, pid: v?.pid || '', n: (v?.pid && S.st?.P?.[v.pid]?.name) || v?.n || '?', at: +v?.at || 0 })).sort((a, b) => a.at - b.at);
+const people = (d = doc()) => Object.entries(d?.list || {}).map(([id, v]) => ({ id, pid: v?.pid || '', g: !!v?.g, n: (v?.pid && S.st?.P?.[v.pid]?.name) || v?.n || '?', at: +v?.at || 0 })).sort((a, b) => a.at - b.at);
 // 라인 지원 창이 참가자를 미리 골라 둘 때 쓰는 선수 id 목록(진행 중인 모집, 지금 선수 목록에 있는 사람만)
 export const recruitIds = () => (recruitOn() ? people().map((p) => p.pid).filter((id) => id && S.st?.P?.[id]) : []);
 const ME_KEY = 'naejeon:rcme';
 const squash = (x) => String(x || '').replace(/\s/g, '').toLowerCase();
 const myPid = () => { try { const v = localStorage.getItem(ME_KEY); if (v && S.st?.P?.[v]) return v; } catch {} const k = squash(nick()); return (k && S.st?.list?.find((s) => squash(s.name) === k)?.id) || ''; };
-const isMe = (p) => (p.pid ? p.pid === myPid() : p.id === cid);
+const isMe = (p) => (p.pid ? p.pid === myPid() : !p.g && p.id === cid);
 const fmtTime = (t) => new Date(t).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' }); // 오후 9:00
 const dayWord = (t) => {
   const d = new Date(t), n = new Date(), k = (x) => x.getFullYear() * 1e4 + x.getMonth() * 100 + x.getDate();
@@ -33,14 +33,16 @@ export function recruitCard() {
   const d = doc(), on = recruitOn(d);
   const lines = [on ? `${dateLabel(d.when)} ${fmtTime(d.when)} 시작` : dateLabel(Date.now()), "아래 버튼을 눌러 사이트에서 '참가'해 주세요"];
   const title = on ? `${dayWord(d.when)} ${fmtTime(d.when)} 내전 하실 분!` : '오늘 내전 하실 분 구해요!';
-  return { title, desc: lines.join('\n'), hash: '#/today', text: `${title}\n${lines.join('\n')}`, button: '참가하러 가기' };
+  return { title, desc: lines.join('\n'), hash: '#/recruit/join', text: `${title}\n${lines.join('\n')}`, button: '참가하러 가기' };
 }
 
 // ---------- 오늘의 내전 화면 위쪽 모집 칸 ----------
 export function recruitPanel() {
   const d = doc();
   if (!recruitOn(d)) {
-    return `<div class="rc-bar" data-k="rc"><span class="rc-ic">${ic('users')}</span><span class="grow mut sm">오늘 내전 사람을 구하려면 시간을 정하고 카톡으로 모집 글을 보내 보세요</span><button class="btn xs kk-btn" data-a="rcOpen">${KK_SM}내전 모집</button></div>`;
+    return `<section class="panel rc-empty" data-k="rc"><span class="rc-ic big">${ic('users')}</span><b>지금 진행 중인 모집이 없어요</b>
+      <p class="mut sm">시간을 정하고 카톡으로 모집 글을 보내면, 친구들이 이 화면에서 자기 이름을 눌러 참가해요.<br>참가 인원은 라인 지원과 따로 세고, 라인 지원을 열 때 참가자가 미리 골라져요.</p>
+      <button class="btn kk-btn big" data-a="rcOpen">${KK_SM}시간 정하고 모집 시작</button></section>`;
   }
   const ps = people(d), n = ps.length, mine = myPid(), meIn = !!(mine && d.list?.[mine]);
   const slots = Array.from({ length: NEED }, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('');
@@ -57,7 +59,7 @@ export function recruitPanel() {
 export function recruitHomeBar() {
   const d = doc(); if (!recruitOn(d)) return '';
   const n = people(d).length;
-  return `<a class="rc-home" href="#/today"><span class="rc-ic">${ic('users')}</span><span class="rc-ht"><b>${dayWord(d.when)} ${fmtTime(d.when)} 내전 모집 중</b><small>라인 지원과 따로 세는 참가 인원</small></span><span class="grow"></span><b class="rc-n mono${n >= NEED ? ' full' : ''}">${n}<small>/${NEED}</small></b><span class="btn pri xs">${n >= NEED ? '모집 보기' : '참가하기'}</span></a>`;
+  return `<a class="rc-home" href="#/recruit"><span class="rc-ic">${ic('users')}</span><span class="rc-ht"><b>${dayWord(d.when)} ${fmtTime(d.when)} 내전 모집<span class="m-hide"> 중</span></b><small>라인 지원과 따로 세는 참가 인원</small></span><span class="grow"></span><b class="rc-n mono${n >= NEED ? ' full' : ''}">${n}<small>/${NEED}</small></b><span class="btn pri xs">${n >= NEED ? '모집 보기' : '참가하기'}</span></a>`;
 }
 const KK_SM = '<svg class="kk-ic" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3.500C6.800 3.500 2.600 6.800 2.600 10.900c0 2.600 1.700 4.900 4.300 6.200l-.900 3.300c-.100.300.300.600.600.400l3.900-2.600c.500.100 1 .100 1.500.100 5.200 0 9.400-3.300 9.400-7.400S17.200 3.500 12 3.500z"/></svg>';
 
@@ -115,12 +117,14 @@ act('rcShare', async (d) => {
 function pickHTML() {
   const d = doc(), on = recruitOn(d), ps = on ? people(d) : [], inSet = new Set(ps.map((p) => p.pid).filter(Boolean)), mine = myPid();
   const list = [...(S.st?.list || [])].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
-  const extra = ps.filter((p) => !p.pid); // 예전 방식(기기 기준) 참가자
+  const extra = ps.filter((p) => !p.pid && !p.g), guests = ps.filter((p) => p.g); // extra: 예전 방식(기기 기준) 참가자, guests: 선수 목록에 없는 사람(이름 입력)
   return `${mh(`${ic('users')}참가할 이름 고르기`)}
     <div class="rc-pick">
       ${on ? `<p class="mut sm"><b>${dayWord(d.when)} ${fmtTime(d.when)}</b> 내전 · 이름을 누르면 바로 <b class="good">참가</b>, 다시 누르면 취소예요. 친구 대신 눌러 줘도 돼요.</p>` : '<p class="mut">모집이 끝났어요. 왼쪽 위(휴대폰은 메뉴) \'내전 모집\'으로 새로 시작해 주세요.</p>'}
       <div class="ph"><b>참가</b><span class="tag ${ps.length >= NEED ? 'ok' : ''}">${ps.length}/${NEED}명</span></div>
       <div class="chipsel rc-chips">${list.map((s) => `<button class="${inSet.has(s.id) ? 'on' : ''}${s.id === mine ? ' mine' : ''}" data-a="rcToggle" data-id="${s.id}" ${on ? '' : 'disabled'}>${esc(s.name)}</button>`).join('')}</div>
+      ${guests.length ? `<div class="ph"><b>목록에 없는 사람</b></div><div class="chipsel rc-chips">${guests.map((p) => `<button class="on" data-a="rcGuestOff" data-id="${esc(p.id)}" title="누르면 참가 취소">${esc(p.n)}</button>`).join('')}</div>` : ''}
+      ${on ? `<div class="rc-guest"><input class="inp" id="rc-gname" maxlength="12" placeholder="목록에 없는 사람 이름" autocomplete="off"><button class="btn" data-a="rcGuest">${ic('plus')}추가</button></div>` : ''}
       ${extra.length ? `<p class="mut sm">이름 없이 참가: ${extra.map((p) => esc(p.n)).join(', ')}${extra.some((p) => p.id === cid) ? ' <button class="lnk" data-a="rcOldOff">내 참가 취소</button>' : ''}</p>` : ''}
       <button class="btn block" data-a="close">닫기</button>
     </div>`;
@@ -128,8 +132,9 @@ function pickHTML() {
 const pickView = () => document.querySelector('#modal.on .rc-pick');
 const redrawPick = () => { const v = pickView(); if (v) { const box = v.closest('.sheet'), y = box.querySelector('.rc-chips')?.scrollTop || 0; box.innerHTML = pickHTML(); box.querySelector('.rc-chips').scrollTop = y; } };
 act('rcPick', () => { modal(pickHTML(), 'tall rc-pick-sheet'); });
-act('rcToggle', async (x) => {
-  const t = Date.now(); let joined = false;
+act('rcToggle', (x) => acts_toggle(x.id));
+async function acts_toggle(id) {
+  const x = { id }, t = Date.now(); let joined = false;
   try {
     const ok = await S.store.tx('meta', 'recruit', (r) => {
       if (!recruitOn(r)) return null;
@@ -141,19 +146,60 @@ act('rcToggle', async (x) => {
     if (joined) try { localStorage.setItem(ME_KEY, x.id); } catch {} // 처음 고른 이름을 '나'로 기억(이후 다른 이름을 눌러도 바뀜)
     toast(`${S.st.P[x.id]?.name || ''} ${joined ? '참가!' : '참가 취소'}`);
   } catch (e) { toast('저장하지 못했어요: ' + (e.message || e)); }
+}
+// 선수 목록에 없는 사람(처음 오는 친구 등): 이름을 적어 참가. 키는 'g:이름'이라 같은 이름은 한 명. 라인 지원 미리 고르기에는 쓰지 않음(선수가 아니라서)
+act('rcGuest', async () => {
+  const el = document.getElementById('rc-gname'), n = (el?.value || '').trim().replace(/\s+/g, ' ').slice(0, 12);
+  if (!n) return el?.focus();
+  const same = S.st?.list?.find((s) => squash(s.name) === squash(n));
+  if (same) { el.value = ''; return acts_toggle(same.id); } // 선수 이름이면 그 선수로
+  const key = 'g:' + squash(n).replace(/[.#$/\[\]]/g, '');
+  try {
+    const ok = await S.store.tx('meta', 'recruit', (r) => { if (!recruitOn(r)) return null; if (r.list?.[key]) return null; return { ...r, list: { ...(r.list || {}), [key]: { n, g: true, by: cid, at: Date.now() } } }; });
+    toast(ok ? `${n} 참가!` : '이미 참가했거나 모집이 끝났어요'); if (ok && el) el.value = '';
+  } catch (e) { toast('저장하지 못했어요: ' + (e.message || e)); }
 });
+act('rcGuestOff', async (x) => { await S.store.tx('meta', 'recruit', (r) => { if (!r?.list?.[x.id]) return null; const list = { ...r.list }; delete list[x.id]; return { ...r, list }; }).then(() => toast('참가 취소')).catch(() => {}); });
 act('rcOldOff', async () => { await S.store.tx('meta', 'recruit', (r) => { if (!r?.list?.[cid]) return null; const list = { ...r.list }; delete list[cid]; return { ...r, list }; }).catch(() => {}); });
 // 모집 문서가 바뀌면: 오늘의 내전 화면·열려 있는 모집 창을 다시 그림(app.js가 부름)
-export function onRecruit() { if (S.page === 'today' || S.page === 'home') refresh(); redraw(); redrawPick(); }
+export function onRecruit() { if (S.page === 'recruit') refresh(); else if (S.page === 'home') homeBar(); redraw(); redrawPick(); }
+// 홈은 화면 전체를 다시 그리지 않고 맨 위 모집 띠만 넣고·바꾸고·뺀다(배너 그림·움직임이 처음부터 다시 시작되지 않게)
+function homeBar() {
+  const main = document.getElementById('main'), old = main?.querySelector(':scope > .rc-home'), html = recruitHomeBar();
+  if (!main) return;
+  if (old && html) { if (old.outerHTML !== html) old.outerHTML = html; } else if (old) old.remove(); else if (html) main.insertAdjacentHTML('afterbegin', html);
+}
 
-// 내전 모집 버튼: PC는 왼쪽 위 '내전 시작' 옆(반씩), 휴대폰은 메뉴(더보기) 창 아래쪽. app.js가 모든 모듈을 읽은 뒤 부른다
+// 내전 모집 화면으로 가는 버튼: PC는 왼쪽 위 '내전 시작' 옆(반씩), 휴대폰은 메뉴(더보기) 창 아래쪽. 왼쪽 메뉴 줄은 늘리지 않는다. app.js가 모든 모듈을 읽은 뒤 부른다
 let mounted = false;
 export function mountRecruit() {
   if (mounted) return; mounted = true;
   const cta = document.querySelector('#side .side-cta>a.btn.gold, #side>a.btn.gold');
-  if (cta && !document.querySelector('#side [data-a=rcOpen]')) cta.insertAdjacentHTML('afterend', `<button class="btn kk-btn kk-side" data-a="rcOpen" title="시간을 정하고 오늘 내전할 사람을 카카오톡으로 구하기">${KK_SM}내전 모집</button>`);
-  moreHooks.push(() => `<button class="btn kk-btn" data-a="rcOpen">${KK_SM}내전 모집 (카톡)</button>`);
+  if (cta && !document.querySelector('#side .kk-side')) cta.insertAdjacentHTML('afterend', `<a class="btn kk-btn kk-side" href="#/recruit" data-p="recruit" title="내전 모집: 시간을 정하고 카카오톡으로 사람 구하기 · 참가 현황">${KK_SM}내전 모집</a>`);
+  moreHooks.push(() => `<a class="btn kk-btn" href="#/recruit" data-a="close">${KK_SM}내전 모집 (카톡)</a>`);
 }
 // 화면을 켜 둔 채로 모집이 끝나면(시작 + 6시간) 1분 안에 오늘의 내전 칸을 안내 줄로 바꾼다
 let wasOn = null;
-setInterval(() => { if (!S.store) return; const on = recruitOn(); if (wasOn !== null && on !== wasOn && (S.page === 'today' || S.page === 'home')) refresh(); wasOn = on; }, 60e3);
+setInterval(() => { if (!S.store) return; const on = recruitOn(); if (wasOn !== null && on !== wasOn) { if (S.page === 'recruit') refresh(); else if (S.page === 'home') homeBar(); } wasOn = on; }, 60e3);
+
+// ---------- 내전 모집 화면(#/recruit) ----------
+// 카톡 카드의 '참가하러 가기'는 #/recruit/join → 이름 고르기 창이 바로 열린다(한 번만, 주소는 #/recruit로 바꿔 새로고침해도 다시 안 열림)
+page('recruit', {
+  title: '내전 모집',
+  keyed: true,
+  render() {
+    const on = recruitOn();
+    return `<div class="h2row" data-k="rh"><h1>${ic('users')}내전 모집</h1><span class="tag ${on ? 'ok' : ''}">${on ? '모집 중' : '모집 전'}</span><span class="grow"></span><a class="btn ghost" href="#/today">${ic('today')}오늘의 내전</a></div>
+      ${recruitPanel()}
+      <div class="rc-how" data-k="hw"><b>${ic('mega')}이렇게 써요</b><ol><li><b>시간 정하기</b> → 카톡으로 모집 글 보내기(보내는 사람의 카톡 계정으로)</li><li>친구가 카드의 <b>참가하러 가기</b>를 누르면 이 화면에서 이름 고르기 창이 바로 열려요</li><li>10명이 모이면 <b>오늘의 내전 → 라인 지원</b>을 열어요(참가자가 미리 골라져 있어요)</li></ol></div>`;
+  },
+  after() {
+    if (S.arg[0] === 'join') {
+      try { history.replaceState(null, '', location.pathname + location.search + '#/recruit'); } catch {}
+      S.arg = [];
+      if (recruitOn()) setTimeout(() => { if (S.page === 'recruit' && !document.querySelector('#modal.on')) modal(pickHTML(), 'tall rc-pick-sheet'); }, 150);
+    }
+  },
+});
+// 목록에 없는 사람 이름 칸에서 Enter = 추가(한글 조합 중에는 무시)
+document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target?.id === 'rc-gname' && !e.isComposing) { e.preventDefault(); document.querySelector('#modal.on [data-a=rcGuest]')?.click(); } });

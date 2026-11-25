@@ -132,7 +132,7 @@ export const NAV = [
 // 브라우저 탭 제목: 'NAEJEONPOT · 내전 기록실'(홈) / '랭킹 · NAEJEONPOT' / 선수 카드는 '이름 · 선수 카드 · NAEJEONPOT'
 function pageTitle() {
   if (S.page === 'home') return 'NAEJEONPOT · 내전 기록실';
-  const nm = NAV.find((n) => n[0] === S.page)?.[1] || '';
+  const nm = NAV.find((n) => n[0] === S.page)?.[1] || pages[S.page]?.title || ''; // 왼쪽 메뉴에 없는 화면(내전 모집)은 page()의 title
   const who = (S.page === 'players' || S.page === 'chem') && S.arg[0] && S.st?.P?.[S.arg[0]]?.name;
   return [who, nm, 'NAEJEONPOT'].filter(Boolean).join(' · ');
 }
