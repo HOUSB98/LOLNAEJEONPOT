@@ -2313,3 +2313,23 @@ body.lite #chtb tr.ch-hit td{animation:none;background:rgba(217,164,65,.14)}
 /* 왼쪽 위: '내전 시작'과 '내전 모집'(카톡)을 반씩 */
 .side-cta>.kk-side,.side-cta>a.btn.gold.block{flex:1 1 0;min-width:0;padding:7px 2px;gap:3px;white-space:nowrap;font-size:13.5px}
 .side-cta>.kk-side .kk-ic{width:15px;height:15px}
+/* 오늘 내전 모집(js/recruit.js): 오늘의 내전 화면 위쪽 칸 · 모집 창 */
+.rc-bar{display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:8px 10px 8px 12px;border:1px dashed var(--line2);border-radius:12px;background:rgba(255,255,255,.015)}
+.rc-ic{display:grid;place-items:center;flex:none;width:32px;height:32px;border-radius:9px;background:rgba(254,229,0,.1);color:#fee500}.rc-ic .ic{width:17px;height:17px}
+.btn.xs.kk-btn .kk-ic{width:14px;height:14px}
+.rc-box{margin:0 0 14px;padding:14px 16px;border-color:rgba(254,229,0,.28);background:linear-gradient(135deg,rgba(254,229,0,.05),transparent 45%),var(--panel)}
+.rc-top{display:flex;align-items:center;gap:10px}
+.rc-h{display:flex;flex-direction:column;min-width:0}.rc-h b{font-size:16px}.rc-h small{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc-n{font-size:28px;font-weight:800;color:var(--text);line-height:1}.rc-n small{font-size:14px;color:var(--mut);margin-left:2px}.rc-n.full{color:#4fd08b}
+.rc-slots{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin:12px 0 10px}
+.rc-slots i{height:6px;border-radius:9px;background:#1c2636;transition:background .3s}.rc-slots i.on{background:linear-gradient(90deg,#f6d34a,#fee500)}
+.rc-ppl{display:flex;flex-wrap:wrap;gap:6px;min-height:26px}
+.rc-p{display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:99px;border:1px solid var(--line2);background:rgba(255,255,255,.03);font-size:13px;font-weight:600}
+.rc-p.me{border-color:rgba(254,229,0,.6);color:#fee500}
+.rc-act{margin-top:12px;gap:8px;flex-wrap:wrap}
+.rc-m{display:flex;flex-direction:column;gap:14px}.rc-m>p{margin:0;line-height:1.6}
+.rc-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.rc-row>small{width:64px;flex:none;color:var(--mut);font-size:12.5px;font-weight:700}
+.rc-tin{width:auto;min-width:110px}
+.rc-now{padding:10px 12px;border-radius:10px;background:rgba(254,229,0,.06);border:1px solid rgba(254,229,0,.22);font-size:13.5px;line-height:1.5}
+.rc-go{gap:8px}
+@media (max-width:860px){.rc-box{padding:12px}.rc-n{font-size:24px}.rc-row>small{width:100%}.rc-times{flex-wrap:wrap}.rc-act .btn{min-height:38px}}
