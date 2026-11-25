@@ -2326,10 +2326,19 @@ body.lite #chtb tr.ch-hit td{animation:none;background:rgba(217,164,65,.14)}
 .rc-ppl{display:flex;flex-wrap:wrap;gap:6px;min-height:26px}
 .rc-p{display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:99px;border:1px solid var(--line2);background:rgba(255,255,255,.03);font-size:13px;font-weight:600}
 .rc-p.me{border-color:rgba(254,229,0,.6);color:#fee500}
-.rc-act{margin-top:12px;gap:8px;flex-wrap:wrap}
+.rc-act{display:flex;align-items:center;gap:8px;margin-top:12px}
+.rc-sub{display:flex;gap:8px;margin-left:auto}
+.rc-chips button.mine:not(.on){border-color:rgba(254,229,0,.45)}
+.rc-chips button.on{background:linear-gradient(180deg,#ffe94d,#f2cf1c);border-color:#fee500;color:#1a1400}
+/* 홈 맨 위 모집 띠(recruitHomeBar) */
+.rc-home{display:flex;align-items:center;gap:12px;margin:0 0 14px;padding:10px 12px 10px 12px;border:1px solid rgba(254,229,0,.3);border-radius:14px;background:linear-gradient(110deg,rgba(254,229,0,.08),transparent 55%),var(--panel);color:var(--text);text-decoration:none;transition:border-color .2s}
+.rc-home:hover{border-color:rgba(254,229,0,.6)}
+.rc-ht{display:flex;flex-direction:column;min-width:0}.rc-ht b{font-size:15px}.rc-ht small{font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc-home .rc-n{font-size:22px}.rc-home .btn{pointer-events:none;flex:none}
 .rc-m{display:flex;flex-direction:column;gap:14px}.rc-m>p{margin:0;line-height:1.6}
 .rc-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.rc-row>small{width:64px;flex:none;color:var(--mut);font-size:12.5px;font-weight:700}
 .rc-tin{width:auto;min-width:110px}
 .rc-now{padding:10px 12px;border-radius:10px;background:rgba(254,229,0,.06);border:1px solid rgba(254,229,0,.22);font-size:13.5px;line-height:1.5}
 .rc-go{gap:8px}
 @media (max-width:860px){.rc-box{padding:12px}.rc-n{font-size:24px}.rc-row>small{width:100%}.rc-times{flex-wrap:wrap}.rc-act .btn{min-height:38px}}
+@media (max-width:860px){.rc-act{flex-direction:column;align-items:stretch}.rc-act .rc-join{width:100%;min-height:42px}.rc-sub{display:grid;grid-template-columns:1fr 1fr;margin-left:0}.rc-sub .btn{min-height:38px;padding:0 8px}.rc-home{gap:10px;padding:9px 10px}.rc-ht small{display:none}.rc-home .rc-n{font-size:19px}}
