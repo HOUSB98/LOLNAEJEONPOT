@@ -54,11 +54,16 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   await M.addInitScript(stub); await open(M, 'home', 800);
   await M.tap('#tabbar [data-p=more]'); await M.waitForTimeout(600);
   ok(await M.evaluate(() => { const e = document.querySelector('#modal.on .mm-foot a.kk-btn'); return !!e && /내전 모집/.test(e.innerText); }), '휴대폰: 메뉴 창 아래에 "내전 모집 (카톡)"');
+  const ft = await M.evaluate(() => { const f = document.querySelector('#modal.on .mm-foot'), k = f.querySelector('.kk-btn'), o = [...f.children].filter((e) => e !== k).map((e) => e.getBoundingClientRect()); const kr = k.getBoundingClientRect(), fr = f.getBoundingClientRect(); return { kFull: Math.abs(kr.width - fr.width) < 2, kTop: o.every((r) => r.top >= kr.bottom), sameH: new Set(o.map((r) => Math.round(r.height))).size === 1, overlap: o.some((a, i) => o.some((b, j) => i < j && a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1)), grad: /gradient/.test(getComputedStyle(k).backgroundImage) }; });
+  ok(ft.kFull && ft.kTop && ft.sameH && !ft.overlap && ft.grad, '휴대폰 메뉴 창 아래: 모집 버튼 맨 위 한 줄 전체(고급형 그라데이션), 나머지는 같은 높이·겹침 없음: ' + JSON.stringify(ft));
   await M.tap('#modal.on .mm-foot a.kk-btn'); await M.waitForTimeout(800);
   ok(await M.evaluate(() => location.hash === '#/recruit' && !document.querySelector('#modal.on')), '누르면 메뉴가 닫히고 내전 모집 화면으로');
   await M.tap('#main [data-a=rcShare]'); await M.waitForTimeout(900);
   ok(await M.evaluate(() => /내전 하실 분!$/.test(window.__kk[0]?.content.title || '')), '휴대폰에서도 시간 정하기 → 같은 모집 카드');
   ok(await M.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), '휴대폰 가로 넘침 없음');
+  await open(M, 'matches', 800); await M.evaluate(() => document.querySelector('[data-a=matchDetail]')?.click()); await M.waitForTimeout(600);
+  const md = await M.evaluate(() => { const f = document.querySelector('#modal.on .md-act'), fr = f.getBoundingClientRect(), bs = [...f.querySelectorAll(':scope>.btn')].map((e) => e.getBoundingClientRect()); return { n: bs.length, row1: Math.abs(bs[0].top - bs[1].top) < 2 && Math.abs(bs[0].width - bs[1].width) < 2 && Math.abs(bs[0].left - fr.left) < 2, last: bs.length % 2 ? Math.abs(bs.at(-1).width - fr.width) < 2 : true, gap: bs[1].left - bs[0].right }; });
+  ok(md.n >= 2 && md.row1 && md.last && md.gap >= 6, '휴대폰 경기 상세: 카톡 공유·진영 바꾸기 같은 너비 두 칸(왼쪽부터, 간격 있음), 남는 버튼은 한 줄 전체: ' + JSON.stringify(md));
   errs.push(...M.errs);
   console.log('오류:', errs.join(' | ') || '없음'); ok(!errs.length, '페이지 오류 없음');
   await b.close();

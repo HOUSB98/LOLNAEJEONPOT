@@ -1249,6 +1249,9 @@ body.idle #main *,body.idle #main *::before,body.idle #main *::after,body.idle #
   .pr-sheet i{grid-row:1/3;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font:700 15px inherit;font-style:normal;color:#fff;background:hsl(var(--h),55%,42%);box-shadow:0 0 0 2px rgba(79,208,139,.6)}
   .pr-sheet b{font-size:15px}.pr-sheet small{color:var(--mut);font-size:11px}
   .mm-foot{margin-top:14px;gap:8px;flex-wrap:wrap}.mm-foot .btn{flex:1 1 150px;min-width:0;justify-content:center;white-space:nowrap;padding-left:10px;padding-right:10px}
+  /* 메뉴 창 아래 버튼: 두 칸 격자에 모두 같은 높이(작은 버튼·큰 버튼이 섞여 줄이 어긋나던 것), '내전 모집(카톡)'은 맨 위 한 줄 전체, 남는 칸이 생기면 '초대 링크 복사'가 한 줄 전체 */
+  .mm-foot{display:grid;grid-template-columns:1fr 1fr;gap:8px}.mm-foot>.btn{min-height:44px;padding:0 8px;font-size:13.5px;border-radius:11px}.mm-foot>.btn.xs u{font-size:10px}
+  .mm-foot>.kk-btn{order:-1;grid-column:1/-1;min-height:48px;font-size:15px}.mm-foot>[data-a=copyLink]:nth-child(even){grid-column:1/-1}
 }
 /* 긴 목록은 화면 밖 항목을 그리지 않는다(경기가 수백 판 쌓여도 스크롤이 가볍게) */
 
@@ -1984,7 +1987,7 @@ a.me-ch[href]:hover{background:rgba(255,255,255,.05)}
 @media (max-width:860px){.me-acct{position:static;width:auto;margin-top:12px}}
 
 /* 경기 상세 아래 줄(설명 + 진영 바꾸기·리플레이): 휴대폰에서는 설명을 한 줄 위로, 버튼은 오른쪽 끝에 */
-@media (max-width:600px){.md-act{flex-wrap:wrap}.md-act>span{flex-basis:100%}.md-act>.btn:first-of-type{margin-left:auto}}
+@media (max-width:600px){.md-act{display:grid;grid-template-columns:1fr 1fr;gap:8px}.md-act>span{grid-column:1/-1}.md-act>.btn{min-width:0;min-height:42px;padding-inline:8px}.md-act>.btn:last-child:nth-child(even){grid-column:1/-1}}
 /* ---------- 점수 변동(js/scores.js): 선수 × 라인 표. 큰 숫자 = 지금 점수, 옆 = 기간 안의 변화 ---------- */
 .sv-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.sv-top .btn{margin-left:auto}
 .sv-sub{margin:6px 0 14px;font-size:13px}
@@ -2306,10 +2309,12 @@ body.lite #chtb tr.ch-hit td{animation:none;background:rgba(217,164,65,.14)}
 #verbar .vb-x{display:grid;place-items:center;width:30px;height:30px;border:0;border-radius:50%;background:transparent;color:var(--mut);cursor:pointer}#verbar .vb-x:hover{color:var(--text)}#verbar .vb-x .ic{width:15px;height:15px}
 @keyframes vbin{from{opacity:0;transform:translate(-50%,-10px)}}
 /* 카카오톡 공유 버튼(js/kakao.js): 카카오 노란색 + 말풍선 */
-.btn.kk-btn{background:#fee500;border-color:#fee500;color:rgba(0,0,0,.85);font-weight:700}
-.btn.kk-btn:hover{background:#ffeb3b;border-color:#ffeb3b;color:#000}
-.btn.kk-btn .kk-ic{width:17px;height:17px;flex:none;color:#000}
-.btn.kk-btn::after{display:none}
+/* 고급형(2026-11-25): 카카오 노랑은 그대로, 위아래 결(그라데이션)·윗면 빛·은은한 노란 빛 번짐·짙은 코코아색 글자, 마우스를 올리면 빛이 한 번 스침 */
+.btn.kk-btn{background:#fee500 linear-gradient(180deg,#fff06a 0%,#fee500 46%,#f1cd00 100%);border-color:#e9c800;color:#2b1a0d;font-weight:800;letter-spacing:-.01em;box-shadow:inset 0 1px 0 rgba(255,255,255,.7),inset 0 -1px 0 rgba(120,80,0,.22),0 1px 2px rgba(0,0,0,.35),0 8px 20px -10px rgba(254,214,0,.75)}
+.btn.kk-btn:hover{background-color:#ffea2e;border-color:#f5d400;color:#1f1208;box-shadow:inset 0 1px 0 rgba(255,255,255,.8),inset 0 -1px 0 rgba(120,80,0,.22),0 1px 2px rgba(0,0,0,.35),0 10px 26px -10px rgba(254,214,0,.95)}
+.btn.kk-btn .kk-ic{width:17px;height:17px;flex:none;color:#2b1a0d;filter:drop-shadow(0 1px 0 rgba(255,255,255,.45))}
+.btn.kk-btn::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.7) 50%,transparent 65%);transform:translateX(-120%);transition:transform .6s;pointer-events:none}
+.btn.kk-btn:hover::after{transform:translateX(120%)}
 /* 왼쪽 위: '내전 시작'과 '내전 모집'(카톡)을 반씩 */
 .side-cta>.kk-side,.side-cta>a.btn.gold.block{flex:1 1 0;min-width:0;padding:7px 2px;gap:3px;white-space:nowrap;font-size:13.5px}
 .side-cta>.kk-side .kk-ic{width:15px;height:15px}
