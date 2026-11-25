@@ -112,29 +112,27 @@ function noticeTick() {
 const HERO = { list: [], i: 0, t: 0, flip: 0, xm: false };
 const HERO_KEY = 'naejeon:herofirst'; // 다음 접속 때 처음 보여 줄 배너 그림 { url, cap, xm } (index.html 이 미리 받는다)
 const shuffle = (a) => a.map((x) => [Math.random(), x]).sort((p, q) => p[0] - q[0]).map((x) => x[1]);
-// 겨울 스킨이 있을 만한 챔피언 후보. 실제로는 패치 데이터에서 스킨 이름을 확인해 아래 낱말이 들어간 스킨만 쓴다(후보에 있어도 해당 스킨이 없으면 빠진다)
-const XMAS_IDS = ['Amumu', 'Anivia', 'Annie', 'Bard', 'Braum', 'Corki', 'Draven', 'Ezreal', 'Fiddlesticks', 'Gangplank', 'Gnar', 'Gragas', 'Graves', 'Heimerdinger', 'Ivern', 'Janna', 'Jinx', 'Karma', 'Katarina', 'Kayle', 'Kassadin', 'Kennen', 'Leona', 'Lissandra', 'Lulu', 'Lux', 'Malphite', 'MasterYi', 'Morgana', 'Neeko', 'Nidalee', 'Nunu', 'Orianna', 'Poppy', 'Rakan', 'Sett', 'Shaco', 'Singed', 'Sivir', 'Sona', 'Soraka', 'Syndra', 'Taliyah', 'Teemo', 'TwistedFate', 'Veigar', 'Yuumi', 'Ziggs', 'Zilean', 'Zoe'];
-const XMAS_KW = /눈 오는 날|겨울 동화|겨울 축제|산타|눈사람|고요한 밤|호두까기|썰매|눈토끼|루돌프|진저|크리스마스|성탄|선물|눈꽃|눈송이/;
+// 크리스마스·겨울 스킨 목록(챔피언 id, 스킨 번호, 스킨 이름). 예전에는 시즌마다 후보 챔피언 50명의 패치 데이터를 하나씩 받아(요청 50번)
+// 스킨 이름으로 찾았는데, 거의 바뀌지 않는 목록이라 미리 정리해 둔다(2026-11, 패치 16.23 기준. 크로마는 일러스트가 없어 뺌).
+// 새 겨울 스킨이 나오면 여기에 한 줄 추가. 일러스트를 못 받는 항목은 heroNext가 알아서 건너뛴다
+const XMAS_SKINS = [['Braum', 10, '산타 브라움'], ['Corki', 2, '얼음 썰매 코르키'], ['Draven', 12, '산타 드레이븐'], ['Gragas', 3, '산타 그라가스'], ['Heimerdinger', 4, '눈사람 하이머딩거'],
+  ['Karma', 6, '겨울 동화 카르마'], ['Lulu', 4, '겨울 동화 룰루'], ['MasterYi', 17, '눈사람 마스터 이'], ['Neeko', 1, '겨울 동화 니코'], ['Nidalee', 1, '눈토끼 니달리'],
+  ['Nunu', 2, '산타작업실 누누와 윌럼프'], ['Orianna', 5, '겨울 동화 오리아나'], ['Poppy', 14, '눈꽃사슴 뽀삐'], ['Shaco', 3, '호두까기 샤코'], ['Sivir', 6, '눈꽃 시비르'],
+  ['Sona', 3, '고요한 밤 소나'], ['Soraka', 9, '겨울 동화 소라카'], ['Veigar', 7, '나쁜 산타 베이가'], ['Zilean', 1, '산타 질리언']];
 const XM = { list: null, busy: false };
-// 크리스마스 스킨 목록: 한 번 찾으면 패치 버전과 함께 기기에 저장해 다음부터는 바로 쓴다
+try { localStorage.removeItem('naejeon:xmasskins'); } catch {} // 예전 방식의 기기 저장 목록 정리
+// 크리스마스 스킨 목록: 챔피언 목록(S.champs)에 있는 챔피언만 [챔피언 이름, id, 번호, 스킨 이름]으로. 받는 것 없음
 async function xmasSkins() {
-  if (XM.list || XM.busy || !S.ver || !S.champs.length) return XM.list;
-  try { const c = JSON.parse(localStorage.getItem('naejeon:xmasskins')); if (c?.ver === S.ver && c.list?.length) return (XM.list = c.list); } catch {}
-  XM.busy = true;
-  const byId = Object.fromEntries(S.champs.map((c) => [c.id, c.name])), ids = XMAS_IDS.filter((id) => byId[id]), found = [];
-  for (let i = 0; i < ids.length; i += 6) {
-    await Promise.all(ids.slice(i, i + 6).map(async (id) => {
-      try { const d = await (await fetch(`https://ddragon.leagueoflegends.com/cdn/${S.ver}/data/ko_KR/champion/${id}.json`)).json(); d.data[id].skins.filter((k) => k.num > 0 && XMAS_KW.test(k.name)).forEach((k) => found.push([byId[id], id, k.num, k.name])); } catch {}
-    }));
-  }
-  XM.busy = false;
-  if (found.length >= 3) { XM.list = found; try { localStorage.setItem('naejeon:xmasskins', JSON.stringify({ ver: S.ver, list: found })); } catch {} }
+  if (XM.list || !S.champs.length) return XM.list;
+  const byId = Object.fromEntries(S.champs.map((c) => [c.id, c.name]));
+  const found = XMAS_SKINS.filter(([id]) => byId[id]).map(([id, num, name]) => [byId[id], id, num, name]);
+  if (found.length >= 3) XM.list = found;
   return XM.list;
 }
 const xmasArt = (id, num) => `https://ddragon.leagueoflegends.com/cdn/img/champion/centered/${id === 'Fiddlesticks' ? 'FiddleSticks' : id}_${num}.jpg`;
-// 휴대폰·가벼운 모드·데이터 절약 모드에서는 배너 그림(장당 100~200KB)을 10장만 돌린다. 한 번 받은 그림은 브라우저에 남아 다시 받지 않는다.
+// 배너 그림(장당 100~200KB)은 PC 20장(예전 40장 → 오래 켜 두면 수 MB), 휴대폰·가벼운 모드·데이터 절약 모드는 10장만 돌린다. 한 번 받은 그림은 브라우저에 남아 다시 받지 않는다.
 const heroSmall = () => matchMedia('(max-width: 860px), (pointer: coarse)').matches || document.body.classList.contains('lite') || !!navigator.connection?.saveData;
-const HERO_N = () => (heroSmall() ? 10 : 40), HERO_MS = () => (navigator.connection?.saveData ? 13000 : 6500);
+const HERO_N = () => (heroSmall() ? 10 : 20), HERO_MS = () => (navigator.connection?.saveData ? 13000 : 6500);
 function heroList() {
   const want = xmasOn() && !!XM.list;
   if (HERO.list.length && HERO.xm === want) return HERO.list;

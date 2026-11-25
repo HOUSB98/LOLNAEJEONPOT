@@ -138,7 +138,7 @@ function card(d, o) {
   const state = o === 'any' ? '' : full ? '<span class="lp-st fix">고정으로 마감</span>' : n > cap ? `<span class="lp-st hot">1지망 ${n - cap}명 초과 · 추첨</span>` : n === cap ? '<span class="lp-st ok">딱 맞음</span>' : `<span class="lp-st low">${cap - n}자리 남음</span>`;
   return `<button class="lp-card ${myRank >= 0 ? 'mine' : ''} ${o === 'any' ? 'any' : ''} ${full ? 'full' : ''}" data-a="bdPick" data-o="${o}" style="--lc:${COLOR[o]}" ${d.status !== 'open' || (BD.me && isDone(d, BD.me)) ? 'disabled' : ''}>
     <span class="lp-ch"><i class="lp-ico">${icon(o)}</i><b>${NAME[o]}</b>${myRank >= 0 ? `<em class="r${myRank + 1}">${RANK[myRank]}</em>` : ''}</span>
-    <span class="lp-meta">${o === 'any' ? '빈 자리에 배치' : '모집 2명'}${fx ? `<span class="lp-fx">🔒 고정 ${fx}</span>` : ''}${state}</span>
+    <span class="lp-meta">${o === 'any' ? '빈 자리에 배치' : '모집 2명'}${fx ? `<span class="lp-fx">${ic('lock', 'ie')}고정 ${fx}</span>` : ''}${state}</span>
     <span class="lp-bar"><i style="width:${o === 'any' ? 0 : Math.min(100, (fx + n) * 50)}%"></i></span>
     <span class="lp-cnt ${n !== prevN ? 'bump' : ''}"><small>1지망</small><b class="mono">${n}</b>명<i class="lp-dots">${Array.from({ length: fx }, () => '<u class="fx" title="고정"></u>').join('')}${Array.from({ length: Math.max(n, o === 'any' ? 0 : cap) }, (_, i) => `<u class="${i < n ? 'on' : ''}"></u>`).join('')}</i></span>
     <span class="lp-sub">2지망 <b>${rankN[1]}</b> · 3지망 <b>${rankN[2]}</b></span>
@@ -168,7 +168,7 @@ function openHTML(d) {
     return `<button class="lp-mem ${me ? 'me' : ''} ${st}" data-a="bdMe" data-id="${id}" style="--lc:${ok ? '#4fd08b' : p ? '#d9a441' : '#5a6a84'}" title="${ok ? '선택 완료' : p ? '고르는 중 (아직 완료 안 누름)' : '아직 안 고름'}">${ok ? '<i>✓</i>' : p ? `<i>${me ? icon(p) : '…'}</i>` : '<i class="dot"></i>'}${esc(nm(id))}${missOf(id) ? `<b class="lp-luck" title="1지망 추첨에서 ${missOf(id)}번 연속 떨어져 1지망 당첨 가중치 ${xw(weightOf(missOf(id)))}">${xw(weightOf(missOf(id)))}</b>` : ''}</button>`;
   };
   const myBtn = !isMe ? '<span class="lp-wait">본인 이름을 먼저 눌러 주세요</span>'
-    : myFix ? `<button class="btn ghost" data-a="bdUnfix">🔓 고정 해제</button>`
+    : myFix ? `<button class="btn ghost" data-a="bdUnfix">${ic('unlock')}고정 해제</button>`
     : meDone ? `<button class="btn ghost" data-a="bdUndo">${ic('edit')}다시 고르기</button>`
     : `<button class="btn pri lp-done" data-a="bdDone" ${mine.length ? '' : 'disabled title="라인을 하나 이상 고르세요 (상관없음도 가능)"'}>✓ 선택 완료</button>`;
   const waiting = d.ids.filter((id) => !isDone(d, id));
@@ -176,8 +176,8 @@ function openHTML(d) {
   return `<div class="lp-h"><div><small><i class="live"></i>LIVE · 모두 같은 화면</small><h2>${ic('users')}라인 지원</h2></div><span class="grow"></span>
       <button class="btn ghost xs" data-a="bdMute" title="효과음">${ic(BD.muted ? 'mute' : 'sound')}</button><button class="btn ghost xs" data-a="bdHide" title="닫기 (라인 지원은 계속 열려 있음)">${ic('x')}</button></div>
     <ol class="lp-steps"><li class="${isMe ? 'done' : 'on'}">내 이름 선택</li><li class="${isMe ? (mine.length ? 'done' : 'on') : ''}">라인 1~3지망 선택</li><li class="${meDone ? 'done' : isMe && mine.length ? 'on' : ''}">선택 완료 누르기</li><li>모두 완료 → 자동 추첨</li></ol>
-    ${isMe && myFix ? `<div class="lp-my locked"><b>${esc(nm(BD.me))}</b><span class="lp-rk on" style="--lc:${COLOR[myFix]}"><small>🔒 고정</small>${icon(myFix)}${NAME[myFix]}</span><small class="mut">이 라인으로 고정돼 추첨 없이 배치돼요 · 다른 사람에게는 '고정 1'처럼 숫자만 보여요</small></div>` : ''}
-    ${isMe && !myFix && !meDone ? `<div class="lp-fixrow">${BD.fixing ? `<span class="lp-fxq">🔒 고정할 라인</span>${LANES.map((l) => `<button class="btn xs lp-fxb" data-a="bdFix" data-o="${l}" style="--lc:${COLOR[l]}" ${fixN(d, l) >= 2 ? 'disabled title="이미 2명이 고정했어요"' : ''}>${icon(l)}${NAME[l]}</button>`).join('')}<button class="btn ghost xs" data-a="bdFixOpen">취소</button>` : '<button class="btn ghost xs lp-fxopen" data-a="bdFixOpen" title="오늘 이 라인으로 가기로 정해졌으면 고정하세요">🔒 라인 고정</button>'}</div>` : ''}
+    ${isMe && myFix ? `<div class="lp-my locked"><b>${esc(nm(BD.me))}</b><span class="lp-rk on" style="--lc:${COLOR[myFix]}"><small>${ic('lock', 'ie')}고정</small>${icon(myFix)}${NAME[myFix]}</span><small class="mut">이 라인으로 고정돼 추첨 없이 배치돼요 · 다른 사람에게는 '고정 1'처럼 숫자만 보여요</small></div>` : ''}
+    ${isMe && !myFix && !meDone ? `<div class="lp-fixrow">${BD.fixing ? `<span class="lp-fxq">${ic('lock', 'ie')}고정할 라인</span>${LANES.map((l) => `<button class="btn xs lp-fxb" data-a="bdFix" data-o="${l}" style="--lc:${COLOR[l]}" ${fixN(d, l) >= 2 ? 'disabled title="이미 2명이 고정했어요"' : ''}>${icon(l)}${NAME[l]}</button>`).join('')}<button class="btn ghost xs" data-a="bdFixOpen">취소</button>` : '<button class="btn ghost xs lp-fxopen" data-a="bdFixOpen" title="오늘 이 라인으로 가기로 정해졌으면 고정하세요">' + ic('lock') + '라인 고정</button>'}</div>` : ''}
     ${isMe && !myFix ? `<div class="lp-my ${meDone ? 'locked' : ''}"><b>${esc(nm(BD.me))}</b>의 지망${[0, 1, 2].map((r) => `<span class="lp-rk ${mine[r] ? 'on' : ''}" style="--lc:${mine[r] ? COLOR[mine[r]] : '#3a4a64'}"><small>${RANK[r]}</small>${mine[r] ? `${icon(mine[r])}${NAME[mine[r]]}` : '—'}</span>`).join('')}<small class="mut">${meDone ? '완료했어요 · 바꾸려면 아래 \'다시 고르기\'' : '카드를 누른 순서대로 1·2·3지망 · 다시 누르면 빠져요'}</small>${chanceHTML(d, BD.me)}</div>` : ''}
     ${isMe ? talkRow(d) : ''}
     ${isMe && !BD.roster ? `<div class="lp-sec lp-mini"><span>${ic('user')}<b>${esc(nm(BD.me))}</b>(으)로 지원 중</span><button class="btn ghost xs" data-a="bdRoster">참가자 현황 · 대리 지원</button></div>`
@@ -193,7 +193,7 @@ function openHTML(d) {
 function finalHTML(d) {
   const rk = d.rankOf || {};
   const drawn = new Set((d.steps || []).filter((s) => s.kind === 'roll' && !s.fill).flatMap((s) => s.pick));
-  const tag = (id) => (fixOf(d, id) && d.result?.[fixOf(d, id)]?.includes(id) ? '<em class="fx">🔒 고정</em>' : rk[id] ? `<em class="r${rk[id]}">${RANK[rk[id] - 1]}${drawn.has(id) ? '·추첨' : ''}</em>` : '<em>배치</em>');
+  const tag = (id) => (fixOf(d, id) && d.result?.[fixOf(d, id)]?.includes(id) ? '<em class="fx">' + ic('lock', 'ie') + '고정</em>' : rk[id] ? `<em class="r${rk[id]}">${RANK[rk[id] - 1]}${drawn.has(id) ? '·추첨' : ''}</em>` : '<em>배치</em>');
   const cell = (id, side, i) => (id ? `<span class="lf-n ${side}" style="--i:${i}">${esc(nm(id))}${tag(id)}</span>` : '<span class="lf-n empty">빈 자리</span>');
   return `<div class="lp-h"><div><small>RESULT</small><h2>${ic('today')}최종 라인업</h2></div><span class="grow"></span><button class="btn ghost xs" data-a="bdClose" title="닫기">${ic('x')}</button></div>
     <div class="lf"><span></span><b class="blue">BLUE</b><b class="red">RED</b>
@@ -201,7 +201,7 @@ function finalHTML(d) {
     ${d.ids?.includes(BD.me) ? talkRow(d) : ''}
     ${d.left?.length ? `<p class="mut center">대기: ${d.left.map((x) => esc(nm(x))).join(', ')}</p>` : ''}
     ${(() => { const { win, lose } = luckDelta(d.steps), reset = win.filter((id) => (luckDoc().rid === d.rid ? (luckDoc().last || []).some((c) => c.id === id && c.to === 0) : missOf(id) > 0)); return lose.length || reset.length ? `<p class="lf-luck center">${ic('target')}1지망 보정 · ${lose.length ? `다음 1지망 확률 증가: ${lose.map((x) => { const L = luckDoc(), applied = L.rid === d.rid, c = applied ? (L.last || []).find((y) => y.id === x) : null, max = applied ? c && c.from >= LUCK_MAX : missOf(x) >= LUCK_MAX; return esc(nm(x)) + (max ? '(최대 유지)' : ''); }).join(', ')}` : ''}${lose.length && reset.length ? ' · ' : ''}${reset.length ? `초기화: ${reset.map((x) => esc(nm(x))).join(', ')}` : ''}</p>` : ''; })()}
-    <p class="hint center"><em class="lf-tag">N지망</em> 몇 지망으로 들어갔는지 (·추첨: 몰려서 뽑힘) · <em class="lf-tag">배치</em> 상관없음·지망 실패·미지원으로 빈 자리에 들어감 · <em class="lf-tag">🔒 고정</em> 라인 고정으로 추첨 없이 배치 · 진영·자리 교체는 라인업에서 끌어다 놓으면 됩니다</p>
+    <p class="hint center"><em class="lf-tag">N지망</em> 몇 지망으로 들어갔는지 (·추첨: 몰려서 뽑힘) · <em class="lf-tag">배치</em> 상관없음·지망 실패·미지원으로 빈 자리에 들어감 · <em class="lf-tag">${ic('lock', 'ie')}고정</em> 라인 고정으로 추첨 없이 배치 · 진영·자리 교체는 라인업에서 끌어다 놓으면 됩니다</p>
     ${d.ai ? `<p class="lf-ai center">${ic('bolt')}AI 추천 배치 · 점수 <b class="blue">${(+d.ai.bs).toFixed(1)}</b> : <b class="red">${(+d.ai.rs).toFixed(1)}</b> (차이 ${(+d.ai.diff).toFixed(1)})</p>` : ''}
     <div class="lp-foot center">${isOwner(d) ? '' : '<span class="mut sm">AI 추천은 연 사람만 쓸 수 있어요</span>'}${isOwner(d) ? `<button class="btn gold" data-a="bdAi" ${LANES.every((l) => d.result?.[l]?.[0] && d.result?.[l]?.[1]) ? '' : 'disabled title="빈 자리가 있으면 쓸 수 없어요"'}>${ic('bolt')}AI 추천</button>` : ''}<button class="btn pri" data-a="bdLineup">${ic('today')}라인업 확인</button><button class="btn ghost" data-a="bdClose">닫기</button></div>`;
 }

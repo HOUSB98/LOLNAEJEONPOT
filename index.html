@@ -44,7 +44,7 @@
 </script>
 <script>
 (function () {
-  var V = '20261125a';
+  var V = '20261125b'; window.NP_V = V; // NP_V: 열어 둔 화면이 새 버전이 나왔는지 비교하는 값(core.js initVer)
   var JS = ['app', 'core', 'stats', 'store', 'config', 'social', 'season', 'today', 'board', 'dice', 'talk', 'players', 'hook', 'gacha', 'finder', 'me', 'admin', 'auction', 'replay', 'maker', 'scores', 'xmas', 'newyear'];
   var ok = !!(window.HTMLScriptElement && HTMLScriptElement.supports && HTMLScriptElement.supports('importmap'));
   var q = ok ? '?v=' + V : '', map = {};
@@ -52,11 +52,13 @@
   // 처음 화면에 필요한 모듈은 한꺼번에 미리 받는다(연쇄 다운로드 지연 방지). 시즌 장식 코드는 시즌에만
   var d = new Date(), md = (d.getMonth() + 1) * 100 + d.getDate(), pre = JS.slice(0, 15);
   if (md >= 1116 && md <= 1226) pre.push('xmas'); else if (md <= 115) pre.push('newyear');
+  var season = (md >= 1116 && md <= 1226) || md <= 115; // 시즌 장식 스타일(css/season.css)은 시즌 기간에만 받는다(js/season.js 날짜와 같게)
   document.write((ok ? '<script type="importmap">' + JSON.stringify({ imports: map }) + '<\/script>' : '')
     + pre.map(function (n) { return '<link rel="modulepreload" href="js/' + n + '.js' + q + '">'; }).join('')
-    + '<link rel="stylesheet" href="css/style.css?v=' + V + '">');
+    + '<link rel="stylesheet" href="css/style.css?v=' + V + '">'
+    + (season ? '<link rel="stylesheet" href="css/season.css?v=' + V + '">' : ''));
   // 그래도 파일이 섞여 시작이 안 되면 한 번만: 이 사이트 파일을 서버에서 새로 받아 캐시를 바꾼 뒤 다시 연다(js/core.js의 lazyPage도 씀)
-  var files = JS.map(function (n) { return 'js/' + n + '.js' + q; }).concat('css/style.css?v=' + V, location.href);
+  var files = JS.map(function (n) { return 'js/' + n + '.js' + q; }).concat('css/style.css?v=' + V, 'css/season.css?v=' + V, location.href);
   window.NP_HEAL = function () {
     try { if (sessionStorage.getItem('np:heal')) return false; sessionStorage.setItem('np:heal', '1'); } catch (e) { return false; }
     Promise.all(files.map(function (u) { return fetch(u, { cache: 'reload' }).catch(function () {}); })).then(function () { location.reload(); });
