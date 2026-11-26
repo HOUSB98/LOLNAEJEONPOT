@@ -2518,3 +2518,11 @@ body.lite #chtb tr.ch-hit td{animation:none;background:rgba(217,164,65,.14)}
 @media (max-height:560px){.sp-collab{display:none}}
 /* 라인 지원 창이 떠 있는 동안(board.js body.bd-open): 뒤 화면(본문·메뉴·시즌 장식)의 CSS 움직임을 멈춘다. 창 안은 그대로 */
 body.bd-open>:not(#modal):not(#toast),body.bd-open>:not(#modal):not(#toast) *,body.bd-open>:not(#modal):not(#toast)::before,body.bd-open>:not(#modal):not(#toast)::after,body.bd-open>:not(#modal):not(#toast) *::before,body.bd-open>:not(#modal):not(#toast) *::after{animation-play-state:paused!important}
+/* 점검 모드(config.js MAINT) */
+.np-maint>.panel{max-width:420px;gap:12px;padding:32px 24px 22px;background:radial-gradient(120% 80% at 50% 0,rgba(217,164,65,.12),transparent 60%),var(--panel,#0b111c)}
+.mt-tag{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:99px;border:1px solid rgba(217,164,65,.4);color:#ffd889;font:700 11px var(--mono);letter-spacing:.18em}.mt-tag .ic{width:13px;height:13px}
+.np-maint .hint{color:var(--mut)}
+.mt-adm{width:100%;margin-top:8px;padding-top:12px;border-top:1px solid var(--line2,#1c2638)}.mt-adm summary{cursor:pointer;color:var(--mut);font-size:12.5px;list-style:none;padding:6px}.mt-adm summary::-webkit-details-marker{display:none}
+.mt-adm form{margin-top:8px;gap:8px}.mt-adm .inp{min-height:44px}.mt-adm .btn{min-height:44px}
+.np-mbar{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:9000;padding:5px 12px;border-radius:99px;background:rgba(217,164,65,.92);color:#2b1a0d;font-size:11.5px;font-weight:800;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+@media (max-width:860px){.np-mbar{bottom:auto;top:8px}}
