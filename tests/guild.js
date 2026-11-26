@@ -72,6 +72,11 @@ const crypto = require('crypto');
   const y = ids[9], gy = P()[y].guild, oy = gy === 'j' ? 'm' : 'j';
   await A.click(`[data-a=gaSet][data-id="${y}"][data-g="${oy}"]`); await A.waitForTimeout(800);
   ok(P()[y].guild === oy && P()[y].glog.at(-1).by === 'admin', '관리자 인원 조정: 버튼 한 번에 다른 길드로');
+  const ord0 = await A.$$eval('.ga-roster .ga-r', (x) => x.map((e) => e.querySelector('[data-a=gaSet]').dataset.id).join());
+  await A.evaluate((y) => document.querySelector(`[data-a=gaSet][data-id="${y}"][data-g=""]`).click(), y); await A.waitForTimeout(800);
+  const ord1 = await A.$$eval('.ga-roster .ga-r', (x) => x.map((e) => e.querySelector('[data-a=gaSet]').dataset.id).join());
+  ok(ord0 === ord1, '인원 조정: 버튼을 눌러도 사람들 자리(순서)가 그대로');
+  await A.evaluate(([y, g]) => document.querySelector(`[data-a=gaSet][data-id="${y}"][data-g="${g}"]`).click(), [y, oy]); await A.waitForTimeout(800);
   await A.click(`[data-a=gaSet][data-id="${y}"][data-g="${gy}"]`); await A.waitForTimeout(800);
   await A.click('[data-a=gaPlan]'); await A.waitForTimeout(800);
   const before = { ...Object.fromEntries(Object.values(P()).map((p) => [p.id, p.guild])) };
@@ -212,10 +217,11 @@ const crypto = require('crypto');
   ok(left.join() === Object.values(leads).filter(Boolean).sort().join(), '대장만 남기기: 무림맹주·천마만 소속, 나머지 무소속');
   const af0 = await A.evaluate(async () => { const { gActiveFrom } = await import('/js/core.js'); return [gActiveFrom('j'), gActiveFrom('m')]; });
   ok(af0.every((v) => v === null || v === Infinity), '소속 1~2명인 문파는 기록이 쌓이지 않음(시작 전)');
-  const two = Object.keys(P()).filter((id) => !P()[id].guild && !P()[id].deleted).slice(0, 2);
+  const need = 3 - Object.values(P()).filter((p) => p.guild === 'j').length; // 정파 대장이 없을 수도 있어 3명이 되도록
+  const two = Object.keys(P()).filter((id) => !P()[id].guild && !P()[id].deleted).slice(0, need);
   for (const id of two) { await A.evaluate((id) => document.querySelector(`[data-a=gaSet][data-id="${id}"][data-g=j]`).click(), id); await A.waitForTimeout(700); }
   const af1 = await A.waitForFunction(async () => { const { gActiveFrom } = await import('/js/core.js'); const v = gActiveFrom('j'); return v !== Infinity && v; }, null, { timeout: 8000 }).then((h) => h.jsonValue()).catch(() => Infinity);
-  ok(af1 > 0 && af1 !== Infinity, '관리자가 2명을 더 배정해 3명이 되면 그 순간부터 기록 시작');
+  ok(af1 > 0 && af1 !== Infinity, '관리자가 더 배정해 3명이 되면 그 순간부터 기록 시작');
   // 휴대폰
   const Mo = await client(b, be, 'WORK', 'Mo', { ctx: await device(b, be, 'WORK', 'Mo', { viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true }) });
   for (const h of ['guilds', 'jeongpa', 'magyo', 'gshop', 'admin/guild', 'me']) { await open(Mo, h, 1300); const w = await Mo.evaluate(() => document.documentElement.scrollWidth); ok(w <= 361, `휴대폰(360px) ${h} 가로 넘침 없음(${w})`); }
