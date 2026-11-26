@@ -1,7 +1,7 @@
 // 시작점 + 홈 / 랭킹 / 경기 기록 / 챔피언 / 피어리스 화면
-import { FIREBASE_CONFIG } from './config.js';
+import { FIREBASE_CONFIG, MAINT } from './config.js';
 import { createStore } from './store.js';
-import { cardChamp, prefetchChamps } from './core.js';
+import { cardChamp, prefetchChamps, isAdmin, sha } from './core.js';
 import { S, page, act, ddMenu, cho, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, toast, download, csv, needAdmin, history, flipSides, modal, closeModal, mh, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
 import { initSocial, renderChat, renderPresence, onMeta, chatStartsOpen } from './social.js';
 import { duoRank, dayKey } from './stats.js';
@@ -761,9 +761,10 @@ window.NP_OK = 1; // index.html의 시작 확인(이 줄까지 왔다면 모든 
     }, { chatOpen: chatStartsOpen() }); // 채팅창이 닫힌 채 시작하면 채팅은 최신 1개만 받는다
     await S.store.ready;
   } catch (e) { document.getElementById('splash')?.remove(); main.innerHTML = `<div class="panel landing"><h1>연결 실패</h1><p>${esc(e.message || e)}</p><p class="hint">js/config.js 의 Firebase 설정과 Firestore 규칙을 확인하세요.</p></div>`; return; }
+  if (MAINT && !maintPass()) return maintGate();
   await SEASON.ready; // 시즌이 아니면 바로 끝난다. 시즌이면 시작 화면 장식 전에 받아 둔다(DB 연결과 동시에 받으므로 보통 기다리지 않는다)
   metaDiff(); up = true; watchDice(true); watchBoard(true); watchPosts(true); initShell(); mountRecruit(); initSocial(); SEASON.x?.initXmas(); SEASON.n?.initNewYear(); loadChamps();
-  checkPause(); closedCheck();
+  checkPause(); closedCheck(); if (MAINT) maintBar();
 })();
 // 초대 링크를 바꾼 뒤 옛 링크(meta/closed가 있는 리그)로 들어오면: 실시간 구독을 끊고 안내 화면만 보여 준다(새 링크는 알려 주지 않음)
 // 링크를 바꾼 관리자 본인 화면은 결과 창을 보고 있어야 하므로 이번 접속에서는 띄우지 않는다(S.rotating)
@@ -774,3 +775,30 @@ function closedCheck() {
   document.body.insertAdjacentHTML('beforeend', `<div id="np-closed" class="np-closed" role="alertdialog" aria-modal="true"><div class="panel">${logo(true, 72)}<h1>이 초대 링크는 더 이상 쓰지 않아요</h1><p>관리자가 ${new Date(c.at).toLocaleDateString('ko-KR')}에 초대 링크를 새로 만들었어요.<br>단톡방이나 관리자에게 <b>새 초대 링크</b>를 받아 들어와 주세요.</p><p class="hint">기록은 모두 새 링크로 옮겨졌어요. 이 주소로는 더 이상 저장되지 않아요.</p></div></div>`);
   return true;
 }
+// 점검 모드(config.js MAINT): 관리자 PIN을 넣은 기기만 들어온다. 다른 접속자는 실시간 구독을 멈추고(읽기 거의 0) 안내 화면만 본다.
+// 한 번 통과한 기기는 PIN이 바뀌기 전까지 다시 묻지 않는다(localStorage에 PIN 해시)
+const MAINT_K = () => 'naejeon:maint:' + S.key;
+function maintPass() { const h = settings().pinHash; if (isAdmin()) return true; try { return !!h && localStorage.getItem(MAINT_K()) === h; } catch { return false; } }
+function maintGate() {
+  document.getElementById('splash')?.remove();
+  try { S.store.pause?.(); } catch {}
+  document.body.classList.add('bare');
+  document.getElementById('main').innerHTML = '';
+  document.body.insertAdjacentHTML('beforeend', `<div id="np-maint" class="np-closed np-maint" role="alertdialog" aria-modal="true" aria-labelledby="mt-h"><div class="panel">${logo(true, 72)}
+    <span class="mt-tag">${ic('bolt')}MAINTENANCE</span><h1 id="mt-h">사이트 점검 중이에요</h1>
+    <p>새 기능을 준비하고 있어요.<br>점검이 끝나면 지금 주소 그대로 다시 들어올 수 있어요.</p>
+    <p class="hint">기록은 모두 안전하게 보관되어 있어요.</p>
+    <details class="mt-adm"><summary>관리자 입장</summary><form id="mt-f" class="row"><input class="inp grow" id="mt-pin" type="password" inputmode="numeric" autocomplete="off" placeholder="관리자 PIN" aria-label="관리자 PIN"><button class="btn pri">입장</button></form></details></div></div>`);
+  document.getElementById('mt-f').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const v = document.getElementById('mt-pin').value.trim();
+    if (v.length < 4) return toast('4자리 이상 입력하세요');
+    const h = await sha(v), cur = settings().pinHash;
+    if (!cur) await S.store.patch('meta', 'settings', { pinHash: h }); // PIN이 아직 없으면 관리 화면과 같이 지금 넣은 값이 관리자 PIN
+    else if (h !== cur) return toast('PIN이 맞지 않습니다');
+    try { localStorage.setItem(MAINT_K(), h); sessionStorage.setItem('naejeon:admin:' + S.key, h); } catch {}
+    location.reload();
+  });
+}
+// 관리자 화면에는 점검 중이라는 작은 띠를 띄워 둔다(공개를 잊지 않게)
+function maintBar() { if (document.getElementById('np-mbar')) return; document.body.insertAdjacentHTML('beforeend', '<div id="np-mbar" class="np-mbar" role="status">점검 모드 · 관리자만 접속 중</div>'); }
