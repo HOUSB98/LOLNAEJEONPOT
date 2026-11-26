@@ -23,11 +23,11 @@ async function makeSeed(browser) {
   return out;
 }
 async function device(browser, be, tree, name, opts = {}) {
-  const { maint, ...cOpts } = opts; // maint: 점검 모드(config.js MAINT)를 그대로 둔다. 기본은 꺼서 다른 시험은 평소 화면으로
+  const { maint, ...cOpts } = opts; // maint: 점검 화면 시험(maint.js)만 점검 모드를 켠다. 다른 시험은 평소 화면으로
   const ctx = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1280, height: 860 }, ...cOpts }); // opts: 휴대폰 흉내(isMobile·hasTouch·viewport) 등
   await ctx.route(/workers\.dev|ddragon|fonts\.|jsdelivr|communitydragon|kakaocdn|kakao\.com/, (r) => r.fulfill({ status: 404, body: '' })); // 진짜 연동 서버로는 절대 보내지 않는다
   await be.attach(ctx, () => name);
-  await ctx.route('https://site.test/**', (r) => { const u = new URL(r.request().url()); let f = decodeURIComponent(u.pathname).replace(/^\//, '') || 'index.html'; let b = file(tree, f); if (!b) return r.fulfill({ status: 404, body: '' }); if (f === 'js/config.js') b = maint ? String(b).replace(/export const MAINT = false/, 'export const MAINT = true') : String(b).replace(/export const MAINT = true/, 'export const MAINT = false'); // maint: 점검 화면 시험만 점검 모드로 r.fulfill({ status: 200, body: b, headers: { 'Content-Type': TYPES[path.extname(f)] || 'application/octet-stream' } }); });
+  await ctx.route('https://site.test/**', (r) => { const u = new URL(r.request().url()); let f = decodeURIComponent(u.pathname).replace(/^\//, '') || 'index.html'; let b = file(tree, f); if (!b) return r.fulfill({ status: 404, body: '' }); if (f === 'js/config.js') b = maint ? String(b).replace(/export const MAINT = false/, 'export const MAINT = true') : String(b).replace(/export const MAINT = true/, 'export const MAINT = false'); r.fulfill({ status: 200, body: b, headers: { 'Content-Type': TYPES[path.extname(f)] || 'application/octet-stream' } }); });
   ctx.devName = name; return ctx;
 }
 async function client(browser, be, tree, name, opts = {}) {

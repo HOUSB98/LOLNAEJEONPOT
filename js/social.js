@@ -419,7 +419,7 @@ function gcRender(log) {
   log.dataset.ct = g;
   document.getElementById('chat').classList.toggle('glock', !GC || GC.locked(g));
   if (atBottom) log.scrollTop = log.scrollHeight;
-  if (GC && GC.locked(g)) document.getElementById('gcf-p')?.focus({ preventScroll: true });
+  if (GC && GC.locked(g)) document.getElementById('gchf-p')?.focus({ preventScroll: true });
   chTabs(); // 잠금이 풀렸으면 탭의 자물쇠를 뗀다
 }
 act('chTab', async (d) => {

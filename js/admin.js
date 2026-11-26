@@ -328,7 +328,6 @@ act('plEdit', (d) => needAdmin(() => {
     const scores = Object.fromEntries(LANES.map((l) => [l, Math.max(0, Math.min(20, +f.get('s_' + l) || 0))]));
     if (p.id) await logScores(LANES.filter((l) => (+p.scores?.[l] || 0) !== scores[l]).map((l) => ({ pid: id, name: g('name'), lane: l, from: +p.scores?.[l] || 0, to: scores[l] })));
     await S.store.put('players', id, { ...p, id, name: g('name'), scores, mainLane: g('mainLane'), soloTier: g('soloTier'), riotId: g('riotId'), mmrInit: +g('mmrInit') || 0, talk: Math.max(0, Math.min(TALK.length, +g('talk') || 0)), solo: { ...o, record: g('record'), peak: g('peak'), pos: g('pos'), most: g('most'), comment: g('comment') }, deleted: false });
-    if (!p.id && guildOn() && smaller()) await adminSet(id, smaller()); // 새 선수: 문파 인원이 다르면 적은 쪽으로(같으면 본인이 고름)
     closeModal(); toast('저장했습니다');
   };
   const hide = el.querySelector('#plHide');
