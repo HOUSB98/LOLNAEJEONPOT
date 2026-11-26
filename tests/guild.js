@@ -40,14 +40,29 @@ const crypto = require('crypto');
     return W;
   })();
   await A.evaluate(async () => { const { S } = await import('/js/core.js'); localStorage.setItem('naejeon:me:' + S.key, Object.keys(S.store.data.players)[0]); });
-  await open(A, 'guild/j', 1500); await A.click('[data-a=gdMode][data-m=all]'); await A.waitForTimeout(600);
+  await open(A, 'jeongpa', 1500); await A.click('[data-a=gdMode][data-m=all]'); await A.waitForTimeout(600);
   const got = await A.evaluate(() => ({ big: [...document.querySelectorAll('.gd-big b')].map((e) => +e.innerText), war: [...document.querySelectorAll('.gw-sub b')][0]?.innerText }));
   ok(got.big[0] === want.j.w && got.big[0] + got.big[1] === want.j.g, `정파 창설 이후 전적 ${want.j.w}승 ${want.j.g - want.j.w}패 = 따로 계산(옮긴 선수는 경기 당시 소속): ` + JSON.stringify(got.big));
   ok(got.war === `${want.j.war} : ${want.m.war}`, `대항전 맞대결 ${want.j.war} : ${want.m.war}(양 팀 다수 길드가 다를 때만): ` + got.war);
   const sec = await A.evaluate(() => ['.gd-hero', '.gd-kp', '.gp-war', '.gp-ntc', '.gp-ch', '.gp-ln', '.gp-duo', '.gp-feed', '.gp-flow', '.gp-mem', '.gp-rec', '.gp-his', '.gp-lg'].filter((s) => !document.querySelector('.gd-j ' + s)));
   ok(!sec.length && await A.evaluate(() => !!document.querySelector('.gd.gd-j') && getComputedStyle(document.querySelector('.gd-hero')).borderTopColor !== ''), '길드 화면 구성(히어로·숫자·대항전·공지·순위·챔피언·라인·듀오·최근 경기·흐름·길드원·명예의 전당·연혁·사랑방) 모두 있음 ' + sec.join());
-  const bg = await A.evaluate(async () => { const j = getComputedStyle(document.querySelector('.gd-hero')).backgroundImage; location.hash = '#/guild/m'; await new Promise((r) => setTimeout(r, 700)); return [j, getComputedStyle(document.querySelector('.gd-hero')).backgroundImage, !!document.querySelector('.gd.gd-m')]; });
+  const bg = await A.evaluate(async () => { const j = getComputedStyle(document.querySelector('.gd-hero')).backgroundImage; location.hash = '#/magyo'; await new Promise((r) => setTimeout(r, 700)); return [j, getComputedStyle(document.querySelector('.gd-hero')).backgroundImage, !!document.querySelector('.gd.gd-m')]; });
   ok(bg[0] !== bg[1] && bg[2], '정파·마교 화면 분위기(배경)가 서로 다름');
+  // 정파·마교는 각각 다른 화면(메뉴 2개), 예전 주소 #/guild/m 은 마교 화면으로
+  const nav = await A.$$eval('#nav a[data-p=jeongpa], #nav a[data-p=magyo]', (x) => x.map((e) => e.innerText.trim()));
+  await A.evaluate(() => (location.hash = '#/guild/m')); await A.waitForTimeout(900);
+  ok(nav.join() === '정파,마교' && (await A.evaluate(() => location.hash === '#/magyo' && !!document.querySelector('.gd.gd-m') && !document.querySelector('.gd-j'))), '메뉴에 정파·마교 따로, 예전 주소 #/guild/m → 마교 화면: ' + nav.join());
+  // 관리자: 창설 뒤에도 인원 조정(누르면 바로 옮김)
+  await open(A, 'admin/guild', 1000); await A.evaluate(async () => { const { S } = await import('/js/core.js'); S.admin = true; });
+  const y = ids[9], gy = P()[y].guild, oy = gy === 'j' ? 'm' : 'j';
+  await A.click(`[data-a=gaSet][data-id="${y}"][data-g="${oy}"]`); await A.waitForTimeout(800);
+  ok(P()[y].guild === oy && P()[y].glog.at(-1).by === 'admin', '관리자 인원 조정: 버튼 한 번에 다른 길드로');
+  await A.click(`[data-a=gaSet][data-id="${y}"][data-g="${gy}"]`); await A.waitForTimeout(800);
+  await A.click('[data-a=gaPlan]'); await A.waitForTimeout(800);
+  const before = { ...Object.fromEntries(Object.values(P()).map((p) => [p.id, p.guild])) };
+  await A.click('[data-a=gaReApply]'); await A.waitForTimeout(1200);
+  const cr = { j: 0, m: 0 }; Object.values(P()).forEach((p) => cr[p.guild]++);
+  ok(Math.abs(cr.j - cr.m) <= 1 && P()[ids[3]].guild === P()[ids[7]].guild && Object.values(P()).every((p) => p.guild === before[p.id] || p.glog.at(-1).by === 'admin'), `관리자 전체 다시 나누기: 인원 차 1 이하, 묶은 짝 유지(정파 ${cr.j} · 마교 ${cr.m})`);
   // 이름 옆 엠블럼(랭킹·선수 카드)
   await open(A, 'rank', 900);
   ok(await A.evaluate(() => document.querySelectorAll('.tbl tbody .gnm .gem').length >= 10 && !!document.querySelector('.tbl tbody td.gtint .gnm.g-j, .tbl tbody td.gtint .gnm.g-m')), '랭킹 이름 옆 엠블럼 + 길드 색');
@@ -84,14 +99,14 @@ const crypto = require('crypto');
   // 길드장 공지: 관리자가 길드장 지정 → 길드장 본인 PIN으로 공지
   const lg = P()[me].guild;
   await A.evaluate(async ([me, lg]) => { const { S } = await import('/js/core.js'); await S.store.patch('meta', 'guild', { lead: { [lg]: me } }); S.admin = false; sessionStorage.clear(); }, [me, lg]);
-  await open(A, 'guild/' + lg, 1200);
+  await open(A, lg === 'j' ? 'jeongpa' : 'magyo', 1200);
   await A.click(`[data-a=gNotice][data-g=${lg}]`); await A.waitForSelector('#gpin-i'); await A.fill('#gpin-i', '2468'); await A.click('#gpin .btn');
   await A.waitForSelector('#gnf-t'); await A.fill('#gnf-t', '토요일 9시 길드전!'); await A.click('#gnf .btn'); await A.waitForTimeout(900);
   ok(G().notice?.[lg]?.t === '토요일 9시 길드전!' && (await A.$eval('.gn-box', (e) => e.innerText)).includes('토요일 9시 길드전!'), '길드장(본인 PIN) 공지 저장·표시');
   // 사랑방: 관리자가 비밀번호 → 길드원 입장 → 암호화 저장 → 다른 기기에서도 읽힘
   await A.evaluate(async (lg) => { const { S } = await import('/js/core.js'); S.admin = true; await (await import('/js/guild.js')).setPassword(lg, 'dragon77'); }, lg); await A.waitForTimeout(600);
   be.reset();
-  await open(A, 'guild/' + lg, 1200);
+  await open(A, lg === 'j' ? 'jeongpa' : 'magyo', 1200);
   ok(!be.byCol['reads:gchat_' + lg] && !be.byCol['reads:gpost_' + lg], '길드 화면만 열면 사랑방 읽기 0');
   await A.fill('#lgf-p', 'wrong'); await A.click('#lgf .btn'); await A.waitForTimeout(1500);
   ok(!!(await A.$('#lgf')), '틀린 길드 비밀번호는 거절');
@@ -100,7 +115,7 @@ const crypto = require('crypto');
   const raw = JSON.stringify(be.db['gchat_' + lg] || {});
   ok(raw.length > 20 && !raw.includes('비밀 작전') && (await A.$eval('#lg-log', (e) => e.innerText)).includes('비밀 작전 회의'), '채팅은 암호화되어 저장(DB에 글자 없음), 화면에는 보임');
   const B = await client(b, be, 'WORK', 'B');
-  await open(B, 'guild/' + lg, 1200); await B.fill('#lgf-p', 'dragon77'); await B.click('#lgf .btn'); await B.waitForSelector('#lg-log', { timeout: 8000 }); await B.waitForTimeout(800);
+  await open(B, lg === 'j' ? 'jeongpa' : 'magyo', 1200); await B.fill('#lgf-p', 'dragon77'); await B.click('#lgf .btn'); await B.waitForSelector('#lg-log', { timeout: 8000 }); await B.waitForTimeout(800);
   ok((await B.$eval('#lg-log', (e) => e.innerText)).includes('비밀 작전 회의'), '다른 기기도 비밀번호를 넣으면 읽힘');
   await B.click('[data-a=lgTab][data-t=post]'); await B.waitForTimeout(300); await B.fill('#lgp-t', '공략'); await B.fill('#lgp-b', '바텀 위주로'); await B.click('#lgp .btn'); await B.waitForTimeout(1200);
   ok(!JSON.stringify(be.db['gpost_' + lg] || {}).includes('바텀') && (await B.$eval('.lg-plist', (e) => e.innerText)).includes('공략'), '게시판 글도 암호화 저장·목록에 보임');
@@ -115,7 +130,7 @@ const crypto = require('crypto');
   ok(Object.values(be.db.matches).some((m) => m.gw === true && m.blue.join() === J.join()), '저장한 경기에 길드전 표시(gw)');
   // 휴대폰
   const Mo = await client(b, be, 'WORK', 'Mo', { ctx: await device(b, be, 'WORK', 'Mo', { viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true }) });
-  for (const h of ['guild/j', 'guild/m', 'admin/guild', 'me']) { await open(Mo, h, 1300); const w = await Mo.evaluate(() => document.documentElement.scrollWidth); ok(w <= 361, `휴대폰(360px) ${h} 가로 넘침 없음(${w})`); }
+  for (const h of ['jeongpa', 'magyo', 'admin/guild', 'me']) { await open(Mo, h, 1300); const w = await Mo.evaluate(() => document.documentElement.scrollWidth); ok(w <= 361, `휴대폰(360px) ${h} 가로 넘침 없음(${w})`); }
   const errs = [...A.errs, ...B.errs, ...Mo.errs]; console.log('오류:', errs.join(' | ') || '없음'); ok(!errs.length, '페이지 오류 없음');
   await b.close();
 })();

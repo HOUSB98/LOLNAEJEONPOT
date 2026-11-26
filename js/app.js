@@ -10,7 +10,7 @@ import { watchBoard } from './board.js';
 import './players.js';
 import './finder.js';
 import './gacha.js';
-import { lazyPage, swipeZone, swiping, recapSeason, recapYear, gname, gOf, gAt, gem, guildOn, GUILDS } from './core.js';
+import { lazyPage, swipeZone, swiping, recapSeason, recapYear, gname, gOf, gAt, gem, guildOn, GUILDS, ghref } from './core.js';
 // 자주 안 쓰는 화면은 들어갈 때 받는다. 접속 후 한가할 때 미리 받아 두므로 보통은 기다림 없이 열린다.
 const LAZY_GET = [
   lazyPage('replay', () => import('./replay.js'), ['matchReplay']),
@@ -21,6 +21,8 @@ const LAZY_GET = [
   lazyPage('me', () => import('./me.js')),
   lazyPage('recap', () => import('./recap.js')),
   lazyPage('guild', () => import('./guild.js'), ['gJoin', 'gMove', 'gNotice']),
+  lazyPage('jeongpa', () => import('./guild.js')),
+  lazyPage('magyo', () => import('./guild.js')),
 ];
 setTimeout(() => (window.requestIdleCallback || setTimeout)(() => LAZY_GET.forEach((g) => g().catch(() => {}))), 6000);
 import { watchPosts, postsChanged } from './talk.js';
@@ -232,7 +234,7 @@ const guildBar = (st) => {
   const t0 = +S.store.data.meta.guild.at, wk = (() => { const d = new Date(dayKey(Date.now()) + 'T12:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return dayKey(d.getTime() + 6 * 3600e3); })();
   let w = 0, n = 0;
   for (let i = st.matches.length - 1; i >= 0; i--) { const m = st.matches[i]; if (m.at < t0 || dayKey(m.at) < wk) break; ['blue', 'red'].forEach((sd) => m[sd].forEach((id) => { if (gAt(id, m.at) === g) { n++; if (m.winner === sd) w++; } })); }
-  return `<a class="gd-home g-${g}" href="#/guild/${g}">${gem(g)}<span><small>내 문파</small><b>${GUILDS[g].n}</b></span><span class="gh-k"><small>이번 주</small><b class="mono">${n ? `${w}승 ${n - w}패` : '아직 경기 없음'}</b></span><em>길드 보기 ›</em></a>`;
+  return `<a class="gd-home g-${g}" href="${ghref(g)}">${gem(g)}<span><small>내 문파</small><b>${GUILDS[g].n}</b></span><span class="gh-k"><small>이번 주</small><b class="mono">${n ? `${w}승 ${n - w}패` : '아직 경기 없음'}</b></span><em>길드 보기 ›</em></a>`;
 };
 page('home', {
   render() {
