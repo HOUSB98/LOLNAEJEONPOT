@@ -23,6 +23,8 @@ const LAZY_GET = [
   lazyPage('guild', () => import('./guild.js'), ['gJoin', 'gMove', 'gNotice']),
   lazyPage('jeongpa', () => import('./guild.js')),
   lazyPage('magyo', () => import('./guild.js')),
+  lazyPage('guilds', () => import('./guildx.js')),
+  lazyPage('gshop', () => import('./guildx.js')),
 ];
 setTimeout(() => (window.requestIdleCallback || setTimeout)(() => LAZY_GET.forEach((g) => g().catch(() => {}))), 6000);
 import { watchPosts, postsChanged } from './talk.js';
@@ -70,7 +72,7 @@ function notices() {
   const add = (tag, tone, title, body) => out.push({ tag, tone, title, body });
   if (settings().notice) add('공지', 'gold', esc(settings().notice.split('\n')[0]), esc(settings().notice.split('\n').slice(1).join(' ')));
   scoreNotice(add);
-  if (!x.n) { add('안내', 'blue', '첫 경기를 기록해 보세요', '오늘의 내전에서 라인업을 짜고 결과를 저장하면 통계가 자동으로 쌓입니다.'); return out; }
+  if (!x.n) { add('안내', 'blue', '첫 경기를 기록해 보세요', '팀 구성하기에서 라인업을 짜고 결과를 저장하면 통계가 자동으로 쌓입니다.'); return out; }
   const ws = x.winStreak, ls = x.loseStreak;
   if (ws?.cur >= 3) add('HOT', 'red', `${esc(ws.name)}, 파죽의 ${ws.cur}연승`, `막을 자가 없습니다. 현재 승률 ${ws.wr}% · MMR ${Math.round(ws.mmr)}. 다음 내전에서 이 기세를 꺾을 팀이 나올까요?`);
   if (ls?.cur <= -3) add('ALERT', 'purple', `${esc(ls.name)}, ${-ls.cur}연패의 늪`, `반등이 절실합니다. 최근 5판 ${ls.recent.filter(Boolean).length}승 ${ls.recent.length - ls.recent.filter(Boolean).length}패. 다음 판은 주라인 배정을 추천합니다.`);
@@ -224,6 +226,8 @@ function formPanel() {
 }
 // 홈 연말 결산 띠: 11/20 ~ 1/31, 그해 경기가 있을 때만(누르면 #/recap)
 const recapBar = (st) => { if (!recapSeason()) return ''; const y = recapYear(); if (!st.matches.some((m) => +dayKey(m.at).slice(0, 4) === y)) return ''; return `<a class="rcp-home" href="#/recap"><span class="rcp-hi">${ic('recap')}</span><span class="rcp-htx"><b>${y} 연말 결산</b><small>올해의 MVP · 개근상 · 베스트 듀오 · 내 결산</small></span><span class="grow"></span><span class="btn gold xs">보러 가기</span></a>`; };
+// 문파 포고문(상점에서 산 24시간 공지): 모든 사람 홈 맨 위에
+const bannerBar = () => { if (!guildOn()) return ''; const fx = S.store.data.meta.guild?.fx || {}; return ['j', 'm'].filter((g) => fx[g]?.banner?.t && +fx[g].banner.exp > Date.now()).map((g) => `<a class="gd-ban g-${g}" href="${ghref(g)}">${gem(g)}<small>${GUILDS[g].n} 포고문</small><b>${esc(fx[g].banner.t)}</b></a>`).join(''); };
 // 홈 길드 띠: 내 문파의 이번 주 전적(창설 뒤, 경기 당시 소속) · 문파가 없으면 고르라는 안내. '나'는 내 페이지에서 고른 선수
 const guildBar = (st) => {
   if (!guildOn()) return '';
@@ -245,14 +249,14 @@ page('home', {
     const hof = hofList(), top = st.list.filter((s) => s.g >= 3).sort((a, b) => b.ovr - a.ovr).slice(0, 3), nt0 = notices(), nt = nt0.map((_, i) => nt0[(i - (NT.off % nt0.length) + nt0.length) % nt0.length]);
     const last = [...st.matches].slice(-2).reverse();
     HERO.flip = 0;
-    return `${recruitHomeBar()}${guildBar(st)}${recapBar(st)}
+    return `${recruitHomeBar()}${bannerBar()}${guildBar(st)}${recapBar(st)}
     <section class="hero">
       <div class="hero-bg on" style="--img:url('${hero?.url || ''}')"></div><div class="hero-bg alt"></div>
       <div class="hero-in">
         <div class="hero-logo">${logo(true, 92)}<div><div class="word"><span>NAEJEON</span><i>POT</i></div><p>${esc(settings().leagueName || '친구 내전 리그')} · IN-HOUSE LEAGUE</p></div></div>
         <h1 class="hero-h" aria-label="우리들의 협곡, 모든 기록이 여기에.">${typed('우리들의 협곡,')}<br><em>${typed('모든 기록이 여기에.')}</em></h1>
         <div class="hero-meta"><span>${ic('cal')}${date}</span><span class="patch">PATCH ${patch}</span><span>${ic('today')}누적 ${x.n}경기</span></div>
-        <div class="hero-cta"><a class="btn pri" href="#/today">${ic('today')}오늘의 내전 시작</a><a class="btn" href="#/rank">${ic('rank')}랭킹 보기</a></div>
+        <div class="hero-cta"><a class="btn pri" href="#/today">${ic('today')}팀 구성하기</a><a class="btn" href="#/rank">${ic('rank')}랭킹 보기</a></div>
       </div>
       ${hero ? `<span class="hero-cap" id="herocap"><em>${HERO.xm ? 'HOLIDAY SKIN' : 'CHAMPION'}</em> · <b>${esc(hero.cap)}</b></span>` : ''}
     </section>
@@ -839,7 +843,7 @@ function noticePop() {
         <li>길드 페이지에서 문파 전적 · 대항전 · 챔피언 활용 · 명예의 전당을 확인할 수 있어요.</li>
         <li>채팅창의 <b>정파 · 마교 탭</b>에서 길드원끼리만 대화할 수 있어요(길드 비밀번호).</li>
         <li>길드 페이지에는 길드원들이 함께 쓰는 게시판이 있어요.</li>
-        <li>오늘의 내전에서 '길드전'으로 문파끼리 맞붙을 수도 있어요.</li></ul>
+        <li>팀 구성하기에서 '정마대전'으로 문파끼리 맞붙을 수도 있어요.</li></ul>
       <p class="npp-s">내 문파는 홈의 '내 문파' 띠나 내 페이지에서 확인해 보세요.</p>
       <label class="mini"><input type="checkbox" id="npp-no"> 다시 보지 않기</label>
       <div class="row npp-b"><button class="btn" data-a="nppClose">닫기</button><button class="btn pri" data-a="nppGo" data-h="${ghref(mine || 'j')}">${mine ? '내 문파 보러 가기' : '길드 보러 가기'}</button></div></div>`, 'np-popw');

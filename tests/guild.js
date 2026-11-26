@@ -35,12 +35,12 @@ const crypto = require('crypto');
   ok(!(await C.$('#modal.on .np-pop')), '창설 3일이 지나면 공지 창이 안 뜸');
   // 창설 시각을 경기 기록 중간으로 옮기고(창설 이전 경기는 길드 기록에서 빠져야 함), 한 명(x)을 창설 직후 옮긴 것처럼 소속 기록을 둠
   const ms = seed.matches.map((m) => m.at).sort((a, b) => a - b), t0 = ms[Math.floor(ms.length * 0.5)], t1 = ms[Math.floor(ms.length * 0.8)];
-  const x = ids[5], gx = P()[x].guild, ox = gx === 'j' ? 'm' : 'j';
-  await A.evaluate(async ([t0, t1, x, gx, ox]) => { const { S } = await import('/js/core.js'); await S.store.patch('meta', 'guild', { at: t0 }); for (const p of Object.values(S.store.data.players)) await S.store.patch('players', p.id, { glog: p.id === x ? [{ g: ox, at: t0, by: 'init' }, { g: gx, at: t1, by: 'admin' }] : [{ g: p.guild, at: t0, by: 'init' }] }); }, [t0, t1, x, gx, ox]);
+  const x = ids[5], wl = P()[x].guild, ox = wl === 'j' ? 'm' : 'j';
+  await A.evaluate(async ([t0, t1, x, wl, ox]) => { const { S } = await import('/js/core.js'); await S.store.patch('meta', 'guild', { at: t0 }); for (const p of Object.values(S.store.data.players)) await S.store.patch('players', p.id, { glog: p.id === x ? [{ g: ox, at: t0, by: 'init' }, { g: wl, at: t1, by: 'admin' }] : [{ g: p.guild, at: t0, by: 'init' }] }); }, [t0, t1, x, wl, ox]);
   await A.waitForTimeout(800);
   // 따로 계산: 창설 이후, 경기 당시 소속
   const want = (() => {
-    const at = (id, t) => (id === x ? (t >= t1 ? gx : ox) : P()[id].guild);
+    const at = (id, t) => (id === x ? (t >= t1 ? wl : ox) : P()[id].guild);
     const W = { j: { g: 0, w: 0, war: 0 }, m: { g: 0, w: 0, war: 0 } };
     for (const m of Object.values(be.db.matches)) {
       if (m.deleted || !m.winner || m.at < t0) continue;
@@ -160,9 +160,45 @@ const crypto = require('crypto');
     ok(dr && dr.gw && dr.blue.every((id, i) => id === J[i]) && dr.red.every((id, i) => id === M[i]), '길드전: 라인마다 맞바꿔 정파 블루 · 마교 레드');
   await A.click('[data-a=tWin][data-w=blue]'); await A.click('[data-a=tSave]'); await A.waitForTimeout(1200);
   ok(Object.values(be.db.matches).some((m) => m.gw === true && m.blue.join() === J.join()), '저장한 경기에 길드전 표시(gw)');
+  // 문파 직위(통산 판수) · 금고(경기 기록으로 계산) · 천하정세 · 상점
+  await open(A, 'jeongpa', 1200);
+  const rk = await A.evaluate(async () => { const { S } = await import('/js/core.js'); const g = await import('/js/guild.js'); const id = Object.keys(S.store.data.players).find((x) => S.store.data.players[x].guild === 'j' && g.rankOf('j', x).lv < 5); const n = S.st.P[id].g, r = g.rankOf('j', id); const want = [...g.RANKS.j].reverse().find((x) => n >= x[0])[1]; return { ok: r.n === want, chips: document.querySelectorAll('.gm-c .gd-rk').length, n, r: r.n, want }; });
+  ok(rk.ok && rk.chips >= 5, `문파 직위: 통산 ${rk.n}판 → ${rk.r}(기대 ${rk.want}), 길드원 카드마다 직위 표시`);
+  const tw = (() => { const e = { win: 10, lose: 5, gwWin: 100, gwLose: 50 }, t0 = G().at, T = { j: 0, m: 0 };
+    const at = (id, t) => { const lg = P()[id].glog || []; let g = ''; for (const x of lg) if (x.at <= t) g = x.g; return g || (lg.length ? '' : P()[id].guild); };
+    for (const m of Object.values(be.db.matches)) { if (m.deleted || !m.winner || m.at < t0) continue; const gs = { blue: m.blue.map((id) => at(id, m.at)), red: m.red.map((id) => at(id, m.at)) }; const maj = (a) => ['j', 'm'].find((g) => a.filter((v) => v === g).length >= 3) || ''; const bj = maj(gs.blue), rj = maj(gs.red);
+      if (m.gw && bj && rj && bj !== rj) { const w = m.winner === 'blue' ? bj : rj; T[w] += e.gwWin; T[w === 'j' ? 'm' : 'j'] -= e.gwLose; continue; }
+      for (const sd of ['blue', 'red']) gs[sd].forEach((g) => { if (g) T[g] += m.winner === sd ? e.win : -e.lose; }); }
+    return T; })();
+  const tg = await A.evaluate(async () => { const t = (await import('/js/guild.js')).treasury(); return { j: t.j.bal, m: t.m.bal }; });
+  ok(tg.j === tw.j && tg.m === tw.m, `금고: 일반 내전 승 +10·패 −5(1인당), 정마대전 승 +100·패 −50 = 따로 계산: 정파 ${tg.j} · 마교 ${tg.m}`);
+  await open(A, 'guilds', 1500);
+  const gxv = await A.evaluate(() => ({ rows: document.querySelectorAll('.wl-row').length, halves: [...document.querySelectorAll('.wl-row')].every((r) => r.querySelector('.wl-h.gd-j .gem, .wl-h.gd-j .wl-seal') && r.querySelector('.wl-h.gd-m .gem, .wl-h.gd-m .wl-seal')), gold: document.querySelector('[data-k=gold]')?.innerText || '', nav: [...document.querySelectorAll('#nav a')].map((a) => a.dataset.p).join() }));
+  ok(gxv.rows >= 8 && gxv.halves && gxv.gold.includes('냥') && /guilds,jeongpa,magyo,gshop/.test(gxv.nav), `천하정세: 구역 ${gxv.rows}개 모두 왼쪽 정파·오른쪽 마교(엠블럼), 금고(냥) 공개, 메뉴 순서 천하정세·정파·마교·상점`);
+  ok(await A.evaluate(() => !!document.querySelector('#nav a[data-p=jeongpa] .gem.nvg') && !!document.querySelector('#nav a[data-p=magyo] .gem.nvg')), '왼쪽 메뉴 정파·마교에 문파 엠블럼');
+  await A.evaluate(async () => { const { S } = await import('/js/core.js'); await S.store.patch('meta', 'guild', { adj: { j: 1000, m: 0 } }); S.admin = true; }); await A.waitForTimeout(500);
+  await open(A, 'gshop', 1500);
+  const b0 = await A.evaluate(async () => (await import('/js/guild.js')).treasury().j.bal);
+  await A.click('[data-a=gsBuy][data-i=feast][data-g=j]'); await A.waitForTimeout(1500);
+  const b1 = await A.evaluate(async () => { const g = await import('/js/guild.js'); return { bal: g.treasury().j.bal, feast: g.fxOn('j', 'feast') }; });
+  ok(b1.bal === b0 - 150 && b1.feast && Object.values(be.db.gshop || {}).some((x) => x.item === 'feast' && x.g === 'j'), `상점: 관리자가 연회(150냥) 구매 → 금고 ${b0} → ${b1.bal}, 효과 켜짐, 구매 기록`);
+  await open(A, 'jeongpa', 1200);
+  ok(!!(await A.$('.gd-hero.feast .gd-lant')), '연회 효과: 정파 현판에 등불');
+  const buyer = Object.keys(P()).find((id) => P()[id].guild === 'm');
+  const bh = require('crypto').createHash('sha256').update(`naejeon:gacha:${buyer}:7777`).digest('hex'); be.seed('gacha', [{ id: buyer, pid: buyer, pinHash: bh }]);
+  await A.evaluate(async (id) => { const { S } = await import('/js/core.js'); await S.store.patch('meta', 'guild', { lead: { m: id }, adj: { j: 1000, m: 1000 } }); S.admin = false; sessionStorage.clear(); localStorage.setItem('naejeon:me:' + S.key, id); }, buyer); await A.waitForTimeout(500);
+  await open(A, 'gshop', 1500);
+  ok(await A.evaluate(() => document.querySelector('[data-a=gsBuy][data-i=pill][data-g=j]').disabled && !document.querySelector('[data-a=gsBuy][data-i=pill][data-g=m]').disabled), '천마는 마교 금고만 쓸 수 있음(정파 버튼 잠김)');
+  // 1280px에서는 열린 채팅창이 오른쪽을 덮어서 버튼을 직접 누름
+  await A.evaluate(() => document.querySelector('[data-a=gsBuy][data-i=pill][data-g=m]').click()); await A.waitForSelector('#gpin-i');  await A.fill('#gpin-i', '7777'); await A.click('#gpin .btn'); await A.waitForTimeout(1500);
+  ok(await A.evaluate(async () => (await import('/js/guild.js')).pill('m') === 1), '천마가 본인 PIN으로 영약 구매 → 마교 경지 보너스');
+  // 채팅 길드 탭 테마(크리스마스 장식 대신 문파 테마)
+  if (await A.evaluate(() => document.body.classList.contains('chat-closed'))) { await A.click('#chatfab'); await A.waitForTimeout(900); }
+  await A.evaluate(() => document.querySelector('#ch-tabs [data-t=m]').click()); await A.waitForTimeout(500);
+  ok(await A.evaluate(() => document.getElementById('chat').classList.contains('gt-m')), '채팅창 마교 탭: 마교 테마(gt-m)');
   // 휴대폰
   const Mo = await client(b, be, 'WORK', 'Mo', { ctx: await device(b, be, 'WORK', 'Mo', { viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true }) });
-  for (const h of ['jeongpa', 'magyo', 'admin/guild', 'me']) { await open(Mo, h, 1300); const w = await Mo.evaluate(() => document.documentElement.scrollWidth); ok(w <= 361, `휴대폰(360px) ${h} 가로 넘침 없음(${w})`); }
+  for (const h of ['guilds', 'jeongpa', 'magyo', 'gshop', 'admin/guild', 'me']) { await open(Mo, h, 1300); const w = await Mo.evaluate(() => document.documentElement.scrollWidth); ok(w <= 361, `휴대폰(360px) ${h} 가로 넘침 없음(${w})`); }
   const errs = [...A.errs, ...B.errs, ...Mo.errs, ...C.errs]; console.log('오류:', errs.join(' | ') || '없음'); ok(!errs.length, '페이지 오류 없음');
   await b.close();
 })();
