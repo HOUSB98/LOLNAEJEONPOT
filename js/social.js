@@ -406,11 +406,12 @@ function chTabs() {
   const el = document.getElementById('ch-tabs'); if (!el) return;
   const on = guildOn();
   if (!on && CT !== 'lobby') { GC?.leave(); CT = 'lobby'; }
-  const sig = on + CT; if (sig === tabSig) return; tabSig = sig;
+  const op = (k) => !!GC?.isOpen(k);
+  const sig = on + CT + op('j') + op('m'); if (sig === tabSig) return; tabSig = sig;
   el.hidden = !on;
   document.getElementById('chat').classList.toggle('gtab', CT !== 'lobby');
-  el.innerHTML = on ? [['lobby', '로비'], ['j', GUILDS.j.n], ['m', GUILDS.m.n]].map(([k, n]) => `<button role="tab" aria-selected="${CT === k}" class="ct-${k} ${CT === k ? 'on' : ''}" data-a="chTab" data-t="${k}">${k === 'lobby' ? '' : gem(k)}${n}${k !== 'lobby' ? '<i class="ct-lk" aria-hidden="true"></i>' : ''}</button>`).join('') : '';
-  const inp = document.getElementById('chatinp'); if (inp) inp.placeholder = CT === 'lobby' ? '메시지 입력…' : `${GUILDS[CT].n} 길드원에게만 보여요`;
+  el.innerHTML = on ? [['lobby', '로비'], ['j', GUILDS.j.n], ['m', GUILDS.m.n]].map(([k, n]) => `<button role="tab" aria-selected="${CT === k}" class="ct-${k} ${CT === k ? 'on' : ''}" data-a="chTab" data-t="${k}">${k === 'lobby' ? '' : gem(k)}${n}${k !== 'lobby' && !op(k) ? `<span class="ct-lk" title="비밀번호로 잠김">${ic('lock')}</span>` : ''}</button>`).join('') : '';
+  const inp = document.getElementById('chatinp'); if (inp) inp.placeholder = CT === 'lobby' ? '메시지 입력…' : `${GUILDS[CT].n} ${GUILDS[CT].mem}에게만 보여요`;
 }
 function gcRender(log) {
   const g = CT, atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 80 || log.dataset.ct !== g;
@@ -419,6 +420,7 @@ function gcRender(log) {
   document.getElementById('chat').classList.toggle('glock', !GC || GC.locked(g));
   if (atBottom) log.scrollTop = log.scrollHeight;
   if (GC && GC.locked(g)) document.getElementById('gcf-p')?.focus({ preventScroll: true });
+  chTabs(); // 잠금이 풀렸으면 탭의 자물쇠를 뗀다
 }
 act('chTab', async (d) => {
   const t = d.t; if (t === CT) return;

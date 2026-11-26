@@ -130,6 +130,11 @@ export function entryFx(g) {
   el.innerHTML = g === 'j'
     ? Array.from({ length: 16 }, (_, i) => `<i style="--x:${(i * 37 + 11) % 100}%;--d:${((i * 7) % 6) * 0.07}s;--r:${200 + ((i * 53) % 260)}deg;--s:${(0.7 + (i % 4) * 0.18).toFixed(2)};--dx:${-40 - ((i * 31) % 120)}px"></i>`).join('')
     : '<b></b>' + Array.from({ length: 9 }, (_, i) => `<i style="--x:${(i * 29 + 6) % 100}%;--d:${(i % 5) * 0.09}s;--s:${(0.8 + (i % 3) * 0.3).toFixed(2)}"></i>`).join('');
+  if (g === 'j') { // 꽃잎은 현판 영역 안에서만 흩날린다
+    const h = document.querySelector('.gd-hero')?.getBoundingClientRect();
+    if (!h || h.bottom < 0) return;
+    Object.assign(el.style, { left: h.left + 'px', top: h.top + 'px', width: h.width + 'px', height: h.height + 'px' }); el.style.setProperty('--h', Math.round(h.height + 20) + 'px');
+  }
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 1900);
 }

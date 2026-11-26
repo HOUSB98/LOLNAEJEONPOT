@@ -12,8 +12,8 @@ export const pname = (id) => esc(S.st?.P[id]?.name || S.store.data.players?.[id]
 // 소속은 players/{id}.guild('j'|'m'), 소속 기록은 players/{id}.glog [{g, at, by}](경기 당시 소속 계산용). 창설일·길드장·소개·공지·비밀번호 확인값은 meta/guild.
 // 이름 옆 작은 엠블럼 + 이름 밑줄(길드 색). 랭킹·채팅은 이름 글자도 길드 색(.gtint). 창설 전에는 아무것도 붙지 않는다
 export const GUILDS = {
-  j: { k: 'j', n: '정파', h: '正派', en: 'ORTHODOX SECTS', lead: '맹주', intro: '매화는 꺾이지 않는다. 정도(正道)를 걷는 자들의 문파' },
-  m: { k: 'm', n: '마교', h: '魔敎', en: 'DEMONIC CULT', lead: '교주', intro: '천마신교의 이름 아래, 오직 승리만을 숭상한다' },
+  j: { k: 'j', n: '정파', h: '正派', en: 'ORTHODOX SECTS', lead: '맹주', mem: '문도', intro: '매화는 꺾이지 않는다. 정도(正道)를 걷는 자들의 문파' },
+  m: { k: 'm', n: '마교', h: '魔敎', en: 'DEMONIC CULT', lead: '교주', mem: '교도', intro: '천마신교의 이름 아래, 오직 승리만을 숭상한다' },
 };
 export const GK = ['j', 'm'];
 export const GPAGE = { j: 'jeongpa', m: 'magyo' }; // 길드마다 다른 화면(주소 #/jeongpa · #/magyo)

@@ -62,9 +62,9 @@ export function html(g) {
   const sec = secOf(g), n = GUILDS[g].n;
   if (C.key && C.g === g && sec && +sec.at !== C.at) close(); // 관리자가 비밀번호를 새로 시작했으면 다시 잠금
   if (!sec?.wk) return `<div class="gc-lock"><b>${n} 채팅</b><p>관리자가 ${n} 비밀번호를 정하면 열려요.</p></div>`;
-  if (!isOpen(g)) return `<form class="gc-lock" id="gcf" data-g="${g}"><b>${n} 길드원 전용 채팅</b><p>길드 비밀번호를 넣어 주세요.<br><small>대화는 암호화되어 저장돼요.</small></p><input class="inp" id="gcf-p" type="password" autocomplete="off" placeholder="${n} 비밀번호" aria-label="${n} 비밀번호"><label class="mini"><input type="checkbox" id="gcf-r" checked> 이 기기에서 기억하기</label><button class="btn pri">입장</button></form>`;
-  const bar = `<div class="gc-bar g-${g}"><span>${n} 길드원 전용 · 암호화</span><button class="lnk" data-a="chGLock" title="이 기기에서 기억한 비밀번호 지우기">잠그기</button></div>`;
-  if (!C.msgs.length) return `${bar}<div class="cempty"><p>${n} 길드원만 보는 채팅이에요.<br>첫 이야기를 남겨 보세요.</p></div>`;
+  if (!isOpen(g)) return `<form class="gc-lock" id="gcf" data-g="${g}"><b>${n} ${GUILDS[g].mem} 전용 채팅</b><p>길드 비밀번호를 넣어 주세요.<br><small>대화는 암호화되어 저장돼요.</small></p><input class="inp" id="gcf-p" type="password" autocomplete="off" placeholder="${n} 비밀번호" aria-label="${n} 비밀번호"><label class="mini"><input type="checkbox" id="gcf-r" checked> 이 기기에서 기억하기</label><button class="btn pri">입장</button></form>`;
+  const bar = `<div class="gc-bar g-${g}"><span>${n} ${GUILDS[g].mem} 전용 · 암호화</span><button class="lnk" data-a="chGLock" title="이 기기에서 기억한 비밀번호 지우기">잠그기</button></div>`;
+  if (!C.msgs.length) return `${bar}<div class="cempty"><p>${n} ${GUILDS[g].mem}만 보는 채팅이에요.<br>첫 이야기를 남겨 보세요.</p></div>`;
   let prev = '', out = bar;
   for (const m of C.msgs) {
     const me = m.c === cid, who = (m.c || '') + m.n, head = who !== prev; prev = who;

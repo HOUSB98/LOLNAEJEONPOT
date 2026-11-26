@@ -14,7 +14,7 @@ import { notify } from './hook.js';
 
 // ---------- 화면 전용 스타일·글꼴(이 화면을 처음 열 때만 받음) ----------
 const HANJA = '正派魔敎天下爭霸武林盟主教一二三四季';
-const HEADS = '정파마교천하쟁패대항전길드원통산이번분기창설이후챔피언활용라인분포듀오최근경기흐름기록실연혁채팅게시판공지명예의전당문파경지맹주교주';
+const HEADS = '정파마교천하쟁패대항전길드원문도교도통산이번분기창설이후챔피언활용라인분포듀오최근경기흐름기록실연혁채팅게시판공지명예의전당문파경지맹주교주';
 let ASSETS = null, ASSET_OK = false; // 미리 받기(app.js LAZY_GET)로 모듈만 받을 때는 스타일·글꼴을 받지 않는다
 function loadAssets() {
   if (ASSETS) return ASSETS;
@@ -23,7 +23,7 @@ function loadAssets() {
   const p = new Promise((r) => { l.onload = l.onerror = r; setTimeout(r, 1500); });
   document.head.appendChild(l);
   const f = document.createElement('link'); f.rel = 'stylesheet';
-  f.href = 'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Song+Myung&display=swap&text=' + encodeURIComponent([...new Set(HANJA + HEADS + '0123456789')].join(''));
+  f.href = 'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Song+Myung&display=swap&text=' + encodeURIComponent([...new Set(HANJA + HEADS + '0123456789.%—')].join(''));
   document.head.appendChild(f);
   return (ASSETS = p.then(() => { ASSET_OK = true; }));
 }
@@ -133,7 +133,7 @@ const tchips = (ts) => (ts || []).map((t) => `<span class="gd-tt" title="${esc(t
 
 // ---------- 화면 상태 ----------
 const V = { g: '', mode: '' };
-const MODES = [['q', '이번 분기'], ['all', '창설 이후'], ['car', '길드원 통산']];
+const MODES = [['q', '이번 분기'], ['all', '창설 이후'], ['car', '통산']]; // 통산 = 지금 문도·교도의 전체 기록(화면에는 '문도 통산'·'교도 통산')
 const gName = (g) => GUILDS[g].n;
 const introOf = (g) => guildMeta()?.intro?.[g] || GUILDS[g].intro;
 const leadOf = (g) => { const id = guildMeta()?.lead?.[g]; return id && S.store.data.players?.[id] && !S.store.data.players[id].deleted ? id : ''; };
@@ -157,17 +157,18 @@ function guildPage(g) {
     const rl = realm(all[g].w), tt = gTitles(g), lead = leadOf(g);
     return `<div class="gd gd-${g}">
       ${joinCard()}
-      <section class="gd-hero" data-k="hero">${drift(g)}<span class="gd-wm" aria-hidden="true">${GUILDS[g].h}</span>${mine === g ? '<em class="gd-mine">내 문파</em>' : ''}<a class="gd-other" href="${ghref(other(g))}">${gem(other(g))}${gName(other(g))} 보기 ›</a>
+      <section class="gd-hero" data-k="hero">${drift(g)}${mine === g ? '<em class="gd-mine">내 문파</em>' : ''}<a class="gd-other" href="${ghref(other(g))}">${gem(other(g))}${gName(other(g))} 보기 ›</a>
         <div class="gd-seal">${seal(g, rl.lv)}</div>
         <div class="gd-id"><small class="gd-en">${GUILDS[g].en}</small><h1><span class="gd-hj">${GUILDS[g].h}</span>${gName(g)}</h1>
           <p class="gd-intro">${esc(introOf(g))}</p>
-          <div class="gd-meta"><span>${GUILDS[g].lead} <b>${lead ? gname(lead) : '미정'}</b></span><span>길드원 <b>${members.length}</b>명</span><span>창설 <b>${fmtDay(dayKey(+guildMeta().at))}</b></span></div>
-          <div class="gd-realm" title="창설 뒤 길드 누적 ${all[g].w}승"><span>경지</span><b>${rl.n}</b><i><u style="width:${Math.round(rl.p * 100)}%"></u></i><small>${rl.next ? `${rl.next}까지 ${rl.need}승` : '최고 경지'}</small></div></div>
-        <div class="gd-rec"><div class="gd-modes" role="tablist">${MODES.map(([k, n]) => `<button role="tab" aria-selected="${k === V.mode}" class="${k === V.mode ? 'on' : ''}" data-a="gdMode" data-m="${k}">${n}</button>`).join('')}</div>
+</div>
+        <div class="gd-rec"><div class="gd-modes" role="tablist">${MODES.map(([k, n]) => `<button role="tab" aria-selected="${k === V.mode}" class="${k === V.mode ? 'on' : ''}" data-a="gdMode" data-m="${k}">${k === 'car' ? GUILDS[g].mem + ' ' : ''}${n}</button>`).join('')}</div>
           <div class="gd-big"><b class="mono">${d.w}</b><small>승</small><b class="mono">${d.g - d.w}</b><small>패</small></div>
-          <div class="gd-wr"><b class="mono">${d.g ? (d.w / d.g * 100).toFixed(1) : '—'}</b>${d.g ? '<small>%</small>' : ''}<span>${V.mode === 'q' ? qName(D.q) : V.mode === 'all' ? '창설 이후' : '지금 길드원 전체 기록'}</span></div></div>
+          <div class="gd-wr"><b class="mono">${d.g ? (d.w / d.g * 100).toFixed(1) : '—'}</b>${d.g ? '<small>%</small>' : ''}<span>${V.mode === 'q' ? qName(D.q) : V.mode === 'all' ? '창설 이후' : `지금 ${GUILDS[g].mem} 전체 기록`}</span></div></div>
       </section>
-      ${V.mode !== 'car' && !d.g ? `<p class="gd-note" data-k="note">${ic('scroll')}${V.mode === 'q' ? '이번 분기' : '창설 후'} 길드원이 뛴 경기가 기록되면 공식 기록이 시작돼요. 지금은 <button class="lnk" data-a="gdMode" data-m="car">길드원 통산</button>으로 전력을 볼 수 있어요.</p>` : ''}
+      <div class="gd-strip" data-k="st"><div class="gd-meta"><span>${GUILDS[g].lead} <b>${lead ? gname(lead) : '미정'}</b></span><span>${GUILDS[g].mem} <b>${members.length}</b>명</span><span>창설 <b>${fmtDay(dayKey(+guildMeta().at))}</b></span></div>
+          <div class="gd-realm" title="창설 뒤 길드 누적 ${all[g].w}승"><span>경지</span><b>${rl.n}</b><i><u style="width:${Math.round(rl.p * 100)}%"></u></i><small>${rl.next ? `${rl.next}까지 ${rl.need}승` : '최고 경지'}</small></div></div>
+      ${V.mode !== 'car' && !d.g ? `<p class="gd-note" data-k="note">${ic('scroll')}${V.mode === 'q' ? '이번 분기' : '창설 후'} ${GUILDS[g].mem}가 뛴 경기가 기록되면 공식 기록이 시작돼요. 지금은 <button class="lnk" data-a="gdMode" data-m="car">${GUILDS[g].mem} 통산</button>으로 전력을 볼 수 있어요.</p>` : ''}
       ${kpis(g, d, members)}
       <div class="gd-row r1">${boardPanel(g)}${noticePanel(g, members, tt)}</div>
       <div class="gd-row r1">${warPanel(g, D)}${historyPanel(g)}</div>
@@ -194,11 +195,13 @@ function kpis(g, d, members) {
   const mm = members.map((id) => S.st.P[id]?.mmr).filter(Boolean), avgM = mm.length ? Math.round(mm.reduce((a, b) => a + b, 0) / mm.length) : 0;
   const kd = d.kdaG ? ((d.kda[0] + d.kda[2]) / Math.max(1, d.kda[1])).toFixed(2) : '—';
   const per = members.length ? (d.g / members.length).toFixed(1) : '0';
-  const items = [['판수', d.g, '길드원 출전 합계'], ['승률', wrs(d), '승 ÷ 판'], ['평균 MMR', avgM || '—', '지금 길드원'], ['평균 KDA', kd, `KDA 기록 ${d.kdaG}판`], ['1인당 판수', per, '판수 ÷ 길드원'], ['이번 주', d.week.g ? `${d.week.w}승 ${d.week.g - d.week.w}패` : '—', '월요일부터']];
+  const M = GUILDS[g].mem;
+  const items = [['판수', d.g, `${M} 출전 합계`], ['승률', wrs(d), '승 ÷ 판'], ['평균 MMR', avgM || '—', `지금 ${M}`], ['평균 KDA', kd, `KDA 기록 ${d.kdaG}판`], ['1인당 판수', per, `판수 ÷ ${M}`], ['이번 주', d.week.g ? `${d.week.w}승 ${d.week.g - d.week.w}패` : '—', '월요일부터']];
   return `<div class="gd-kp" data-k="kp">${items.map(([a, b, c]) => `<div><small>${a}</small><b class="mono">${b}</b><span>${c}</span></div>`).join('')}</div>`;
 }
 const ph = (hj, t, extra = '') => `<div class="gp-h"><i class="gp-hj" aria-hidden="true">${hj}</i><b>${t}</b>${extra}</div>`;
-const none = (t) => `<p class="gp-none">${t}</p>`;
+const EMPTY = { j: '아직 고요한 수련장', m: '아직 피를 보지 못한 성채' }; // 빈 칸에도 문파 분위기
+const none = (t) => `<p class="gp-none">${V.g ? `${gem(V.g)}<b>${EMPTY[V.g]}</b>` : ''}<span>${t}</span></p>`;
 
 // 대항전(시즌 점수판·맞대결·길드전)
 function warPanel(g, D) {
@@ -220,7 +223,7 @@ function noticePanel(g, members, tt) {
   return `<section class="gp gp-ntc" data-k="ntc">${ph('令', '문파 공지', `<button class="btn ghost xs" data-a="gNotice" data-g="${g}" title="${GUILDS[g].lead}만 고칠 수 있어요">${ic('edit')}</button>`)}
     <blockquote class="gn-box">${n?.t ? `${esc(n.t).replace(/\n/g, '<br>')}<small>${GUILDS[g].lead} · ${fmtDay(dayKey(+n.at))}</small>` : `<span class="mut">아직 공지가 없어요. ${GUILDS[g].lead}가 공지를 남길 수 있어요.</span>`}</blockquote>
     ${ph('榜', '문파 순위', `<small class="gp-s">보정 승률 · ${minG}판 이상</small>`)}
-    ${top.length ? `<ol class="gt-rank">${top.map((r, i) => `<li><i class="mono">${i + 1}</i><span>${gname(r.id)}${tchips(tt[r.id])}</span><b class="mono">${pct(r.w, r.g)}%</b><small>${r.w}승 ${r.g - r.w}패</small></li>`).join('')}</ol>` : none('자격 판수를 채운 길드원이 아직 없어요.')}
+    ${top.length ? `<ol class="gt-rank">${top.map((r, i) => `<li><i class="mono">${i + 1}</i><span>${gname(r.id)}${tchips(tt[r.id])}</span><b class="mono">${pct(r.w, r.g)}%</b><small>${r.w}승 ${r.g - r.w}패</small></li>`).join('')}</ol>` : none(`자격 판수를 채운 ${GUILDS[g].mem}가 아직 없어요.`)}
   </section>`;
 }
 function champPanel(g, d, o) {
@@ -252,7 +255,7 @@ function duoPanel(g, d) {
 function feedPanel(g, d) {
   const list = d.feed.slice(0, 7);
   return `<section class="gp gp-feed" data-k="feed">${ph('戰', '최근 경기')}
-    ${list.length ? `<ul class="gf-list">${list.map((x) => { const all = x.win && !x.lose ? 'w' : x.lose && !x.win ? 'l' : 'mx'; return `<li class="${all}"><span class="gf-d mono">${fmtDay(dayKey(x.m.at)).slice(5)}</span><b>${all === 'w' ? '승' : all === 'l' ? '패' : '내전'}</b><span class="gf-p">${x.ids.map(([id, side, i]) => `<span class="${x.m.winner === side ? 'w' : 'l'}">${champIcon(x.m.champs?.[side]?.[i] || '', 'xs')}${esc(nameOf(id))}</span>`).join('')}</span></li>`; }).join('')}</ul>` : none('길드원이 뛴 경기가 여기에 쌓여요.')}
+    ${list.length ? `<ul class="gf-list">${list.map((x) => { const all = x.win && !x.lose ? 'w' : x.lose && !x.win ? 'l' : 'mx'; return `<li class="${all}"><span class="gf-d mono">${fmtDay(dayKey(x.m.at)).slice(5)}</span><b>${all === 'w' ? '승' : all === 'l' ? '패' : '내전'}</b><span class="gf-p">${x.ids.map(([id, side, i]) => `<span class="${x.m.winner === side ? 'w' : 'l'}">${champIcon(x.m.champs?.[side]?.[i] || '', 'xs')}${esc(nameOf(id))}</span>`).join('')}</span></li>`; }).join('')}</ul>` : none(`${GUILDS[g].mem}가 뛴 경기가 여기에 쌓여요.`)}
   </section>`;
 }
 function flowPanel(g, d) {
@@ -264,7 +267,7 @@ function flowPanel(g, d) {
 function memberPanel(g, d, members, tt) {
   const rows = members.map((id) => ({ id, s: S.st.P[id], v: d.mem[id] || { g: 0, w: 0 } })).sort((a, b) => b.v.g - a.v.g || (b.s?.mmr || 0) - (a.s?.mmr || 0));
   const tw = d.w || 1;
-  return `<section class="gp gp-mem" data-k="mem">${ph('門', '길드원', `<small class="gp-s">${members.length}명 · 기여도 = 길드 승리 중 내 승리</small>`)}
+  return `<section class="gp gp-mem" data-k="mem">${ph('門', GUILDS[g].mem, `<small class="gp-s">${members.length}명 · 기여도 = 길드 승리 중 내 승리</small>`)}
     <div class="gm-grid">${rows.map(({ id, s, v }) => { const ch = s ? cardChamp(s) : ''; return `<a class="gm-c" href="#/players/${id}" style="--img:url('${ch ? artUrl(ch) : ''}')"><span class="gm-top">${gname(id)}${leadOf(g) === id ? `<em class="gm-ld">${GUILDS[g].lead}</em>` : ''}</span><span class="gm-tt">${tchips((tt[id] || []).filter((t) => t.n !== GUILDS[g].lead))}</span>
       <span class="gm-st"><b class="mono">${wrs(v)}</b><small>${v.g}판${v.g ? ` · 기여 ${Math.round(v.w / tw * 100)}%` : ''}</small></span><span class="gm-ft">${s ? `${LANE_ICON[s.mainLane] || ''}<small class="mono">MMR ${Math.round(s.mmr)}</small>${dots(s.recent)}` : ''}</span></a>`; }).join('')}</div>
   </section>`;
@@ -358,7 +361,7 @@ act('gNotice', async (d) => {
   else return toast(lead ? `${GUILDS[g].lead}(${nameOf(lead)})만 공지를 고칠 수 있어요` : `아직 ${GUILDS[g].lead}가 없어요. 관리자가 정해요`);
   if (!ok) return;
   const cur = guildMeta()?.notice?.[g]?.t || '';
-  const el = modal(`${mh(`${gName(g)} 공지`)}<form id="gnf" class="col"><textarea class="inp" id="gnf-t" rows="4" maxlength="300" placeholder="길드원에게 전할 말">${esc(cur)}</textarea><button class="btn pri">저장</button></form>`);
+  const el = modal(`${mh(`${gName(g)} 공지`)}<form id="gnf" class="col"><textarea class="inp" id="gnf-t" rows="4" maxlength="300" placeholder="${GUILDS[g].mem}에게 전할 말">${esc(cur)}</textarea><button class="btn pri">저장</button></form>`);
   el.querySelector('#gnf').addEventListener('submit', async (e) => {
     e.preventDefault();
     try { await S.store.patch('meta', 'guild', { notice: { [g]: { t: el.querySelector('#gnf-t').value.trim().slice(0, 300), at: Date.now(), by: me || 'admin' } } }); closeModal(); toast('공지를 저장했어요'); } catch (err) { toast('저장 실패: ' + (err.code || err.message)); }
@@ -385,7 +388,7 @@ function boardPanel(g) {
       <ul class="gb-cm">${(p.cm || []).map((c) => `<li><b>${who(c)}</b><span>${esc(c.t)}</span><small>${tm(c.at)}</small></li>`).join('')}</ul>
       <form class="row gb-cf" id="gbk" data-id="${p.id}"><input class="inp grow" id="gbk-t" maxlength="200" autocomplete="off" placeholder="댓글 달기" aria-label="댓글"><button class="btn">등록</button></form></article>`;
   } else if (BD.write) {
-    body = `<form class="col gb-new" id="gbf"><input class="inp" id="gbf-t" maxlength="60" placeholder="제목" aria-label="제목"><textarea class="inp" id="gbf-b" rows="5" maxlength="1000" placeholder="${gName(g)} 길드원에게 전하고 싶은 이야기" aria-label="내용"></textarea><div class="row"><button type="button" class="btn ghost" data-a="gbWrite">취소</button><span class="grow"></span><button class="btn pri">글 올리기</button></div></form>`;
+    body = `<form class="col gb-new" id="gbf"><input class="inp" id="gbf-t" maxlength="60" placeholder="제목" aria-label="제목"><textarea class="inp" id="gbf-b" rows="5" maxlength="1000" placeholder="${gName(g)} ${GUILDS[g].mem}에게 전하고 싶은 이야기" aria-label="내용"></textarea><div class="row"><button type="button" class="btn ghost" data-a="gbWrite">취소</button><span class="grow"></span><button class="btn pri">글 올리기</button></div></form>`;
   } else {
     body = BD.posts.length ? `<ul class="gb-list">${BD.posts.map((x, i) => `<li><button data-a="gbOpen" data-id="${x.id}"><i class="mono">${BD.posts.length - i}</i><b>${esc(x.t)}</b>${(x.cm || []).length ? `<em>${x.cm.length}</em>` : ''}<small>${who(x)} · ${tm(x.at)}</small></button></li>`).join('')}</ul>` : none(`${gName(g)} 게시판의 첫 글을 남겨 보세요. 작전·후기·잡담 무엇이든 좋아요.`);
   }
