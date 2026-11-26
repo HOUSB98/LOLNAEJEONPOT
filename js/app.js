@@ -238,7 +238,7 @@ const guildBar = (st) => {
   const t0 = +S.store.data.meta.guild.at, wk = (() => { const d = new Date(dayKey(Date.now()) + 'T12:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return dayKey(d.getTime() + 6 * 3600e3); })();
   let w = 0, n = 0;
   for (let i = st.matches.length - 1; i >= 0; i--) { const m = st.matches[i]; if (m.at < t0 || dayKey(m.at) < wk) break; ['blue', 'red'].forEach((sd) => m[sd].forEach((id) => { if (gAt(id, m.at) === g) { n++; if (m.winner === sd) w++; } })); }
-  return `<a class="gd-home g-${g}" href="${ghref(g)}">${gem(g)}<span><small>내 문파</small><b>${GUILDS[g].n}</b></span><span class="gh-k"><small>이번 주</small><b class="mono">${n ? `${w}승 ${n - w}패` : '아직 경기 없음'}</b></span><em>길드 보기 ›</em></a>`;
+  return `<a class="gd-home g-${g}" href="${ghref(g)}">${gem(g)}<span><small>내 문파</small><b>${GUILDS[g].n}</b></span><span class="gh-k"><small>이번 주</small><b class="mono">${n ? `${w}승 ${n - w}패` : '아직 경기 없음'}</b></span><em>문파 보기 ›</em></a>`;
 };
 page('home', {
   render() {
@@ -692,7 +692,7 @@ function onStore(c) {
     if (ch.scorelog && (S.page === 'home' || S.page === 'scores')) refresh();
     if (ch.pause) checkPause();
     if (ch.recruit) onRecruit();
-    if (ch.guild) refresh(true); // 길드 창설·공지·길드장: 이름 옆 엠블럼과 길드 화면
+    if (ch.guild) refresh(true); // 문파 창설·공지·문파장: 이름 옆 엠블럼과 문파 화면
     return;
   }
   if (c === 'posts') { watchPosts(); postsChanged(); if (S.page === 'talk') refresh(); return; }
@@ -836,17 +836,17 @@ function noticePop() {
     clearInterval(t);
     try { sessionStorage.setItem(k, '1'); } catch {}
     const mine = (() => { try { const id = localStorage.getItem('naejeon:me:' + S.key); return gOf(id); } catch { return ''; } })();
-    const el = modal(`<div class="np-pop"><div class="npp-top">${gem('j')}<i>VS</i>${gem('m')}</div><small class="npp-k">NOTICE · 길드 창설</small>
+    const el = modal(`<div class="np-pop"><div class="npp-top">${gem('j')}<i>VS</i>${gem('m')}</div><small class="npp-k">NOTICE · 문파 창설</small>
       <h2>정파 · 마교, 두 문파가 열렸습니다</h2>
-      <p>오늘부터 NAEJEONPOT에 두 개의 길드 <b class="npp-j">정파</b>와 <b class="npp-m">마교</b>가 창설되었어요.</p>
+      <p>오늘부터 NAEJEONPOT에 두 개의 문파 <b class="npp-j">정파</b>와 <b class="npp-m">마교</b>가 창설되었어요.</p>
       <ul><li>모든 소환사는 두 문파 중 한 곳에 소속되고, 이름 옆에 문파 엠블럼이 표시돼요.</li>
-        <li>길드 페이지에서 문파 전적 · 대항전 · 챔피언 활용 · 명예의 전당을 확인할 수 있어요.</li>
-        <li>채팅창의 <b>정파 · 마교 탭</b>에서 길드원끼리만 대화할 수 있어요(길드 비밀번호).</li>
-        <li>길드 페이지에는 길드원들이 함께 쓰는 게시판이 있어요.</li>
+        <li>문파 페이지에서 문파 전적 · 대항전 · 챔피언 활용 · 명예의 전당을 확인할 수 있어요.</li>
+        <li>채팅창의 <b>정파 · 마교 탭</b>에서 문파원끼리만 대화할 수 있어요(문파 비밀번호).</li>
+        <li>문파 페이지에는 문파원들이 함께 쓰는 게시판이 있어요.</li>
         <li>팀 구성하기에서 '정마대전'으로 문파끼리 맞붙을 수도 있어요.</li></ul>
       <p class="npp-s">내 문파는 홈의 '내 문파' 띠나 내 페이지에서 확인해 보세요.</p>
       <label class="mini"><input type="checkbox" id="npp-no"> 다시 보지 않기</label>
-      <div class="row npp-b"><button class="btn" data-a="nppClose">닫기</button><button class="btn pri" data-a="nppGo" data-h="${ghref(mine || 'j')}">${mine ? '내 문파 보러 가기' : '길드 보러 가기'}</button></div></div>`, 'np-popw');
+      <div class="row npp-b"><button class="btn" data-a="nppClose">닫기</button><button class="btn pri" data-a="nppGo" data-h="${ghref(mine || 'j')}">${mine ? '내 문파 보러 가기' : '문파 보러 가기'}</button></div></div>`, 'np-popw');
     el.querySelector('.btn.pri')?.focus({ preventScroll: true });
   }, 500);
 }

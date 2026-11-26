@@ -14,7 +14,7 @@ import { notify } from './hook.js';
 
 // ---------- 화면 전용 스타일·글꼴(이 화면을 처음 열 때만 받음) ----------
 const HANJA = '正派魔敎天下爭霸武林盟主教一二三四季';
-const HEADS = '정파마교천하쟁패대항전길드원문도교도통산이번분기창설이후챔피언활용라인분포듀오최근경기흐름기록실연혁채팅게시판공지명예의전당문파경지맹주교주';
+const HEADS = '가간강같개걷걸검게겨격결겼경계고골공과관광교구굵균그근글금기긴길까꺾께꾸꿀뀌나난남내냈냥넣년누눠눴뉴는늘능니님다단달담당대댓더도동돼되됨두뒤듀든들등때또뛴띄라람래러럼려력련렸로록류률르른를름리림마만많말맞매맨맹먼메면명모목못무묶문미밀바반받발배버번법별병보본볼부분불블비빨빼사삭산살삼샀상새생서섞선설성세소속송수순숭스습슷승시식신실싶쌓써쓰쓴쓸아안않알았애액야약어언없엇에엠여연열영예오올옮와외왼요용우운울워원월웠위유으은을음의이익인일읽입있자작잡장쟁저적전절점정제져조족좋주준줄중즌지직진질짝짠쪽차창채챔챠처천첫체초총최추출취칠칭킬타탭터템통트특팀팅파판패페평포표풍피필하한할함합항해했행향혁현혈형호홈화확활회효후흐히'; // 문파 화면의 고정 글자(제목·이름표·안내) 전부: 이 글자만 담은 아주 작은 붓글씨 글꼴을 받는다
 let ASSETS = null, ASSET_OK = false; // 미리 받기(app.js LAZY_GET)로 모듈만 받을 때는 스타일·글꼴을 받지 않는다
 function loadAssets() {
   if (ASSETS) return ASSETS;
@@ -23,7 +23,7 @@ function loadAssets() {
   const p = new Promise((r) => { l.onload = l.onerror = r; setTimeout(r, 1500); });
   document.head.appendChild(l);
   const f = document.createElement('link'); f.rel = 'stylesheet';
-  f.href = 'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Song+Myung&display=swap&text=' + encodeURIComponent([...new Set(HANJA + HEADS + '0123456789.%—')].join(''));
+  f.href = 'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Song+Myung&display=swap&text=' + encodeURIComponent([...new Set(HANJA + HEADS + '0123456789.%—·' + GK.map((g) => (guildMeta()?.intro?.[g] || '') + (guildMeta()?.notice?.[g]?.t || '')).join(''))].join(''));
   document.head.appendChild(f);
   return (ASSETS = p.then(() => { ASSET_OK = true; }));
 }
@@ -153,7 +153,7 @@ export const assetsOk = () => ASSET_OK;
 
 // 길드 칭호(창설 이후 기록): 맹주/교주 · 승률 1위 · 최다 승 · 최다 출전 · 최다 연승
 const TT = { j: ['무림맹주', '검선', '검성', '호법검', '질풍검'], m: ['천마', '마검', '혈마', '혈위', '광마'] };
-const TD = ['길드장', '길드 보정 승률 1위(창설 이후, 자격 판수 이상)', '길드 최다 승', '길드 최다 출전', '길드 최다 연승(3연승 이상)'];
+const TD = ['문파장', '문파 보정 승률 1위(창설 이후, 자격 판수 이상)', '문파 최다 승', '문파 최다 출전', '문파 최다 연승(3연승 이상)'];
 export function gTitles(g) {
   const out = {}, add = (id, k) => { if (id) (out[id] ||= []).push({ n: TT[g][k], d: TD[k] }); };
   add(guildMeta()?.lead?.[g], 0);
@@ -178,7 +178,7 @@ const leadOf = (g) => { const id = guildMeta()?.lead?.[g]; return id && S.store.
 
 // 정파(#/jeongpa)·마교(#/magyo)는 각각 다른 화면. 예전 주소 #/guild, #/guild/j 는 해당 화면으로 넘긴다(디스코드 알림 링크 등)
 page('guild', {
-  title: '길드',
+  title: '문파',
   render(arg) { const g = GUILDS[arg] ? arg : gOf(meId()) || 'j'; setTimeout(() => location.replace(ghref(g)), 0); return '<div class="panel empty lazy-wait">불러오는 중…</div>'; },
 });
 for (const G of GK) page(GPAGE[G], { keyed: true, title: GUILDS[G].n, render: () => guildPage(G), after(entering) { if (entering && guildOn()) loadAssets().then(() => { if (S.page === GPAGE[G]) entryFx(G); }); } });
@@ -205,7 +205,7 @@ function guildPage(g) {
           <div class="gd-wr"><b class="mono">${d.g ? (d.w / d.g * 100).toFixed(1) : '—'}</b>${d.g ? '<small>%</small>' : ''}<span>${V.mode === 'q' ? qName(D.q) : V.mode === 'all' ? '창설 이후' : `지금 ${GUILDS[g].mem} 전체 기록`}</span></div></div>
       </section>
       <div class="gd-strip" data-k="st"><div class="gd-meta"><span>${GUILDS[g].lead} <b>${lead ? gname(lead) : '미정'}</b></span><span>${GUILDS[g].mem} <b>${members.length}</b>명</span><span>창설 <b>${fmtDay(dayKey(+guildMeta().at))}</b></span><a class="gd-gold" href="#/gshop" title="문파 금고 · 상점">금고 <b>${money(treasury()[g].bal)}</b></a></div>
-          <div class="gd-realm" title="창설 뒤 길드 누적 ${all[g].w}승${pill(g) ? ` + 영약 ${pill(g) * 10}승` : ''}"><span>경지</span><b>${rl.n}</b><i><u style="width:${Math.round(rl.p * 100)}%"></u></i><small>${rl.next ? `${rl.next}까지 ${rl.need}승` : '최고 경지'}</small></div></div>
+          <div class="gd-realm" title="창설 뒤 문파 누적 ${all[g].w}승${pill(g) ? ` + 영약 ${pill(g) * 10}승` : ''}"><span>경지</span><b>${rl.n}</b><i><u style="width:${Math.round(rl.p * 100)}%"></u></i><small>${rl.next ? `${rl.next}까지 ${rl.need}승` : '최고 경지'}</small></div></div>
       ${V.mode !== 'car' && !d.g ? `<p class="gd-note" data-k="note">${ic('scroll')}${V.mode === 'q' ? '이번 분기' : '창설 후'} ${GUILDS[g].mem}가 뛴 경기가 기록되면 공식 기록이 시작돼요. 지금은 <button class="lnk" data-a="gdMode" data-m="car">${GUILDS[g].mem} 통산</button>으로 전력을 볼 수 있어요.</p>` : ''}
       ${kpis(g, d, members)}
       <div class="gd-row r1">${boardPanel(g)}${noticePanel(g, members, tt)}</div>
@@ -219,7 +219,7 @@ function guildPage(g) {
 }
 
 function notYet() {
-  return `<div class="panel empty gd-wait">${gem('j')}${gem('m')}<h2>정파 · 마교</h2><p>관리자가 길드를 창설하면 열려요.</p>${isAdmin() ? '<a class="btn gold" href="#/admin/guild">길드 창설하러 가기</a>' : ''}</div>`;
+  return `<div class="panel empty gd-wait">${gem('j')}${gem('m')}<h2>정파 · 마교</h2><p>관리자가 문파를 창설하면 열려요.</p>${isAdmin() ? '<a class="btn gold" href="#/admin/guild">문파 창설하러 가기</a>' : ''}</div>`;
 }
 // 아직 길드가 없는 '나'(새로 온 사람): 인원이 같으면 고르고, 다르면 적은 쪽으로 정해짐
 function joinCard() {
@@ -250,7 +250,7 @@ function warPanel(g, D) {
   return `<section class="gp gp-war" data-k="war">${ph('爭', '천하쟁패 · 대항전', `<small class="gp-s">${qName(q.q)} 시즌</small>`)}${ch.map((G) => `<p class="gw-chal">⚔️ <b>${gName(G)}</b>이(가) ${gName(other(G))}에 정마대전 도전장을 보냈어요</p>`).join('')}
     <div class="gw-board"><div class="gw-s s-j ${j > m ? 'lead' : ''}">${gem('j')}<b class="mono">${j}</b><small>정파</small></div><div class="gw-mid"><i style="--p:${tot ? Math.round(j / tot * 100) : 50}%"></i><small>${tot ? `대항전 ${tot}판` : '이번 시즌 대항전 없음'}</small></div><div class="gw-s s-m ${m > j ? 'lead' : ''}"><b class="mono">${m}</b>${gem('m')}<small>마교</small></div></div>
     <div class="gw-sub"><span>창설 이후 맞대결 <b class="mono">${all.j.war.w} : ${all.m.war.w}</b></span><span>정마대전 <b class="mono">${gwj} : ${gwm}</b></span><span>${gName(g)} 최다 연승 <b class="mono">${all[g].warMax}</b></span></div>
-    ${recent.length ? `<ul class="gw-list">${recent.map((x) => `<li class="${x.wg === g ? 'w' : 'l'}"><span class="gw-d">${fmtDay(dayKey(x.m.at)).slice(5)}</span>${x.gw ? '<em class="gw-tag">정마대전</em>' : ''}<span>${gem(x.wg)}<b>${gName(x.wg)} 승</b></span><small>${x.merc ? `용병 ${x.merc}명` : '순수 대결'}</small></li>`).join('')}</ul>` : none('한 팀에 같은 길드가 3명 이상이고 상대 팀은 다른 길드가 다수이면 대항전으로 기록돼요.')}
+    ${recent.length ? `<ul class="gw-list">${recent.map((x) => `<li class="${x.wg === g ? 'w' : 'l'}"><span class="gw-d">${fmtDay(dayKey(x.m.at)).slice(5)}</span>${x.gw ? '<em class="gw-tag">정마대전</em>' : ''}<span>${gem(x.wg)}<b>${gName(x.wg)} 승</b></span><small>${x.merc ? `용병 ${x.merc}명` : '순수 대결'}</small></li>`).join('')}</ul>` : none('한 팀에 같은 문파가 3명 이상이고 상대 팀은 다른 문파가 다수이면 대항전으로 기록돼요.')}
   </section>`;
 }
 // 공지(길드장) + 길드 내 TOP
@@ -287,7 +287,7 @@ function duoPanel(g, d) {
   const ps = Object.entries(d.duo).map(([k, v]) => ({ ids: k.split('|'), ...v })).filter((x) => x.ids.every((id) => gOf(id) === g));
   const minD = Math.max(3, Math.ceil(Math.max(0, ...ps.map((x) => x.g)) * 0.3));
   const top = ps.filter((x) => x.g >= minD && x.w * 2 > x.g).sort((a, b) => bWr(b) - bWr(a) || b.g - a.g).slice(0, 4);
-  return `<section class="gp gp-duo" data-k="duo">${ph('義', '길드 듀오', `<small class="gp-s">같은 팀 ${minD}판 이상</small>`)}
+  return `<section class="gp gp-duo" data-k="duo">${ph('義', '문파 듀오', `<small class="gp-s">같은 팀 ${minD}판 이상</small>`)}
     ${top.length ? `<ul class="gd-duo">${top.map((x, i) => `<li><i class="mono">${i + 1}</i><span>${gname(x.ids[0])}<em>+</em>${gname(x.ids[1])}</span><b class="mono">${pct(x.w, x.g)}%</b><small>${x.w}승 ${x.g - x.w}패</small></li>`).join('')}</ul>` : none('함께 이긴 기록이 쌓이면 최고의 짝이 나타나요.')}
   </section>`;
 }
@@ -304,7 +304,7 @@ function flowPanel(g, d) {
   </section>`;
 }
 // 문파 직위: 내전 통산 판수로 정한다(길드장은 무림맹주·천마). 단계가 오를수록 테두리가 진해진다
-export const RANKS = { j: [[0, '속가제자'], [20, '삼대제자'], [50, '이대제자'], [100, '일대제자'], [200, '장로']], m: [[0, '외당 신도'], [20, '내당 신도'], [50, '향주'], [100, '당주'], [200, '호법']] };
+export const RANKS = { j: [[0, '속가제자'], [80, '삼대제자'], [200, '이대제자'], [400, '일대제자'], [800, '장로']], m: [[0, '외당 신도'], [80, '내당 신도'], [200, '향주'], [400, '당주'], [800, '호법']] }; // 처음 기준(0·20·50·100·200)의 4배
 export function rankOf(g, id) {
   const n = S.st?.P[id]?.g || 0, R = RANKS[g] || RANKS.j;
   if (leadOf(g) === id) return { n: GUILDS[g].lead, lv: 5, games: n, next: '', need: 0 };
@@ -315,7 +315,7 @@ const rkChip = (g, id, cls = '') => { const r = rankOf(g, id); return `<em class
 function memberPanel(g, d, members, tt) {
   const rows = members.map((id) => ({ id, s: S.st.P[id], v: d.mem[id] || { g: 0, w: 0 }, r: rankOf(g, id) })).sort((a, b) => b.r.lv - a.r.lv || b.r.games - a.r.games);
   const tw = d.w || 1, dist = [...RANKS[g]].reverse().map(([, n]) => [n, rows.filter((x) => x.r.n === n).length]).filter(([, k]) => k);
-  return `<section class="gp gp-mem" data-k="mem">${ph('門', GUILDS[g].mem, `<small class="gp-s">${members.length}명 · 직위는 내전 통산 판수 · 기여도 = 길드 승리 중 내 승리</small>`)}
+  return `<section class="gp gp-mem" data-k="mem">${ph('門', GUILDS[g].mem, `<small class="gp-s">${members.length}명 · 직위는 내전 통산 판수 · 기여도 = 문파 승리 중 내 승리</small>`)}
     <div class="gd-rkd">${leadOf(g) ? `<span class="lv5">${GUILDS[g].lead} 1</span>` : ''}${dist.map(([n, k]) => { const lv = RANKS[g].findIndex((x) => x[1] === n); return `<span class="lv${lv}">${esc(n)} ${k}</span>`; }).join('')}<small>${RANKS[g].map(([n, t]) => `${t} ${n}판`).join(' · ')}</small></div>
     <div class="gm-grid">${rows.map(({ id, s, v }) => { const ch = s ? cardChamp(s) : ''; return `<a class="gm-c" href="#/players/${id}" style="--img:url('${ch ? artUrl(ch) : ''}')"><span class="gm-top">${gname(id)}${rkChip(g, id)}</span><span class="gm-tt">${fxOn(g, 'favor') && fxOf(g).favor.id === id ? `<span class="gd-tt fav">${FAVOR[g]}</span>` : ''}${tchips((tt[id] || []).filter((t) => t.n !== GUILDS[g].lead))}</span>
       <span class="gm-st"><b class="mono">${wrs(v)}</b><small>${v.g}판${v.g ? ` · 기여 ${Math.round(v.w / tw * 100)}%` : ''}</small></span><span class="gm-nx">${(() => { const r = rankOf(g, id); return r.next ? `통산 ${r.games}판 · ${esc(r.next)}까지 ${r.need}판` : `통산 ${r.games}판`; })()}</span><span class="gm-ft">${s ? `${LANE_ICON[s.mainLane] || ''}<small class="mono">MMR ${Math.round(s.mmr)}</small>${dots(s.recent)}` : ''}</span></a>`; }).join('')}</div>
@@ -508,40 +508,55 @@ export async function createGuilds(plan) {
     for (const g of GK) for (const id of plan[g]) await S.store.patch('players', id, { guild: g, glog: [{ g, at, by: 'init' }] });
     await S.store.patch('meta', 'guild', { at, lead: {}, intro: {}, notice: {}, sec: {}, keep: Object.fromEntries((plan.pairs || []).map((x) => [[...x].sort().join('|'), 1])) });
   });
-  sysChat(`⚔️ 정파 · 마교 창설! 정파 ${plan.j.length}명 · 마교 ${plan.m.length}명. 길드 메뉴에서 내 문파를 확인해 보세요`);
+  sysChat(`⚔️ 정파 · 마교 창설! 정파 ${plan.j.length}명 · 마교 ${plan.m.length}명. 문파 메뉴에서 내 문파를 확인해 보세요`);
 }
 export async function adminSet(id, g) { await setGuild(id, g, 'admin'); }
 export const GUILD_COLS = ['gchat_j', 'gchat_m', 'gboard_j', 'gboard_m'];
 
+// 큰 작업(창설·전체 다시 나누기)은 관리자 모드여도 PIN을 한 번 더 묻는다
+function pinAgain(why) {
+  return new Promise((res) => {
+    const el = modal(`${mh('관리자 PIN 확인')}<p class="mut">${esc(why)}</p><form class="row" id="gapin"><input class="inp grow" id="gapin-i" type="password" inputmode="numeric" autocomplete="off" placeholder="관리자 PIN" aria-label="관리자 PIN"><button class="btn pri">확인</button></form>`);
+    el.querySelector('#gapin-i').focus();
+    let done = false; const fin = (v) => { if (!done) { done = true; res(v); } };
+    new MutationObserver((_, ob) => { if (!document.getElementById('gapin')) { ob.disconnect(); fin(false); } }).observe(document.getElementById('modal'), { childList: true });
+    el.querySelector('#gapin').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const h = await sha(el.querySelector('#gapin-i').value.trim()), cur = S.store.data.meta?.settings?.pinHash;
+      if (!cur || h !== cur) return toast('PIN이 맞지 않아요');
+      fin(true); closeModal();
+    });
+  });
+}
 // ---------- 관리 > 길드 탭 ----------
 const GA = { pairs: [], plan: null };
 const opts = (sel = '') => live().slice().sort((a, b) => a.name.localeCompare(b.name, 'ko')).map((p) => `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
 const sumHTML = (s) => `<small class="mut">평균 MMR <b class="mono">${s.mmr}</b> · 최근 60일 출전 ${s.act}명 · ${LANES.map((l) => `${LANE_NAME[l]} ${s.lanes[l]}`).join(' ')}</small>`;
 export function guildAdminHTML() {
   if (!guildOn()) {
-    return `<div class="panel gadm"><div class="ph"><b>${ic('guild')}길드 창설</b><small class="mut">정파 · 마교</small></div>
+    return `<div class="panel gadm"><div class="ph"><b>${ic('guild')}문파 창설</b><small class="mut">정파 · 마교</small></div>
       <p class="sm">선수 ${live().length}명을 실력이 비슷하도록 자동으로 나눠요. 기준: 지금 MMR 평균, 최근 60일 출전자 수, 주라인 분포. 인원 차이는 1명 이하.</p>
-      <div class="ga-pair"><b class="sm">같은 길드로 묶기</b><select class="inp" id="ga-a">${opts()}</select><select class="inp" id="ga-b">${opts()}</select><button class="btn xs" data-a="gaPair">추가</button>
+      <div class="ga-pair"><b class="sm">같은 문파로 묶기</b><select class="inp" id="ga-a">${opts()}</select><select class="inp" id="ga-b">${opts()}</select><button class="btn xs" data-a="gaPair">추가</button>
         ${pairsNow().map(([a, b], i) => `<span class="chip">${esc(nameOf(a))} + ${esc(nameOf(b))} <button class="lnk" data-a="gaUnpair" data-i="${i}" aria-label="묶음 빼기">✕</button></span>`).join('')}</div>
       <div class="row wrapr"><button class="btn gold" data-a="gaPlan">${GA.plan ? '다시 섞기' : '자동 배정 미리보기'}</button>${GA.plan ? '<button class="btn pri" data-a="gaCreate">이대로 창설</button>' : ''}</div>
       ${GA.plan ? `<div class="ga-plan">${GK.map((g) => `<div class="ga-col g-${g}"><b>${gem(g)} ${gName(g)} ${GA.plan[g].length}명</b>${sumHTML(GA.plan[g === 'j' ? 'sj' : 'sm'])}<p>${GA.plan[g].map((id) => esc(nameOf(id))).join(', ')}</p></div>`).join('')}</div>` : ''}</div>`;
   }
   const un = live().filter((p) => !GUILDS[p.guild]), c = counts(), gm = guildMeta();
-  return `<div class="panel gadm"><div class="ph"><b>${ic('guild')}길드 관리</b><small class="mut">창설 ${fmtDay(dayKey(+gm.at))} · 정파 ${c.j}명 · 마교 ${c.m}명</small></div>
+  return `<div class="panel gadm"><div class="ph"><b>${ic('guild')}문파 관리</b><small class="mut">창설 ${fmtDay(dayKey(+gm.at))} · 정파 ${c.j}명 · 마교 ${c.m}명</small></div>
     ${un.length ? `<div class="ga-un"><b class="sm">${ic('alert')}문파가 없는 선수 ${un.length}명</b> ${un.map((p) => esc(p.name)).join(', ')} <button class="btn xs gold" data-a="gaAuto">인원이 적은 쪽으로 자동 배정</button></div>` : ''}
     <div class="ga-plan">${GK.map((g) => { const sec = gm.sec?.[g]; return `<div class="ga-col g-${g}"><b>${gem(g)} ${gName(g)}</b>
       <label class="fld"><span>한 줄 소개</span><textarea class="inp" id="ga-in-${g}" rows="2" maxlength="80">${esc(introOf(g))}</textarea></label><button class="btn xs" data-a="gaIntro" data-g="${g}">소개 저장</button>
-      <label class="fld"><span>${GUILDS[g].lead}(길드장 · 공지만 고칠 수 있음)</span><select class="inp" id="ga-ld-${g}"><option value="">없음</option>${live().filter((p) => p.guild === g).map((p) => `<option value="${p.id}" ${gm.lead?.[g] === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label><button class="btn xs" data-a="gaLead" data-g="${g}">길드장 저장</button>
+      <label class="fld"><span>${GUILDS[g].lead}(문파장 · 공지만 고칠 수 있음)</span><select class="inp" id="ga-ld-${g}"><option value="">없음</option>${live().filter((p) => p.guild === g).map((p) => `<option value="${p.id}" ${gm.lead?.[g] === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label><button class="btn xs" data-a="gaLead" data-g="${g}">문파장 저장</button>
       <label class="fld"><span>채팅 비밀번호(채팅창 ${GUILDS[g].n} 탭) ${sec?.wk ? '<em class="tag ok">설정됨</em>' : '<em class="tag">없음</em>'}</span>${sec?.wk ? `<input class="inp" id="ga-op-${g}" type="password" autocomplete="off" placeholder="지금 비밀번호(모르면 비워 두기)">` : ''}<input class="inp" id="ga-pw-${g}" type="password" autocomplete="new-password" placeholder="새 비밀번호(4자 이상)"></label><button class="btn xs" data-a="gaPw" data-g="${g}">비밀번호 저장</button>
-      <p class="hint">지금 비밀번호를 넣고 바꾸면 예전 글도 그대로 보여요. 비워 두고 바꾸면 길드 채팅이 새로 시작돼요(예전 대화는 아무도 못 읽음).</p>
+      <p class="hint">지금 비밀번호를 넣고 바꾸면 예전 글도 그대로 보여요. 비워 두고 바꾸면 문파 채팅이 새로 시작돼요(예전 대화는 아무도 못 읽음).</p>
       </div>`; }).join('')}</div></div>
     <div class="panel gadm"><div class="ph"><b>${ic('users')}인원 조정</b><small class="mut">정파 ${c.j}명 · 마교 ${c.m}명 · 누르면 바로 옮겨요(지난 경기는 예전 소속 그대로)</small></div>
       <div class="ga-roster">${live().slice().sort((a, b) => (a.guild || '').localeCompare(b.guild || '') || a.name.localeCompare(b.name, 'ko')).map((p) => `<div class="ga-r"><span>${gname(p.id)}</span><span class="ga-seg">${GK.map((G) => `<button class="g-${G} ${p.guild === G ? 'on' : ''}" data-a="gaSet" data-id="${p.id}" data-g="${G}" aria-pressed="${p.guild === G}">${gName(G)}</button>`).join('')}</span></div>`).join('')}</div>
-      <div class="ph"><b>전체 다시 나누기</b><small class="mut">창설 때처럼 실력 균형으로 모두 다시 배정(위 '같은 길드로 묶기' 짝 유지)</small></div>
+      <div class="ph"><b>전체 다시 나누기</b><small class="mut">창설 때처럼 실력 균형으로 모두 다시 배정(위 '같은 문파로 묶기' 짝 유지)</small></div>
       <div class="ga-pair">${pairsNow().map(([a, b], i) => `<span class="chip">${esc(nameOf(a))} + ${esc(nameOf(b))} <button class="lnk" data-a="gaUnpair" data-i="${i}" aria-label="묶음 빼기">✕</button></span>`).join('') || '<span class="mut sm">묶은 짝 없음</span>'}<select class="inp" id="ga-a">${opts()}</select><select class="inp" id="ga-b">${opts()}</select><button class="btn xs" data-a="gaPair">짝 추가</button></div>
       <div class="row wrapr"><button class="btn gold" data-a="gaPlan">${GA.plan ? '다시 섞기' : '다시 나누기 미리보기'}</button>${GA.plan ? '<button class="btn pri" data-a="gaReApply">이대로 다시 나누기</button>' : ''}</div>
-      ${GA.plan ? `<div class="ga-plan">${GK.map((g) => `<div class="ga-col g-${g}"><b>${gem(g)} ${gName(g)} ${GA.plan[g].length}명</b>${sumHTML(GA.plan[g === 'j' ? 'sj' : 'sm'])}<p>${GA.plan[g].map((id) => `${gOf(id) !== g ? '<b class="ga-mv">' : ''}${esc(nameOf(id))}${gOf(id) !== g ? '</b>' : ''}`).join(', ')}</p></div>`).join('')}</div><p class="hint">굵은 이름이 길드를 옮기는 사람이에요.</p>` : ''}
-      <p class="hint">길드원은 내 페이지·길드 화면에서 분기마다 한 번, 인원 차이가 2명 이하일 때만 스스로 옮길 수 있어요(본인 PIN 확인). 관리자는 여기서 언제든 옮길 수 있어요.</p></div>`;
+      ${GA.plan ? `<div class="ga-plan">${GK.map((g) => `<div class="ga-col g-${g}"><b>${gem(g)} ${gName(g)} ${GA.plan[g].length}명</b>${sumHTML(GA.plan[g === 'j' ? 'sj' : 'sm'])}<p>${GA.plan[g].map((id) => `${gOf(id) !== g ? '<b class="ga-mv">' : ''}${esc(nameOf(id))}${gOf(id) !== g ? '</b>' : ''}`).join(', ')}</p></div>`).join('')}</div><p class="hint">굵은 이름이 문파를 옮기는 사람이에요.</p>` : ''}
+      <p class="hint">문파원은 내 페이지·문파 화면에서 분기마다 한 번, 인원 차이가 2명 이하일 때만 스스로 옮길 수 있어요(본인 PIN 확인). 관리자는 여기서 언제든 옮길 수 있어요.</p></div>`;
 }
 // '같은 길드로 묶기' 짝: 창설 전에는 이 화면에서만, 창설 뒤에는 meta/guild.keep{'a|b':1}에 남겨 '전체 다시 나누기'에도 그대로 쓴다
 const pairsNow = () => (guildOn() ? Object.entries(guildMeta()?.keep || {}).filter(([, v]) => v).map(([k]) => k.split('|')) : GA.pairs);
@@ -550,6 +565,7 @@ act('gaUnpair', (d) => { GA.plan = null; if (!guildOn()) { GA.pairs.splice(+d.i,
 act('gaPlan', () => { GA.plan = balance(live().map((p) => p.id), pairsNow()); refresh(); });
 act('gaCreate', () => needAdmin(async () => {
   if (!GA.plan || guildOn()) return;
+  if (!(await pinAgain('문파 창설은 관리자 PIN을 한 번 더 확인해요.'))) return;
   if (!confirm(`정파 ${GA.plan.j.length}명 · 마교 ${GA.plan.m.length}명으로 창설할까요?`)) return;
   try { await createGuilds({ ...GA.plan, pairs: GA.pairs }); GA.plan = null; GA.pairs = []; toast('정파 · 마교를 창설했어요'); } catch (e) { toast('실패: ' + (e.code || e.message)); }
 }));
@@ -561,21 +577,22 @@ act('gaAuto', () => needAdmin(async () => {
   toast('배정했어요');
 }));
 act('gaIntro', (d) => needAdmin(async () => { await S.store.patch('meta', 'guild', { intro: { [d.g]: document.getElementById('ga-in-' + d.g).value.trim().slice(0, 80) } }); toast('소개를 저장했어요'); }));
-act('gaLead', (d) => needAdmin(async () => { await S.store.patch('meta', 'guild', { lead: { [d.g]: document.getElementById('ga-ld-' + d.g).value } }); toast('길드장을 저장했어요'); }));
+act('gaLead', (d) => needAdmin(async () => { await S.store.patch('meta', 'guild', { lead: { [d.g]: document.getElementById('ga-ld-' + d.g).value } }); toast('문파장을 저장했어요'); }));
 act('gaPw', (d) => needAdmin(async () => {
   const pw = document.getElementById('ga-pw-' + d.g).value, old = document.getElementById('ga-op-' + d.g)?.value || '';
   if (pw.length < 4) return toast('비밀번호는 4자 이상');
   const had = guildMeta()?.sec?.[d.g]?.wk;
-  if (had && !old && !confirm('지금 비밀번호 없이 바꾸면 예전 길드 채팅은 아무도 읽을 수 없게 돼요. 계속할까요?')) return;
-  try { const { setPassword } = await import('./gchat.js'); await setPassword(d.g, pw, old); toast('비밀번호를 저장했어요. 길드원에게 알려 주세요'); } catch (e) { toast(e.message); }
+  if (had && !old && !confirm('지금 비밀번호 없이 바꾸면 예전 문파 채팅은 아무도 읽을 수 없게 돼요. 계속할까요?')) return;
+  try { const { setPassword } = await import('./gchat.js'); await setPassword(d.g, pw, old); toast('비밀번호를 저장했어요. 문파원에게 알려 주세요'); } catch (e) { toast(e.message); }
 }));
 act('gaSet', (d) => needAdmin(async () => { if (gOf(d.id) === d.g) return; await setGuild(d.id, d.g, 'admin'); toast(`${nameOf(d.id)} → ${gName(d.g)}`); }));
 act('gaReApply', () => needAdmin(async () => {
   const plan = GA.plan; if (!plan) return;
+  if (!(await pinAgain('전체 다시 나누기는 관리자 PIN을 한 번 더 확인해요.'))) return;
   const mv = GK.flatMap((g) => plan[g].filter((id) => gOf(id) !== g).map((id) => [id, g]));
   if (!mv.length) { GA.plan = null; refresh(); return toast('바뀌는 사람이 없어요'); }
-  if (!confirm(`${mv.length}명의 길드를 바꿀까요? (정파 ${plan.j.length}명 · 마교 ${plan.m.length}명)`)) return;
-  try { await S.store.bulk(async () => { for (const [id, g] of mv) { const p = S.store.data.players[id]; await S.store.patch('players', id, { guild: g, glog: glogAdd(p, g, 'admin') }); } }); sysChat(`⚖️ 길드 인원을 다시 나눴어요 · 정파 ${plan.j.length}명 · 마교 ${plan.m.length}명`); GA.plan = null; toast(`${mv.length}명을 옮겼어요`); } catch (e) { toast('실패: ' + (e.code || e.message)); }
+  if (!confirm(`${mv.length}명의 문파를 바꿀까요? (정파 ${plan.j.length}명 · 마교 ${plan.m.length}명)`)) return;
+  try { await S.store.bulk(async () => { for (const [id, g] of mv) { const p = S.store.data.players[id]; await S.store.patch('players', id, { guild: g, glog: glogAdd(p, g, 'admin') }); } }); sysChat(`⚖️ 문파 인원을 다시 나눴어요 · 정파 ${plan.j.length}명 · 마교 ${plan.m.length}명`); GA.plan = null; toast(`${mv.length}명을 옮겼어요`); } catch (e) { toast('실패: ' + (e.code || e.message)); }
 }));
 act('gaMove', (d) => needAdmin(async () => { const g = gOf(d.id); if (!g || !confirm(`${nameOf(d.id)}님을 ${gName(other(g))}(으)로 옮길까요?`)) return; await setGuild(d.id, other(g), 'admin'); toast('옮겼어요'); }));
 
@@ -589,6 +606,6 @@ export function meStrip(id) {
   }
   const d = gData('all')[g], v = d.mem[id] || { g: 0, w: 0 }, rl = realm(rwins(g)), tt = gTitles(g)[id];
   return `<div class="me-gd g-${g}"><a class="me-gd-l" href="${ghref(g)}">${gem(g)}<span class="me-gd-t"><small>${GUILDS[g].en}</small><b>${gName(g)}</b></span></a>
-    <span class="me-gd-k"><small>길드 기여</small><b class="mono">${v.w}승${d.w ? ` · ${Math.round((v.w / d.w) * 100)}%` : ''}</b></span><span class="me-gd-k"><small>직위</small><b>${esc(rankOf(g, id).n)}</b></span><span class="me-gd-k"><small>문파 경지</small><b>${rl.n}</b></span>${tt ? `<span class="me-gd-tt">${tchips(tt)}</span>` : ''}
+    <span class="me-gd-k"><small>문파 기여</small><b class="mono">${v.w}승${d.w ? ` · ${Math.round((v.w / d.w) * 100)}%` : ''}</b></span><span class="me-gd-k"><small>직위</small><b>${esc(rankOf(g, id).n)}</b></span><span class="me-gd-k"><small>문파 경지</small><b>${rl.n}</b></span>${tt ? `<span class="me-gd-tt">${tchips(tt)}</span>` : ''}
     ${meId() === id ? '<button class="btn ghost xs me-gd-mv" data-a="gMove">문파 옮기기</button>' : ''}</div>`;
 }

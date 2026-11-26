@@ -18,7 +18,7 @@
 //   + 주간 결산(매주 금요일 저녁 8시)도 30분 예약 실행에서 시간이 됐는지 확인해 보낸다(Cron 추가 설정 필요 없음)
 
 // 버전: 이 파일을 고칠 때마다 올리고, 사이트 js/hook.js 의 WORKER_VER 도 같은 값으로 바꾼다(관리 화면이 비교해 '옛 버전' 경고를 띄움)
-const WORKER_VER = '2026-11-26b';
+const WORKER_VER = '2026-11-26c';
 const PROJECT = 'lolnaejeonpot';
 const API_KEY = 'AIzaSyBx9DdwpagQTZqFqkISJLPpRe7zHYKOgC0'; // Firebase 웹 API 키(공개값). 접근 권한은 LEAGUE_KEY와 Firestore 규칙이 정한다
 const LANES = ['top', 'jg', 'mid', 'adc', 'sup'];
@@ -244,7 +244,7 @@ async function guildMessage(env, id) {
   const last = Array.isArray(p?.glog) ? p.glog[p.glog.length - 1] : null;
   if (!p || p.deleted || !last || last.by === 'init' || Date.now() - (+last.at || 0) > 30 * 60e3 || !['j', 'm'].includes(p.guild)) return { ok: true, skipped: '합류 기록 없음' };
   const G = p.guild === 'j' ? { n: '정파', e: '🌸', c: 0xf59ac2 } : { n: '마교', e: '🔥', c: 0x4fe08f };
-  return discord(env, { embeds: [{ title: `${G.e} ${p.name}님이 ${G.n}에 합류했어요`, url: env.SITE_URL ? env.SITE_URL + '#/guild/' + p.guild : undefined, color: G.c, description: env.SITE_URL ? `👉 [${G.n} 길드 보기](${env.SITE_URL}#/guild/${p.guild})` : undefined, timestamp: new Date(+last.at).toISOString() }] });
+  return discord(env, { embeds: [{ title: `${G.e} ${p.name}님이 ${G.n}에 합류했어요`, url: env.SITE_URL ? env.SITE_URL + '#/guild/' + p.guild : undefined, color: G.c, description: env.SITE_URL ? `👉 [${G.n} 문파 보기](${env.SITE_URL}#/guild/${p.guild})` : undefined, timestamp: new Date(+last.at).toISOString() }] });
 }
 
 // 경기 결과: matches 문서를 읽어서 보낸다

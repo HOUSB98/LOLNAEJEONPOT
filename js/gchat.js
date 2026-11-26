@@ -38,7 +38,7 @@ async function use(g, raw, remember) {
   const sec = secOf(g);
   C.g = g; C.key = await dataKey(raw); C.at = +sec.at;
   if (remember) try { localStorage.setItem(LKK(g), JSON.stringify({ at: C.at, k: b64(raw) })); } catch {}
-  C.un = S.store.watchRecent('gchat_' + g, 60, (docs) => dec(docs).then((v) => { if (C.g !== g) return; C.msgs = v.reverse(); C.cb?.(); }), (e) => toast('길드 채팅 연결 오류: ' + (e.code || e.message)));
+  C.un = S.store.watchRecent('gchat_' + g, 60, (docs) => dec(docs).then((v) => { if (C.g !== g) return; C.msgs = v.reverse(); C.cb?.(); }), (e) => toast('문파 채팅 연결 오류: ' + (e.code || e.message)));
 }
 async function dec(docs) {
   const k = C.key; if (!k) return [];
@@ -62,7 +62,7 @@ export function html(g) {
   const sec = secOf(g), n = GUILDS[g].n;
   if (C.key && C.g === g && sec && +sec.at !== C.at) close(); // 관리자가 비밀번호를 새로 시작했으면 다시 잠금
   if (!sec?.wk) return `<div class="gc-lock"><b>${n} 채팅</b><p>관리자가 ${n} 비밀번호를 정하면 열려요.</p></div>`;
-  if (!isOpen(g)) return `<form class="gc-lock" id="gcf" data-g="${g}"><b>${n} ${GUILDS[g].mem} 전용 채팅</b><p>길드 비밀번호를 넣어 주세요.<br><small>대화는 암호화되어 저장돼요.</small></p><input class="inp" id="gcf-p" type="password" autocomplete="off" placeholder="${n} 비밀번호" aria-label="${n} 비밀번호"><label class="mini"><input type="checkbox" id="gcf-r" checked> 이 기기에서 기억하기</label><button class="btn pri">입장</button></form>`;
+  if (!isOpen(g)) return `<form class="gc-lock" id="gcf" data-g="${g}"><b>${n} ${GUILDS[g].mem} 전용 채팅</b><p>문파 비밀번호를 넣어 주세요.<br><small>대화는 암호화되어 저장돼요.</small></p><input class="inp" id="gcf-p" type="password" autocomplete="off" placeholder="${n} 비밀번호" aria-label="${n} 비밀번호"><label class="mini"><input type="checkbox" id="gcf-r" checked> 이 기기에서 기억하기</label><button class="btn pri">입장</button></form>`;
   const bar = `<div class="gc-bar g-${g}"><span>${n} ${GUILDS[g].mem} 전용 · 암호화</span><button class="lnk" data-a="chGLock" title="이 기기에서 기억한 비밀번호 지우기">잠그기</button></div>`;
   if (!C.msgs.length) return `${bar}<div class="cempty"><p>${n} ${GUILDS[g].mem}만 보는 채팅이에요.<br>첫 이야기를 남겨 보세요.</p></div>`;
   let prev = '', out = bar;
@@ -73,7 +73,7 @@ export function html(g) {
   return out;
 }
 export async function send(g, t) {
-  if (!isOpen(g)) { toast('길드 비밀번호를 먼저 넣어 주세요'); return false; }
+  if (!isOpen(g)) { toast('문파 비밀번호를 먼저 넣어 주세요'); return false; }
   const id = uid();
   try { await S.store.put('gchat_' + g, id, { at: Date.now(), x: await seal(C.key, te.encode(JSON.stringify({ n: nick() || '익명', t: String(t).slice(0, 300), c: cid }))), deleted: false }); return true; } catch (e) { toast('전송 실패: ' + (e.code || e.message)); return false; }
 }

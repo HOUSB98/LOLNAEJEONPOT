@@ -231,7 +231,7 @@ const setBadge = () => { const b = document.getElementById('chatbadge'); if (b) 
 export function renderChat(force) {
   const log = document.getElementById('chatlog'); if (!log) return;
   chTabs();
-  if (CT !== 'lobby' && isOpen()) return gcRender(log); // 길드 탭: 로비 대신 길드 채팅(로비 안 읽은 수는 탭을 바꿀 때 다시 셈)
+  if (CT !== 'lobby' && isOpen()) return gcRender(log); // 문파 탭: 로비 대신 문파 채팅(로비 안 읽은 수는 탭을 바꿀 때 다시 셈)
   // 채팅창이 닫혀 있으면(휴대폰 기본) 목록은 그리지 않고 안 읽은 숫자만 센다. 열 때 chatToggle 이 renderChat(true)로 그린다(첫 화면이 멈칫하지 않게)
   if (!isOpen()) { for (const m of msgs()) if (m.at > UN.at && m.cid !== cid) UN.ids.add(m.id); unread = UN.base + UN.ids.size; return setBadge(); }
   const list = msgs(), atBottom = force || log.scrollHeight - log.scrollTop - log.clientHeight < 80;
@@ -262,7 +262,7 @@ act('chatToggle', () => {
   clearTimeout(chatAnim); chat.classList.remove('opening', 'closing'); lz.classList.remove('opening', 'closing');
   const done = () => { chat.classList.remove('opening', 'closing'); lz.classList.remove('opening', 'closing'); b.classList.remove('chat-closing'); if (closing) b.classList.add('chat-closed'); };
   if (closing) chatRest(); else chatWant();
-  if (closing && CT !== 'lobby') { GC?.leave(); CT = 'lobby'; } // 닫으면 길드 채팅 구독도 끊고 로비로 // 열면 최근 20개를 받고(기기 캐시가 먼저 보임), 닫고 1분 뒤에는 최신 1개만
+  if (closing && CT !== 'lobby') { GC?.leave(); CT = 'lobby'; } // 닫으면 문파 채팅 구독도 끊고 로비로 // 열면 최근 20개를 받고(기기 캐시가 먼저 보임), 닫고 1분 뒤에는 최신 1개만
   if (!closing) b.classList.remove('chat-closed', 'chat-closing');
   else b.classList.add('chat-closing'); // 채팅창이 접히는 동안 본문도 함께 넓어진다(끝난 뒤 한 번에 튀지 않게)
   if (matchMedia('(min-width: 1281px)').matches) localStorage.setItem('naejeon:chatclosed', closing ? '1' : '0');
@@ -409,7 +409,7 @@ function chTabs() {
   const op = (k) => !!GC?.isOpen(k);
   const sig = on + CT + op('j') + op('m'); if (sig === tabSig) return; tabSig = sig;
   el.hidden = !on;
-  const ch = document.getElementById('chat'); ch.classList.toggle('gtab', CT !== 'lobby'); ch.classList.toggle('gt-j', CT === 'j'); ch.classList.toggle('gt-m', CT === 'm'); // 길드 탭: 크리스마스 장식 대신 문파 테마
+  const ch = document.getElementById('chat'); ch.classList.toggle('gtab', CT !== 'lobby'); ch.classList.toggle('gt-j', CT === 'j'); ch.classList.toggle('gt-m', CT === 'm'); // 문파 탭: 크리스마스 장식 대신 문파 테마
   el.innerHTML = on ? [['lobby', '로비'], ['j', GUILDS.j.n], ['m', GUILDS.m.n]].map(([k, n]) => `<button role="tab" aria-selected="${CT === k}" class="ct-${k} ${CT === k ? 'on' : ''}" data-a="chTab" data-t="${k}">${k === 'lobby' ? '' : gem(k)}${n}${k !== 'lobby' && !op(k) ? `<span class="ct-lk" title="비밀번호로 잠김">${ic('lock')}</span>` : ''}</button>`).join('') : '';
   const inp = document.getElementById('chatinp'); if (inp) inp.placeholder = CT === 'lobby' ? '메시지 입력…' : `${GUILDS[CT].n} ${GUILDS[CT].mem}에게만 보여요`;
 }
@@ -432,4 +432,4 @@ act('chTab', async (d) => {
   if (CT !== t) return;
   GC.enter(t, () => { if (CT === t) renderChat(true); });
 });
-act('chGLock', () => { if (CT !== 'lobby') { GC?.lock(CT); renderChat(true); toast('이 기기에서 길드 채팅을 잠갔어요'); } });
+act('chGLock', () => { if (CT !== 'lobby') { GC?.lock(CT); renderChat(true); toast('이 기기에서 문파 채팅을 잠갔어요'); } });

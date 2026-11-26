@@ -39,7 +39,7 @@ function mergeDraftChanges(base, local, remote) {
     arr('bans', side);
   });
 
-  const scalars = ['winner', 'newSeries', 'at', 'more', 'gw']; // gw: 길드전
+  const scalars = ['winner', 'newSeries', 'at', 'more', 'gw']; // gw: 문파전
   scalars.forEach((k) => {
     const b = base?.[k], l = local?.[k], r = remote?.[k];
     if (l !== b) next[k] = l;
@@ -192,7 +192,7 @@ page('today', {
     };
     const duo = (side) => { const b = bestDuo(d[side], st); return b ? `<span class="${side}">${gname(b.a)} + ${gname(b.b)} <b class="mono">${pct(b.w, b.g)}%</b> <small>${b.g}판</small></span>` : `<span class="mut">${side === 'blue' ? '블루' : '레드'} — 함께한 기록 부족</span>`; };
     return `<div class="h2row td-h" data-k="hd"><h1>${ic('today')}${edit ? `경기 수정 <span class="mono">#${st.MI[edit.id]?.no ?? ''}</span>` : '팀 구성하기'}</h1><span class="tag ${full ? 'ok' : ''}">${filled}/10 배치</span>${d.gw && guildOn() ? `<span class="tag gwt">${gem('j')}정파 vs 마교${gem('m')}</span>` : ''}<span class="grow"></span>
-      ${edit ? '<a class="btn" href="#/matches">취소</a>' : `<button class="btn gold" data-a="tAi" ${full ? '' : 'disabled'} title="${full ? '라인은 그대로 두고, 점수 차이가 가장 작아지도록 블루·레드를 나눕니다 (높은 원딜·높은 서폿은 같은 팀 안 됨)' : '10명을 모두 배치하면 쓸 수 있어요'}">${ic('bolt')}AI<span class="m-hide"> 추천</span></button>${guildOn() ? `<button class="btn gwbtn ${d.gw ? 'on' : ''}" data-a="tGw" ${full || d.gw ? '' : 'disabled'} aria-pressed="${!!d.gw}" title="${d.gw ? '정마대전 끄기(라인업은 그대로)' : '라인은 그대로 두고 정파는 블루, 마교는 레드로 나눕니다(같은 라인에 같은 길드면 용병). 정마대전으로 기록돼요'}">${ic('guild')}<span class="m-hide">${d.gw ? ' 정마대전 ON' : ' 정마대전'}</span></button>` : ''}<button class="btn gold gbtn ${boardLive() ? 'bd-on' : ''}" data-a="tBoard" title="라인 지원: 모두 함께 원하는 라인 고르기 → 몰린 라인은 추첨">${ic('users')}<span><span class="n-hide">라인 </span>${boardLive() ? '지원 중' : '지원'}</span></button><button class="btn gold" data-a="tDice">${ic('dice')}<span class="n-hide">라인 </span>주사위</button>${ddMenu(`<button data-a="tSwap">${ic('swap')}진영 교체</button><button class="danger" data-a="tClear">${ic('trash')}비우기</button>`)}`}</div>
+      ${edit ? '<a class="btn" href="#/matches">취소</a>' : `<button class="btn gold" data-a="tAi" ${full ? '' : 'disabled'} title="${full ? '라인은 그대로 두고, 점수 차이가 가장 작아지도록 블루·레드를 나눕니다 (높은 원딜·높은 서폿은 같은 팀 안 됨)' : '10명을 모두 배치하면 쓸 수 있어요'}">${ic('bolt')}AI<span class="m-hide"> 추천</span></button>${guildOn() ? `<button class="btn gwbtn ${d.gw ? 'on' : ''}" data-a="tGw" ${full || d.gw ? '' : 'disabled'} aria-pressed="${!!d.gw}" title="${d.gw ? '정마대전 끄기(라인업은 그대로)' : '라인은 그대로 두고 정파는 블루, 마교는 레드로 나눕니다(같은 라인에 같은 문파면 용병). 정마대전으로 기록돼요'}">${ic('guild')}<span class="m-hide">${d.gw ? ' 정마대전 ON' : ' 정마대전'}</span></button>` : ''}<button class="btn gold gbtn ${boardLive() ? 'bd-on' : ''}" data-a="tBoard" title="라인 지원: 모두 함께 원하는 라인 고르기 → 몰린 라인은 추첨">${ic('users')}<span><span class="n-hide">라인 </span>${boardLive() ? '지원 중' : '지원'}</span></button><button class="btn gold" data-a="tDice">${ic('dice')}<span class="n-hide">라인 </span>주사위</button>${ddMenu(`<button data-a="tSwap">${ic('swap')}진영 교체</button><button class="danger" data-a="tClear">${ic('trash')}비우기</button>`)}`}</div>
     <section class="arena">
       <div class="scorebar" data-k="sb" style="--wi:${fav ? wi.toFixed(2) : 0}"><div class="sb blue${fav === 'blue' ? ' fav' : ''}">${fav === 'blue' ? FAV_RING : ''}<small>BLUE TEAM</small><b class="mono" data-live="bs">${ev.bs.toFixed(1)}</b><span>평균 MMR ${ev.mmrB ? Math.round(ev.mmrB) : '—'}</span>${tkSum(d.blue)}</div>
         <div class="sb-mid">${winRing(pb, full, any, filled, wi)}</div>
@@ -327,7 +327,7 @@ act('tSave', async (d, btn) => {
     id, at, seq: old?.seq || 0, seriesId: seriesFor(dr) || id, blue: [...dr.blue], red: [...dr.red], winner: dr.winner,
     champs: { blue: [...dr.champs.blue], red: [...dr.champs.red] }, bans: { blue: dr.bans.blue.filter(Boolean), red: dr.bans.red.filter(Boolean) }, kda,
     snap: sameLine && old.snap ? old.snap : { bs: ev.bs, rs: ev.rs, pBlue: +ev.pBlue.toFixed(4) },
-    ...((dr.gw ?? old?.gw) ? { gw: true } : {}), // 길드전으로 짠 경기(길드 화면의 길드전 기록)
+    ...((dr.gw ?? old?.gw) ? { gw: true } : {}), // 문파전으로 짠 경기(문파 화면의 문파전 기록)
     ...(dr.stats || old?.stats ? { stats: dr.stats || old.stats } : {}), ...(dr.dur || old?.dur ? { dur: dr.dur || old.dur } : {}), // 리플레이에서 읽은 상세 기록
   };
   btn.disabled = true;

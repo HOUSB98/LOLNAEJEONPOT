@@ -98,7 +98,7 @@ addEventListener('usage', () => { const el = document.getElementById('uzbox'); i
 
 
 // ---------- 관리 화면 탭(선수 · 내전 · 서버 · 설정 · 칭호): 고른 탭만 그린다. 마지막에 본 탭을 기억(naejeon:admtab), 주소 #/admin/<탭> 으로 바로 열 수도 있음 ----------
-const ATABS = [['players', 'users', '선수', '관리'], ['play', 'target', '내전', '도구'], ['server', 'bolt', '서버', '· 연동'], ['config', 'admin', '설정', '· 백업'], ['titles', 'scroll', '칭호', '도감'], ['guild', 'guild', '길드', '관리']];
+const ATABS = [['players', 'users', '선수', '관리'], ['play', 'target', '내전', '도구'], ['server', 'bolt', '서버', '· 연동'], ['config', 'admin', '설정', '· 백업'], ['titles', 'scroll', '칭호', '도감'], ['guild', 'guild', '문파', '관리']];
 const AT_KEY = 'naejeon:admtab';
 function admTab() {
   const ok = (t) => ATABS.some((x) => x[0] === t);
@@ -328,7 +328,7 @@ act('plEdit', (d) => needAdmin(() => {
     const scores = Object.fromEntries(LANES.map((l) => [l, Math.max(0, Math.min(20, +f.get('s_' + l) || 0))]));
     if (p.id) await logScores(LANES.filter((l) => (+p.scores?.[l] || 0) !== scores[l]).map((l) => ({ pid: id, name: g('name'), lane: l, from: +p.scores?.[l] || 0, to: scores[l] })));
     await S.store.put('players', id, { ...p, id, name: g('name'), scores, mainLane: g('mainLane'), soloTier: g('soloTier'), riotId: g('riotId'), mmrInit: +g('mmrInit') || 0, talk: Math.max(0, Math.min(TALK.length, +g('talk') || 0)), solo: { ...o, record: g('record'), peak: g('peak'), pos: g('pos'), most: g('most'), comment: g('comment') }, deleted: false });
-    if (!p.id && guildOn() && smaller()) await adminSet(id, smaller()); // 새 선수: 길드 인원이 다르면 적은 쪽으로(같으면 본인이 고름)
+    if (!p.id && guildOn() && smaller()) await adminSet(id, smaller()); // 새 선수: 문파 인원이 다르면 적은 쪽으로(같으면 본인이 고름)
     closeModal(); toast('저장했습니다');
   };
   const hide = el.querySelector('#plHide');
