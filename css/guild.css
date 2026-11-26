@@ -291,3 +291,4 @@ body.lite .gd-drift,body.bd-open .gd-drift{display:none}
 .wl-sub,.wl-dl dt,.wl-mid small,.wl-meta,.wl-id em,.wl-go,.wl-it b,.gs-it p,.gs-dl dt,.gs-rule,.gs-v small,.gs-who,.gd-other,.gd-mine,.gd-gold,.gd-join p,.gd-join b{font-family:var(--song)}
 .gd-kp small,.gd-rk,.gd-mine,.gd-modes button{letter-spacing:0}
 .gd,.wl{font-synthesis-weight:none} /* 송명은 굵기가 하나뿐이라 가짜 굵게를 막는다 */
+.gb-lock{gap:8px;padding:14px;border-radius:12px;border:1px dashed color-mix(in srgb,var(--ac) 35%,var(--line2));background:rgba(0,0,0,.2)}.gb-lock .inp,.gb-lock .btn{min-height:44px}

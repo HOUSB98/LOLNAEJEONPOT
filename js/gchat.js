@@ -31,12 +31,26 @@ export async function setPassword(g, pw, oldPw) {
   try { localStorage.removeItem(LKK(g)); } catch {}
 }
 
+// 문파 게시판 글쓰기도 같은 문파 비밀번호로 연다(KS: 이번 접속에서 연 문파 · 기억한 기기는 바로)
+const KS = {};
+export function hasKey(g) {
+  const sec = secOf(g); if (!sec?.wk) return false;
+  if (KS[g] === +sec.at) return true;
+  try { const v = JSON.parse(localStorage.getItem(LKK(g)) || 'null'); return !!v && +v.at === +sec.at; } catch { return false; }
+}
+export async function unlock(g, pw, remember) {
+  const sec = secOf(g); if (!sec?.wk) return false;
+  let raw; try { raw = await unseal(await pwKey(pw, unb64(sec.salt)), sec.wk); } catch { return false; }
+  KS[g] = +sec.at;
+  if (remember) try { localStorage.setItem(LKK(g), JSON.stringify({ at: +sec.at, k: b64(raw) })); } catch {}
+  return true;
+}
 const C = { g: '', key: null, at: 0, msgs: [], un: null, cb: null, busy: false, err: '' };
 export function close() { C.un?.(); C.un = null; C.key = null; C.g = ''; C.msgs = []; C.busy = false; }
 export const isOpen = (g) => C.g === g && !!C.key;
 async function use(g, raw, remember) {
   const sec = secOf(g);
-  C.g = g; C.key = await dataKey(raw); C.at = +sec.at;
+  C.g = g; C.key = await dataKey(raw); C.at = +sec.at; KS[g] = C.at;
   if (remember) try { localStorage.setItem(LKK(g), JSON.stringify({ at: C.at, k: b64(raw) })); } catch {}
   C.un = S.store.watchRecent('gchat_' + g, 60, (docs) => dec(docs).then((v) => { if (C.g !== g) return; C.msgs = v.reverse(); C.cb?.(); }), (e) => toast('문파 채팅 연결 오류: ' + (e.code || e.message)));
 }
@@ -77,7 +91,7 @@ export async function send(g, t) {
   const id = uid();
   try { await S.store.put('gchat_' + g, id, { at: Date.now(), x: await seal(C.key, te.encode(JSON.stringify({ n: nick() || '익명', t: String(t).slice(0, 300), c: cid }))), deleted: false }); return true; } catch (e) { toast('전송 실패: ' + (e.code || e.message)); return false; }
 }
-export function lock(g) { try { localStorage.removeItem(LKK(g)); } catch {} if (C.g === g) close(); }
+export function lock(g) { try { localStorage.removeItem(LKK(g)); } catch {} delete KS[g]; if (C.g === g) close(); }
 // 비밀번호 입력(채팅창 안의 양식)
 document.addEventListener('submit', async (e) => {
   const f = e.target; if (!(f instanceof HTMLFormElement) || f.id !== 'gcf') return;
