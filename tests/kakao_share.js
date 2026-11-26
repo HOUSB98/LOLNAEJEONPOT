@@ -65,6 +65,12 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   const md = await M.evaluate(() => { const f = document.querySelector('#modal.on .md-act'), fr = f.getBoundingClientRect(), bs = [...f.querySelectorAll(':scope>.btn')].map((e) => e.getBoundingClientRect()); return { n: bs.length, row1: Math.abs(bs[0].top - bs[1].top) < 2 && Math.abs(bs[0].width - bs[1].width) < 2 && Math.abs(bs[0].left - fr.left) < 2, last: bs.length % 2 ? Math.abs(bs.at(-1).width - fr.width) < 2 : true, gap: bs[1].left - bs[0].right }; });
   ok(md.n >= 2 && md.row1 && md.last && md.gap >= 6, '휴대폰 경기 상세: 카톡 공유·진영 바꾸기 같은 너비 두 칸(왼쪽부터, 간격 있음), 남는 버튼은 한 줄 전체: ' + JSON.stringify(md));
   errs.push(...M.errs);
+  // 로딩창 아래 'Works with KakaoTalk'(작게, 가운데, 입장 안내 위)
+  const Sp = await client(b, be, 'WORK', 'S'); await Sp.addInitScript(() => sessionStorage.removeItem('naejeon:welcomed'));
+  await Sp.goto('https://site.test/?k=test#/home'); await Sp.waitForTimeout(3300);
+  const sp = await Sp.evaluate(() => { const e = document.querySelector('#splash .sp-collab'), k = document.querySelector('#splash .sp-skip'); if (!e) return null; const r = e.getBoundingClientRect(), q = k.getBoundingClientRect(); return { t: e.innerText.replace(/\s+/g, ' ').trim(), op: +getComputedStyle(e).opacity, h: Math.round(r.height), mid: Math.abs(r.x + r.width / 2 - innerWidth / 2) < 2, above: r.bottom <= q.top, kk: getComputedStyle(e.querySelector('.sp-kk')).backgroundColor }; });
+  ok(sp && sp.t === 'WORKS WITH KakaoTalk' && sp.op > 0.95 && sp.h <= 40 && sp.mid && sp.above && sp.kk === 'rgb(254, 229, 0)', '로딩창: 작은 "Works with KakaoTalk"(카카오 노랑 아이콘)가 가운데·입장 안내 위에: ' + JSON.stringify(sp));
+  errs.push(...Sp.errs);
   console.log('오류:', errs.join(' | ') || '없음'); ok(!errs.length, '페이지 오류 없음');
   await b.close();
 })();
