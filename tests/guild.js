@@ -1,7 +1,7 @@
 // 길드(정파·마교): 창설 전 대기 화면 · 관리자 자동 배정(인원 차 1 이하, 같은 길드로 묶기, MMR 평균 비슷) · 이름 옆 엠블럼 ·
 // 길드 전적(창설 이후, 경기 당시 소속)·대항전(양 팀 다수 길드가 다를 때)을 따로 계산한 값과 비교 · 옮겨도 지난 경기는 예전 소속 ·
-// 새로 온 사람(인원 다르면 적은 쪽만) · 스스로 옮기기(본인 PIN, 분기 1회) · 길드장 공지(본인 PIN) · 사랑방(비밀번호, 암호화 저장, 다른 기기에서 읽힘) ·
-// 오늘의 내전 길드전(라인 유지하며 정파 블루·마교 레드, 저장 시 gw) · 길드 화면만 열면 사랑방 읽기 0 · 휴대폰 가로 넘침 없음 · 오류 없음
+// 새로 온 사람(인원 다르면 적은 쪽만) · 스스로 옮기기(본인 PIN, 분기 1회) · 길드장 공지(본인 PIN) · 채팅창 길드 탭(비밀번호, 암호화 저장, 다른 기기에서 읽힘) · 길드 게시판(공개) · 들어갈 때 효과 ·
+// 오늘의 내전 길드전(라인 유지하며 정파 블루·마교 레드, 저장 시 gw) · 길드 화면만 열면 길드 채팅 읽기 0 · 휴대폰 가로 넘침 없음 · 오류 없음
 const { chromium } = require('playwright'); const { makeSeed, client, device, open, Backend } = require('./harness');
 const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) process.exitCode = 1; };
 const crypto = require('crypto');
@@ -55,7 +55,7 @@ const crypto = require('crypto');
   const got = await A.evaluate(() => ({ big: [...document.querySelectorAll('.gd-big b')].map((e) => +e.innerText), war: [...document.querySelectorAll('.gw-sub b')][0]?.innerText }));
   ok(got.big[0] === want.j.w && got.big[0] + got.big[1] === want.j.g, `정파 창설 이후 전적 ${want.j.w}승 ${want.j.g - want.j.w}패 = 따로 계산(옮긴 선수는 경기 당시 소속): ` + JSON.stringify(got.big));
   ok(got.war === `${want.j.war} : ${want.m.war}`, `대항전 맞대결 ${want.j.war} : ${want.m.war}(양 팀 다수 길드가 다를 때만): ` + got.war);
-  const sec = await A.evaluate(() => ['.gd-hero', '.gd-kp', '.gp-war', '.gp-ntc', '.gp-ch', '.gp-ln', '.gp-duo', '.gp-feed', '.gp-flow', '.gp-mem', '.gp-rec', '.gp-his', '.gp-lg'].filter((s) => !document.querySelector('.gd-j ' + s)));
+  const sec = await A.evaluate(() => ['.gd-hero', '.gd-kp', '.gp-war', '.gp-ntc', '.gp-ch', '.gp-ln', '.gp-duo', '.gp-feed', '.gp-flow', '.gp-mem', '.gp-rec', '.gp-his', '.gp-bd'].filter((s) => !document.querySelector('.gd-j ' + s)));
   ok(!sec.length && await A.evaluate(() => !!document.querySelector('.gd.gd-j') && getComputedStyle(document.querySelector('.gd-hero')).borderTopColor !== ''), '길드 화면 구성(히어로·숫자·대항전·공지·순위·챔피언·라인·듀오·최근 경기·흐름·길드원·명예의 전당·연혁·사랑방) 모두 있음 ' + sec.join());
   const bg = await A.evaluate(async () => { const j = getComputedStyle(document.querySelector('.gd-hero')).backgroundImage; location.hash = '#/magyo'; await new Promise((r) => setTimeout(r, 700)); return [j, getComputedStyle(document.querySelector('.gd-hero')).backgroundImage, !!document.querySelector('.gd.gd-m')]; });
   ok(bg[0] !== bg[1] && bg[2], '정파·마교 화면 분위기(배경)가 서로 다름');
@@ -114,22 +114,43 @@ const crypto = require('crypto');
   await A.click(`[data-a=gNotice][data-g=${lg}]`); await A.waitForSelector('#gpin-i'); await A.fill('#gpin-i', '2468'); await A.click('#gpin .btn');
   await A.waitForSelector('#gnf-t'); await A.fill('#gnf-t', '토요일 9시 길드전!'); await A.click('#gnf .btn'); await A.waitForTimeout(900);
   ok(G().notice?.[lg]?.t === '토요일 9시 길드전!' && (await A.$eval('.gn-box', (e) => e.innerText)).includes('토요일 9시 길드전!'), '길드장(본인 PIN) 공지 저장·표시');
-  // 사랑방: 관리자가 비밀번호 → 길드원 입장 → 암호화 저장 → 다른 기기에서도 읽힘
-  await A.evaluate(async (lg) => { const { S } = await import('/js/core.js'); S.admin = true; await (await import('/js/guild.js')).setPassword(lg, 'dragon77'); }, lg); await A.waitForTimeout(600);
+  // 채팅창 길드 탭: 관리자가 비밀번호 → 탭에서 비밀번호 입력 → 암호화 저장 → 다른 기기에서도 읽힘
+  const pg = lg === 'j' ? 'jeongpa' : 'magyo';
+  await A.evaluate(async (lg) => { const { S } = await import('/js/core.js'); S.admin = true; await (await import('/js/gchat.js')).setPassword(lg, 'dragon77'); }, lg); await A.waitForTimeout(600);
   be.reset();
-  await open(A, lg === 'j' ? 'jeongpa' : 'magyo', 1200);
-  ok(!be.byCol['reads:gchat_' + lg] && !be.byCol['reads:gpost_' + lg], '길드 화면만 열면 사랑방 읽기 0');
-  await A.fill('#lgf-p', 'wrong'); await A.click('#lgf .btn'); await A.waitForTimeout(1500);
-  ok(!!(await A.$('#lgf')), '틀린 길드 비밀번호는 거절');
-  await A.fill('#lgf-p', 'dragon77'); await A.click('#lgf .btn'); await A.waitForSelector('#lgc-t', { timeout: 8000 });
-  await A.fill('#lgc-t', '비밀 작전 회의'); await A.press('#lgc-t', 'Enter'); await A.waitForTimeout(1200);
-  const raw = JSON.stringify(be.db['gchat_' + lg] || {});
-  ok(raw.length > 20 && !raw.includes('비밀 작전') && (await A.$eval('#lg-log', (e) => e.innerText)).includes('비밀 작전 회의'), '채팅은 암호화되어 저장(DB에 글자 없음), 화면에는 보임');
+  await open(A, pg, 1500);
+  ok(!be.byCol['reads:gchat_' + lg] && !(await A.$('.gp-lg')) && !!(await A.$('.gp-bd')), '길드 화면에는 채팅 칸 없이 게시판, 화면만 열면 길드 채팅 읽기 0');
+  await A.click('#chatfab'); await A.waitForTimeout(900);
+  const tabs = await A.$$eval('#ch-tabs [data-a=chTab]', (x) => x.map((e) => e.innerText.trim()));
+  await A.click(`#ch-tabs [data-t=${lg}]`); await A.waitForSelector('#gcf-p', { timeout: 8000 });
+  ok(tabs.join() === '로비,정파,마교' && await A.evaluate(() => getComputedStyle(document.getElementById('chatform')).display === 'none'), '채팅창 탭 로비·정파·마교, 길드 탭은 잠겨 있으면 입력칸 없이 비밀번호만: ' + tabs.join());
+  await A.fill('#gcf-p', 'wrong'); await A.click('#gcf .btn'); await A.waitForTimeout(1800);
+  ok(!!(await A.$('#gcf')), '틀린 길드 비밀번호는 거절');
+  await A.fill('#gcf-p', 'dragon77'); await A.click('#gcf .btn'); await A.waitForSelector('.gc-bar', { timeout: 8000 });
+  ok(await A.evaluate(() => getComputedStyle(document.querySelector('#chatform .cbtn2:not(.go)')).display === 'none'), '길드 탭에서는 스티커·주사위 숨김(글만)');
+  await A.fill('#chatinp', '비밀 작전 회의'); await A.press('#chatinp', 'Enter'); await A.waitForTimeout(1300);
+  const raw = JSON.stringify(be.db['gchat_' + lg] || {}), lobbyRaw = JSON.stringify(be.db.chat || {});
+  ok(raw.length > 20 && !raw.includes('비밀 작전') && !lobbyRaw.includes('비밀 작전') && (await A.$eval('#chatlog', (e) => e.innerText)).includes('비밀 작전 회의'), '길드 채팅은 암호화 저장(DB·로비에 글자 없음), 채팅창에는 보임');
+  await A.click('#ch-tabs [data-t=lobby]'); await A.waitForTimeout(500);
+  ok(!(await A.$eval('#chatlog', (e) => e.innerText)).includes('비밀 작전 회의') && await A.evaluate(() => getComputedStyle(document.getElementById('chatform')).display !== 'none'), '로비 탭으로 돌아오면 로비 채팅·입력칸');
   const B = await client(b, be, 'WORK', 'B');
-  await open(B, lg === 'j' ? 'jeongpa' : 'magyo', 1200); await B.fill('#lgf-p', 'dragon77'); await B.click('#lgf .btn'); await B.waitForSelector('#lg-log', { timeout: 8000 }); await B.waitForTimeout(800);
-  ok((await B.$eval('#lg-log', (e) => e.innerText)).includes('비밀 작전 회의'), '다른 기기도 비밀번호를 넣으면 읽힘');
-  await B.click('[data-a=lgTab][data-t=post]'); await B.waitForTimeout(300); await B.fill('#lgp-t', '공략'); await B.fill('#lgp-b', '바텀 위주로'); await B.click('#lgp .btn'); await B.waitForTimeout(1200);
-  ok(!JSON.stringify(be.db['gpost_' + lg] || {}).includes('바텀') && (await B.$eval('.lg-plist', (e) => e.innerText)).includes('공략'), '게시판 글도 암호화 저장·목록에 보임');
+  await open(B, 'rank', 1200); await B.click('#chatfab'); await B.waitForTimeout(900); await B.click(`#ch-tabs [data-t=${lg}]`); await B.waitForSelector('#gcf-p', { timeout: 8000 });
+  await B.fill('#gcf-p', 'dragon77'); await B.click('#gcf .btn'); await B.waitForSelector('.gc-bar', { timeout: 8000 }); await B.waitForTimeout(800);
+  ok((await B.$eval('#chatlog', (e) => e.innerText)).includes('비밀 작전 회의'), '다른 기기도 비밀번호를 넣으면 길드 채팅이 읽힘');
+  // 길드 게시판(공개): 글·댓글
+  await A.click('.gp-bd [data-a=gbWrite]'); await A.waitForSelector('#gbf-t'); await A.fill('#gbf-t', '토요일 공략'); await A.fill('#gbf-b', '바텀 위주로 갑니다'); await A.click('#gbf .btn.pri'); await A.waitForTimeout(1200);
+  ok(Object.values(be.db['gboard_' + lg] || {}).some((x) => x.t === '토요일 공략') && (await A.$eval('.gb-list', (e) => e.innerText)).includes('토요일 공략'), '길드 게시판 글 올리기 → 목록에 보임');
+  await A.click('.gb-list [data-a=gbOpen]'); await A.waitForSelector('#gbk-t'); await A.fill('#gbk-t', '좋아요'); await A.press('#gbk-t', 'Enter'); await A.waitForTimeout(1200);
+  ok(Object.values(be.db['gboard_' + lg]).some((x) => x.cm?.[0]?.t === '좋아요') && (await A.$eval('.gb-cm', (e) => e.innerText)).includes('좋아요'), '게시판 댓글');
+  // 들어갈 때 효과: 정파 꽃잎 / 마교 어두운 기운, 잠깐 뒤 사라짐
+  await open(A, 'rank', 800); await A.evaluate(() => { document.body.classList.remove('lite'); location.hash = '#/magyo'; }); await A.waitForTimeout(250); // 시험 도구는 가벼운 모드라 잠깐 끔(가벼운 모드에서는 효과 없음)
+  const fx1 = await A.evaluate(() => document.getElementById('gd-fx')?.className || '');
+  await A.waitForTimeout(2200);
+  ok(fx1.includes('fx-m') && !(await A.$('#gd-fx')), '마교 화면에 들어갈 때 어두운 기운 효과(잠깐 뒤 사라짐): ' + fx1);
+  await A.evaluate(() => (location.hash = '#/jeongpa')); await A.waitForTimeout(250);
+  ok((await A.evaluate(() => document.getElementById('gd-fx')?.className || '')).includes('fx-j'), '정파 화면에 들어갈 때 꽃잎 효과');
+  await A.waitForTimeout(2100); await A.evaluate(() => { document.body.classList.add('lite'); location.hash = '#/rank'; }); await A.waitForTimeout(400); await A.evaluate(() => (location.hash = '#/magyo')); await A.waitForTimeout(250);
+  ok(!(await A.$('#gd-fx')), '가벼운 모드에서는 들어갈 때 효과 없음');
   // 오늘의 내전 길드전: 라인은 그대로, 정파 블루·마교 레드
   const J = ids.filter((id) => P()[id].guild === 'j').slice(0, 5), M = ids.filter((id) => P()[id].guild === 'm').slice(0, 5);
   await open(A, 'today', 1000);

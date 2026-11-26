@@ -24,7 +24,7 @@ function localStore(key, onChange) {
   const load = (col) => { try { return JSON.parse(localStorage.getItem(k(col))) || {}; } catch { return {}; } };
   const data = {};
   WATCHED.concat('auctions', 'history', 'reveals', 'gacha').forEach((c) => (data[c] = load(c)));
-  const recs = {}; // watchRecent(길드 사랑방): 이 컬렉션이 바뀌면 최신 n개를 다시 넘긴다
+  const recs = {}; // watchRecent(길드 채팅·게시판): 이 컬렉션이 바뀌면 최신 n개를 다시 넘긴다
   const subs = {}; // 체험 모드에서도 다른 탭의 이벤트(승률 공개)를 받을 수 있게 한다
   const bc = 'BroadcastChannel' in window ? new BroadcastChannel('naejeon:' + key) : null;
   if (bc) bc.onmessage = (e) => {
@@ -287,7 +287,7 @@ async function firebaseStore(key, onChange, opt = {}) {
         : src;
       return fs.onSnapshot(q, onSnap, onError);
     },
-    // 최신 n개만 실시간으로(길드 사랑방 채팅·게시판). 화면을 떠나면 돌려준 함수로 끊는다. 단일 필드 정렬이라 색인을 따로 만들 필요 없음
+    // 최신 n개만 실시간으로(채팅창 길드 탭·길드 게시판). 화면을 떠나면 돌려준 함수로 끊는다. 단일 필드 정렬이라 색인을 따로 만들 필요 없음
     watchRecent: (col, n, cb, onError) => fs.onSnapshot(fs.query(fs.collection(db, 'leagues', key, col), fs.orderBy('at', 'desc'), fs.limit(n)), (snap) => {
       if (snap.metadata.fromCache && snap.empty) return;
       cb(snap.docs.map((d) => ({ ...d.data(), id: d.id })));
