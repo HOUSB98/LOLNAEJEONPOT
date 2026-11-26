@@ -250,7 +250,7 @@ function champPanel(g, d, o) {
   const cs = Object.values(d.champs).sort((a, b) => b.g - a.g || b.w - a.w), top = cs.slice(0, 9);
   const best = [...cs].filter((c) => c.g >= 3).sort((a, b) => bWr(b) - bWr(a) || b.g - a.g)[0];
   const own = cs.filter((c) => c.g >= 3 && (o.champs[c.name]?.g || 0) <= 1).slice(0, 3);
-  const user = (c) => { const e = Object.entries(c.users).sort((a, b) => b[1] - a[1])[0]; return e ? gname(e[0]) : ''; };
+  const user = (c) => { const e = Object.entries(c.users).sort((a, b) => b[1] - a[1])[0]; return e ? `최다 ${esc(nameOf(e[0]))}` : ''; };
   return `<section class="gp gp-ch" data-k="ch">${ph('兵', '챔피언 활용', `<small class="gp-s">많이 쓴 챔피언 TOP 9</small>`)}
     ${top.length ? `<div class="gc-grid">${top.map((c, i) => `<div class="gc-c ${i === 0 ? 'big' : ''}" style="--img:url('${artUrl(c.name)}')"><i class="mono">${i + 1}</i><b>${esc(c.name)}</b><small>${c.g}판 · ${pct(c.w, c.g)}%</small><em>${user(c)}</em></div>`).join('')}</div>
     <div class="gc-tags">${best ? `<span>${champIcon(best.name, 'sm')}<small>대표 챔피언</small><b>${esc(best.name)}</b><em>${pct(best.w, best.g)}% · ${best.g}판</em></span>` : ''}${own.length ? `<span class="own"><small>우리만 쓰는 챔피언</small>${own.map((c) => champIcon(c.name, 'sm')).join('')}</span>` : '<span class="own"><small>우리만 쓰는 챔피언</small><em>아직 없음</em></span>'}</div>` : none('챔피언을 입력한 경기가 쌓이면 나타나요.')}
