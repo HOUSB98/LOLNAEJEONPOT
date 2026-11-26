@@ -2,6 +2,7 @@
 import { S, act, esc, uid, col, settings, toast, modal, closeModal, mh, ic, logo, needAdmin, swipeZone, LANE_ICON, LANE_COLOR, LANE_NAME } from './core.js';
 import { xmasOn, inSeason, SEASON } from './season.js'; // 장식 모듈(SEASON.x·n)은 시즌에만 받아진다
 import { hookOn, USAGE, loadUsage, won, kfmt } from './hook.js';
+import { KAKAO_JS_KEY } from './config.js';
 
 // 채팅창 머리의 남은 무료 한도·이번 달 요금(연동 서버가 있고 Blaze 요금제일 때만 보인다)
 function renderQuota() {
@@ -314,6 +315,8 @@ function embers(canvas) {
   })(0);
   return () => { run = false; };
 }
+// 로딩창 아래 작은 표시: 카카오톡 공유 기능이 들어 있다는 뜻(공식 제휴처럼 보이지 않게 'Works with')
+const SP_KK = '<div class="sp-collab" role="note" aria-label="Works with KakaoTalk"><span class="sp-kk" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 4.200c-4.900 0-8.800 3.100-8.800 6.900 0 2.400 1.600 4.600 4 5.800l-.8 3c-.1.300.2.500.5.300l3.500-2.300c.5.100 1 .1 1.600.1 4.900 0 8.800-3.100 8.800-6.900S16.900 4.200 12 4.200z"/></svg></span><small>WORKS WITH</small><i class="sp-cd"></i><b>KakaoTalk</b></div>';
 function splash() {
   const el = document.getElementById('splash');
   if (sessionStorage.getItem('naejeon:welcomed') && nick()) { el.remove(); return; }
@@ -324,7 +327,7 @@ function splash() {
       <p class="sp-sub">${first ? '소환사의 협곡에 오신 것을 환영합니다' : `${esc(nick())} 님, 다시 오셨군요`}</p>
       <p class="sp-league">${esc(name)}</p>
       ${first ? `<form id="spf"><input id="spn" class="inp" maxlength="12" placeholder="닉네임을 입력하세요" autocomplete="off"><button class="btn pri">입장</button></form>` : '<div class="sp-bar"><i></i></div>'}
-    </div><small class="sp-skip">${first ? '닉네임은 접속자 목록과 채팅에 표시됩니다' : '화면을 누르면 바로 입장합니다'}</small>`;
+    </div>${KAKAO_JS_KEY ? SP_KK : ''}<small class="sp-skip">${first ? '닉네임은 접속자 목록과 채팅에 표시됩니다' : '화면을 누르면 바로 입장합니다'}</small>`;
   el.classList.add('on'); el.classList.remove('boot');
   SEASON.x?.splashScene(el); // 시즌 장식 기간이면 밤하늘·달·산타 썰매 배경
   SEASON.n?.nySplash(el); // 새해(1/1~1/15)면 불꽃놀이·풍등 배경
