@@ -504,7 +504,7 @@ export async function createGuilds(plan) {
   const at = Date.now();
   await S.store.bulk(async () => {
     for (const g of GK) for (const id of plan[g]) await S.store.patch('players', id, { guild: g, glog: [{ g, at, by: 'init' }] });
-    await S.store.patch('meta', 'guild', { at, lead: {}, intro: {}, notice: {}, sec: {} });
+    await S.store.patch('meta', 'guild', { at, lead: {}, intro: {}, notice: {}, sec: {}, keep: Object.fromEntries((plan.pairs || []).map((x) => [[...x].sort().join('|'), 1])) });
   });
   sysChat(`⚔️ 정파 · 마교 창설! 정파 ${plan.j.length}명 · 마교 ${plan.m.length}명. 길드 메뉴에서 내 문파를 확인해 보세요`);
 }
@@ -520,7 +520,7 @@ export function guildAdminHTML() {
     return `<div class="panel gadm"><div class="ph"><b>${ic('guild')}길드 창설</b><small class="mut">정파 · 마교</small></div>
       <p class="sm">선수 ${live().length}명을 실력이 비슷하도록 자동으로 나눠요. 기준: 지금 MMR 평균, 최근 60일 출전자 수, 주라인 분포. 인원 차이는 1명 이하.</p>
       <div class="ga-pair"><b class="sm">같은 길드로 묶기</b><select class="inp" id="ga-a">${opts()}</select><select class="inp" id="ga-b">${opts()}</select><button class="btn xs" data-a="gaPair">추가</button>
-        ${GA.pairs.map(([a, b], i) => `<span class="chip">${esc(nameOf(a))} + ${esc(nameOf(b))} <button class="lnk" data-a="gaUnpair" data-i="${i}" aria-label="묶음 빼기">✕</button></span>`).join('')}</div>
+        ${pairsNow().map(([a, b], i) => `<span class="chip">${esc(nameOf(a))} + ${esc(nameOf(b))} <button class="lnk" data-a="gaUnpair" data-i="${i}" aria-label="묶음 빼기">✕</button></span>`).join('')}</div>
       <div class="row wrapr"><button class="btn gold" data-a="gaPlan">${GA.plan ? '다시 섞기' : '자동 배정 미리보기'}</button>${GA.plan ? '<button class="btn pri" data-a="gaCreate">이대로 창설</button>' : ''}</div>
       ${GA.plan ? `<div class="ga-plan">${GK.map((g) => `<div class="ga-col g-${g}"><b>${gem(g)} ${gName(g)} ${GA.plan[g].length}명</b>${sumHTML(GA.plan[g === 'j' ? 'sj' : 'sm'])}<p>${GA.plan[g].map((id) => esc(nameOf(id))).join(', ')}</p></div>`).join('')}</div>` : ''}</div>`;
   }
@@ -536,18 +536,20 @@ export function guildAdminHTML() {
     <div class="panel gadm"><div class="ph"><b>${ic('users')}인원 조정</b><small class="mut">정파 ${c.j}명 · 마교 ${c.m}명 · 누르면 바로 옮겨요(지난 경기는 예전 소속 그대로)</small></div>
       <div class="ga-roster">${live().slice().sort((a, b) => (a.guild || '').localeCompare(b.guild || '') || a.name.localeCompare(b.name, 'ko')).map((p) => `<div class="ga-r"><span>${gname(p.id)}</span><span class="ga-seg">${GK.map((G) => `<button class="g-${G} ${p.guild === G ? 'on' : ''}" data-a="gaSet" data-id="${p.id}" data-g="${G}" aria-pressed="${p.guild === G}">${gName(G)}</button>`).join('')}</span></div>`).join('')}</div>
       <div class="ph"><b>전체 다시 나누기</b><small class="mut">창설 때처럼 실력 균형으로 모두 다시 배정(위 '같은 길드로 묶기' 짝 유지)</small></div>
-      <div class="ga-pair">${GA.pairs.map(([a, b], i) => `<span class="chip">${esc(nameOf(a))} + ${esc(nameOf(b))} <button class="lnk" data-a="gaUnpair" data-i="${i}" aria-label="묶음 빼기">✕</button></span>`).join('') || '<span class="mut sm">묶은 짝 없음</span>'}<select class="inp" id="ga-a">${opts()}</select><select class="inp" id="ga-b">${opts()}</select><button class="btn xs" data-a="gaPair">짝 추가</button></div>
+      <div class="ga-pair">${pairsNow().map(([a, b], i) => `<span class="chip">${esc(nameOf(a))} + ${esc(nameOf(b))} <button class="lnk" data-a="gaUnpair" data-i="${i}" aria-label="묶음 빼기">✕</button></span>`).join('') || '<span class="mut sm">묶은 짝 없음</span>'}<select class="inp" id="ga-a">${opts()}</select><select class="inp" id="ga-b">${opts()}</select><button class="btn xs" data-a="gaPair">짝 추가</button></div>
       <div class="row wrapr"><button class="btn gold" data-a="gaPlan">${GA.plan ? '다시 섞기' : '다시 나누기 미리보기'}</button>${GA.plan ? '<button class="btn pri" data-a="gaReApply">이대로 다시 나누기</button>' : ''}</div>
       ${GA.plan ? `<div class="ga-plan">${GK.map((g) => `<div class="ga-col g-${g}"><b>${gem(g)} ${gName(g)} ${GA.plan[g].length}명</b>${sumHTML(GA.plan[g === 'j' ? 'sj' : 'sm'])}<p>${GA.plan[g].map((id) => `${gOf(id) !== g ? '<b class="ga-mv">' : ''}${esc(nameOf(id))}${gOf(id) !== g ? '</b>' : ''}`).join(', ')}</p></div>`).join('')}</div><p class="hint">굵은 이름이 길드를 옮기는 사람이에요.</p>` : ''}
       <p class="hint">길드원은 내 페이지·길드 화면에서 분기마다 한 번, 인원 차이가 2명 이하일 때만 스스로 옮길 수 있어요(본인 PIN 확인). 관리자는 여기서 언제든 옮길 수 있어요.</p></div>`;
 }
-act('gaPair', () => { const a = document.getElementById('ga-a').value, b = document.getElementById('ga-b').value; if (!a || !b || a === b) return toast('서로 다른 두 사람을 골라 주세요'); GA.pairs.push([a, b]); GA.plan = null; refresh(); });
-act('gaUnpair', (d) => { GA.pairs.splice(+d.i, 1); GA.plan = null; refresh(); });
-act('gaPlan', () => { GA.plan = balance(live().map((p) => p.id), GA.pairs); refresh(); });
+// '같은 길드로 묶기' 짝: 창설 전에는 이 화면에서만, 창설 뒤에는 meta/guild.keep{'a|b':1}에 남겨 '전체 다시 나누기'에도 그대로 쓴다
+const pairsNow = () => (guildOn() ? Object.entries(guildMeta()?.keep || {}).filter(([, v]) => v).map(([k]) => k.split('|')) : GA.pairs);
+act('gaPair', () => { const a = document.getElementById('ga-a').value, b = document.getElementById('ga-b').value; if (!a || !b || a === b) return toast('서로 다른 두 사람을 골라 주세요'); GA.plan = null; if (!guildOn()) { GA.pairs.push([a, b]); return refresh(); } needAdmin(() => S.store.patch('meta', 'guild', { keep: { [[a, b].sort().join('|')]: 1 } })); });
+act('gaUnpair', (d) => { GA.plan = null; if (!guildOn()) { GA.pairs.splice(+d.i, 1); return refresh(); } const k = pairsNow()[+d.i]?.join('|'); if (k) needAdmin(() => S.store.patch('meta', 'guild', { keep: { [k]: 0 } })); });
+act('gaPlan', () => { GA.plan = balance(live().map((p) => p.id), pairsNow()); refresh(); });
 act('gaCreate', () => needAdmin(async () => {
   if (!GA.plan || guildOn()) return;
   if (!confirm(`정파 ${GA.plan.j.length}명 · 마교 ${GA.plan.m.length}명으로 창설할까요?`)) return;
-  try { await createGuilds(GA.plan); GA.plan = null; GA.pairs = []; toast('정파 · 마교를 창설했어요'); } catch (e) { toast('실패: ' + (e.code || e.message)); }
+  try { await createGuilds({ ...GA.plan, pairs: GA.pairs }); GA.plan = null; GA.pairs = []; toast('정파 · 마교를 창설했어요'); } catch (e) { toast('실패: ' + (e.code || e.message)); }
 }));
 act('gaAuto', () => needAdmin(async () => {
   for (const p of live().filter((x) => !GUILDS[x.guild])) {
