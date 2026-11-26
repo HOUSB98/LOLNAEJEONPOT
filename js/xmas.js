@@ -42,7 +42,7 @@ function snowCanvas(cv, opts = {}) {
   const loop = (t) => {
     raf = requestAnimationFrame(loop);
     if (t - last < (opts.step || 33)) return; last = t;
-    if (!opts.always && (document.body.classList.contains('lite') || document.body.classList.contains('idle') || document.hidden)) { g.clearRect(0, 0, W, H); return; }
+    if (!opts.always && (document.body.classList.contains('lite') || document.body.classList.contains('idle') || document.body.classList.contains('bd-open') || document.hidden)) { g.clearRect(0, 0, W, H); return; }
     g.clearRect(0, 0, W, H);
     for (const f of flakes) {
       f.y += f.v; f.w += 0.02; f.x += Math.sin(f.w) * 0.4;

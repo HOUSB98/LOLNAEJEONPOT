@@ -48,6 +48,15 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   await B.evaluate(() => { window.__mark = document.querySelector('#modal.on .lp-grid'); });
   await A.evaluate(async () => { const { S } = await import('/js/core.js'); await S.store.patch('meta', 'settings', { notice: 'x' + Date.now() }); }); await B.waitForTimeout(800);
   ok(await B.evaluate(() => window.__mark === document.querySelector('#modal.on .lp-grid')), '라인 지원과 상관없는 변경에는 카드를 다시 그리지 않음');
+  // 끊김 줄이기: 다른 사람이 지원하면 창 전체가 아니라 바뀐 칸만 바뀜(라인 카드 묶음은 그대로), 창이 떠 있는 동안 뒤 화면 움직임 멈춤
+  await B.evaluate(() => { window.__g = document.querySelector('#modal.on .lp-grid'); window.__card = document.querySelector('#modal.on [data-a=bdPick][data-o="top"]'); });
+  await A.evaluate(async (ids) => { const { S } = await import('/js/core.js'); await S.store.tx('meta', 'board', (r) => ({ ...r, picks: { ...r.picks, [ids[6]]: ['jg'] } })); }, ids); await B.waitForTimeout(800);
+  ok(await B.evaluate(() => window.__g === document.querySelector('#modal.on .lp-grid') && window.__card === document.querySelector('#modal.on [data-a=bdPick][data-o="top"]')), '다른 사람이 지원해도 라인 카드는 새로 만들지 않음(바뀐 칸만 갈아 끼움)');
+  const paused = await B.evaluate(() => { const ok1 = document.body.classList.contains('bd-open'); const el = [...document.querySelectorAll('#main *')].find((e) => getComputedStyle(e).animationName !== 'none'); return { ok1, ps: el ? getComputedStyle(el).animationPlayState : 'none', inModal: getComputedStyle(document.querySelector('#modal.on .sheet')).animationPlayState }; });
+  ok(paused.ok1 && (paused.ps === 'paused' || paused.ps === 'none') && paused.inModal === 'running', '라인 지원 창이 떠 있는 동안 뒤 화면 움직임 멈춤(창 안은 그대로): ' + JSON.stringify(paused));
+  // 실제 DB 모드: 지망은 내 칸만 합쳐 쓰기(트랜잭션 읽기 없음)
+  be.reset(); await B.click('#modal.on [data-a=bdPick][data-o="adc"]'); await B.waitForTimeout(800);
+  ok(!D().picks[ids[1]].includes('adc') && D().picks[ids[1]].join() === 'top,sup' && D().picks[ids[0]][0] === 'top' && D().picks[ids[5]][0] === 'adc' && !(be.byCol['reads:meta'] > 3), `지망 저장은 내 칸만 합쳐 쓰기(내 원딜만 빠지고 다른 사람 지망 그대로, 읽기 ${be.byCol['reads:meta'] || 0}): ` + JSON.stringify(D().picks[ids[1]]));
   const errs = [...A.errs, ...B.errs];
   console.log('오류:', errs.join(' | ') || '없음'); ok(!errs.length, '페이지 오류 없음');
   await b.close();

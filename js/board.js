@@ -229,9 +229,27 @@ function draw() {
   const html = d.status === 'done' ? finalHTML(d) : openHTML(d);
   if (html === BD.html && el.firstElementChild) { BD.prev = { ...(d.picks || {}) }; return; }
   el.classList.remove('drawing');
-  el.innerHTML = html; BD.html = html;
+  if (BD.html && el.firstElementChild) morph(el, html); else el.innerHTML = html;
+  BD.html = html;
   BD.prev = { ...(d.picks || {}) };
 }
+// 바뀐 부분만 바꾸기: 새 화면을 메모리에서 만든 뒤 칸(최대 3단계 안쪽)마다 비교해 달라진 칸만 갈아 끼운다.
+// 누가 지원할 때마다 창 전체를 다시 그리면 느린 휴대폰에서 한 번에 수십 ms씩 멈춰서, 여럿이 동시에 고를 때 끊겨 보였다
+const keep = (n) => n.nodeType === 1 || (n.nodeType === 3 && n.textContent.trim());
+const attrs = (e) => [...e.attributes].map((a) => a.name + '=' + a.value).join('\u0001');
+function morphKids(a, b, depth) {
+  const x = [...a.childNodes].filter(keep), y = [...b.childNodes].filter(keep);
+  if (x.length !== y.length) { a.replaceChildren(...b.childNodes); return; }
+  y.forEach((n, i) => {
+    const o = x[i];
+    if (n.nodeType === 3 || o.nodeType === 3) { if (n.nodeType !== o.nodeType || n.textContent !== o.textContent) o.replaceWith(n); return; }
+    if (o.outerHTML === n.outerHTML) return;
+    if (depth > 0 && o.tagName === n.tagName && attrs(o) === attrs(n)) morphKids(o, n, depth - 1); else o.replaceWith(n);
+  });
+}
+function morph(el, html) { const t = document.createElement('template'); t.innerHTML = html; morphKids(el, t.content, 3); }
+// 라인 지원 창이 떠 있는 동안 뒤 화면의 움직임(시즌 눈·장식·카드 효과)을 멈춰 고르는 동안 끊기지 않게(body.bd-open, 창을 닫으면 다시 움직임)
+{ const mEl = document.getElementById('modal'); if (mEl) new MutationObserver(() => document.body.classList.toggle('bd-open', mEl.classList.contains('on') && !!mEl.querySelector('.lp-sheet'))).observe(mEl, { attributes: true, attributeFilter: ['class'] }); }
 for (const [ev, on] of [['pointerdown', 1], ['pointerup', 0], ['pointercancel', 0]]) document.addEventListener(ev, (e) => {
   if (on) { if (e.target.closest?.('#modal.on .lp')) BD.hold = true; return; }
   if (!BD.hold) return;
@@ -316,6 +334,21 @@ act('bdPick', async (x) => {
   await job.finally(() => { if (--BD.optN <= 0) { BD.optN = 0; BD.opt = null; draw(); } });
 });
 async function pickTx(x, me, rid) {
+  // 실제 DB(Firestore)에서는 내 칸(picks.내id)만 합쳐 쓰기: 읽기 없이 쓰기 1번, 여럿이 동시에 골라도 서로 다시 시도하지 않음(트랜잭션 충돌 없음)
+  // 지망 계산은 내가 보고 있는 최신 상태(+방금 누른 것)로 한다. 체험 모드는 예전처럼 트랜잭션
+  if (S.store.mode === 'firebase') {
+    const d = cur(); if (!d || d.rid !== rid || d.status !== 'open' || isDone(d, me)) return;
+    const curP = BD.sent && BD.sent.rid === rid ? BD.sent.p : prefs(d, me);
+    let next;
+    if (curP.includes(x.o)) next = curP.filter((v) => v !== x.o);
+    else { const lanes = curP.filter((v) => v !== 'any'), any = curP.includes('any') || x.o === 'any'; next = [...(x.o === 'any' ? lanes : [...lanes, x.o]), ...(any ? ['any'] : [])]; }
+    if (next.length > 3) return;
+    BD.sent = { rid, p: next };
+    try { await S.store.patch('meta', 'board', { picks: { [me]: next }, who: { [me]: cid }, upd: S.store.serverNow() }); }
+    catch (e) { toast('지원 실패: ' + (e.code || e.message)); }
+    finally { if (!BD.optN || BD.optN <= 1) BD.sent = null; }
+    return;
+  }
   try {
     await S.store.tx('meta', 'board', (r) => {
       if (!r || r.rid !== rid || r.status !== 'open' || isDone(r, me)) return null;
