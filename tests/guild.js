@@ -49,8 +49,8 @@ const crypto = require('crypto');
     for (const m of Object.values(be.db.matches)) {
       if (m.deleted || !m.winner || m.at < t0) continue;
       const gs = {}; for (const s of ['blue', 'red']) { gs[s] = m[s].map((id) => at(id, m.at)); gs[s].forEach((g) => { W[g].g++; if (m.winner === s) W[g].w++; }); }
-      const maj = (a) => ['j', 'm'].find((g) => a.filter((v) => v === g).length >= 3); const bj = maj(gs.blue), rj = maj(gs.red);
-      if (bj !== rj) W[m.winner === 'blue' ? bj : rj].war++;
+      const one = (a) => (a.every((v) => v && v === a[0]) ? a[0] : ''); const bj = one(gs.blue), rj = one(gs.red);
+      if (bj && rj && bj !== rj) W[m.winner === 'blue' ? bj : rj].war++;
     }
     return W;
   })();
@@ -58,7 +58,7 @@ const crypto = require('crypto');
   await open(A, 'jeongpa', 1500); await A.click('[data-a=gdMode][data-m=all]'); await A.waitForTimeout(600);
   const got = await A.evaluate(() => ({ big: [...document.querySelectorAll('.gd-big b')].map((e) => +e.innerText), war: [...document.querySelectorAll('.gw-sub b')][0]?.innerText }));
   ok(got.big[0] === want.j.w && got.big[0] + got.big[1] === want.j.g, `정파 창설 이후 전적 ${want.j.w}승 ${want.j.g - want.j.w}패 = 따로 계산(옮긴 선수는 경기 당시 소속): ` + JSON.stringify(got.big));
-  ok(got.war === `${want.j.war} : ${want.m.war}`, `대항전 맞대결 ${want.j.war} : ${want.m.war}(양 팀 다수 길드가 다를 때만): ` + got.war);
+  ok(got.war === `${want.j.war} : ${want.m.war}`, `정마대전 ${want.j.war} : ${want.m.war}(양 팀이 각각 한 문파로만 구성된 경기만): ` + got.war);
   const sec = await A.evaluate(() => ['.gd-hero', '.gd-kp', '.gp-war', '.gp-ntc', '.gp-ch', '.gp-ln', '.gp-duo', '.gp-feed', '.gp-flow', '.gp-mem', '.gp-rec', '.gp-his', '.gp-bd'].filter((s) => !document.querySelector('.gd-j ' + s)));
   ok(!sec.length && await A.evaluate(() => !!document.querySelector('.gd.gd-j') && getComputedStyle(document.querySelector('.gd-hero')).borderTopColor !== ''), '길드 화면 구성(히어로·숫자·대항전·공지·순위·챔피언·라인·듀오·최근 경기·흐름·길드원·명예의 전당·연혁·사랑방) 모두 있음 ' + sec.join());
   const bg = await A.evaluate(async () => { const j = getComputedStyle(document.querySelector('.gd-hero')).backgroundImage; location.hash = '#/magyo'; await new Promise((r) => setTimeout(r, 700)); return [j, getComputedStyle(document.querySelector('.gd-hero')).backgroundImage, !!document.querySelector('.gd.gd-m')]; });
@@ -83,34 +83,16 @@ const crypto = require('crypto');
   ok(await A.evaluate(() => document.querySelectorAll('.tbl tbody .gnm .gem').length >= 10 && !!document.querySelector('.tbl tbody td.gtint .gnm.g-j, .tbl tbody td.gtint .gnm.g-m')), '랭킹 이름 옆 엠블럼 + 길드 색');
   await open(A, 'players', 900);
   ok(await A.evaluate(() => document.querySelectorAll('.pcard.gcard .gem').length >= 10), '선수 카드 이름 옆 엠블럼 + 길드 테두리');
-  // 새로 온 사람: 인원이 다르면 적은 쪽만
-  const c0 = { j: 0, m: 0 }; Object.values(P()).forEach((p) => c0[p.guild]++);
-  if (c0.j === c0.m) await A.evaluate(async (id) => { const { S } = await import('/js/core.js'); await S.store.patch('players', id, { guild: S.store.data.players[id].guild === 'j' ? 'm' : 'j' }); }, ids[10]);
+  // 새로 온 사람: 자동 배정 없이 무소속, 본인이 고르거나 옮기는 버튼 없음(관리자만 배정)
   await A.evaluate(async () => { const { S } = await import('/js/core.js'); await S.store.put('players', 'pnew', { id: 'pnew', name: '새선수', scores: { top: 5, jg: 5, mid: 5, adc: 5, sup: 5 }, mainLane: 'mid', deleted: false }); localStorage.setItem('naejeon:me:' + S.key, 'pnew'); });
   await A.waitForTimeout(500);
-  const c1 = { j: 0, m: 0 }; Object.values(P()).forEach((p) => p.guild && c1[p.guild]++); const sm = c1.j < c1.m ? 'j' : 'm';
-  await open(A, 'guild', 1200);
-  const jb = await A.$$eval('.gd-join [data-a=gJoin]', (x) => x.map((e) => e.dataset.g));
-  ok(jb.join() === sm, `새로 온 사람: 인원이 적은 쪽(${sm}) 버튼만: ` + jb.join());
-  await A.click('.gd-join [data-a=gJoin]'); await A.waitForTimeout(900);
-  ok(P().pnew.guild === sm && P().pnew.glog?.[0]?.by === 'new' && Object.values(be.db.chat).some((m) => /새선수님이 .+에 합류/.test(m.t)), '합류 저장 + 채팅 알림');
-  // 스스로 옮기기: 본인 PIN(가챠 PIN), 분기에 한 번
-  const cc = { j: 0, m: 0 }; Object.values(P()).forEach((p) => p.guild && cc[p.guild]++); const big = cc.j >= cc.m ? 'j' : 'm';
-  const me = ids.find((id) => P()[id].guild === big && id !== x), pinH = crypto.createHash('sha256').update(`naejeon:gacha:${me}:2468`).digest('hex');
+  await open(A, 'jeongpa', 1200);
+  ok(!P().pnew.guild && !(await A.$('[data-a=gJoin]')), '새로 온 사람: 무소속, 스스로 고르는 버튼 없음');
+  await open(A, 'me', 1200);
+  ok(!(await A.$('[data-a=gMove], [data-a=gJoin]')) && (await A.$eval('.me-gd', (e) => e.innerText).catch(() => '')).includes('관리자가 문파를 배정'), '내 페이지: 문파 옮기기·고르기 버튼 없음(관리자가 배정한다는 안내)');
+  const me = ids.find((id) => P()[id].guild && id !== x), pinH = crypto.createHash('sha256').update(`naejeon:gacha:${me}:2468`).digest('hex');
   be.seed('gacha', [{ id: me, pid: me, pinHash: pinH }]);
   await A.evaluate(async (me) => { const { S } = await import('/js/core.js'); localStorage.setItem('naejeon:me:' + S.key, me); }, me);
-  const from = P()[me].guild;
-  // 옮길 수 있게 인원 맞추기: 옮겨 갈 쪽 인원이 2명 이상 많으면 막히므로 확인만
-  const allow = await A.evaluate(async (me) => (await import('/js/guild.js')).moveRule(me), me);
-  await open(A, 'me', 1200);
-  if (allow.ok) {
-    await A.click('[data-a=gMove]'); await A.waitForSelector('#gpin-i'); await A.fill('#gpin-i', '1111'); await A.click('#gpin .btn'); await A.waitForTimeout(500);
-    const still = P()[me].guild === from;
-    await A.fill('#gpin-i', '2468'); await A.click('#gpin .btn'); await A.waitForTimeout(900);
-    ok(still && P()[me].guild !== from && P()[me].glog.at(-1).by === 'self', '스스로 옮기기: 틀린 PIN은 거절, 맞는 PIN이면 옮김(소속 기록 self)');
-    const again = await A.evaluate(async (me) => (await import('/js/guild.js')).moveRule(me), me);
-    ok(!again.ok && /이번 분기/.test(again.why), '같은 분기에 두 번은 못 옮김: ' + again.why);
-  } else ok(/인원/.test(allow.why), '인원 차이 때문에 못 옮김 안내: ' + allow.why);
   // 길드장 공지: 관리자가 길드장 지정 → 길드장 본인 PIN으로 공지
   const lg = P()[me].guild;
   await A.evaluate(async ([me, lg]) => { const { S } = await import('/js/core.js'); await S.store.patch('meta', 'guild', { lead: { [lg]: me } }); S.admin = false; sessionStorage.clear(); }, [me, lg]);
@@ -126,11 +108,11 @@ const crypto = require('crypto');
   ok(!be.byCol['reads:gchat_' + lg] && !(await A.$('.gp-lg')) && !!(await A.$('.gp-bd')), '길드 화면에는 채팅 칸 없이 게시판, 화면만 열면 길드 채팅 읽기 0');
   await A.click('#chatfab'); await A.waitForTimeout(900);
   const tabs = await A.$$eval('#ch-tabs [data-a=chTab]', (x) => x.map((e) => e.innerText.trim()));
-  await A.click(`#ch-tabs [data-t=${lg}]`); await A.waitForSelector('#gcf-p', { timeout: 8000 });
+  await A.click(`#ch-tabs [data-t=${lg}]`); await A.waitForSelector('#gchf-p', { timeout: 8000 });
   ok(tabs.join() === '로비,정파,마교' && await A.evaluate(() => getComputedStyle(document.getElementById('chatform')).display === 'none'), '채팅창 탭 로비·정파·마교, 길드 탭은 잠겨 있으면 입력칸 없이 비밀번호만: ' + tabs.join());
-  await A.fill('#gcf-p', 'wrong'); await A.click('#gcf .btn'); await A.waitForTimeout(1800);
-  ok(!!(await A.$('#gcf')), '틀린 길드 비밀번호는 거절');
-  await A.fill('#gcf-p', 'dragon77'); await A.click('#gcf .btn'); await A.waitForSelector('.gc-bar', { timeout: 8000 });
+  await A.fill('#gchf-p', 'wrong'); await A.click('#gchf .btn'); await A.waitForTimeout(1800);
+  ok(!!(await A.$('#gchf')), '틀린 길드 비밀번호는 거절');
+  await A.fill('#gchf-p', 'dragon77'); await A.click('#gchf .btn'); await A.waitForSelector('.gch-bar', { timeout: 8000 });
   ok(await A.evaluate(() => getComputedStyle(document.querySelector('#chatform .cbtn2:not(.go)')).display === 'none'), '길드 탭에서는 스티커·주사위 숨김(글만)');
   await A.fill('#chatinp', '비밀 작전 회의'); await A.press('#chatinp', 'Enter'); await A.waitForTimeout(1300);
   const raw = JSON.stringify(be.db['gchat_' + lg] || {}), lobbyRaw = JSON.stringify(be.db.chat || {});
@@ -138,8 +120,8 @@ const crypto = require('crypto');
   await A.click('#ch-tabs [data-t=lobby]'); await A.waitForTimeout(500);
   ok(!(await A.$eval('#chatlog', (e) => e.innerText)).includes('비밀 작전 회의') && await A.evaluate(() => getComputedStyle(document.getElementById('chatform')).display !== 'none'), '로비 탭으로 돌아오면 로비 채팅·입력칸');
   const B = await client(b, be, 'WORK', 'B');
-  await open(B, 'rank', 1200); await B.click('#chatfab'); await B.waitForTimeout(900); await B.click(`#ch-tabs [data-t=${lg}]`); await B.waitForSelector('#gcf-p', { timeout: 8000 });
-  await B.fill('#gcf-p', 'dragon77'); await B.click('#gcf .btn'); await B.waitForSelector('.gc-bar', { timeout: 8000 }); await B.waitForTimeout(800);
+  await open(B, 'rank', 1200); await B.click('#chatfab'); await B.waitForTimeout(900); await B.click(`#ch-tabs [data-t=${lg}]`); await B.waitForSelector('#gchf-p', { timeout: 8000 });
+  await B.fill('#gchf-p', 'dragon77'); await B.click('#gchf .btn'); await B.waitForSelector('.gch-bar', { timeout: 8000 }); await B.waitForTimeout(800);
   ok((await B.$eval('#chatlog', (e) => e.innerText)).includes('비밀 작전 회의'), '다른 기기도 비밀번호를 넣으면 길드 채팅이 읽힘');
   // 길드 게시판(공개): 글·댓글
   await A.click('.gp-bd [data-a=gbWrite]'); await A.waitForSelector('#gbf-t'); await A.fill('#gbf-t', '토요일 공략'); await A.fill('#gbf-b', '바텀 위주로 갑니다'); await A.click('#gbf .btn.pri'); await A.waitForTimeout(1200);
@@ -160,8 +142,8 @@ const crypto = require('crypto');
   const arc = await A.evaluate(() => ({ rows: document.querySelectorAll('.ga-arc tbody tr').length, now: !!document.querySelector('.ga-arc tr.now') }));
   const nq = await A.evaluate(async () => Object.keys((await import('/js/guild.js')).ledger()).length);
   ok(arc.rows === nq && arc.now && nq >= 1, `분기 결과 보관: 창설 이후 분기 ${nq}개 표(이번 분기 '진행 중')`);
-  const reset = await A.evaluate(async () => { const g = await import('/js/guild.js'); const L = g.ledger(), qs = Object.keys(L).sort(); return qs.length < 2 || L[qs[0]].j.earn === 0 || g.treasury().q !== qs[0]; });
-  ok(reset, '금고는 이번 분기 경기만(지난 분기 금고는 넘어오지 않음)');
+  const reset = await A.evaluate(async () => { const g = await import('/js/guild.js'); const L = g.ledger(); return Object.values(L).reduce((a, x) => a + x.j.bal, 0) === g.treasury().j.bal; });
+  ok(reset, '금고 = 창설 이후 모든 분기 합(분기마다 초기화하지 않음)');
   // 들어갈 때 효과: 정파 꽃잎 / 마교 어두운 기운, 잠깐 뒤 사라짐
   await open(A, 'rank', 800); await A.evaluate(() => { document.body.classList.remove('lite'); location.hash = '#/magyo'; }); await A.waitForTimeout(250); // 시험 도구는 가벼운 모드라 잠깐 끔(가벼운 모드에서는 효과 없음)
   const fx1 = await A.evaluate(() => document.getElementById('gd-fx')?.className || '');
@@ -171,15 +153,19 @@ const crypto = require('crypto');
   ok((await A.evaluate(() => document.getElementById('gd-fx')?.className || '')).includes('fx-j'), '정파 화면에 들어갈 때 꽃잎 효과');
   await A.waitForTimeout(2100); await A.evaluate(() => { document.body.classList.add('lite'); location.hash = '#/rank'; }); await A.waitForTimeout(400); await A.evaluate(() => (location.hash = '#/magyo')); await A.waitForTimeout(250);
   ok(!(await A.$('#gd-fx')), '가벼운 모드에서는 들어갈 때 효과 없음');
-  // 오늘의 내전 길드전: 라인은 그대로, 정파 블루·마교 레드
+  // 팀 구성하기 정마대전 알림: 블루·레드가 각각 한 문파로만 → 빛나는 표시(누르는 버튼 없음), 한 명이라도 섞이면 표시 없음
   const J = ids.filter((id) => P()[id].guild === 'j').slice(0, 5), M = ids.filter((id) => P()[id].guild === 'm').slice(0, 5);
   await open(A, 'today', 1000);
-  await A.evaluate(async ([J, M]) => { const t = await import('/js/today.js'); const blue = [J[0], M[1], J[2], M[3], J[4]], red = [M[0], J[1], M[2], J[3], M[4]]; t.setDraftTeams(blue, red); }, [J, M]); await A.waitForTimeout(600);
-  await A.click('[data-a=tGw]'); await A.waitForTimeout(500);
-  const dr = await A.evaluate(async () => { const { S } = await import('/js/core.js'); return JSON.parse(localStorage.getItem(Object.keys(localStorage).find((k) => k.startsWith('naejeon:draft')) || 'null') || 'null') || S.store.data.meta.todayDraft; });
-    ok(dr && dr.gw && dr.blue.every((id, i) => id === J[i]) && dr.red.every((id, i) => id === M[i]), '길드전: 라인마다 맞바꿔 정파 블루 · 마교 레드');
+  await A.evaluate(async ([J, M]) => { const t = await import('/js/today.js'); t.setDraftTeams([J[0], M[1], J[2], M[3], J[4]], [M[0], J[1], M[2], J[3], M[4]]); }, [J, M]); await A.waitForTimeout(600);
+  ok(!(await A.$('.gwind')) && !(await A.$('[data-a=tGw]')), '섞인 팀이면 정마대전 표시 없음, 정마대전 버튼도 없음');
+  await A.evaluate(async ([J, M]) => { const t = await import('/js/today.js'); t.setDraftTeams([...J.slice(0, 4), M[4]], [...M.slice(0, 4), J[4]]); }, [J, M]); await A.waitForTimeout(600);
+  ok(!(await A.$('.gwind')), '4명만 같은 문파(1명 섞임)면 정마대전 아님');
+  await A.evaluate(async ([J, M]) => { const t = await import('/js/today.js'); t.setDraftTeams(J, M); }, [J, M]); await A.waitForTimeout(600);
+  ok(!!(await A.$('.gwind')), '양 팀이 각각 한 문파로만 → 정마대전 표시가 빛남');
+  const w0 = await A.evaluate(async () => (await import('/js/guild.js')).gData('all').j.war.g);
   await A.click('[data-a=tWin][data-w=blue]'); await A.click('[data-a=tSave]'); await A.waitForTimeout(1200);
-  ok(Object.values(be.db.matches).some((m) => m.gw === true && m.blue.join() === J.join()), '저장한 경기에 길드전 표시(gw)');
+  const w1 = await A.evaluate(async () => (await import('/js/guild.js')).gData('all').j.war.g);
+  ok(w1 === w0 + 1, `저장하면 정마대전으로 자동 집계(정파 정마대전 ${w0} → ${w1}판)`);
   // 문파 직위(통산 판수) · 금고(경기 기록으로 계산) · 천하정세 · 상점
   await open(A, 'jeongpa', 1200);
   const rk = await A.evaluate(async () => { const { S } = await import('/js/core.js'); const g = await import('/js/guild.js'); const id = Object.keys(S.store.data.players).find((x) => S.store.data.players[x].guild === 'j' && g.rankOf('j', x).lv < 5); const n = S.st.P[id].g, r = g.rankOf('j', id); const want = [...g.RANKS.j].reverse().find((x) => n >= x[0])[1]; return { ok: r.n === want, chips: document.querySelectorAll('.gm-c .gd-rk').length, n, r: r.n, want }; });
@@ -187,8 +173,8 @@ const crypto = require('crypto');
   const tw = (() => { const e = { win: 10, lose: 5, gwWin: 100, gwLose: 50 }, t0 = G().at, T = { j: 0, m: 0 };
     const at = (id, t) => { const lg = P()[id].glog || []; let g = ''; for (const x of lg) if (x.at <= t) g = x.g; return g || (lg.length ? '' : P()[id].guild); };
     const qk = (t) => { const d = new Date(t - 6 * 3600e3); return d.getFullYear() + 'Q' + Math.ceil((d.getMonth() + 1) / 3); }, cq = qk(Date.now());
-    for (const m of Object.values(be.db.matches)) { if (m.deleted || !m.winner || m.at < t0 || qk(m.at) !== cq) continue; const gs = { blue: m.blue.map((id) => at(id, m.at)), red: m.red.map((id) => at(id, m.at)) }; const maj = (a) => ['j', 'm'].find((g) => a.filter((v) => v === g).length >= 3) || ''; const bj = maj(gs.blue), rj = maj(gs.red);
-      if (m.gw && bj && rj && bj !== rj) { const w = m.winner === 'blue' ? bj : rj; T[w] += e.gwWin; T[w === 'j' ? 'm' : 'j'] -= e.gwLose; continue; }
+    for (const m of Object.values(be.db.matches)) { if (m.deleted || !m.winner || m.at < t0) continue; const gs = { blue: m.blue.map((id) => at(id, m.at)), red: m.red.map((id) => at(id, m.at)) }; const one = (a) => (a.every((v) => v && v === a[0]) ? a[0] : ''); const bj = one(gs.blue), rj = one(gs.red);
+      if (bj && rj && bj !== rj) { const w = m.winner === 'blue' ? bj : rj; T[w] += e.gwWin; T[w === 'j' ? 'm' : 'j'] -= e.gwLose; continue; }
       for (const sd of ['blue', 'red']) gs[sd].forEach((g) => { if (g) T[g] += m.winner === sd ? e.win : -e.lose; }); }
     return T; })();
   const tg = await A.evaluate(async () => { const t = (await import('/js/guild.js')).treasury(); return { j: t.j.bal, m: t.m.bal }; });
@@ -217,6 +203,19 @@ const crypto = require('crypto');
   if (await A.evaluate(() => document.body.classList.contains('chat-closed'))) { await A.click('#chatfab'); await A.waitForTimeout(900); }
   await A.evaluate(() => document.querySelector('#ch-tabs [data-t=m]').click()); await A.waitForTimeout(500);
   ok(await A.evaluate(() => document.getElementById('chat').classList.contains('gt-m')), '채팅창 마교 탭: 마교 테마(gt-m)');
+  // 대장만 남기기: 무림맹주·천마만 남고 나머지 무소속, 문파 기록은 다시 3명이 된 순간부터
+  await A.evaluate(async () => { const { S } = await import('/js/core.js'); S.admin = true; });
+  await open(A, 'admin/guild', 1200);
+  const leads = await A.evaluate(async () => { const { S } = await import('/js/core.js'); return S.store.data.meta.guild.lead; });
+  await A.evaluate(() => document.querySelector('[data-a=gaReset]').click()); await A.waitForSelector('#gapin-i'); await A.fill('#gapin-i', '1234'); await A.click('#gapin .btn'); await A.waitForFunction(() => /무소속으로 바꿨어요/.test(document.getElementById('toast').innerText), null, { timeout: 20000 });
+  const left = Object.values(P()).filter((p) => p.guild).map((p) => p.id).sort();
+  ok(left.join() === Object.values(leads).filter(Boolean).sort().join(), '대장만 남기기: 무림맹주·천마만 소속, 나머지 무소속');
+  const af0 = await A.evaluate(async () => { const { gActiveFrom } = await import('/js/core.js'); return [gActiveFrom('j'), gActiveFrom('m')]; });
+  ok(af0.every((v) => v === null || v === Infinity), '소속 1~2명인 문파는 기록이 쌓이지 않음(시작 전)');
+  const two = Object.keys(P()).filter((id) => !P()[id].guild && !P()[id].deleted).slice(0, 2);
+  for (const id of two) { await A.evaluate((id) => document.querySelector(`[data-a=gaSet][data-id="${id}"][data-g=j]`).click(), id); await A.waitForTimeout(700); }
+  const af1 = await A.waitForFunction(async () => { const { gActiveFrom } = await import('/js/core.js'); const v = gActiveFrom('j'); return v !== Infinity && v; }, null, { timeout: 8000 }).then((h) => h.jsonValue()).catch(() => Infinity);
+  ok(af1 > 0 && af1 !== Infinity, '관리자가 2명을 더 배정해 3명이 되면 그 순간부터 기록 시작');
   // 휴대폰
   const Mo = await client(b, be, 'WORK', 'Mo', { ctx: await device(b, be, 'WORK', 'Mo', { viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true }) });
   for (const h of ['guilds', 'jeongpa', 'magyo', 'gshop', 'admin/guild', 'me']) { await open(Mo, h, 1300); const w = await Mo.evaluate(() => document.documentElement.scrollWidth); ok(w <= 361, `휴대폰(360px) ${h} 가로 넘침 없음(${w})`); }

@@ -1,5 +1,5 @@
 // 오늘의 내전: 라인업 보드(점수·예상승률·해설) + 경기 결과 입력/수정
-import { gname, gOf, gem, guildOn, S, page, act, esc, uid, pname, go, refresh, ddMenu, champIcon, artUrl, toast, pickChamp, pickPlayer, history, ic, dots, burst, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
+import { gname, gOf, gem, guildOn, pureWar, S, page, act, esc, uid, pname, go, refresh, ddMenu, champIcon, artUrl, toast, pickChamp, pickPlayer, history, ic, dots, burst, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
 import { kakaoBtn } from './kakao.js';
 import { evalLineup, commentary, bestDuo, aiBalance } from './stats.js';
 import { notify } from './hook.js';
@@ -191,8 +191,8 @@ page('today', {
       </button><span class="sl-score mono">${(+s.p.scores?.[l] || 0).toFixed(1)}</span></div>`;
     };
     const duo = (side) => { const b = bestDuo(d[side], st); return b ? `<span class="${side}">${gname(b.a)} + ${gname(b.b)} <b class="mono">${pct(b.w, b.g)}%</b> <small>${b.g}판</small></span>` : `<span class="mut">${side === 'blue' ? '블루' : '레드'} — 함께한 기록 부족</span>`; };
-    return `<div class="h2row td-h" data-k="hd"><h1>${ic('today')}${edit ? `경기 수정 <span class="mono">#${st.MI[edit.id]?.no ?? ''}</span>` : '팀 구성하기'}</h1><span class="tag ${full ? 'ok' : ''}">${filled}/10 배치</span>${d.gw && guildOn() ? `<span class="tag gwt">${gem('j')}정파 vs 마교${gem('m')}</span>` : ''}<span class="grow"></span>
-      ${edit ? '<a class="btn" href="#/matches">취소</a>' : `<button class="btn gold" data-a="tAi" ${full ? '' : 'disabled'} title="${full ? '라인은 그대로 두고, 점수 차이가 가장 작아지도록 블루·레드를 나눕니다 (높은 원딜·높은 서폿은 같은 팀 안 됨)' : '10명을 모두 배치하면 쓸 수 있어요'}">${ic('bolt')}AI<span class="m-hide"> 추천</span></button>${guildOn() ? `<button class="btn gwbtn ${d.gw ? 'on' : ''}" data-a="tGw" ${full || d.gw ? '' : 'disabled'} aria-pressed="${!!d.gw}" title="${d.gw ? '정마대전 끄기(라인업은 그대로)' : '라인은 그대로 두고 정파는 블루, 마교는 레드로 나눕니다(같은 라인에 같은 문파면 용병). 정마대전으로 기록돼요'}">${ic('guild')}<span class="m-hide">${d.gw ? ' 정마대전 ON' : ' 정마대전'}</span></button>` : ''}<button class="btn gold gbtn ${boardLive() ? 'bd-on' : ''}" data-a="tBoard" title="라인 지원: 모두 함께 원하는 라인 고르기 → 몰린 라인은 추첨">${ic('users')}<span><span class="n-hide">라인 </span>${boardLive() ? '지원 중' : '지원'}</span></button><button class="btn gold" data-a="tDice">${ic('dice')}<span class="n-hide">라인 </span>주사위</button>${ddMenu(`<button data-a="tSwap">${ic('swap')}진영 교체</button><button class="danger" data-a="tClear">${ic('trash')}비우기</button>`)}`}</div>
+    return `<div class="h2row td-h" data-k="hd"><h1>${ic('today')}${edit ? `경기 수정 <span class="mono">#${st.MI[edit.id]?.no ?? ''}</span>` : '팀 구성하기'}</h1><span class="tag ${full ? 'ok' : ''}">${filled}/10 배치</span>${gwBadge(d)}<span class="grow"></span>
+      ${edit ? '<a class="btn" href="#/matches">취소</a>' : `<button class="btn gold" data-a="tAi" ${full ? '' : 'disabled'} title="${full ? '라인은 그대로 두고, 점수 차이가 가장 작아지도록 블루·레드를 나눕니다 (높은 원딜·높은 서폿은 같은 팀 안 됨)' : '10명을 모두 배치하면 쓸 수 있어요'}">${ic('bolt')}AI<span class="m-hide"> 추천</span></button><button class="btn gold gbtn ${boardLive() ? 'bd-on' : ''}" data-a="tBoard" title="라인 지원: 모두 함께 원하는 라인 고르기 → 몰린 라인은 추첨">${ic('users')}<span><span class="n-hide">라인 </span>${boardLive() ? '지원 중' : '지원'}</span></button><button class="btn gold" data-a="tDice">${ic('dice')}<span class="n-hide">라인 </span>주사위</button>${ddMenu(`<button data-a="tSwap">${ic('swap')}진영 교체</button><button class="danger" data-a="tClear">${ic('trash')}비우기</button>`)}`}</div>
     <section class="arena">
       <div class="scorebar" data-k="sb" style="--wi:${fav ? wi.toFixed(2) : 0}"><div class="sb blue${fav === 'blue' ? ' fav' : ''}">${fav === 'blue' ? FAV_RING : ''}<small>BLUE TEAM</small><b class="mono" data-live="bs">${ev.bs.toFixed(1)}</b><span>평균 MMR ${ev.mmrB ? Math.round(ev.mmrB) : '—'}</span>${tkSum(d.blue)}</div>
         <div class="sb-mid">${winRing(pb, full, any, filled, wi)}</div>
@@ -296,19 +296,13 @@ act('tAi', () => {
   keep(); burst(innerWidth / 2, innerHeight / 3, 60);
   toast(`AI 추천 배치 · 점수 ${r.bs.toFixed(1)} : ${r.rs.toFixed(1)} (차이 ${r.diff.toFixed(1)})`);
 });
-// 길드전: 라인마다 두 사람을 맞바꿔 정파는 블루, 마교는 레드로(같은 라인 두 사람이 같은 길드면 한쪽은 용병)
-act('tGw', () => {
-  const dr = D();
-  if (dr.gw) { dr.gw = false; keep(); return toast('정마대전을 껐어요(라인업은 그대로)'); }
-  if (!isFull(dr)) return toast('양 팀 10명을 모두 배치해 주세요');
-  LANES.forEach((_, i) => {
-    const a = gOf(dr.blue[i]), b = gOf(dr.red[i]);
-    if ((a === 'm' && b !== 'm') || (b === 'j' && a !== 'j')) { [dr.blue[i], dr.red[i]] = [dr.red[i], dr.blue[i]]; [dr.champs.blue[i], dr.champs.red[i]] = [dr.champs.red[i], dr.champs.blue[i]]; }
-  });
-  const merc = dr.blue.filter((id) => gOf(id) !== 'j').length + dr.red.filter((id) => gOf(id) !== 'm').length;
-  dr.gw = true; keep();
-  toast(`정마대전 · 정파(블루) vs 마교(레드)${merc ? ` · 용병 ${merc}명` : ' · 순수 대결'}`);
-});
+// 정마대전 알림: 10명을 다 배치했고 블루·레드가 각각 한 문파로만(다섯 명 모두) 구성되면 빛나는 표시가 뜬다(누르는 버튼 아님).
+// 저장하면 문파 화면이 경기 당시 소속으로 정마대전을 알아서 센다(따로 저장하는 값 없음)
+function gwBadge(d) {
+  if (!guildOn() || !isFull(d)) return '';
+  const pw = pureWar(d.blue, d.red, gOf);
+  return pw ? `<span class="gwind" role="status" title="블루·레드가 각각 한 문파로만 구성됐어요. 이 경기는 정마대전으로 기록돼요">${gem(pw.blue)}<b>정마대전</b>${gem(pw.red)}</span>` : '';
+}
 act('tSwap', () => { const dr = D(); [dr.blue, dr.red] = [dr.red, dr.blue]; [dr.champs.blue, dr.champs.red] = [dr.champs.red, dr.champs.blue]; [dr.bans.blue, dr.bans.red] = [dr.bans.red, dr.bans.blue]; if (dr.winner) dr.winner = dr.winner === 'blue' ? 'red' : 'blue'; keep(); });
 act('tClear', () => { if (confirm('라인업과 입력 내용을 모두 비울까요?')) { draft = blank(); keep(); } });
 act('tSave', async (d, btn) => {
@@ -341,7 +335,7 @@ act('tSave', async (d, btn) => {
   sysChat(`경기 기록 · ${dr.winner === 'blue' ? '블루' : '레드'} 승리 (${m[dr.winner].map((p) => S.st.P[p]?.name).join(', ')})`);
   notify('match', id); // 디스코드 알림(연동 서버가 설정돼 있을 때만)
   lastSaved = id;
-  draft = { ...blank(), blue: dr.blue, red: dr.red, ...(dr.gw ? { gw: true } : {}) }; // 같은 팀으로 다음 판을 바로 기록할 수 있게 라인업은 유지
+  draft = { ...blank(), blue: dr.blue, red: dr.red }; // 같은 팀으로 다음 판을 바로 기록할 수 있게 라인업은 유지
   keep(); window.scrollTo(0, 0); document.getElementById('main').scrollTop = 0;
 });
 

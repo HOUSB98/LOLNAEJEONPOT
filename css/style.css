@@ -2587,8 +2587,8 @@ b.cn.gtint{display:block}
 .ch-tabs .ct-j.on{border-bottom-color:var(--gj);color:var(--gj2)}.ch-tabs .ct-m.on{border-bottom-color:var(--gm);color:var(--gm2)}
 .ct-lk{display:inline-grid;place-items:center;margin-left:1px;opacity:.6}.ct-lk .ic{width:12px;height:12px}
 #chat.gtab #chatform .cbtn2:not(.go),#chat.gtab #chattray{display:none!important}#chat.glock #chatform{display:none}
-.gc-lock{display:flex;flex-direction:column;align-items:center;gap:10px;margin:auto;padding:22px 16px;text-align:center;max-width:280px}.gc-lock p{margin:0;line-height:1.6;color:var(--mut)}.gc-lock .inp,.gc-lock .btn{width:100%;min-height:44px}
-.gc-bar{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:-4px 0 6px;padding:6px 10px;border-radius:8px;font-size:11.5px;background:rgba(10,15,25,.92)}.gc-bar.g-j{color:var(--gj2);box-shadow:inset 3px 0 0 var(--gj)}.gc-bar.g-m{color:var(--gm2);box-shadow:inset 3px 0 0 var(--gm)}.gc-bar .lnk{font-size:11.5px;color:var(--mut);background:none;border:0;cursor:pointer;text-decoration:underline}
+.gch-lock{display:flex;flex-direction:column;align-items:center;gap:10px;margin:auto;padding:22px 16px;text-align:center;max-width:280px}.gch-lock p{margin:0;line-height:1.6;color:var(--mut)}.gch-lock .inp,.gch-lock .btn{width:100%;min-height:44px}
+.gch-bar{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:-4px 0 6px;padding:6px 10px;border-radius:8px;font-size:11.5px;background:rgba(10,15,25,.92)}.gch-bar.g-j{color:var(--gj2);box-shadow:inset 3px 0 0 var(--gj)}.gch-bar.g-m{color:var(--gm2);box-shadow:inset 3px 0 0 var(--gm)}.gch-bar .lnk{font-size:11.5px;color:var(--mut);background:none;border:0;cursor:pointer;text-decoration:underline}
 /* 채팅창 길드 탭 테마: 크리스마스 장식(밤하늘·장식 줄·리본)을 끄고 정파 = 매화 / 마교 = 귀화·핏빛 */
 #chat.gt-j #xsky,#chat.gt-m #xsky,#chat.gt-j .xswag,#chat.gt-m .xswag,#chat.gt-j::after,#chat.gt-m::after{display:none!important}
 #chat.gt-j .cb::after,#chat.gt-m .cb::after,#chat.gt-j .cb::before,#chat.gt-m .cb::before{display:none!important}
@@ -2608,3 +2608,10 @@ b.cn.gtint{display:block}
 .gd-ban.g-j{background:linear-gradient(90deg,rgba(245,154,194,.22),rgba(245,154,194,.04));border:1px solid rgba(245,154,194,.45)}.gd-ban.g-j small{color:var(--gj2)}
 .gd-ban.g-m{background:linear-gradient(90deg,rgba(79,224,143,.18),rgba(224,48,63,.06));border:1px solid rgba(79,224,143,.4)}.gd-ban.g-m small{color:var(--gm2)}
 .ga-arc td,.ga-arc th{white-space:nowrap;font-size:12.5px}.ga-arc tr.now td{background:rgba(217,164,65,.06)}.ga-arc .gem{width:14px;height:14px}
+.ga-seg button.g-x.on{background:#2a3446;color:#e8ecf4}
+/* 팀 구성하기: 정마대전 알림(누르는 버튼 아님, 양 팀이 각각 한 문파로만 구성되면 빛남) */
+.td-h{flex-wrap:wrap}.gwind{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:99px;font-size:14px;font-weight:800;color:#fff;background:linear-gradient(90deg,rgba(245,154,194,.32),rgba(79,224,143,.3));border:1px solid rgba(255,230,170,.55);box-shadow:0 0 0 0 rgba(243,210,122,.6);animation:gwglow 1.8s ease-in-out infinite}
+.gwind .gem{width:18px;height:18px;margin:0}
+@keyframes gwglow{0%,100%{box-shadow:0 0 6px 0 rgba(243,210,122,.35)}50%{box-shadow:0 0 18px 3px rgba(243,210,122,.6)}}
+body.lite .gwind{animation:none}
+@media (max-width:600px){.gwind{order:10;width:100%;justify-content:center;padding:10px 14px;font-size:15px;margin-top:6px}}

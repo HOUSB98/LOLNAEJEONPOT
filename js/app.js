@@ -234,7 +234,7 @@ const guildBar = (st) => {
   let me = ''; try { me = localStorage.getItem('naejeon:me:' + S.key) || localStorage.getItem('naejeon:bdme:' + S.key) || ''; } catch {}
   if (!st.P[me]) return '';
   const g = gOf(me);
-  if (!g) return `<a class="gd-home none" href="#/guild">${gem('j')}${gem('m')}<span><b>문파를 정해 주세요</b><small>정파 · 마교 중 내 문파를 고르면 이름 옆에 엠블럼이 붙어요</small></span>${ic('guild')}</a>`;
+  if (!g) return ''; // 무소속: 관리자가 배정하면 띠가 생김
   const t0 = +S.store.data.meta.guild.at, wk = (() => { const d = new Date(dayKey(Date.now()) + 'T12:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return dayKey(d.getTime() + 6 * 3600e3); })();
   let w = 0, n = 0;
   for (let i = st.matches.length - 1; i >= 0; i--) { const m = st.matches[i]; if (m.at < t0 || dayKey(m.at) < wk) break; ['blue', 'red'].forEach((sd) => m[sd].forEach((id) => { if (gAt(id, m.at) === g) { n++; if (m.winner === sd) w++; } })); }
@@ -824,7 +824,7 @@ function maintGate() {
 function maintBar() { if (document.getElementById('np-mbar')) return; document.body.insertAdjacentHTML('beforeend', '<div id="np-mbar" class="np-mbar" role="status">점검 모드 · 관리자만 접속 중</div>'); }
 // 공지 창(로딩 창이 끝나고 홈이 열릴 때 한 번): 길드 창설 안내. 창설 시각부터 3일 동안만, 접속(탭)마다 한 번, '다시 보지 않기'를 누르면 이 기기에서는 끝
 // 저장·읽기 없음(문구는 코드에 있음). 다른 창이 떠 있으면 닫힐 때까지 기다린다
-const POP = { id: 'guild-open', days: 3 };
+const POP = { id: 'guild-open2', days: 3 }; // 문구가 바뀌면 id를 바꿔 다시 보이게
 function noticePop() {
   const gm = S.store.data.meta?.guild, k = 'naejeon:pop:' + POP.id;
   if (!guildOn() || !gm?.at || Date.now() > +gm.at + POP.days * 864e5) return;
@@ -839,11 +839,12 @@ function noticePop() {
     const el = modal(`<div class="np-pop"><div class="npp-top">${gem('j')}<i>VS</i>${gem('m')}</div><small class="npp-k">NOTICE · 문파 창설</small>
       <h2>정파 · 마교, 두 문파가 열렸습니다</h2>
       <p>오늘부터 NAEJEONPOT에 두 개의 문파 <b class="npp-j">정파</b>와 <b class="npp-m">마교</b>가 창설되었어요.</p>
-      <ul><li>모든 소환사는 두 문파 중 한 곳에 소속되고, 이름 옆에 문파 엠블럼이 표시돼요.</li>
-        <li>문파 페이지에서 문파 전적 · 대항전 · 챔피언 활용 · 명예의 전당을 확인할 수 있어요.</li>
+      <ul><li>관리자가 소환사를 문파에 배정하고, 이름 옆에 문파 엠블럼이 표시돼요.</li>
+        <li>문파 페이지에서 문파 전적 · 정마대전 · 챔피언 활용 · 명예의 전당을 확인할 수 있어요.</li>
+        <li><b>문파는 분기(3개월) 단위로 진행돼요.</b> 분기마다 전적·정마대전 승부를 새로 겨루고, 지난 분기 결과는 보관돼요. 문파 금고(냥)는 분기가 바뀌어도 이어져요.</li>
         <li>채팅창의 <b>정파 · 마교 탭</b>에서 문파원끼리만 대화할 수 있어요(문파 비밀번호).</li>
         <li>문파 페이지에는 문파원들이 함께 쓰는 게시판이 있어요.</li>
-        <li>팀 구성하기에서 '정마대전'으로 문파끼리 맞붙을 수도 있어요.</li></ul>
+        <li>블루·레드 팀을 각각 한 문파로만 꾸리면 자동으로 '정마대전'으로 기록돼요.</li></ul>
       <p class="npp-s">내 문파는 홈의 '내 문파' 띠나 내 페이지에서 확인해 보세요.</p>
       <label class="mini"><input type="checkbox" id="npp-no"> 다시 보지 않기</label>
       <div class="row npp-b"><button class="btn" data-a="nppClose">닫기</button><button class="btn pri" data-a="nppGo" data-h="${ghref(mine || 'j')}">${mine ? '내 문파 보러 가기' : '문파 보러 가기'}</button></div></div>`, 'np-popw');

@@ -25,8 +25,29 @@ export const gOf = (id) => (guildOn() && GUILDS[S.store.data.players?.[id]?.guil
 export function gAt(id, t) {
   const p = S.store.data.players?.[id]; if (!p || !guildOn()) return '';
   const lg = Array.isArray(p.glog) ? p.glog : [];
-  let g = ''; for (const e of lg) if (+e.at <= t && GUILDS[e.g]) g = e.g;
-  return g || (lg.length ? '' : gOf(id));
+  let g = '', seen = false; for (const e of lg) if (+e.at <= t) { seen = true; g = GUILDS[e.g] ? e.g : ''; } // g가 ''인 기록 = 무소속이 됨
+  return seen ? g : lg.length ? '' : gOf(id);
+}
+// 정마대전: 양 팀이 각각 한 문파로만(다섯 명 모두) 구성되고 두 팀의 문파가 다를 때. get(id) = 그 사람의 문파(경기 당시 또는 지금)
+export function pureWar(blue, red, get) {
+  const one = (ids) => { const gs = ids.map(get); return gs.length === 5 && gs.every((x) => x && x === gs[0]) ? gs[0] : ''; };
+  const b = one(blue), r = one(red);
+  return b && r && b !== r ? { blue: b, red: r } : null;
+}
+// 문파 기록이 쌓이기 시작한 때: 소속이 3명이 된 순간(관리자가 '대장만 남기기'를 했으면 그 뒤부터 다시 셈). 아직 3명이 안 됐으면 Infinity
+let AF = { st: null, gm: null, v: null };
+export function gActiveFrom(g) {
+  const gm = guildMeta(); if (!gm?.at) return Infinity;
+  if (AF.st !== S.st || AF.gm !== gm || !AF.v) {
+    const base = Math.max(+gm.at || 0, +gm.reset || 0), pl = Object.values(S.store.data.players || {}).filter((p) => !p.deleted);
+    const cur = {}, cnt = { j: 0, m: 0 }, v = { j: Infinity, m: Infinity }, ev = [];
+    for (const p of pl) { cur[p.id] = gAt(p.id, base); if (cnt[cur[p.id]] !== undefined) cnt[cur[p.id]]++; for (const e of p.glog || []) if (+e.at > base) ev.push([+e.at, p.id, GUILDS[e.g] ? e.g : '']); }
+    for (const G of GK) if (cnt[G] >= 3) v[G] = base;
+    ev.sort((a, b) => a[0] - b[0]);
+    for (const [at, id, g] of ev) { const o = cur[id]; if (o === g) continue; if (cnt[o] !== undefined) cnt[o]--; if (cnt[g] !== undefined) cnt[g]++; cur[id] = g; for (const G of GK) if (v[G] === Infinity && cnt[G] >= 3) v[G] = at; }
+    AF = { st: S.st, gm, v };
+  }
+  return AF.v[g];
 }
 export const GEM = {
   j: '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="3.900" r="3" fill="#f7a9c9"/><circle cx="11.900" cy="6.700" r="3" fill="#f59ac2"/><circle cx="10.400" cy="11.300" r="3" fill="#f7a9c9"/><circle cx="5.600" cy="11.300" r="3" fill="#f59ac2"/><circle cx="4.100" cy="6.700" r="3" fill="#f7a9c9"/><circle cx="8" cy="7.900" r="2" fill="#ffd66e"/></svg>',

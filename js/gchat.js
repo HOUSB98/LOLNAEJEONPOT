@@ -75,9 +75,9 @@ const tm = (at) => { const d = new Date(at); return `${String(d.getHours()).padS
 export function html(g) {
   const sec = secOf(g), n = GUILDS[g].n;
   if (C.key && C.g === g && sec && +sec.at !== C.at) close(); // 관리자가 비밀번호를 새로 시작했으면 다시 잠금
-  if (!sec?.wk) return `<div class="gc-lock"><b>${n} 채팅</b><p>관리자가 ${n} 비밀번호를 정하면 열려요.</p></div>`;
-  if (!isOpen(g)) return `<form class="gc-lock" id="gcf" data-g="${g}"><b>${n} ${GUILDS[g].mem} 전용 채팅</b><p>문파 비밀번호를 넣어 주세요.<br><small>대화는 암호화되어 저장돼요.</small></p><input class="inp" id="gcf-p" type="password" autocomplete="off" placeholder="${n} 비밀번호" aria-label="${n} 비밀번호"><label class="mini"><input type="checkbox" id="gcf-r" checked> 이 기기에서 기억하기</label><button class="btn pri">입장</button></form>`;
-  const bar = `<div class="gc-bar g-${g}"><span>${n} ${GUILDS[g].mem} 전용 · 암호화</span><button class="lnk" data-a="chGLock" title="이 기기에서 기억한 비밀번호 지우기">잠그기</button></div>`;
+  if (!sec?.wk) return `<div class="gch-lock"><b>${n} 채팅</b><p>관리자가 ${n} 비밀번호를 정하면 열려요.</p></div>`;
+  if (!isOpen(g)) return `<form class="gch-lock" id="gchf" data-g="${g}"><b>${n} ${GUILDS[g].mem} 전용 채팅</b><p>문파 비밀번호를 넣어 주세요.<br><small>대화는 암호화되어 저장돼요.</small></p><input class="inp" id="gchf-p" type="password" autocomplete="off" placeholder="${n} 비밀번호" aria-label="${n} 비밀번호"><label class="mini"><input type="checkbox" id="gchf-r" checked> 이 기기에서 기억하기</label><button class="btn pri">입장</button></form>`;
+  const bar = `<div class="gch-bar g-${g}"><span>${n} ${GUILDS[g].mem} 전용 · 암호화</span><button class="lnk" data-a="chGLock" title="이 기기에서 기억한 비밀번호 지우기">잠그기</button></div>`;
   if (!C.msgs.length) return `${bar}<div class="cempty"><p>${n} ${GUILDS[g].mem}만 보는 채팅이에요.<br>첫 이야기를 남겨 보세요.</p></div>`;
   let prev = '', out = bar;
   for (const m of C.msgs) {
@@ -94,12 +94,12 @@ export async function send(g, t) {
 export function lock(g) { try { localStorage.removeItem(LKK(g)); } catch {} delete KS[g]; if (C.g === g) close(); }
 // 비밀번호 입력(채팅창 안의 양식)
 document.addEventListener('submit', async (e) => {
-  const f = e.target; if (!(f instanceof HTMLFormElement) || f.id !== 'gcf') return;
+  const f = e.target; if (!(f instanceof HTMLFormElement) || f.id !== 'gchf') return;
   e.preventDefault();
-  const g = f.dataset.g, sec = secOf(g), pw = f.querySelector('#gcf-p').value;
+  const g = f.dataset.g, sec = secOf(g), pw = f.querySelector('#gchf-p').value;
   if (!pw || !sec?.wk) return;
   const btn = f.querySelector('.btn'); btn.disabled = true;
   let raw; try { raw = await unseal(await pwKey(pw, unb64(sec.salt)), sec.wk); } catch { btn.disabled = false; return toast('비밀번호가 맞지 않아요'); }
   if (C.g && C.g !== g) close();
-  C.un?.(); await use(g, raw, f.querySelector('#gcf-r').checked); C.cb?.();
+  C.un?.(); await use(g, raw, f.querySelector('#gchf-r').checked); C.cb?.();
 });
