@@ -241,6 +241,7 @@ const guildBar = (st) => {
   return `<a class="gd-home g-${g}" href="${ghref(g)}">${gem(g)}<span><small>내 문파</small><b>${GUILDS[g].n}</b></span><span class="gh-k"><small>이번 주</small><b class="mono">${n ? `${w}승 ${n - w}패` : '아직 경기 없음'}</b></span><em>문파 보기 ›</em></a>`;
 };
 page('home', {
+  keyed: 'auto', // 바뀐 구역만 다시 그림(core.js autoKeys)
   render() {
     const st = S.st, x = st.sum, now = new Date();
     const hl = heroList(), hero = hl.length ? hl[HERO.i % hl.length] : null;
@@ -340,6 +341,7 @@ const COLS = {
   lane: LANES.map((l) => [l, `${LANE_ICON[l]}${LANE_NAME[l]}`, (s) => (s.lanes[l].g ? s.lanes[l].w / s.lanes[l].g : -1), (s) => `<span class="mono ${wrClass(pct(s.lanes[l].w, s.lanes[l].g))}">${wr(s.lanes[l])}</span>`]),
 };
 page('rank', {
+  keyed: 'auto', // 바뀐 구역만 다시 그림(core.js autoKeys)
   render() {
     const st = S.st, x = st.sum;
     const cols = COLS[LB.view], sortCol = cols.find((c) => c[0] === LB.sort) || cols[0];
@@ -677,6 +679,12 @@ function metaDiff() {
   for (const k of new Set([...Object.keys(m), ...Object.keys(metaSig)])) { const v = JSON.stringify(m[k] ?? null); if (metaSig[k] !== v) { metaSig[k] = v; ch[k] = 1; } }
   return ch;
 }
+// 선수 문서 중 통계 계산에 쓰는 부분의 지문: 문파 소속(guild·glog)·수정 시각(upd)만 바뀌었으면 같다 → 통계 재계산 없이 화면만(바뀐 칸만) 다시 그림
+let pSig = '';
+function playersSig() {
+  const sig = JSON.stringify(Object.values(S.store.data.players || {}).map(({ guild, glog, upd, ...rest }) => rest).sort((a, b) => (a.id < b.id ? -1 : 1)));
+  const changed = sig !== pSig; pSig = sig; return changed;
+}
 function onStore(c) {
   if (c === 'chat') return renderChat();
   if (c === 'presence') return renderPresence();
@@ -692,12 +700,13 @@ function onStore(c) {
     if (ch.scorelog && (S.page === 'home' || S.page === 'scores')) refresh();
     if (ch.pause) checkPause();
     if (ch.recruit) onRecruit();
-    if (ch.guild) refresh(true); // 문파 창설·공지·문파장: 이름 옆 엠블럼과 문파 화면
+    if (ch.guild) refresh(); // 문파 창설·공지·문파장: 이름 옆 엠블럼과 문파 화면(통계 재계산은 필요 없음)
     return;
   }
   if (c === 'posts') { watchPosts(); postsChanged(); if (S.page === 'talk') refresh(); return; }
   if (c === 'matches') noteMatches();
-  if (c === 'players' || c === 'matches') refresh(true);
+  if (c === 'players') { S.pv = (S.pv || 0) + 1; return refresh(playersSig()); } // 문파 배정처럼 통계와 상관없는 변경이면 통계를 다시 계산하지 않음
+  if (c === 'matches') refresh(true);
 }
 // ---------- 사용량 자동 쉬기 ----------
 // 연동 서버(Worker)가 30분마다 사용량을 보고, 오늘 Firebase 무료 한도의 95%를 넘으면 meta/pause = { on, day(태평양 날짜), reason } 를 적는다.

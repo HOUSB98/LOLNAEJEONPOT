@@ -277,6 +277,7 @@ act('pcSel', (d, el) => go('#/players/' + el.value));
 const CM = { min: 5, mode: 'duo', pa: 0, pb: 0, t: 0 };
 const PER = 5; // 듀오 순위 한 장에 5팀, 최대 3장(15팀)이 자동으로 넘어간다
 page('chem', {
+  keyed: 'auto', // 바뀐 구역만 다시 그림(core.js autoKeys)
   render(id) {
     const st = S.st, on = st.list.filter((s) => s.g).sort((a, b) => b.g - a.g);
     if (!on.length) return `<h1>${ic('chem')}케미 분석</h1><div class="panel empty">경기 기록이 쌓이면 듀오 시너지와 천적 관계가 표시됩니다.</div>`;

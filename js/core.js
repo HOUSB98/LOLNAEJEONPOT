@@ -38,14 +38,14 @@ export function pureWar(blue, red, get) {
 let AF = { st: null, gm: null, v: null };
 export function gActiveFrom(g) {
   const gm = guildMeta(); if (!gm?.at) return Infinity;
-  if (AF.st !== S.st || AF.gm !== gm || !AF.v) {
+  if (AF.st !== S.st || AF.gm !== gm || AF.pv !== S.pv || !AF.v) {
     const base = Math.max(+gm.at || 0, +gm.reset || 0), pl = Object.values(S.store.data.players || {}).filter((p) => !p.deleted);
     const cur = {}, cnt = { j: 0, m: 0 }, v = { j: Infinity, m: Infinity }, ev = [];
     for (const p of pl) { cur[p.id] = gAt(p.id, base); if (cnt[cur[p.id]] !== undefined) cnt[cur[p.id]]++; for (const e of p.glog || []) if (+e.at > base) ev.push([+e.at, p.id, GUILDS[e.g] ? e.g : '']); }
     for (const G of GK) if (cnt[G] >= 3) v[G] = base;
     ev.sort((a, b) => a[0] - b[0]);
     for (const [at, id, g] of ev) { const o = cur[id]; if (o === g) continue; if (cnt[o] !== undefined) cnt[o]--; if (cnt[g] !== undefined) cnt[g]++; cur[id] = g; for (const G of GK) if (v[G] === Infinity && cnt[G] >= 3) v[G] = at; }
-    AF = { st: S.st, gm, v };
+    AF = { st: S.st, gm, pv: S.pv, v };
   }
   return AF.v[g];
 }
@@ -226,7 +226,7 @@ export function render() {
   // (예전에는 넣은 뒤 void offsetWidth 로 페이지 전체 배치를 억지로 계산시켜 다시 걸어서 휴대폰 첫 화면이 0.4초 멈칫했다.)
   if (entering) { main.classList.add('enter'); clearTimeout(render.t); render.t = setTimeout(() => main.classList.remove('enter'), 900); }
   const html = pages[S.page].render(...S.arg);
-  if (pages[S.page].keyed) keyedRender(main, html, entering); else { main.innerHTML = html; KR.shell = null; }
+  if (pages[S.page].keyed) keyedRender(main, html, entering, pages[S.page].keyed === 'auto'); else { main.innerHTML = html; KR.shell = null; }
   const t = pageTitle(); if (document.title !== t) document.title = t;
   lazyArt(main);
   offscreen(main);
@@ -238,8 +238,17 @@ export function render() {
 // 달라진 구역만 갈아 끼운다. 구역 바깥 뼈대(shell)가 달라졌거나 처음 그리는 화면이면 예전처럼 통째로 그린다.
 // 효과: 입찰 하나에 화면 전체를 다시 배치하지 않음(저사양 휴대폰 끊김↓), 진행 중인 타이머 글자·스크롤 등 건드리지 않은 구역은 그대로
 const KR = { shell: null, parts: new Map() };
-function keyedRender(main, html, entering) {
+// keyed: 'auto'(홈·랭킹·케미): data-k를 일일이 달지 않고 구역을 자동으로 나눈다. 칸(section·.panel·표 등)이나 그 안에 칸이 없는 덩어리는 한 구역,
+// 칸을 여러 개 품은 감싸개(격자 등)는 안으로 들어가 나눈다. 구역 이름은 순서(a0, a1…)라 구조가 바뀌면(띠가 생기거나 사라지면) 예전처럼 통째로 다시 그린다
+const AK_SEL = 'section,.panel,.tw,.stats,.h2row,details,.podium,.car,.spotrow,.lbt';
+function autoKeys(root) {
+  let n = 0;
+  const walk = (el) => { for (const c of [...el.children]) { if (c.dataset.k) continue; if (c.matches(AK_SEL) || !c.querySelector(AK_SEL)) c.dataset.k = 'a' + n++; else walk(c); } };
+  walk(root);
+}
+function keyedRender(main, html, entering, auto) {
   const tpl = document.createElement('template'); tpl.innerHTML = html;
+  if (auto) autoKeys(tpl.content);
   const parts = new Map(), hs = new Map();
   tpl.content.querySelectorAll('[data-k]').forEach((e) => { if (!e.parentElement?.closest('[data-k]')) parts.set(e.dataset.k, e); });
   for (const [k, e] of parts) { hs.set(k, e.outerHTML); e.replaceWith(document.createComment('k:' + k)); }
@@ -248,7 +257,7 @@ function keyedRender(main, html, entering) {
   if (same) {
     for (const [k, e] of parts) {
       if (KR.parts.get(k) === hs.get(k)) continue;
-      const old = main.querySelector(`[data-k="${k}"]`); if (!old) { KR.shell = null; return keyedRender(main, html, true); }
+      const old = main.querySelector(`[data-k="${k}"]`); if (!old) { KR.shell = null; return keyedRender(main, html, true, auto); }
       old.replaceWith(e);
     }
   } else {
