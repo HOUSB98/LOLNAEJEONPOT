@@ -1,20 +1,20 @@
-// 길드(#/jeongpa 정파, #/magyo 마교 — 각각 다른 화면): 정파·마교 두 문파. 소속감을 위한 '길드 기록실' + 대항전 + 길드원만의 사랑방.
+// 길드(#/jeongpa 정파, #/magyo 마교 — 각각 다른 화면): 정파·마교 두 문파. 소속감을 위한 '길드 기록실' + 대항전 + 길드 게시판(채팅은 채팅창 길드 탭).
 // 저장하는 통계는 없다. 모든 숫자는 경기 기록에서 매번 계산한다(통계 S.st·길드 정보가 바뀔 때만 다시 계산, 화면을 열 때만).
 // · 길드 전적(승률) = 길드원이 뛴 모든 경기의 승수 ÷ 판수(같은 경기에 길드원 3명이면 3번 셈), 창설일부터. 경기 당시 소속(players.glog)으로 센다
 // · 대항전 = 한 팀에 한 길드가 3명 이상(다수)이고 상대 팀은 다른 길드가 다수인 경기. 이긴 쪽 다수 길드가 1승. 시즌 = 분기(1~3월 = 1분기)
 // · 길드전 = 오늘의 내전에서 '길드전'으로 짠 경기(matches.gw)
 // · 길드원 통산 = 지금 길드원의 전체 경기(창설 전 포함). 공식 기록이 아니라 '전력' 참고용
-// · 사랑방(채팅·게시판)은 길드 비밀번호로 잠근다. 글은 비밀번호에서 만든 열쇠로 암호화해 저장(gchat_j·gpost_j 등) → DB를 직접 봐도 읽을 수 없음
-// DB 읽기: 사랑방을 열었을 때만 최신 60개(채팅)·30개(게시판) 실시간. 그 밖에는 0
+// · 길드 채팅은 채팅창의 정파·마교 탭(js/gchat.js, 길드 비밀번호·암호화). 길드 게시판은 이 화면(공개, gboard_j·gboard_m)
+// DB 읽기: 길드 화면을 보는 동안 게시판 최신 30개 실시간, 채팅창 길드 탭을 보는 동안 채팅 최신 60개. 그 밖에는 0
 import { S, page, act, esc, ic, refresh, col, toast, modal, closeModal, mh, sha, needAdmin, isAdmin, champIcon, artUrl, cardChamp, fmtDay, dots, go, uid, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct, GUILDS, GK, guildMeta, guildOn, gOf, gAt, gem, gname, GPAGE, ghref } from './core.js';
 import { dayKey } from './stats.js';
-import { seal, ensureArt, drift } from './guildart.js';
+import { seal, ensureArt, drift, entryFx } from './guildart.js';
 import { nick, sysChat } from './social.js';
 import { notify } from './hook.js';
 
 // ---------- 화면 전용 스타일·글꼴(이 화면을 처음 열 때만 받음) ----------
 const HANJA = '正派魔敎天下爭霸武林盟主教一二三四季';
-const HEADS = '정파마교천하쟁패대항전길드원통산이번분기창설이후챔피언활용라인분포듀오최근경기흐름기록실연혁사랑방채팅게시판공지명예의전당문파경지맹주교주';
+const HEADS = '정파마교천하쟁패대항전길드원통산이번분기창설이후챔피언활용라인분포듀오최근경기흐름기록실연혁채팅게시판공지명예의전당문파경지맹주교주';
 let ASSETS = null, ASSET_OK = false; // 미리 받기(app.js LAZY_GET)로 모듈만 받을 때는 스타일·글꼴을 받지 않는다
 function loadAssets() {
   if (ASSETS) return ASSETS;
@@ -143,11 +143,11 @@ page('guild', {
   title: '길드',
   render(arg) { const g = GUILDS[arg] ? arg : gOf(meId()) || 'j'; setTimeout(() => location.replace(ghref(g)), 0); return '<div class="panel empty lazy-wait">불러오는 중…</div>'; },
 });
-for (const G of GK) page(GPAGE[G], { keyed: true, title: GUILDS[G].n, render: () => guildPage(G), after() { LG.after?.(); } });
+for (const G of GK) page(GPAGE[G], { keyed: true, title: GUILDS[G].n, render: () => guildPage(G), after(entering) { if (entering && guildOn()) loadAssets().then(() => { if (S.page === GPAGE[G]) entryFx(G); }); } });
 function guildPage(g) {
     if (!ASSET_OK) { loadAssets().then(() => { if (S.page === GPAGE[g]) refresh(); }); return '<div class="panel empty lazy-wait">불러오는 중…</div>'; }
     if (!guildOn()) return notYet();
-    ensureArt();
+    ensureArt(); bdWatch(g);
     const mine = gOf(meId());
     V.g = g;
     const all = gData('all');
@@ -169,13 +169,13 @@ function guildPage(g) {
       </section>
       ${V.mode !== 'car' && !d.g ? `<p class="gd-note" data-k="note">${ic('scroll')}${V.mode === 'q' ? '이번 분기' : '창설 후'} 길드원이 뛴 경기가 기록되면 공식 기록이 시작돼요. 지금은 <button class="lnk" data-a="gdMode" data-m="car">길드원 통산</button>으로 전력을 볼 수 있어요.</p>` : ''}
       ${kpis(g, d, members)}
-      <div class="gd-row r1">${warPanel(g, D)}${noticePanel(g, members, tt)}</div>
+      <div class="gd-row r1">${boardPanel(g)}${noticePanel(g, members, tt)}</div>
+      <div class="gd-row r1">${warPanel(g, D)}${historyPanel(g)}</div>
       ${champPanel(g, d, o)}
       <div class="gd-row r2">${lanePanel(g, d, members)}${duoPanel(g, d)}</div>
       <div class="gd-row r3">${feedPanel(g, d)}${flowPanel(g, d)}</div>
       ${memberPanel(g, d, members, tt)}
-      <div class="gd-row r4">${recordPanel(g, d, D)}${historyPanel(g)}</div>
-      ${loungePanel(g)}
+      ${recordPanel(g, d, D)}
     </div>`;
 }
 
@@ -365,104 +365,54 @@ act('gNotice', async (d) => {
   });
 });
 
-// ---------- 사랑방(길드 비밀번호 + 암호화) ----------
-// meta/guild.sec[g] = { salt, wk(비밀번호 열쇠로 감싼 데이터 열쇠), at }. 데이터 열쇠는 기기에 기억(이 기기에서 기억하기)
-const b64 = (u8) => btoa(String.fromCharCode(...new Uint8Array(u8)));
-const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
-const te = new TextEncoder(), td = new TextDecoder();
-async function pwKey(pw, salt) {
-  const base = await crypto.subtle.importKey('raw', te.encode(pw), 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 150000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+// ---------- 길드 게시판(공개 · gboard_j·gboard_m): 길드 화면을 보고 있는 동안에만 최신 30개 실시간 ----------
+const BD = { g: '', posts: [], un: null, open: '', write: false };
+function bdWatch(g) {
+  if (BD.g === g && BD.un) return;
+  bdStop(); BD.g = g;
+  BD.un = S.store.watchRecent('gboard_' + g, 30, (docs) => { if (BD.g !== g) return; BD.posts = docs.filter((x) => !x.deleted); if (S.page === GPAGE[g]) refresh(); }, () => {});
 }
-async function seal8(key, bytes) { const iv = crypto.getRandomValues(new Uint8Array(12)); const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, bytes); const out = new Uint8Array(12 + ct.byteLength); out.set(iv); out.set(new Uint8Array(ct), 12); return b64(out); }
-async function open8(key, s) { const u = unb64(s); return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: u.slice(0, 12) }, key, u.slice(12))); }
-const dataKey = (raw) => crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
-const LKK = (g) => `naejeon:gk:${S.key}:${g}`;
-// 관리자: 비밀번호 정하기/바꾸기(지금 비밀번호를 알면 글은 그대로, 모르면 새로 시작 = 예전 글은 못 읽음)
-export async function setPassword(g, pw, oldPw) {
-  const sec = guildMeta()?.sec?.[g];
-  let raw = null;
-  if (sec?.wk && oldPw) { try { raw = await open8(await pwKey(oldPw, unb64(sec.salt)), sec.wk); } catch { throw new Error('지금 비밀번호가 맞지 않아요'); } }
-  if (!raw) raw = crypto.getRandomValues(new Uint8Array(32));
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const wk = await seal8(await pwKey(pw, salt), raw);
-  const at = sec?.wk && oldPw ? +sec.at || Date.now() : Date.now(); // 열쇠가 그대로면 기억된 기기도 그대로
-  await S.store.patch('meta', 'guild', { sec: { [g]: { salt: b64(salt), wk, at } } });
-}
-const LG = { g: '', key: null, at: 0, tab: 'chat', chat: [], posts: [], unC: null, unP: null, post: '', busy: false, after: null, err: '' };
-function lgClose() { LG.unC?.(); LG.unP?.(); LG.unC = LG.unP = null; LG.key = null; LG.g = ''; LG.chat = []; LG.posts = []; LG.post = ''; }
-addEventListener('hashchange', () => setTimeout(() => { if (S.page !== GPAGE[LG.g]) lgClose(); }, 0));
-async function lgUse(g, raw, remember) {
-  const sec = guildMeta()?.sec?.[g];
-  LG.g = g; LG.key = await dataKey(raw); LG.at = +sec.at;
-  if (remember) try { localStorage.setItem(LKK(g), JSON.stringify({ at: LG.at, k: b64(raw) })); } catch {}
-  LG.unC = S.store.watchRecent('gchat_' + g, 60, (docs) => dec(docs).then((v) => { LG.chat = v.reverse(); refresh(); }), (e) => toast('사랑방 연결 오류: ' + (e.code || e.message)));
-  LG.unP = S.store.watchRecent('gpost_' + g, 30, (docs) => dec(docs.filter((x) => !x.deleted)).then((v) => { LG.posts = v; refresh(); }), () => {});
-}
-async function dec(docs) {
-  const k = LG.key; if (!k) return [];
-  return (await Promise.all(docs.map(async (x) => { try { const o = JSON.parse(td.decode(await open8(k, x.x))); const cm = await Promise.all((x.cm || []).map(async (c) => { try { return { at: c.at, ...JSON.parse(td.decode(await open8(k, c.x))) }; } catch { return null; } })); return { id: x.id, at: x.at, deleted: !!x.deleted, ...o, cm: cm.filter(Boolean) }; } catch { return null; } }))).filter((x) => x && !x.deleted);
-}
-async function autoUnlock(g) {
-  const sec = guildMeta()?.sec?.[g]; if (!sec?.wk || LG.g === g || LG.busy) return;
-  try { const v = JSON.parse(localStorage.getItem(LKK(g)) || 'null'); if (v && +v.at === +sec.at) { LG.busy = true; await lgUse(g, unb64(v.k), false); LG.busy = false; refresh(); } } catch { LG.busy = false; }
-}
-function loungePanel(g) {
-  const sec = guildMeta()?.sec?.[g], open = LG.g === g && LG.key;
-  if (!open && sec?.wk) setTimeout(() => autoUnlock(g), 0);
-  let body;
-  if (!sec?.wk) body = `<div class="lg-lock">${ic('lock')}<p>관리자가 ${gName(g)} 비밀번호를 정하면 열려요.</p></div>`;
-  else if (!open) body = `<form class="lg-lock" id="lgf" data-g="${g}">${ic('lock')}<p><b>${gName(g)} 길드원만 들어올 수 있어요</b><br><span class="mut">길드 비밀번호를 넣어 주세요. 글은 암호화되어 저장돼요.</span></p><div class="row"><input class="inp grow" id="lgf-p" type="password" autocomplete="off" placeholder="길드 비밀번호" aria-label="길드 비밀번호"><button class="btn pri">입장</button></div><label class="mini"><input type="checkbox" id="lgf-r" checked> 이 기기에서 기억하기</label></form>`;
-  else if (LG.tab === 'chat') {
-    body = `<div class="lg-log" id="lg-log">${LG.chat.length ? LG.chat.map((m) => `<div class="lg-m ${m.c === myCid() ? 'me' : ''}"><b>${esc(m.n || '익명')}</b><span>${esc(m.t)}</span><small>${tm(m.at)}</small></div>`).join('') : '<p class="mut lg-empty">첫 이야기를 남겨 보세요.</p>'}</div>
-      <form class="row lg-in" id="lgc"><input class="inp grow" id="lgc-t" maxlength="300" autocomplete="off" placeholder="${gName(g)} 길드원에게만 보여요" aria-label="사랑방 메시지"><button class="btn pri">${ic('send')}</button></form>`;
-  } else {
-    const p = LG.post && LG.posts.find((x) => x.id === LG.post);
-    body = p ? `<article class="lg-post"><button class="btn ghost xs" data-a="lgBack">‹ 목록</button><h3>${esc(p.t)}</h3><small class="mut">${esc(p.n || '익명')} · ${fmtDay(dayKey(p.at))}</small><p>${esc(p.b).replace(/\n/g, '<br>')}</p>
-        <ul class="lg-cm">${p.cm.map((c) => `<li><b>${esc(c.n || '익명')}</b>${esc(c.t)}<small>${tm(c.at)}</small></li>`).join('')}</ul>
-        <form class="row" id="lgk" data-id="${p.id}"><input class="inp grow" id="lgk-t" maxlength="200" autocomplete="off" placeholder="댓글" aria-label="댓글"><button class="btn">등록</button></form></article>`
-      : `<div class="lg-plist">${LG.posts.length ? LG.posts.map((x) => `<button class="lg-pi" data-a="lgOpen" data-id="${x.id}"><b>${esc(x.t)}</b><small>${esc(x.n || '익명')} · ${fmtDay(dayKey(x.at))}${x.cm.length ? ` · 댓글 ${x.cm.length}` : ''}</small></button>`).join('') : '<p class="mut lg-empty">아직 글이 없어요.</p>'}</div>
-        <form class="col lg-new" id="lgp"><input class="inp" id="lgp-t" maxlength="60" placeholder="제목" aria-label="제목"><textarea class="inp" id="lgp-b" rows="3" maxlength="1000" placeholder="${gName(g)} 길드원에게만 보이는 글" aria-label="내용"></textarea><button class="btn pri">글 올리기</button></form>`;
-  }
-  return `<section class="gp gp-lg" data-k="lg">${ph('密', `${gName(g)} 사랑방`, open ? `<div class="lg-tabs"><button class="${LG.tab === 'chat' ? 'on' : ''}" data-a="lgTab" data-t="chat">채팅</button><button class="${LG.tab === 'post' ? 'on' : ''}" data-a="lgTab" data-t="post">게시판</button><button class="btn ghost xs" data-a="lgLock" title="잠그기(이 기기 기억 지우기)">${ic('lock')}</button></div>` : '')}${body}</section>`;
-}
+function bdStop() { BD.un?.(); BD.un = null; BD.g = ''; BD.posts = []; BD.open = ''; BD.write = false; }
+addEventListener('hashchange', () => setTimeout(() => { if (BD.g && S.page !== GPAGE[BD.g]) bdStop(); }, 0));
 const myCid = () => localStorage.getItem('naejeon:cid') || '';
 const tm = (at) => { const d = new Date(at); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
-act('lgTab', (d) => { LG.tab = d.t; LG.post = ''; refresh(); });
-act('lgOpen', (d) => { LG.post = d.id; refresh(); });
-act('lgBack', () => { LG.post = ''; refresh(); });
-act('lgLock', () => { const g = LG.g; try { localStorage.removeItem(LKK(g)); } catch {} lgClose(); refresh(); toast('사랑방을 잠갔어요'); });
-// 폼 제출(사랑방 입장·채팅·글·댓글): 화면이 바뀌어도 동작하도록 문서에 한 번만 건다
+const who = (x) => (x.pid && S.store.data.players?.[x.pid] ? gname(x.pid, x.n) : esc(x.n || '익명'));
+function boardPanel(g) {
+  const p = BD.open && BD.posts.find((x) => x.id === BD.open);
+  let body;
+  if (p) {
+    body = `<article class="gb-post"><button class="btn ghost xs" data-a="gbBack">‹ 목록</button><h3>${esc(p.t)}</h3><small class="gb-meta">${who(p)} · ${tm(p.at)}${p.c === myCid() ? ' · <button class="lnk" data-a="gbDel" data-id="' + p.id + '">삭제</button>' : ''}</small><p>${esc(p.b).replace(/\n/g, '<br>')}</p>
+      <ul class="gb-cm">${(p.cm || []).map((c) => `<li><b>${who(c)}</b><span>${esc(c.t)}</span><small>${tm(c.at)}</small></li>`).join('')}</ul>
+      <form class="row gb-cf" id="gbk" data-id="${p.id}"><input class="inp grow" id="gbk-t" maxlength="200" autocomplete="off" placeholder="댓글 달기" aria-label="댓글"><button class="btn">등록</button></form></article>`;
+  } else if (BD.write) {
+    body = `<form class="col gb-new" id="gbf"><input class="inp" id="gbf-t" maxlength="60" placeholder="제목" aria-label="제목"><textarea class="inp" id="gbf-b" rows="5" maxlength="1000" placeholder="${gName(g)} 길드원에게 전하고 싶은 이야기" aria-label="내용"></textarea><div class="row"><button type="button" class="btn ghost" data-a="gbWrite">취소</button><span class="grow"></span><button class="btn pri">글 올리기</button></div></form>`;
+  } else {
+    body = BD.posts.length ? `<ul class="gb-list">${BD.posts.map((x, i) => `<li><button data-a="gbOpen" data-id="${x.id}"><i class="mono">${BD.posts.length - i}</i><b>${esc(x.t)}</b>${(x.cm || []).length ? `<em>${x.cm.length}</em>` : ''}<small>${who(x)} · ${tm(x.at)}</small></button></li>`).join('')}</ul>` : none(`${gName(g)} 게시판의 첫 글을 남겨 보세요. 작전·후기·잡담 무엇이든 좋아요.`);
+  }
+  return `<section class="gp gp-bd" data-k="bd">${ph('帖', `${gName(g)} 게시판`, `${p || BD.write ? '' : `<button class="btn xs pri" data-a="gbWrite">${ic('edit')}글쓰기</button>`}`)}${body}</section>`;
+}
+act('gbWrite', () => { BD.write = !BD.write; BD.open = ''; refresh(); });
+act('gbOpen', (d) => { BD.open = d.id; BD.write = false; refresh(); });
+act('gbBack', () => { BD.open = ''; refresh(); });
+act('gbDel', async (d) => { if (!confirm('이 글을 지울까요?')) return; try { await S.store.patch('gboard_' + BD.g, d.id, { deleted: true }); BD.open = ''; toast('지웠어요'); } catch (e) { toast('실패: ' + (e.code || e.message)); } });
 document.addEventListener('submit', async (e) => {
-  const f = e.target; if (!(f instanceof HTMLFormElement) || !f.closest('.gp-lg')) return;
+  const f = e.target; if (!(f instanceof HTMLFormElement) || !f.closest('.gp-bd')) return;
   e.preventDefault();
-  const g = V.g;
+  const g = BD.g; if (!g) return;
+  const n = nick() || '익명', pid = meId();
   try {
-    if (f.id === 'lgf') {
-      const sec = guildMeta()?.sec?.[g], pw = f.querySelector('#lgf-p').value;
-      if (!pw) return;
-      let raw; try { raw = await open8(await pwKey(pw, unb64(sec.salt)), sec.wk); } catch { return toast('비밀번호가 맞지 않아요'); }
-      await lgUse(g, raw, f.querySelector('#lgf-r').checked); refresh(); return;
-    }
-    if (!LG.key || LG.g !== g) return;
-    const who = nick() || '익명';
-    if (f.id === 'lgc') {
-      const i = f.querySelector('#lgc-t'), t = i.value.trim(); if (!t) return;
+    if (f.id === 'gbf') {
+      const t = f.querySelector('#gbf-t').value.trim(), b = f.querySelector('#gbf-b').value.trim();
+      if (!t || !b) return toast('제목과 내용을 써 주세요');
+      const id = uid(); await S.store.put('gboard_' + g, id, { at: Date.now(), t, b, n, pid, c: myCid(), cm: [], deleted: false });
+      BD.write = false; toast('글을 올렸어요'); refresh();
+    } else if (f.id === 'gbk') {
+      const i = f.querySelector('#gbk-t'), t = i.value.trim(); if (!t) return;
       i.value = '';
-      const id = uid(); await S.store.put('gchat_' + g, id, { at: Date.now(), x: await seal8(LG.key, te.encode(JSON.stringify({ n: who, t, c: myCid() }))), deleted: false });
-    } else if (f.id === 'lgp') {
-      const t = f.querySelector('#lgp-t').value.trim(), b = f.querySelector('#lgp-b').value.trim(); if (!t || !b) return toast('제목과 내용을 써 주세요');
-      const id = uid(); await S.store.put('gpost_' + g, id, { at: Date.now(), x: await seal8(LG.key, te.encode(JSON.stringify({ n: who, t, b }))), cm: [], deleted: false });
-      f.reset(); toast('글을 올렸어요');
-    } else if (f.id === 'lgk') {
-      const t = f.querySelector('#lgk-t').value.trim(); if (!t) return;
-      const x = await seal8(LG.key, te.encode(JSON.stringify({ n: who, t })));
-      await S.store.tx('gpost_' + g, f.dataset.id, (r) => (r ? { ...r, cm: [...(r.cm || []), { at: Date.now(), x }].slice(-100) } : null));
+      await S.store.tx('gboard_' + g, f.dataset.id, (r) => (r ? { ...r, cm: [...(r.cm || []), { at: Date.now(), n, pid, t }].slice(-100) } : null));
     }
   } catch (err) { toast('실패: ' + (err.code || err.message)); }
 });
-// 채팅이 새로 오면 맨 아래로
-LG.after = () => { const l = document.getElementById('lg-log'); if (l && l.dataset.n !== String(LG.chat.length)) { l.dataset.n = LG.chat.length; l.scrollTop = l.scrollHeight; } };
 
 // ---------- 관리자: 창설(자동 배정) ----------
 // 균형: 지금 MMR 합(평균) 차이 + 최근 60일 출전자 수 차이 + 주라인 분포 차이를 가장 작게. 인원 차이 1명 이하, '같은 길드로 묶기' 짝은 반드시 같은 쪽
@@ -509,7 +459,7 @@ export async function createGuilds(plan) {
   sysChat(`⚔️ 정파 · 마교 창설! 정파 ${plan.j.length}명 · 마교 ${plan.m.length}명. 길드 메뉴에서 내 문파를 확인해 보세요`);
 }
 export async function adminSet(id, g) { await setGuild(id, g, 'admin'); }
-export const GUILD_COLS = ['gchat_j', 'gchat_m', 'gpost_j', 'gpost_m'];
+export const GUILD_COLS = ['gchat_j', 'gchat_m', 'gboard_j', 'gboard_m'];
 
 // ---------- 관리 > 길드 탭 ----------
 const GA = { pairs: [], plan: null };
@@ -530,8 +480,8 @@ export function guildAdminHTML() {
     <div class="ga-plan">${GK.map((g) => { const sec = gm.sec?.[g]; return `<div class="ga-col g-${g}"><b>${gem(g)} ${gName(g)}</b>
       <label class="fld"><span>한 줄 소개</span><textarea class="inp" id="ga-in-${g}" rows="2" maxlength="80">${esc(introOf(g))}</textarea></label><button class="btn xs" data-a="gaIntro" data-g="${g}">소개 저장</button>
       <label class="fld"><span>${GUILDS[g].lead}(길드장 · 공지만 고칠 수 있음)</span><select class="inp" id="ga-ld-${g}"><option value="">없음</option>${live().filter((p) => p.guild === g).map((p) => `<option value="${p.id}" ${gm.lead?.[g] === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label><button class="btn xs" data-a="gaLead" data-g="${g}">길드장 저장</button>
-      <label class="fld"><span>사랑방 비밀번호 ${sec?.wk ? '<em class="tag ok">설정됨</em>' : '<em class="tag">없음</em>'}</span>${sec?.wk ? `<input class="inp" id="ga-op-${g}" type="password" autocomplete="off" placeholder="지금 비밀번호(모르면 비워 두기)">` : ''}<input class="inp" id="ga-pw-${g}" type="password" autocomplete="new-password" placeholder="새 비밀번호(4자 이상)"></label><button class="btn xs" data-a="gaPw" data-g="${g}">비밀번호 저장</button>
-      <p class="hint">지금 비밀번호를 넣고 바꾸면 예전 글도 그대로 보여요. 비워 두고 바꾸면 사랑방이 새로 시작돼요(예전 글은 아무도 못 읽음).</p>
+      <label class="fld"><span>채팅 비밀번호(채팅창 ${GUILDS[g].n} 탭) ${sec?.wk ? '<em class="tag ok">설정됨</em>' : '<em class="tag">없음</em>'}</span>${sec?.wk ? `<input class="inp" id="ga-op-${g}" type="password" autocomplete="off" placeholder="지금 비밀번호(모르면 비워 두기)">` : ''}<input class="inp" id="ga-pw-${g}" type="password" autocomplete="new-password" placeholder="새 비밀번호(4자 이상)"></label><button class="btn xs" data-a="gaPw" data-g="${g}">비밀번호 저장</button>
+      <p class="hint">지금 비밀번호를 넣고 바꾸면 예전 글도 그대로 보여요. 비워 두고 바꾸면 길드 채팅이 새로 시작돼요(예전 대화는 아무도 못 읽음).</p>
       </div>`; }).join('')}</div></div>
     <div class="panel gadm"><div class="ph"><b>${ic('users')}인원 조정</b><small class="mut">정파 ${c.j}명 · 마교 ${c.m}명 · 누르면 바로 옮겨요(지난 경기는 예전 소속 그대로)</small></div>
       <div class="ga-roster">${live().slice().sort((a, b) => (a.guild || '').localeCompare(b.guild || '') || a.name.localeCompare(b.name, 'ko')).map((p) => `<div class="ga-r"><span>${gname(p.id)}</span><span class="ga-seg">${GK.map((G) => `<button class="g-${G} ${p.guild === G ? 'on' : ''}" data-a="gaSet" data-id="${p.id}" data-g="${G}" aria-pressed="${p.guild === G}">${gName(G)}</button>`).join('')}</span></div>`).join('')}</div>
@@ -564,8 +514,8 @@ act('gaPw', (d) => needAdmin(async () => {
   const pw = document.getElementById('ga-pw-' + d.g).value, old = document.getElementById('ga-op-' + d.g)?.value || '';
   if (pw.length < 4) return toast('비밀번호는 4자 이상');
   const had = guildMeta()?.sec?.[d.g]?.wk;
-  if (had && !old && !confirm('지금 비밀번호 없이 바꾸면 예전 사랑방 글은 아무도 읽을 수 없게 돼요. 계속할까요?')) return;
-  try { await setPassword(d.g, pw, old); if (LG.g === d.g) lgClose(); try { localStorage.removeItem(LKK(d.g)); } catch {} toast('비밀번호를 저장했어요. 길드원에게 알려 주세요'); } catch (e) { toast(e.message); }
+  if (had && !old && !confirm('지금 비밀번호 없이 바꾸면 예전 길드 채팅은 아무도 읽을 수 없게 돼요. 계속할까요?')) return;
+  try { const { setPassword } = await import('./gchat.js'); await setPassword(d.g, pw, old); toast('비밀번호를 저장했어요. 길드원에게 알려 주세요'); } catch (e) { toast(e.message); }
 }));
 act('gaSet', (d) => needAdmin(async () => { if (gOf(d.id) === d.g) return; await setGuild(d.id, d.g, 'admin'); toast(`${nameOf(d.id)} → ${gName(d.g)}`); }));
 act('gaReApply', () => needAdmin(async () => {

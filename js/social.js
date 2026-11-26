@@ -1,5 +1,5 @@
 // 환영 인트로, 닉네임, 접속자 표시, 공용 채팅
-import { gname, gOf, guildOn, GUILDS, S, act, esc, uid, col, settings, toast, modal, closeModal, mh, ic, logo, needAdmin, swipeZone, LANE_ICON, LANE_COLOR, LANE_NAME } from './core.js';
+import { gname, gOf, guildOn, GUILDS, gem, S, act, esc, uid, col, settings, toast, modal, closeModal, mh, ic, logo, needAdmin, swipeZone, LANE_ICON, LANE_COLOR, LANE_NAME } from './core.js';
 import { xmasOn, inSeason, SEASON } from './season.js'; // 장식 모듈(SEASON.x·n)은 시즌에만 받아진다
 import { hookOn, USAGE, loadUsage, won, kfmt } from './hook.js';
 import { KAKAO_JS_KEY } from './config.js';
@@ -192,7 +192,8 @@ export function sysChat(text) {
 }
 function buildChat() {
   document.getElementById('chat').innerHTML = `
-    <header><div class="ch-t"><span class="ch-k"><i class="live"></i>LIVE</span><b>Lobby<i>Chat</i></b><small><span id="chat-on">0</span>명 접속 중</small></div><div class="ch-side"><div class="ch-btns"><button class="btn ghost xs ch-gf" data-a="chatGf" hidden title="길드원 말만 모아 보기" aria-label="길드별로 보기">전체</button><button class="btn ghost xs" data-a="chatClear" title="채팅 전체 삭제 (관리자)" aria-label="채팅 전체 삭제">${ic('trash')}</button><button class="btn ghost xs chatx" data-a="chatToggle" title="채팅창 접기" aria-label="채팅창 접기">${ic('fold')}</button></div><div id="chat-quota" hidden></div></div></header>
+    <header><div class="ch-t"><span class="ch-k"><i class="live"></i>LIVE</span><b>Lobby<i>Chat</i></b><small><span id="chat-on">0</span>명 접속 중</small></div><div class="ch-side"><div class="ch-btns"><button class="btn ghost xs" data-a="chatClear" title="채팅 전체 삭제 (관리자)" aria-label="채팅 전체 삭제">${ic('trash')}</button><button class="btn ghost xs chatx" data-a="chatToggle" title="채팅창 접기" aria-label="채팅창 접기">${ic('fold')}</button></div><div id="chat-quota" hidden></div></div></header>
+    <div class="ch-tabs" id="ch-tabs" role="tablist" hidden></div>
     <div id="chatlog"></div>
     <div id="chattray" hidden>${trayHTML()}</div>
     <form id="chatform"><button type="button" class="cbtn2" data-a="chatTray" title="스티커">${ic('star')}</button><button type="button" class="cbtn2" data-a="chatRoll" title="주사위 1~100">${ic('dice')}</button>
@@ -207,7 +208,8 @@ function buildChat() {
     e.preventDefault();
     const typing = keep || document.activeElement === inp; keep = false;
     const v = inp.value.trim();
-    if (v && send('m', v)) inp.value = '';
+    if (CT !== 'lobby') { if (v && GC) { inp.value = ''; GC.send(CT, v); } }
+    else if (v && send('m', v)) inp.value = '';
     if (typing && document.activeElement !== inp) inp.focus({ preventScroll: true });
   };
   const fab = document.getElementById('chatfab');
@@ -228,15 +230,14 @@ let renderedAt = 0;
 const setBadge = () => { const b = document.getElementById('chatbadge'); if (b) { b.hidden = !unread; b.textContent = unread > 99 ? '99+' : unread; } };
 export function renderChat(force) {
   const log = document.getElementById('chatlog'); if (!log) return;
+  chTabs();
+  if (CT !== 'lobby' && isOpen()) return gcRender(log); // 길드 탭: 로비 대신 길드 채팅(로비 안 읽은 수는 탭을 바꿀 때 다시 셈)
   // 채팅창이 닫혀 있으면(휴대폰 기본) 목록은 그리지 않고 안 읽은 숫자만 센다. 열 때 chatToggle 이 renderChat(true)로 그린다(첫 화면이 멈칫하지 않게)
   if (!isOpen()) { for (const m of msgs()) if (m.at > UN.at && m.cid !== cid) UN.ids.add(m.id); unread = UN.base + UN.ids.size; return setBadge(); }
   const list = msgs(), atBottom = force || log.scrollHeight - log.scrollTop - log.clientHeight < 80;
   const since = force ? Infinity : renderedAt, fresh = (m) => renderedAt && m.at > since;
   let prevDay = '', prevWho = '', html = '';
-  const gf = guildOn() ? CGF : ''; // 길드별로 보기(채팅 머리의 버튼)
-  const gb = document.querySelector('#chat .ch-gf'); if (gb) { gb.hidden = !guildOn(); gb.textContent = gf ? GUILDS[gf].n : '전체'; gb.classList.toggle('on', !!gf); }
   for (const m of list) {
-    if (gf && m.k !== 'sys' && gOf(playerOf(m.nick)?.id) !== gf) continue;
     const d = new Date(m.at), day = `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}`, tm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     if (day !== prevDay) { html += `<div class="cday"><span>${day}</span></div>`; prevDay = day; prevWho = ''; }
     if (m.k === 'sys') { html += `<div class="csys ${fresh(m) ? 'new' : ''}">${esc(m.t)}<small>${tm}</small></div>`; prevWho = ''; continue; }
@@ -260,7 +261,8 @@ act('chatToggle', () => {
   const closing = isOpen(), reduce = matchMedia('(prefers-reduced-motion: reduce)').matches, T = reduce ? 0 : closing ? 560 : 760;
   clearTimeout(chatAnim); chat.classList.remove('opening', 'closing'); lz.classList.remove('opening', 'closing');
   const done = () => { chat.classList.remove('opening', 'closing'); lz.classList.remove('opening', 'closing'); b.classList.remove('chat-closing'); if (closing) b.classList.add('chat-closed'); };
-  if (closing) chatRest(); else chatWant(); // 열면 최근 20개를 받고(기기 캐시가 먼저 보임), 닫고 1분 뒤에는 최신 1개만
+  if (closing) chatRest(); else chatWant();
+  if (closing && CT !== 'lobby') { GC?.leave(); CT = 'lobby'; } // 닫으면 길드 채팅 구독도 끊고 로비로 // 열면 최근 20개를 받고(기기 캐시가 먼저 보임), 닫고 1분 뒤에는 최신 1개만
   if (!closing) b.classList.remove('chat-closed', 'chat-closing');
   else b.classList.add('chat-closing'); // 채팅창이 접히는 동안 본문도 함께 넓어진다(끝난 뒤 한 번에 튀지 않게)
   if (matchMedia('(min-width: 1281px)').matches) localStorage.setItem('naejeon:chatclosed', closing ? '1' : '0');
@@ -294,8 +296,6 @@ swipeZone('#chat', {
     }
   },
 });
-let CGF = '';
-act('chatGf', () => { CGF = CGF === '' ? 'j' : CGF === 'j' ? 'm' : ''; renderChat(true); });
 act('chatTray', () => { tray = !tray; document.getElementById('chattray').hidden = !tray; renderChat(true); });
 act('chatStk', (d) => send('s', d.k));
 act('chatEmo', (d) => { const i = document.getElementById('chatinp'); i.value += d.e; i.focus(); });
@@ -399,3 +399,35 @@ export function onMeta() {
   document.querySelector('#kicked span').textContent = `약 ${Math.ceil(left / 60e3)}분 뒤에 다시 들어올 수 있습니다.`;
   kickTimer = setTimeout(onMeta, Math.min(left + 500, 30e3));
 }
+
+// ---------- 채팅창 길드 탭(정파·마교): 길드 비밀번호로 잠김, 내용은 js/gchat.js(처음 누를 때 받음) ----------
+let CT = 'lobby', GC = null, tabSig = '';
+function chTabs() {
+  const el = document.getElementById('ch-tabs'); if (!el) return;
+  const on = guildOn();
+  if (!on && CT !== 'lobby') { GC?.leave(); CT = 'lobby'; }
+  const sig = on + CT; if (sig === tabSig) return; tabSig = sig;
+  el.hidden = !on;
+  document.getElementById('chat').classList.toggle('gtab', CT !== 'lobby');
+  el.innerHTML = on ? [['lobby', '로비'], ['j', GUILDS.j.n], ['m', GUILDS.m.n]].map(([k, n]) => `<button role="tab" aria-selected="${CT === k}" class="ct-${k} ${CT === k ? 'on' : ''}" data-a="chTab" data-t="${k}">${k === 'lobby' ? '' : gem(k)}${n}${k !== 'lobby' ? '<i class="ct-lk" aria-hidden="true"></i>' : ''}</button>`).join('') : '';
+  const inp = document.getElementById('chatinp'); if (inp) inp.placeholder = CT === 'lobby' ? '메시지 입력…' : `${GUILDS[CT].n} 길드원에게만 보여요`;
+}
+function gcRender(log) {
+  const g = CT, atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 80 || log.dataset.ct !== g;
+  log.innerHTML = GC ? GC.html(g) : '<div class="cempty"><p>불러오는 중…</p></div>';
+  log.dataset.ct = g;
+  document.getElementById('chat').classList.toggle('glock', !GC || GC.locked(g));
+  if (atBottom) log.scrollTop = log.scrollHeight;
+  if (GC && GC.locked(g)) document.getElementById('gcf-p')?.focus({ preventScroll: true });
+}
+act('chTab', async (d) => {
+  const t = d.t; if (t === CT) return;
+  CT = t; tabSig = '';
+  const log = document.getElementById('chatlog'); if (log) log.dataset.ct = '';
+  if (t === 'lobby') { GC?.leave(); document.getElementById('chat').classList.remove('glock'); return renderChat(true); }
+  renderChat(true);
+  try { GC ||= await import('./gchat.js'); } catch { toast('잠시 뒤 다시 눌러 주세요'); return; }
+  if (CT !== t) return;
+  GC.enter(t, () => { if (CT === t) renderChat(true); });
+});
+act('chGLock', () => { if (CT !== 'lobby') { GC?.lock(CT); renderChat(true); toast('이 기기에서 길드 채팅을 잠갔어요'); } });

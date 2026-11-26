@@ -120,3 +120,16 @@ export function seal(g, lv = 0) {
     <path d="M60 22c11 13 18 22 18 35a18 18 0 0 1-36 0c0-9 4-15 10-19 1 6 4 9 7 10-2-9-1-17 1-26z" fill="url(#mf)" opacity=".95"/>
     <path d="M40 72c6-4 13-5 18-2M80 72c-6-4-13-5-18-2" stroke="#010302" stroke-width="7" stroke-linecap="round"/><path d="M42 71l13-1M78 71l-13-1" stroke="#ff2238" stroke-width="3" stroke-linecap="round"/><path d="M42 71l13-1M78 71l-13-1" stroke="#ffd0d4" stroke-width="1" stroke-linecap="round"/>${stars}</svg>`;
 }
+
+// 길드 화면에 들어갈 때 아주 잠깐(약 1.6초): 정파 = 꽃잎이 살짝 흩날림, 마교 = 가장자리에서 어두운 기운이 스며 나옴.
+// 화면 위에 잠깐 얹었다가 지운다(transform·opacity만, 클릭은 통과). 가벼운 모드·동작 줄이기에서는 하지 않음
+export function entryFx(g) {
+  try { if (document.body.classList.contains('lite') || matchMedia('(prefers-reduced-motion: reduce)').matches) return; } catch { return; }
+  document.getElementById('gd-fx')?.remove();
+  const el = document.createElement('div'); el.id = 'gd-fx'; el.className = 'gd-fx fx-' + g; el.setAttribute('aria-hidden', 'true');
+  el.innerHTML = g === 'j'
+    ? Array.from({ length: 16 }, (_, i) => `<i style="--x:${(i * 37 + 11) % 100}%;--d:${((i * 7) % 6) * 0.07}s;--r:${200 + ((i * 53) % 260)}deg;--s:${(0.7 + (i % 4) * 0.18).toFixed(2)};--dx:${-40 - ((i * 31) % 120)}px"></i>`).join('')
+    : '<b></b>' + Array.from({ length: 9 }, (_, i) => `<i style="--x:${(i * 29 + 6) % 100}%;--d:${(i % 5) * 0.09}s;--s:${(0.8 + (i % 3) * 0.3).toFixed(2)}"></i>`).join('');
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1900);
+}
