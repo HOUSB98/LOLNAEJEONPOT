@@ -9,6 +9,7 @@
 import { S, page, act, esc, ic, refresh, col, toast, modal, closeModal, mh, sha, needAdmin, isAdmin, champIcon, artUrl, cardChamp, fmtDay, dots, go, uid, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct, GUILDS, GK, guildMeta, guildOn, gOf, gAt, gem, gname, GPAGE, ghref } from './core.js';
 import { dayKey } from './stats.js';
 import { seal, ensureArt, drift, entryFx } from './guildart.js';
+import { hasKey, unlock } from './gchat.js';
 import { nick, sysChat } from './social.js';
 import { notify } from './hook.js';
 
@@ -119,17 +120,25 @@ export const CUR = '냥';
 export const ECON_DEF = { win: 10, lose: 5, gwWin: 100, gwLose: 50 };
 export const econ = () => ({ ...ECON_DEF, ...(guildMeta()?.econ || {}) });
 export const money = (n) => `${Math.round(n).toLocaleString()}${CUR}`;
-let TMEMO = { st: null, gm: null, v: null };
-export function treasury() {
+// 금고는 분기마다 새로 시작한다(분기 초기화): 그 분기 경기의 수입 − 그 분기 상점 지출(sq[분기]) + 그 분기 관리자 조정(aq[분기])
+// ledger() = 분기별 장부(창설 이후 모든 분기): 금고·대항전·전적. 관리 > 문파 '분기 결과 보관'이 이것을 보여 준다(저장 없음, 경기 기록에서 계산)
+export const curQ = () => qKey(Date.now());
+let LMEMO = { st: null, gm: null, v: null };
+export function ledger() {
   const gm = guildMeta();
-  if (TMEMO.st === S.st && TMEMO.gm === gm && TMEMO.v) return TMEMO.v;
-  const e = econ(), t0 = +gm?.at || 0, wk = wkKey(Date.now());
-  const T = Object.fromEntries(GK.map((g) => [g, { win: 0, lose: 0, gwWin: 0, gwLose: 0, earn: 0, week: 0, spent: +gm?.spent?.[g] || 0, adj: +gm?.adj?.[g] || 0, bal: 0 }]));
+  if (LMEMO.st === S.st && LMEMO.gm === gm && LMEMO.v) return LMEMO.v;
+  const e = econ(), t0 = +gm?.at || 0, wk = wkKey(Date.now()), L = {};
+  const blank = (q) => ({ q, war: { j: 0, m: 0 }, gw: { j: 0, m: 0 }, ...Object.fromEntries(GK.map((g) => [g, { win: 0, lose: 0, gwWin: 0, gwLose: 0, earn: 0, week: 0, spent: +gm?.sq?.[q]?.[g] || 0, adj: +gm?.aq?.[q]?.[g] || 0, bal: 0, g: 0, w: 0 }])) });
+  const Q = (q) => (L[q] ||= blank(q));
+  if (t0) Q(curQ());
   for (const m of S.st.matches) {
     if (m.at < t0) continue;
+    const x = Q(qKey(m.at)), T = x;
     const gs = { blue: m.blue.map((id) => gAt(id, m.at)), red: m.red.map((id) => gAt(id, m.at)) };
-    const maj = (a) => GK.find((G) => a.filter((x) => x === G).length >= 3) || '', b = maj(gs.blue), r = maj(gs.red);
+    const maj = (a) => GK.find((G) => a.filter((v) => v === G).length >= 3) || '', b = maj(gs.blue), r = maj(gs.red);
     const thisWeek = wkKey(m.at) === wk;
+    for (const side of ['blue', 'red']) gs[side].forEach((G) => { if (!G) return; T[G].g++; if (m.winner === side) T[G].w++; });
+    if (b && r && b !== r) { const wg = m.winner === 'blue' ? b : r; x.war[wg]++; if (m.gw) x.gw[wg]++; }
     if (m.gw && b && r && b !== r) {
       const wg = m.winner === 'blue' ? b : r, lg = other(wg);
       T[wg].gwWin += e.gwWin; T[lg].gwLose += e.gwLose;
@@ -138,10 +147,13 @@ export function treasury() {
     }
     for (const side of ['blue', 'red']) gs[side].forEach((G) => { if (!G) return; const win = m.winner === side; if (win) T[G].win += e.win; else T[G].lose += e.lose; if (thisWeek) T[G].week += win ? e.win : -e.lose; });
   }
-  for (const g of GK) { const x = T[g]; x.earn = x.win - x.lose + x.gwWin - x.gwLose; x.bal = x.earn - x.spent + x.adj; }
-  TMEMO = { st: S.st, gm, v: T };
-  return T;
+  for (const x of Object.values(L)) for (const g of GK) { const t = x[g]; t.earn = t.win - t.lose + t.gwWin - t.gwLose; t.bal = t.earn - t.spent + t.adj; }
+  LMEMO = { st: S.st, gm, v: L };
+  return L;
 }
+// 이번 분기 금고
+export function treasury() { const L = ledger(), q = curQ(); return L[q] || { q, ...Object.fromEntries(GK.map((g) => [g, { win: 0, lose: 0, gwWin: 0, gwLose: 0, earn: 0, week: 0, spent: 0, adj: 0, bal: 0 }])) }; }
+export { qName };
 // 상점 효과(meta/guild.fx[g]): 포고문·총애·연회·도전장은 기한, 영약은 경지 보너스(10승씩)
 export const fxOf = (g) => guildMeta()?.fx?.[g] || {};
 export const fxOn = (g, k) => { const v = fxOf(g)[k]; return !!v && +(v.exp ?? v) > Date.now(); };
@@ -435,7 +447,9 @@ function boardPanel(g) {
   if (p) {
     body = `<article class="gb-post"><button class="btn ghost xs" data-a="gbBack">‹ 목록</button><h3>${esc(p.t)}</h3><small class="gb-meta">${who(p)} · ${tm(p.at)}${p.c === myCid() ? ' · <button class="lnk" data-a="gbDel" data-id="' + p.id + '">삭제</button>' : ''}</small><p>${esc(p.b).replace(/\n/g, '<br>')}</p>
       <ul class="gb-cm">${(p.cm || []).map((c) => `<li><b>${who(c)}</b><span>${esc(c.t)}</span><small>${tm(c.at)}</small></li>`).join('')}</ul>
-      <form class="row gb-cf" id="gbk" data-id="${p.id}"><input class="inp grow" id="gbk-t" maxlength="200" autocomplete="off" placeholder="댓글 달기" aria-label="댓글"><button class="btn">등록</button></form></article>`;
+      ${hasKey(g) ? `<form class="row gb-cf" id="gbk" data-id="${p.id}"><input class="inp grow" id="gbk-t" maxlength="200" autocomplete="off" placeholder="댓글 달기" aria-label="댓글"><button class="btn">등록</button></form>` : `<button class="btn ghost block" data-a="gbUnlock">${ic('lock')}비밀번호를 넣고 댓글 달기</button>`}</article>`;
+  } else if (BD.write && !hasKey(g)) {
+    body = guildMeta()?.sec?.[g]?.wk ? `<form class="col gb-lock" id="gbl"><b>${gName(g)} 비밀번호를 넣으면 글을 쓸 수 있어요</b><small class="mut">채팅창 ${gName(g)} 탭과 같은 비밀번호예요. 읽기는 누구나 할 수 있어요.</small><input class="inp" id="gbl-p" type="password" autocomplete="off" placeholder="${gName(g)} 비밀번호" aria-label="${gName(g)} 비밀번호"><label class="mini"><input type="checkbox" id="gbl-r" checked> 이 기기에서 기억하기</label><div class="row"><button type="button" class="btn ghost" data-a="gbWrite">취소</button><span class="grow"></span><button class="btn pri">확인</button></div></form>` : none(`관리자가 ${gName(g)} 비밀번호를 정하면 글을 쓸 수 있어요.`);
   } else if (BD.write) {
     body = `<form class="col gb-new" id="gbf"><input class="inp" id="gbf-t" maxlength="60" placeholder="제목" aria-label="제목"><textarea class="inp" id="gbf-b" rows="5" maxlength="1000" placeholder="${gName(g)} ${GUILDS[g].mem}에게 전하고 싶은 이야기" aria-label="내용"></textarea><div class="row"><button type="button" class="btn ghost" data-a="gbWrite">취소</button><span class="grow"></span><button class="btn pri">글 올리기</button></div></form>`;
   } else {
@@ -444,6 +458,7 @@ function boardPanel(g) {
   return `<section class="gp gp-bd" data-k="bd">${ph('帖', `${gName(g)} 게시판`, `${p || BD.write ? '' : `<button class="btn xs pri" data-a="gbWrite">${ic('edit')}글쓰기</button>`}`)}${body}</section>`;
 }
 act('gbWrite', () => { BD.write = !BD.write; BD.open = ''; refresh(); });
+act('gbUnlock', () => { BD.open = ''; BD.write = true; refresh(); }); // 비밀번호 칸을 띄운다(넣고 나면 글쓰기·댓글 모두 가능)
 act('gbOpen', (d) => { BD.open = d.id; BD.write = false; refresh(); });
 act('gbBack', () => { BD.open = ''; refresh(); });
 act('gbDel', async (d) => { if (!confirm('이 글을 지울까요?')) return; try { await S.store.patch('gboard_' + BD.g, d.id, { deleted: true }); BD.open = ''; toast('지웠어요'); } catch (e) { toast('실패: ' + (e.code || e.message)); } });
@@ -453,6 +468,12 @@ document.addEventListener('submit', async (e) => {
   const g = BD.g; if (!g) return;
   const n = nick() || '익명', pid = meId();
   try {
+    if (f.id === 'gbl') {
+      const okk = await unlock(g, f.querySelector('#gbl-p').value, f.querySelector('#gbl-r').checked);
+      if (!okk) return toast('비밀번호가 맞지 않아요');
+      toast('글을 쓸 수 있어요'); refresh(); return;
+    }
+    if ((f.id === 'gbf' || f.id === 'gbk') && !hasKey(g)) return toast(`${gName(g)} 비밀번호를 먼저 넣어 주세요`);
     if (f.id === 'gbf') {
       const t = f.querySelector('#gbf-t').value.trim(), b = f.querySelector('#gbf-b').value.trim();
       if (!t || !b) return toast('제목과 내용을 써 주세요');

@@ -4,7 +4,7 @@
 import { S, page, act, esc, ic, refresh, toast, modal, closeModal, mh, isAdmin, needAdmin, champIcon, fmtDay, uid, LANES, LANE_NAME, LANE_ICON, pct, GUILDS, GK, guildMeta, guildOn, gOf, gem, gname, ghref } from './core.js';
 import { dayKey } from './stats.js';
 import { sysChat } from './social.js';
-import { gData, realm, rwins, RANKS, rankOf, counts, meId, treasury, econ, money, CUR, fxOf, fxOn, pill, FAVOR, loadAssets, leadOf, introOf, myPin, other, assetsOk } from './guild.js';
+import { curQ, ledger, qName, gData, realm, rwins, RANKS, rankOf, counts, meId, treasury, econ, money, CUR, fxOf, fxOn, pill, FAVOR, loadAssets, leadOf, introOf, myPin, other, assetsOk } from './guild.js';
 import { seal, ensureArt } from './guildart.js';
 
 const N = (g) => GUILDS[g].n;
@@ -47,7 +47,7 @@ page('guilds', {
     return `<div class="wl">
       <div class="h2row" data-k="h"><h1>${ic('guilds')}천하정세</h1><span class="tag">정파 vs 마교</span><span class="grow"></span><small class="mut">왼쪽 정파 · 오른쪽 마교</small></div>
       <section class="wl-row wl-top" data-k="top"><div class="wl-h gd-j wl-scene">${head('j')}</div><div class="wl-mid wl-vs"><b>VS</b></div><div class="wl-h gd-m wl-scene">${head('m')}</div></section>
-      ${sec('gold', '문파 금고', '庫', `<div class="wl-big"><b class="mono">${money(T.j.bal)}</b></div><span class="wl-sub">이번 주 ${T.j.week >= 0 ? '+' : ''}${money(T.j.week)}</span>`, `<div class="wl-big"><b class="mono">${money(T.m.bal)}</b></div><span class="wl-sub">이번 주 ${T.m.week >= 0 ? '+' : ''}${money(T.m.week)}</span>`, bar(T.j.bal, T.m.bal, (v) => money(v)) + '<a class="lnk sm" href="#/gshop">상점 가기</a>')}
+      ${sec('gold', '문파 금고 · 이번 분기', '庫', `<div class="wl-big"><b class="mono">${money(T.j.bal)}</b></div><span class="wl-sub">이번 주 ${T.j.week >= 0 ? '+' : ''}${money(T.j.week)}</span>`, `<div class="wl-big"><b class="mono">${money(T.m.bal)}</b></div><span class="wl-sub">이번 주 ${T.m.week >= 0 ? '+' : ''}${money(T.m.week)}</span>`, bar(T.j.bal, T.m.bal, (v) => money(v)) + '<a class="lnk sm" href="#/gshop">상점 가기</a>')}
       ${sec('it', '보유 아이템', '寶', items('j'), items('m'), '<a class="lnk sm" href="#/gshop">상점에서 사기</a>')}
       ${sec('war', '대항전 · 정마대전', '爭', `<div class="wl-big"><b class="mono">${q.j.war.w}</b><small>승</small></div><span class="wl-sub">이번 분기 · 창설 이후 ${all.j.war.w}승 · 정마대전 ${all.j.gw.w}승</span>${warList('j')}`, `<div class="wl-big"><b class="mono">${q.m.war.w}</b><small>승</small></div><span class="wl-sub">이번 분기 · 창설 이후 ${all.m.war.w}승 · 정마대전 ${all.m.gw.w}승</span>${warList('m')}`, bar(q.j.war.w, q.m.war.w) + GK.filter((G) => fxOn(G, 'chal')).map((G) => `<em class="wl-chal">⚔️ ${N(G)} 도전장</em>`).join(''))}
       ${sec('q', '이번 분기 전적', '勢', rec(q.j), rec(q.m), bar(Math.round(wr(q.j) * 1000) / 10, Math.round(wr(q.m) * 1000) / 10, (v) => v + '%'))}
@@ -88,7 +88,7 @@ page('gshop', {
     return `<div class="wl gs">
       <div class="h2row" data-k="h"><h1>${ic('gshop')}문파 상점</h1><span class="tag">단위 ${CUR}</span><span class="grow"></span></div>
       <section class="wl-row" data-k="v">${vault('j')}<div class="wl-mid"><i class="wl-hj">庫</i><b>금고</b>${bar(T.j.bal, T.m.bal, (v) => money(v))}</div>${vault('m')}</section>
-      <p class="hint gs-rule" data-k="r">${ic('coin')} 버는 법: 창설 뒤 일반 내전에서 문도·교도가 이기면 한 사람당 <b>+${e.win}${CUR}</b>, 지면 <b>−${e.lose}${CUR}</b>. 정마대전(팀 구성하기의 '정마대전'으로 짠 대항전)은 이긴 문파 <b>+${e.gwWin}${CUR}</b>, 진 문파 <b>−${e.gwLose}${CUR}</b>. 기준은 관리자가 바꿀 수 있어요.</p>
+      <p class="hint gs-rule" data-k="r">${ic('coin')} 버는 법: 창설 뒤 일반 내전에서 문도·교도가 이기면 한 사람당 <b>+${e.win}${CUR}</b>, 지면 <b>−${e.lose}${CUR}</b>. 정마대전(팀 구성하기의 '정마대전'으로 짠 대항전)은 이긴 문파 <b>+${e.gwWin}${CUR}</b>, 진 문파 <b>−${e.gwLose}${CUR}</b>. 금고는 <b>분기마다 0냥에서 새로 시작</b>해요(지난 분기 결과는 관리 > 문파에 보관). 기준은 관리자가 바꿀 수 있어요.</p>
       <section class="gs-items" data-k="it">${SHOP.map((it) => `<div class="gs-it"><span class="gs-e">${it.e}</span><b>${it.n}</b><em class="mono">${money(it.p)}</em><p>${it.d}</p><div class="row">${GK.map((g) => `<button class="btn xs gs-b g-${g}" data-a="gsBuy" data-i="${it.id}" data-g="${g}" ${canBuy(g) && T[g].bal >= it.p ? '' : 'disabled'} title="${canBuy(g) ? (T[g].bal >= it.p ? `${N(g)} 금고로 구매` : '금고가 부족해요') : `관리자 · ${GUILDS[g].lead}만 살 수 있어요`}">${gem(g)}${N(g)}</button>`).join('')}</div></div>`).join('')}</section>
       <section class="gp gs-log" data-k="lg"><div class="gp-h"><i class="gp-hj" aria-hidden="true">帳</i><b>구매 기록</b></div>${SH.logs.length ? `<ul class="gs-ul">${SH.logs.map((x) => `<li>${gem(x.g)}<b>${esc(SHOP.find((i) => i.id === x.item)?.n || x.item)}</b><span>${esc(x.note || '')}</span><small>${money(x.p)} · ${esc(x.by || '')} · ${fmtDay(dayKey(x.at)).slice(5)}</small></li>`).join('')}</ul>` : '<p class="gp-none"><span>아직 구매 기록이 없어요.</span></p>'}</section>
     </div>`;
@@ -114,10 +114,10 @@ act('gsBuy', async (d) => {
   try {
     await S.store.tx('meta', 'guild', (r) => {
       if (!r) return null;
-      const spent = { ...(r.spent || {}) }; spent[g] = (+spent[g] || 0) + it.p;
+      const q = curQ(), sq = { ...(r.sq || {}) }; sq[q] = { ...(sq[q] || {}) }; sq[q][g] = (+sq[q][g] || 0) + it.p; // 이번 분기 지출(금고는 분기마다 새로 시작)
       const cur = { ...((r.fx || {})[g] || {}) };
       if (it.id === 'pill') cur.pill = (+cur.pill || 0) + 1; else Object.assign(cur, fx);
-      return { ...r, spent, fx: { ...(r.fx || {}), [g]: cur } };
+      return { ...r, sq, fx: { ...(r.fx || {}), [g]: cur } };
     });
     const by = isAdmin() ? '관리자' : S.store.data.players[meId()]?.name || '';
     await S.store.put('gshop', uid(), { at: now, g, item: it.id, p: it.p, by, note, deleted: false });
@@ -144,16 +144,27 @@ act('gsPick', (d) => { const f = SH.pick; SH.pick = null; closeModal(); f?.(d.id
 export function econAdminHTML() {
   if (!guildOn()) return '';
   const e = econ(), gm = guildMeta();
-  return `<div class="panel gadm"><div class="ph"><b>${ic('coin')}문파 금고 기준</b><small class="mut">단위 ${CUR} · 바꾸면 창설 이후 기록 전체를 새 기준으로 다시 계산</small></div>
+  return archiveHTML() + `<div class="panel gadm"><div class="ph"><b>${ic('coin')}문파 금고 기준</b><small class="mut">단위 ${CUR} · 금고는 분기마다 0에서 새로 시작 · 기준을 바꾸면 이번 분기 금고도 새 기준으로 다시 계산</small></div>
     <div class="ga-econ">${[['win', '일반 내전 승리(1인당 +)'], ['lose', '일반 내전 패배(1인당 −)'], ['gwWin', '정마대전 승리(문파 +)'], ['gwLose', '정마대전 패배(문파 −)']].map(([k, n]) => `<label class="fld"><span>${n}</span><input class="inp mono" id="ge-${k}" type="number" min="0" step="1" value="${e[k]}"></label>`).join('')}</div>
     <div class="row wrapr"><button class="btn xs" data-a="geSave">기준 저장</button></div>
-    <div class="ga-econ">${GK.map((g) => `<label class="fld"><span>${N(g)} 관리자 조정(지금 ${(+gm.adj?.[g] || 0) >= 0 ? '+' : ''}${+gm.adj?.[g] || 0}${CUR})</span><input class="inp mono" id="ga-adj-${g}" type="number" step="10" placeholder="예: 500 또는 -200"></label>`).join('')}</div>
+    <div class="ga-econ">${GK.map((g) => `<label class="fld"><span>${N(g)} 이번 분기 관리자 조정(지금 ${(+gm.aq?.[curQ()]?.[g] || 0) >= 0 ? '+' : ''}${+gm.aq?.[curQ()]?.[g] || 0}${CUR})</span><input class="inp mono" id="ga-adj-${g}" type="number" step="10" placeholder="예: 500 또는 -200"></label>`).join('')}</div>
     <div class="row wrapr"><button class="btn xs" data-a="geAdj">조정 더하기</button></div></div>`;
 }
 act('geSave', () => needAdmin(async () => { const v = {}; for (const k of ['win', 'lose', 'gwWin', 'gwLose']) v[k] = Math.max(0, Math.round(+document.getElementById('ge-' + k).value || 0)); await S.store.patch('meta', 'guild', { econ: v }); toast('금고 기준을 저장했어요'); }));
 act('geAdj', () => needAdmin(async () => {
   const add = Object.fromEntries(GK.map((g) => [g, Math.round(+document.getElementById('ga-adj-' + g).value || 0)]));
   if (!add.j && !add.m) return toast('조정할 금액을 넣어 주세요');
-  await S.store.tx('meta', 'guild', (r) => (r ? { ...r, adj: Object.fromEntries(GK.map((g) => [g, (+r.adj?.[g] || 0) + add[g]])) } : null));
+  const q = curQ();
+  await S.store.tx('meta', 'guild', (r) => (r ? { ...r, aq: { ...(r.aq || {}), [q]: Object.fromEntries(GK.map((g) => [g, (+r.aq?.[q]?.[g] || 0) + add[g]])) } } : null));
   toast('금고를 조정했어요');
 }));
+
+// 관리 > 문파: 분기 결과 보관(창설 이후 모든 분기, 최근 분기부터). 저장하지 않고 경기 기록에서 계산 → 경기를 고치면 결과도 따라 바뀜
+function archiveHTML() {
+  const L = ledger(), qs = Object.keys(L).sort().reverse(), now = curQ();
+  const row = (x) => { const w = x.war.j === x.war.m ? (x.j.w / Math.max(1, x.j.g) === x.m.w / Math.max(1, x.m.g) ? '' : x.j.w / Math.max(1, x.j.g) > x.m.w / Math.max(1, x.m.g) ? 'j' : 'm') : x.war.j > x.war.m ? 'j' : 'm';
+    return `<tr class="${x.q === now ? 'now' : ''}"><td class="l"><b>${qName(x.q)}</b>${x.q === now ? ' <em class="tag">진행 중</em>' : ''}</td><td>${w ? `${gem(w)}${N(w)}` : '무승부'}</td><td class="mono">${x.war.j} : ${x.war.m}</td><td class="mono">${x.gw.j} : ${x.gw.m}</td>${GK.map((g) => `<td class="mono">${x[g].w}승 ${x[g].g - x[g].w}패</td><td class="mono">${money(x[g].earn)} / −${money(x[g].spent)}${x[g].adj ? ` / ${x[g].adj > 0 ? '+' : '−'}${money(Math.abs(x[g].adj))}` : ''}<br><b>${money(x[g].bal)}</b></td>`).join('')}</tr>`; };
+  return `<div class="panel gadm"><div class="ph"><b>${ic('scroll')}분기 결과 보관</b><small class="mut">분기 승자 = 대항전 승수(같으면 문파 승률) · 금고는 분기마다 초기화(남은 금액은 다음 분기로 넘어가지 않음)</small></div>
+    <div class="tw"><table class="tbl ga-arc"><thead><tr><th class="l">분기</th><th>승자</th><th>대항전</th><th>정마대전</th><th>정파 전적</th><th>정파 금고 (수입 / 지출 → 남음)</th><th>마교 전적</th><th>마교 금고 (수입 / 지출 → 남음)</th></tr></thead>
+    <tbody>${qs.map((q) => row(L[q])).join('') || '<tr><td colspan="8" class="empty">아직 기록이 없어요</td></tr>'}</tbody></table></div></div>`;
+}

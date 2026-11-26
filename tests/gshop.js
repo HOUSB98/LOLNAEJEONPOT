@@ -7,7 +7,7 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   const be = new Backend(); for (const [c, d] of Object.entries(seed)) be.seed(c, d);
   const A = await client(b, be, 'WORK', 'A'); A.on('dialog', (d) => d.accept());
   await open(A, 'rank', 900);
-  await A.evaluate(async () => { const { S } = await import('/js/core.js'); const g = await import('/js/guild.js'); await g.createGuilds(g.balance(Object.keys(S.store.data.players))); await S.store.patch('meta', 'guild', { adj: { j: 200000, m: 2000 } }); localStorage.setItem('naejeon:pop:guild-open', '1'); S.admin = true; });
+  await A.evaluate(async () => { const { S } = await import('/js/core.js'); const g = await import('/js/guild.js'); await g.createGuilds(g.balance(Object.keys(S.store.data.players))); await S.store.patch('meta', 'guild', { aq: { [g.curQ()]: { j: 200000, m: 2000 } } }); localStorage.setItem('naejeon:pop:guild-open', '1'); S.admin = true; });
   await A.waitForTimeout(600);
   const bal = () => A.evaluate(async () => (await import('/js/guild.js')).treasury().j.bal);
   const b0 = await bal();

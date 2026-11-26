@@ -2607,3 +2607,4 @@ b.cn.gtint{display:block}
 .gd-ban{display:flex;align-items:center;gap:10px;margin:0 0 10px;padding:10px 16px;border-radius:12px;font-size:14px}.gd-ban .gem{width:22px;height:22px;margin:0}.gd-ban small{font-weight:800;white-space:nowrap}.gd-ban b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gd-ban.g-j{background:linear-gradient(90deg,rgba(245,154,194,.22),rgba(245,154,194,.04));border:1px solid rgba(245,154,194,.45)}.gd-ban.g-j small{color:var(--gj2)}
 .gd-ban.g-m{background:linear-gradient(90deg,rgba(79,224,143,.18),rgba(224,48,63,.06));border:1px solid rgba(79,224,143,.4)}.gd-ban.g-m small{color:var(--gm2)}
+.ga-arc td,.ga-arc th{white-space:nowrap;font-size:12.5px}.ga-arc tr.now td{background:rgba(217,164,65,.06)}.ga-arc .gem{width:14px;height:14px}
