@@ -160,6 +160,11 @@ GitHub 저장소가 원본이다. 집 PC에서 저장소를 내려받아(Downloa
 - `og.png` 링크 미리보기 이미지
 - `data/seed.js` 시트 스냅샷(2026-11-12)
 
+## 성능 메모(2026-11-27)
+- 홈·랭킹·케미는 `keyed: 'auto'`: 화면을 칸(section·.panel·표 등) 단위 구역으로 자동으로 나눠, 데이터가 바뀌면 달라진 구역만 갈아 끼운다(`core.js` `autoKeys`·`keyedRender`). 느린 폰(CPU 4배 느림) 기준 다시 그리기 0.15~0.29초 → 0.06~0.09초
+- 케미 화면 아래쪽 큰 칸은 `content-visibility:auto`로 보일 때만 그림
+- 선수 문서가 바뀌어도 문파 소속(guild·glog)·수정 시각만 바뀐 경우면 통계를 다시 계산하지 않음(`app.js` `playersSig`). 문파 계산 메모는 `S.pv`(선수 변경 횟수)로 새로 고침
+
 ## 데이터 모델 (Firestore: `leagues/{코드}/...`)
 - `players/{id}`: name, scores{top,jg,mid,adc,sup}, mainLane, soloTier, riotId, mmrInit, solo{record,peak,most,pos,comment,asOf}, riot{id,puuid,tier,rank,lp,w,l,at | err,errAt}(연동 서버가 적음), deleted
 - `matches/{id}`: at, seriesId, blue[5], red[5] (탑→서폿 순서의 선수 id), winner, champs{blue[5],red[5]}, bans, kda{선수id:[k,d,a]}, snap{bs,rs,pBlue}(기록 당시 점수·예상승률), deleted

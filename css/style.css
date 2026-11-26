@@ -2615,3 +2615,5 @@ b.cn.gtint{display:block}
 @keyframes gwglow{0%,100%{box-shadow:0 0 6px 0 rgba(243,210,122,.35)}50%{box-shadow:0 0 18px 3px rgba(243,210,122,.6)}}
 body.lite .gwind{animation:none}
 @media (max-width:600px){.gwind{order:10;width:100%;justify-content:center;padding:10px 14px;font-size:15px;margin-top:6px}}
+/* 케미 화면: 화면 밖(아래쪽) 큰 칸은 보일 때만 그린다(content-visibility). 한 번 그린 크기는 기억해서(auto) 스크롤이 튀지 않음 */
+#main .psel,#main .insg,#main .grid2>.cbox{content-visibility:auto;contain-intrinsic-size:auto 700px}

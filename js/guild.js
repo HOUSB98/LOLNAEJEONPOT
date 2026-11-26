@@ -55,7 +55,7 @@ export function realm(w) { let i = 0; while (i + 1 < REALMS.length && w >= REALM
 let MEMO = { st: null, gm: null, v: {} };
 export function gData(mode) {
   const gm = guildMeta();
-  if (MEMO.st !== S.st || MEMO.gm !== gm) MEMO = { st: S.st, gm, v: {} };
+  if (MEMO.st !== S.st || MEMO.gm !== gm || MEMO.pv !== S.pv) MEMO = { st: S.st, gm, pv: S.pv, v: {} }; // pv: 문파 소속만 바뀌어도 다시 계산
   if (MEMO.v[mode]) return MEMO.v[mode];
   const t0 = +gm?.at || 0, curQ = qKey(Date.now()), curW = wkKey(Date.now());
   const B = () => ({ g: 0, w: 0 });
@@ -125,7 +125,7 @@ export const curQ = () => qKey(Date.now());
 let LMEMO = { st: null, gm: null, v: null };
 export function ledger() {
   const gm = guildMeta();
-  if (LMEMO.st === S.st && LMEMO.gm === gm && LMEMO.v) return LMEMO.v;
+  if (LMEMO.st === S.st && LMEMO.gm === gm && LMEMO.pv === S.pv && LMEMO.v) return LMEMO.v;
   const e = econ(), t0 = +gm?.at || 0, wk = wkKey(Date.now()), L = {};
   const blank = (q) => ({ q, war: { j: 0, m: 0 }, gw: { j: 0, m: 0 }, ...Object.fromEntries(GK.map((g) => [g, { win: 0, lose: 0, gwWin: 0, gwLose: 0, earn: 0, week: 0, spent: +gm?.sq?.[q]?.[g] || 0, adj: +gm?.aq?.[q]?.[g] || 0, bal: 0, g: 0, w: 0 }])) });
   const Q = (q) => (L[q] ||= blank(q));
@@ -148,7 +148,7 @@ export function ledger() {
     for (const side of ['blue', 'red']) gs[side].forEach((G) => { if (!G) return; const win = m.winner === side; if (win) T[G].win += e.win; else T[G].lose += e.lose; if (thisWeek) T[G].week += win ? e.win : -e.lose; });
   }
   for (const x of Object.values(L)) for (const g of GK) { const t = x[g]; t.earn = t.win - t.lose + t.gwWin - t.gwLose; t.bal = t.earn - t.spent + t.adj; }
-  LMEMO = { st: S.st, gm, v: L };
+  LMEMO = { st: S.st, gm, pv: S.pv, v: L };
   return L;
 }
 // 이번 분기 금고
