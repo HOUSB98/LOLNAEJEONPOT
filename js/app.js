@@ -10,7 +10,7 @@ import { watchBoard } from './board.js';
 import './players.js';
 import './finder.js';
 import './gacha.js';
-import { lazyPage, swipeZone, swiping, recapSeason, recapYear } from './core.js';
+import { lazyPage, swipeZone, swiping, recapSeason, recapYear, gname, gOf, gAt, gem, guildOn, GUILDS } from './core.js';
 // 자주 안 쓰는 화면은 들어갈 때 받는다. 접속 후 한가할 때 미리 받아 두므로 보통은 기다림 없이 열린다.
 const LAZY_GET = [
   lazyPage('replay', () => import('./replay.js'), ['matchReplay']),
@@ -20,6 +20,7 @@ const LAZY_GET = [
   lazyPage('maker', () => import('./maker.js')),
   lazyPage('me', () => import('./me.js')),
   lazyPage('recap', () => import('./recap.js')),
+  lazyPage('guild', () => import('./guild.js'), ['gJoin', 'gMove', 'gNotice']),
 ];
 setTimeout(() => (window.requestIdleCallback || setTimeout)(() => LAZY_GET.forEach((g) => g().catch(() => {}))), 6000);
 import { watchPosts, postsChanged } from './talk.js';
@@ -212,7 +213,7 @@ function formPanel() {
   const act5 = st.list.filter((s) => s.recent.length >= 3), score = (s) => s.recent.filter(Boolean).length / s.recent.length;
   const hot = [...act5].sort((a, b) => score(b) - score(a) || b.cur - a.cur || b.mmr - a.mmr).slice(0, 3);
   const cold = [...act5].sort((a, b) => score(a) - score(b) || a.cur - b.cur || a.mmr - b.mmr).filter((s) => !hot.includes(s)).slice(0, 3);
-  const li = (s) => `<a class="fm" href="#/players/${s.id}">${champIcon(sigChamp(s), 'face')}<b>${esc(s.name)}</b>${streak(s.cur)}<span class="grow"></span>${dots(s.recent)}</a>`;
+  const li = (s) => `<a class="fm" href="#/players/${s.id}">${champIcon(sigChamp(s), 'face')}<b>${gname(s.id, s.name)}</b>${streak(s.cur)}<span class="grow"></span>${dots(s.recent)}</a>`;
   return `<section class="panel formbox"><div class="sec-h"><h2>${ic('scale')}진영 · 요즘 폼</h2><span class="grow"></span><span class="mut sm">최근 5판 기준</span></div>
     <div class="sidebar2"><b class="blue mono">BLUE ${x.blueW}승 <small>${bw}%</small></b><b class="red mono"><small>${x.n ? 100 - bw : 0}%</small> ${x.redW}승 RED</b></div>
     <div class="prob"><i style="width:${x.n ? bw : 50}%"></i></div>
@@ -221,6 +222,18 @@ function formPanel() {
 }
 // 홈 연말 결산 띠: 11/20 ~ 1/31, 그해 경기가 있을 때만(누르면 #/recap)
 const recapBar = (st) => { if (!recapSeason()) return ''; const y = recapYear(); if (!st.matches.some((m) => +dayKey(m.at).slice(0, 4) === y)) return ''; return `<a class="rcp-home" href="#/recap"><span class="rcp-hi">${ic('recap')}</span><span class="rcp-htx"><b>${y} 연말 결산</b><small>올해의 MVP · 개근상 · 베스트 듀오 · 내 결산</small></span><span class="grow"></span><span class="btn gold xs">보러 가기</span></a>`; };
+// 홈 길드 띠: 내 문파의 이번 주 전적(창설 뒤, 경기 당시 소속) · 문파가 없으면 고르라는 안내. '나'는 내 페이지에서 고른 선수
+const guildBar = (st) => {
+  if (!guildOn()) return '';
+  let me = ''; try { me = localStorage.getItem('naejeon:me:' + S.key) || localStorage.getItem('naejeon:bdme:' + S.key) || ''; } catch {}
+  if (!st.P[me]) return '';
+  const g = gOf(me);
+  if (!g) return `<a class="gd-home none" href="#/guild">${gem('j')}${gem('m')}<span><b>문파를 정해 주세요</b><small>정파 · 마교 중 내 문파를 고르면 이름 옆에 엠블럼이 붙어요</small></span>${ic('guild')}</a>`;
+  const t0 = +S.store.data.meta.guild.at, wk = (() => { const d = new Date(dayKey(Date.now()) + 'T12:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return dayKey(d.getTime() + 6 * 3600e3); })();
+  let w = 0, n = 0;
+  for (let i = st.matches.length - 1; i >= 0; i--) { const m = st.matches[i]; if (m.at < t0 || dayKey(m.at) < wk) break; ['blue', 'red'].forEach((sd) => m[sd].forEach((id) => { if (gAt(id, m.at) === g) { n++; if (m.winner === sd) w++; } })); }
+  return `<a class="gd-home g-${g}" href="#/guild/${g}">${gem(g)}<span><small>내 문파</small><b>${GUILDS[g].n}</b></span><span class="gh-k"><small>이번 주</small><b class="mono">${n ? `${w}승 ${n - w}패` : '아직 경기 없음'}</b></span><em>길드 보기 ›</em></a>`;
+};
 page('home', {
   render() {
     const st = S.st, x = st.sum, now = new Date();
@@ -230,7 +243,7 @@ page('home', {
     const hof = hofList(), top = st.list.filter((s) => s.g >= 3).sort((a, b) => b.ovr - a.ovr).slice(0, 3), nt0 = notices(), nt = nt0.map((_, i) => nt0[(i - (NT.off % nt0.length) + nt0.length) % nt0.length]);
     const last = [...st.matches].slice(-2).reverse();
     HERO.flip = 0;
-    return `${recruitHomeBar()}${recapBar(st)}
+    return `${recruitHomeBar()}${guildBar(st)}${recapBar(st)}
     <section class="hero">
       <div class="hero-bg on" style="--img:url('${hero?.url || ''}')"></div><div class="hero-bg alt"></div>
       <div class="hero-in">
@@ -261,7 +274,7 @@ page('home', {
           <div class="car-dots">${hof.map((_, i) => `<i class="${i === HM.i ? 'on' : ''}" data-a="carSet" data-i="${i}" title="${i + 1}번째 보기" aria-label="${i + 1}번째 보기"></i>`).join('')}</div>
         </section>
         <section class="panel podium"><div class="sec-h"><h2>${ic('rank')}POWER RANKING</h2><a class="mut sm" href="#/rank">전체 보기 →</a></div>
-          ${top.map((s, i) => `<a class="pod p${i + 1}" href="#/players/${s.id}" style="--img:url('${artUrl(sigChamp(s))}')"><i class="mono">${i + 1}</i><div><b>${esc(s.name)}</b><small>${LANE_ICON[s.mainLane]} ${LANE_NAME[s.mainLane]} · ${s.wr}% · ${s.g}판</small></div><em class="mono">${s.ovr}</em></a>`).join('') || '<p class="mut">3판 이상 출전한 선수가 생기면 표시됩니다.</p>'}
+          ${top.map((s, i) => `<a class="pod p${i + 1}" href="#/players/${s.id}" style="--img:url('${artUrl(sigChamp(s))}')"><i class="mono">${i + 1}</i><div><b>${gname(s.id, s.name)}</b><small>${LANE_ICON[s.mainLane]} ${LANE_NAME[s.mainLane]} · ${s.wr}% · ${s.g}판</small></div><em class="mono">${s.ovr}</em></a>`).join('') || '<p class="mut">3판 이상 출전한 선수가 생기면 표시됩니다.</p>'}
         </section>
       </div>
     </div>
@@ -329,7 +342,7 @@ page('rank', {
     // 상단 TOP 3 카드: 지금 정렬 기준의 1~3위
     const medal = ['CHAMPION', 'RUNNER-UP', 'THIRD'];
     const spot = rows.slice(0, 3).map((s, i) => `<a class="spot s${i + 1}" href="#/players/${s.id}" style="--img:url('${artUrl(sig(s))}');--d:${i}">
-      <span class="sp-rk mono">${i + 1}</span><small>${medal[i]}</small><b>${esc(s.name)}</b>
+      <span class="sp-rk mono">${i + 1}</span><small>${medal[i]}</small><b>${gname(s.id, s.name)}</b>
       <span class="sp-meta">${LANE_ICON[s.mainLane]}${LANE_NAME[s.mainLane]}<i></i>${s.g ? `${s.wr}% · ${s.g}판` : '출전 없음'}${s.titles[0] ? `<i></i>${s.titles[0].e} ${s.titles[0].n}` : ''}</span>
       <span class="sp-val"><em class="mono">${s.ovr}</em><small>OVR</small></span></a>`).join('');
     return `<div class="h2row"><h1>${ic('rank')}랭킹</h1><span class="tag gold">SEASON LADDER</span><span class="grow"></span>
@@ -344,7 +357,7 @@ page('rank', {
     ${rows.length >= 3 ? `<div class="spots">${spot}</div>` : ''}
     <div class="tw lbw"><table class="tbl lb">
       <thead><tr><th>#</th><th class="l">소환사</th>${cols.map((c) => `<th data-a="lbSort" data-k="${c[0]}" class="s ${sortCol[0] === c[0] ? 'on' : ''}">${c[1]}${sortCol[0] === c[0] ? (LB.dir < 0 ? ' ▾' : ' ▴') : ''}</th>`).join('')}${LB.view === 'all' ? '<th class="l">칭호</th>' : ''}<th class="art"></th></tr></thead>
-      <tbody>${rows.map((s, i) => `<tr class="${i < 3 ? 'top t' + (i + 1) : ''}" data-a="goPlayer" data-id="${s.id}" style="--d:${Math.min(i, 14)}"><td class="rk mono"><span class="rkb r${i + 1}">${i + 1}</span></td><td class="l nm">${esc(s.name)}</td>${cols.map((c) => num(c[3](s))).join('')}${LB.view === 'all' ? `<td class="l chips">${titleChips(s, 1)}</td>` : ''}<td class="art"><u class="rowfx"></u><i data-art="${artUrl(sig(s))}" title="${esc(sig(s))}"></i></td></tr>`).join('') || `<tr><td colspan="20" class="empty">조건에 맞는 선수가 없습니다.</td></tr>`}</tbody>
+      <tbody>${rows.map((s, i) => `<tr class="${i < 3 ? 'top t' + (i + 1) : ''}" data-a="goPlayer" data-id="${s.id}" style="--d:${Math.min(i, 14)}"><td class="rk mono"><span class="rkb r${i + 1}">${i + 1}</span></td><td class="l nm gtint">${gname(s.id, s.name)}</td>${cols.map((c) => num(c[3](s))).join('')}${LB.view === 'all' ? `<td class="l chips">${titleChips(s, 1)}</td>` : ''}<td class="art"><u class="rowfx"></u><i data-art="${artUrl(sig(s))}" title="${esc(sig(s))}"></i></td></tr>`).join('') || `<tr><td colspan="20" class="empty">조건에 맞는 선수가 없습니다.</td></tr>`}</tbody>
     </table></div>
     <p class="hint">머리글을 누르면 정렬됩니다. 행을 누르면 선수 카드가 열립니다. OVR = 내전 MMR 50% + 상위 3개 라인 점수 50%.</p>`;
   },
@@ -376,7 +389,7 @@ export function matchCard(m, tools = true) {
   const mi = S.st.MI[m.id];
   const team = (side) => `<div class="team ${side} ${m.winner === side ? 'win' : 'lose'}">
     <div class="th"><b>${side === 'blue' ? 'BLUE' : 'RED'}</b><em>${m.winner === side ? 'VICTORY' : 'DEFEAT'}</em><small class="mono">${mi.bs !== undefined ? (side === 'blue' ? mi.bs : mi.rs) : ''}</small></div>
-    ${m[side].map((id, i) => { const k = m.kda?.[id]; return `<div class="pl">${LANE_ICON[LANES[i]]}${champIcon(m.champs?.[side]?.[i], 'sm')}<a href="#/players/${id}">${pname(id)}</a>${k ? `<small class="mono">${k.join('/')}</small>` : ''}</div>`; }).join('')}
+    ${m[side].map((id, i) => { const k = m.kda?.[id]; return `<div class="pl">${LANE_ICON[LANES[i]]}${champIcon(m.champs?.[side]?.[i], 'sm')}<a href="#/players/${id}">${gname(id)}</a>${k ? `<small class="mono">${k.join('/')}</small>` : ''}</div>`; }).join('')}
     ${(m.bans?.[side] || []).some(Boolean) ? `<div class="bans">BAN ${m.bans[side].filter(Boolean).map((b) => champIcon(b, 'sm')).join('')}</div>` : ''}
   </div>`;
   return `<div class="mcard${takeFresh(m.id)}">
@@ -638,7 +651,7 @@ page('fearless', {
     <p class="hint">한 시리즈(같은 두 팀이 이어서 하는 판들) 동안 한 번 나온 챔피언은 양 팀 모두 다시 쓸 수 없습니다. 밴은 다음 판으로 이어지지 않습니다.</p>
     <div class="grid2">${teams.map((t) => `<div class="panel side-${t.side}"><div class="ph"><b>${t.name}</b><span class="tag">${t.wins}승</span></div>
       <div class="tw"><table class="tbl fl"><thead><tr><th class="l">선수</th>${sr.ms.map((m) => `<th class="mono">#${st.MI[m.id].no}</th>`).join('')}</tr></thead>
-      <tbody>${t.roster.map((id) => `<tr><td class="l nm">${pname(id)}</td>${sr.ms.map((m) => cell(id, m)).join('')}</tr>`).join('')}</tbody></table></div></div>`).join('')}</div>
+      <tbody>${t.roster.map((id) => `<tr><td class="l nm">${gname(id)}</td>${sr.ms.map((m) => cell(id, m)).join('')}</tr>`).join('')}</tbody></table></div></div>`).join('')}</div>
     <div class="h2row"><h2>챔피언 풀</h2><span class="tag bad">사용 ${Object.keys(used).length}</span><span class="tag ok">남음 ${Math.max(0, S.champs.length - Object.keys(used).length)}</span><span class="grow"></span>
       <label class="mini"><input type="checkbox" data-c="flLeft" ${FL.left ? 'checked' : ''}> 남은 챔피언만</label></div>
     ${S.champs.length ? `<div class="cpgrid static">${pool.map((c) => `<div class="cp ${used[c.name] ? 'used' : ''}" title="${esc(used[c.name] || '사용 가능')}"><img src="${c.img}" loading="lazy" alt=""><span>${esc(c.name)}</span>${used[c.name] ? `<em>${esc(used[c.name].split(' · ')[0])}</em>` : ''}</div>`).join('')}</div>`
@@ -673,6 +686,7 @@ function onStore(c) {
     if (ch.scorelog && (S.page === 'home' || S.page === 'scores')) refresh();
     if (ch.pause) checkPause();
     if (ch.recruit) onRecruit();
+    if (ch.guild) refresh(true); // 길드 창설·공지·길드장: 이름 옆 엠블럼과 길드 화면
     return;
   }
   if (c === 'posts') { watchPosts(); postsChanged(); if (S.page === 'talk') refresh(); return; }

@@ -1,5 +1,5 @@
 // 환영 인트로, 닉네임, 접속자 표시, 공용 채팅
-import { S, act, esc, uid, col, settings, toast, modal, closeModal, mh, ic, logo, needAdmin, swipeZone, LANE_ICON, LANE_COLOR, LANE_NAME } from './core.js';
+import { gname, gOf, guildOn, GUILDS, S, act, esc, uid, col, settings, toast, modal, closeModal, mh, ic, logo, needAdmin, swipeZone, LANE_ICON, LANE_COLOR, LANE_NAME } from './core.js';
 import { xmasOn, inSeason, SEASON } from './season.js'; // 장식 모듈(SEASON.x·n)은 시즌에만 받아진다
 import { hookOn, USAGE, loadUsage, won, kfmt } from './hook.js';
 import { KAKAO_JS_KEY } from './config.js';
@@ -192,7 +192,7 @@ export function sysChat(text) {
 }
 function buildChat() {
   document.getElementById('chat').innerHTML = `
-    <header><div class="ch-t"><span class="ch-k"><i class="live"></i>LIVE</span><b>Lobby<i>Chat</i></b><small><span id="chat-on">0</span>명 접속 중</small></div><div class="ch-side"><div class="ch-btns"><button class="btn ghost xs" data-a="chatClear" title="채팅 전체 삭제 (관리자)" aria-label="채팅 전체 삭제">${ic('trash')}</button><button class="btn ghost xs chatx" data-a="chatToggle" title="채팅창 접기" aria-label="채팅창 접기">${ic('fold')}</button></div><div id="chat-quota" hidden></div></div></header>
+    <header><div class="ch-t"><span class="ch-k"><i class="live"></i>LIVE</span><b>Lobby<i>Chat</i></b><small><span id="chat-on">0</span>명 접속 중</small></div><div class="ch-side"><div class="ch-btns"><button class="btn ghost xs ch-gf" data-a="chatGf" hidden title="길드원 말만 모아 보기" aria-label="길드별로 보기">전체</button><button class="btn ghost xs" data-a="chatClear" title="채팅 전체 삭제 (관리자)" aria-label="채팅 전체 삭제">${ic('trash')}</button><button class="btn ghost xs chatx" data-a="chatToggle" title="채팅창 접기" aria-label="채팅창 접기">${ic('fold')}</button></div><div id="chat-quota" hidden></div></div></header>
     <div id="chatlog"></div>
     <div id="chattray" hidden>${trayHTML()}</div>
     <form id="chatform"><button type="button" class="cbtn2" data-a="chatTray" title="스티커">${ic('star')}</button><button type="button" class="cbtn2" data-a="chatRoll" title="주사위 1~100">${ic('dice')}</button>
@@ -233,7 +233,10 @@ export function renderChat(force) {
   const list = msgs(), atBottom = force || log.scrollHeight - log.scrollTop - log.clientHeight < 80;
   const since = force ? Infinity : renderedAt, fresh = (m) => renderedAt && m.at > since;
   let prevDay = '', prevWho = '', html = '';
+  const gf = guildOn() ? CGF : ''; // 길드별로 보기(채팅 머리의 버튼)
+  const gb = document.querySelector('#chat .ch-gf'); if (gb) { gb.hidden = !guildOn(); gb.textContent = gf ? GUILDS[gf].n : '전체'; gb.classList.toggle('on', !!gf); }
   for (const m of list) {
+    if (gf && m.k !== 'sys' && gOf(playerOf(m.nick)?.id) !== gf) continue;
     const d = new Date(m.at), day = `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}`, tm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     if (day !== prevDay) { html += `<div class="cday"><span>${day}</span></div>`; prevDay = day; prevWho = ''; }
     if (m.k === 'sys') { html += `<div class="csys ${fresh(m) ? 'new' : ''}">${esc(m.t)}<small>${tm}</small></div>`; prevWho = ''; continue; }
@@ -241,7 +244,7 @@ export function renderChat(force) {
     prevWho = who;
     const linkedText = esc(m.t).replace(/https?:\/\/[^\s<]+/g, (url) => `<a class="chatlink" href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
     const body = m.k === 's' && STK[m.t] ? `<span class="sticker big ${STK[m.t][2]}">${esc(STK[m.t][1])}</span>` : m.k === 'r' ? `<span class="croll">${ic('dice')}<b>${esc(m.t)}</b><small>1~100</small></span>` : `<span class="cb ${/^\p{Extended_Pictographic}{1,3}$/u.test(m.t) ? 'emo' : ''}">${linkedText}</span>`;
-    html += `<div class="cm ${me ? 'me' : ''} ${head ? 'head' : ''} ${fresh(m) ? 'new' : ''}">${head && !me ? `<b class="cn" style="--h:${hue(m.nick)}">${esc(m.nick)}</b>` : ''}<div class="cl">${body}<small>${tm}</small>${me ? `<button class="cdel" data-a="chatDel" data-id="${m.id}" title="내 메시지 지우기" aria-label="메시지 지우기">${ic('x')}</button>` : ''}</div></div>`;
+    html += `<div class="cm ${me ? 'me' : ''} ${head ? 'head' : ''} ${fresh(m) ? 'new' : ''}">${head && !me ? (() => { const pid = playerOf(m.nick)?.id; return gOf(pid) ? `<b class="cn gtint">${gname(pid, m.nick)}</b>` : `<b class="cn" style="--h:${hue(m.nick)}">${esc(m.nick)}</b>`; })() : ''}<div class="cl">${body}<small>${tm}</small>${me ? `<button class="cdel" data-a="chatDel" data-id="${m.id}" title="내 메시지 지우기" aria-label="메시지 지우기">${ic('x')}</button>` : ''}</div></div>`;
   }
   log.innerHTML = html || `<div class="cempty">${ic('chat')}<p>첫 메시지를 남겨 보세요.<br>스티커와 주사위도 있어요.</p></div>`;
   if (atBottom) log.scrollTop = log.scrollHeight;
@@ -291,6 +294,8 @@ swipeZone('#chat', {
     }
   },
 });
+let CGF = '';
+act('chatGf', () => { CGF = CGF === '' ? 'j' : CGF === 'j' ? 'm' : ''; renderChat(true); });
 act('chatTray', () => { tray = !tray; document.getElementById('chattray').hidden = !tray; renderChat(true); });
 act('chatStk', (d) => send('s', d.k));
 act('chatEmo', (d) => { const i = document.getElementById('chatinp'); i.value += d.e; i.focus(); });

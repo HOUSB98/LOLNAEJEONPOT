@@ -24,16 +24,19 @@ function localStore(key, onChange) {
   const load = (col) => { try { return JSON.parse(localStorage.getItem(k(col))) || {}; } catch { return {}; } };
   const data = {};
   WATCHED.concat('auctions', 'history', 'reveals', 'gacha').forEach((c) => (data[c] = load(c)));
+  const recs = {}; // watchRecent(길드 사랑방): 이 컬렉션이 바뀌면 최신 n개를 다시 넘긴다
   const subs = {}; // 체험 모드에서도 다른 탭의 이벤트(승률 공개)를 받을 수 있게 한다
   const bc = 'BroadcastChannel' in window ? new BroadcastChannel('naejeon:' + key) : null;
   if (bc) bc.onmessage = (e) => {
     const c = e.data.col || e.data; data[c] = load(c);
+    recs[c]?.forEach((f) => f());
     if (e.data.id && subs[c]) { const doc = data[c][e.data.id]; if (doc) subs[c].forEach((f) => f({ changes: () => [{ type: 'added', doc }] })); }
     onChange(c);
   };
   const save = (col, id) => {
     localStorage.setItem(k(col), JSON.stringify(data[col]));
     if (bc) bc.postMessage({ col, id });
+    recs[col]?.forEach((f) => f());
     onChange(col);
   };
   return {
@@ -57,6 +60,7 @@ function localStore(key, onChange) {
       (subs[col] ||= []).push(onSnap);
       return () => {};
     },
+    watchRecent(col, n, cb) { const f = () => { data[col] = load(col); cb(Object.values(data[col]).sort((a, b) => b.at - a.at).slice(0, n)); }; (recs[col] ||= new Set()).add(f); f(); return () => recs[col].delete(f); },
     bye() {},
     async get(col, id) { data[col] = load(col); return data[col][id] ? { ...data[col][id] } : null; },
     async older(col, before, n) { return Object.values(data[col] || {}).filter((d) => d.at < before).sort((a, b) => b.at - a.at).slice(0, n); },
@@ -283,6 +287,11 @@ async function firebaseStore(key, onChange, opt = {}) {
         : src;
       return fs.onSnapshot(q, onSnap, onError);
     },
+    // 최신 n개만 실시간으로(길드 사랑방 채팅·게시판). 화면을 떠나면 돌려준 함수로 끊는다. 단일 필드 정렬이라 색인을 따로 만들 필요 없음
+    watchRecent: (col, n, cb, onError) => fs.onSnapshot(fs.query(fs.collection(db, 'leagues', key, col), fs.orderBy('at', 'desc'), fs.limit(n)), (snap) => {
+      if (snap.metadata.fromCache && snap.empty) return;
+      cb(snap.docs.map((d) => ({ ...d.data(), id: d.id })));
+    }, onError),
     // 탭을 닫는 순간에도 전송이 끝까지 가도록 keepalive 요청(REST)으로 숫자 필드 하나만 고친다. 접속 종료 표시용.
     bye(col, id, field, value) {
       try {

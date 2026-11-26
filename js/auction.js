@@ -1,5 +1,5 @@
 // 팀 경매: 팀장이 한정 포인트로 선수를 한 명씩 입찰. 타이머·입찰은 DB 트랜잭션으로 모든 접속자에게 동기화된다.
-import { S, page, act, esc, uid, col, pname, go, refresh, toast, needAdmin, isAdmin, ic, champIcon, sigChamp, dots, streak, titleChips, LANES, LANE_NAME, LANE_ICON, LANE_COLOR } from './core.js';
+import { gname, S, page, act, esc, uid, col, pname, go, refresh, toast, needAdmin, isAdmin, ic, champIcon, sigChamp, dots, streak, titleChips, LANES, LANE_NAME, LANE_ICON, LANE_COLOR } from './core.js';
 import { kakaoBtn } from './kakao.js';
 import { dayKey } from './stats.js';
 import { setDraftTeams } from './today.js';
@@ -34,7 +34,7 @@ export const teamColor = (i) => TEAM_COLOR[((i % TEAM_COLOR.length) + TEAM_COLOR
 const blindOn = (r) => !!r?.cfg?.blind && r.status !== 'done';
 const alias = (r, pid) => r.alias?.[pid] || '?';
 const whoT = (r, pid) => (blindOn(r) ? `매물 ${alias(r, pid)}` : nm(pid));
-const who = (r, pid) => (blindOn(r) ? `<span class="au-anon">${ic('mask', 'ie')}매물 ${esc(alias(r, pid))}</span>` : pname(pid));
+const who = (r, pid) => (blindOn(r) ? `<span class="au-anon">${ic('mask', 'ie')}매물 ${esc(alias(r, pid))}</span>` : gname(pid));
 const letter = (i) => (i < 26 ? String.fromCharCode(65 + i) : String.fromCharCode(64 + Math.floor(i / 26)) + String.fromCharCode(65 + (i % 26)));
 // 익명 경매 힌트의 기준값(리그 전체): 라인별 평균 점수, KDA 기록 5판 이상인 선수들의 평균 킬·데스·어시스트. 화면을 그릴 때 한 번(24명 정도라 가벼움)
 function blindBase(st) {

@@ -2,7 +2,7 @@
 // 저장하는 값은 없다. 그해 경기만 골라 stats.js의 compute()로 다시 계산한다(화면을 열 때 한 번, 기록이 바뀌면 다시).
 // 해는 '내전 날짜'(새벽 6시 전 경기는 전날, stats.js dayKey) 기준. MMR 성장은 전체 기록의 경기별 MMR(hist)에서 그해 처음과 끝을 비교한다.
 // 메뉴·홈 배너는 11월 20일 ~ 1월 31일에만 보이고(core.js recapSeason), 주소로는 언제나 열린다. 처음 들어갈 때 코드를 받는다(app.js lazyPage).
-import { S, page, act, esc, ic, refresh, col, settings, fmtDT, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, artUrl, recapYear } from './core.js';
+import { guildOn, gAt, gem, GUILDS, GK, S, page, act, esc, ic, refresh, col, settings, fmtDT, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, artUrl, recapYear } from './core.js';
 import { compute, chem, dayKey, pct } from './stats.js';
 import { kakaoBtn } from './kakao.js';
 import { nick } from './social.js';
@@ -187,7 +187,7 @@ page('recap', {
     const pm = d.month.indexOf(peakM);
     const months = `<section class="panel rcp-mo" data-k="mo"><div class="ph"><b>${ic('cal')}월별 경기 수</b>${d.month[pm] ? `<small class="mut">가장 많이 한 달 <b class="rcp-pk">${pm + 1}월 · ${d.month[pm]}경기</b></small>` : ''}</div>
       <div class="rcp-bars">${d.month.map((v, i) => `<div class="${v === peakM && v ? 'pk' : ''}${v ? '' : ' z'}"><em class="mono">${v || ''}</em><i style="height:${Math.round((v / peakM) * 100)}%"></i><small>${i + 1}월</small></div>`).join('')}</div></section>`;
-    return `${top}${hero}${awards}<div class="rcp-2 a" data-k="r2">${duo}${lanes}</div>${mine(d)}<div class="rcp-2 b" data-k="r3">${champ}${scenes}</div>${months}`;
+    return `${top}${hero}${awards}<div class="rcp-2 a" data-k="r2">${duo}${lanes}</div>${mine(d)}<div class="rcp-2 b" data-k="r3">${champ}${scenes}</div>${guildYear(d.ms, yr)}${months}`;
   },
   after() {
     if (S.arg[0]) { try { history.replaceState(null, '', location.pathname + location.search + '#/recap'); } catch {} S.arg = []; }
@@ -195,3 +195,21 @@ page('recap', {
 });
 act('rcpYear', (d) => { R.year = +d.v; refresh(); });
 act('rcpMe', (d, el) => { R.pid = el.value; refresh(); });
+
+// 올해의 길드(정파·마교): 창설 뒤 그해 경기만. 길드 승률 = 길드원 출전 합계 기준, 대항전 = 양 팀 다수 길드가 다를 때
+function guildYear(ms, yr) {
+  if (!guildOn()) return '';
+  const t0 = +S.store.data.meta.guild.at, G = { j: { g: 0, w: 0, war: 0, mem: {} }, m: { g: 0, w: 0, war: 0, mem: {} } };
+  for (const m of ms) {
+    if (m.at < t0) continue;
+    const gs = {};
+    for (const sd of ['blue', 'red']) { gs[sd] = m[sd].map((id) => gAt(id, m.at)); gs[sd].forEach((g, i) => { if (!g) return; const x = G[g], win = m.winner === sd, id = m[sd][i]; x.g++; if (win) { x.w++; x.mem[id] = (x.mem[id] || 0) + 1; } }); }
+    const maj = (a) => GK.find((g) => a.filter((x) => x === g).length >= 3) || '', b = maj(gs.blue), r = maj(gs.red);
+    if (b && r && b !== r) G[m.winner === 'blue' ? b : r].war++;
+  }
+  if (!G.j.g && !G.m.g) return '';
+  const rate = (x) => (x.g ? x.w / x.g : 0), win = G.j.war !== G.m.war ? (G.j.war > G.m.war ? 'j' : 'm') : rate(G.j) !== rate(G.m) ? (rate(G.j) > rate(G.m) ? 'j' : 'm') : '';
+  const ace = (g) => { const e = Object.entries(G[g].mem).sort((a, b) => b[1] - a[1])[0]; return e ? `${esc(S.st.P[e[0]]?.name || '?')} ${e[1]}승` : '—'; };
+  return `<section class="panel rcp-gd" data-k="gd"><div class="ph"><b>${ic('guild')}올해의 길드</b><small class="mut">${yr}년 · 창설 이후 경기 · 대항전 승수가 같으면 길드 승률로</small></div>
+    <div class="rcp-gdg">${GK.map((g) => `<a class="rcp-gdc g-${g} ${win === g ? 'win' : ''}" href="#/guild/${g}">${gem(g)}<b>${GUILDS[g].n}</b>${win === g ? '<em>올해의 길드</em>' : ''}<span><small>대항전</small><b class="mono">${G[g].war}승</b></span><span><small>길드 승률</small><b class="mono">${G[g].g ? Math.round(rate(G[g]) * 100) + '%' : '—'}</b></span><span><small>최다 승</small><b>${ace(g)}</b></span></a>`).join('')}</div></section>`;
+}

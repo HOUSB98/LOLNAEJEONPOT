@@ -2526,3 +2526,45 @@ body.bd-open>:not(#modal):not(#toast),body.bd-open>:not(#modal):not(#toast) *,bo
 .mt-adm form{margin-top:8px;gap:8px}.mt-adm .inp{min-height:44px}.mt-adm .btn{min-height:44px}
 .np-mbar{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:9000;padding:5px 12px;border-radius:99px;background:rgba(217,164,65,.92);color:#2b1a0d;font-size:11.5px;font-weight:800;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.4)}
 @media (max-width:860px){.np-mbar{bottom:auto;top:8px}}
+/* ---------- 길드(정파·마교) 공통 표시: 이름 옆 엠블럼 + 밑줄(길드 색). 랭킹·채팅은 이름 글자도 길드 색(.gtint) ---------- */
+:root{--gj:#6fd3b8;--gj2:#8fe8cf;--gm:#b77cff;--gm2:#cfa3ff}
+.gem{display:inline-grid;place-items:center;width:1.05em;height:1.05em;margin-right:.28em;vertical-align:-.16em;flex:none;font-style:normal}.gem svg{width:100%;height:100%;display:block}
+.gnm{display:inline-flex;align-items:center;max-width:100%;min-width:0}.gnm u{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.gnm.g-j u{text-decoration-color:color-mix(in srgb,var(--gj) 75%,transparent)}.gnm.g-m u{text-decoration-color:color-mix(in srgb,var(--gm) 80%,transparent)}
+.gtint .gnm.g-j u,.gtint.cn .gnm.g-j u{color:var(--gj2)}.gtint .gnm.g-m u,.gtint.cn .gnm.g-m u{color:var(--gm2)}
+b.cn.gtint{display:block}
+/* 선수 카드 길드 테두리: 안쪽 가는 선 + 오른쪽 위 문양(전설 이상 스킨 테두리는 그대로) */
+.pcard.gcard{border-bottom:3px solid var(--gc)}
+.pcard.gcard.g-j{--gc:color-mix(in srgb,var(--gj) 55%,transparent)}.pcard.gcard.g-m{--gc:color-mix(in srgb,var(--gm) 60%,transparent)}
+.holo-wrap.gcard.g-j .hc-strip{box-shadow:inset 3px 0 0 var(--gj)}.holo-wrap.gcard.g-m .hc-strip{box-shadow:inset 3px 0 0 var(--gm)}
+/* 홈 띠 · 내 페이지 띠 */
+.gd-home{display:flex;align-items:center;gap:12px;margin:0 0 14px;padding:11px 16px;border-radius:var(--r);border:1px solid var(--line2);background:var(--panel)}
+.gd-home .gem{width:26px;height:26px;margin:0}.gd-home>span{display:flex;flex-direction:column;line-height:1.25}.gd-home>span b{font-size:15px}
+.gd-home .gh-k{margin-left:auto;text-align:right}.gd-home em{font-style:normal;font-size:12px;color:var(--mut);white-space:nowrap}
+.gd-home.g-j{border-color:color-mix(in srgb,var(--gj) 35%,var(--line2));background:linear-gradient(100deg,color-mix(in srgb,var(--gj) 12%,var(--panel)),var(--panel) 60%)}.gd-home.g-j b{color:var(--gj2)}
+.gd-home.g-m{border-color:color-mix(in srgb,var(--gm) 40%,var(--line2));background:linear-gradient(100deg,color-mix(in srgb,var(--gm) 14%,var(--panel)),var(--panel) 60%)}.gd-home.g-m b{color:var(--gm2)}
+.gd-home.none{border-style:dashed}.gd-home.none>.ic{margin-left:auto;color:var(--gold)}
+.me-gd{display:flex;align-items:center;flex-wrap:wrap;gap:10px 18px;margin:12px 0;padding:12px 16px;border-radius:var(--r);border:1px solid var(--line2);background:var(--panel)}
+.me-gd-l{display:flex;align-items:center;gap:10px}.me-gd .gem{width:30px;height:30px;margin:0}.me-gd-e{display:flex;gap:4px}
+.me-gd-t{display:flex;flex-direction:column;line-height:1.25}.me-gd-t b{font-size:16px}.me-gd-k{display:flex;flex-direction:column;line-height:1.3}.me-gd-k b{font-size:14px}
+.me-gd-tt{display:flex;gap:5px;flex-wrap:wrap}.me-gd-mv,.me-gd-a{margin-left:auto}.me-gd-a{display:flex;gap:6px}
+.me-gd.g-j{background:linear-gradient(100deg,color-mix(in srgb,var(--gj) 13%,var(--panel)),var(--panel) 65%);border-color:color-mix(in srgb,var(--gj) 35%,var(--line2))}.me-gd.g-j .me-gd-t b{color:var(--gj2)}
+.me-gd.g-m{background:linear-gradient(100deg,color-mix(in srgb,var(--gm) 15%,var(--panel)),var(--panel) 65%);border-color:color-mix(in srgb,var(--gm) 40%,var(--line2))}.me-gd.g-m .me-gd-t b{color:var(--gm2)}
+.me-gd.none{border-style:dashed}
+.gd-tt{display:inline-flex;align-items:center;padding:1px 7px;margin-left:5px;border-radius:99px;font-size:11px;font-weight:700;background:rgba(217,164,65,.14);color:#ffe09a;white-space:nowrap}
+/* 오늘의 내전 길드전 */
+.gwbtn.on{background:linear-gradient(90deg,color-mix(in srgb,var(--gj) 30%,#0b111c),color-mix(in srgb,var(--gm) 30%,#0b111c));border-color:color-mix(in srgb,var(--gm) 50%,var(--line2));color:#fff}
+.tag.gwt{display:inline-flex;align-items:center;gap:4px;background:linear-gradient(90deg,rgba(111,211,184,.16),rgba(183,124,255,.16));color:#f1e9ff}.tag.gwt .gem{margin:0}
+/* 채팅 길드별 보기 */
+.ch-gf{font-size:11px;min-width:40px}.ch-gf.on{color:#fff;border-color:var(--gold)}
+/* 관리 > 길드 */
+.gadm .ga-pair{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0}.gadm .ga-pair select{width:auto;min-width:110px}
+.ga-plan{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.ga-col{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:10px;border:1px solid var(--line2);background:var(--panel2)}
+.ga-col.g-j{border-color:color-mix(in srgb,var(--gj) 40%,var(--line2))}.ga-col.g-m{border-color:color-mix(in srgb,var(--gm) 45%,var(--line2))}.ga-col>b{display:flex;align-items:center;font-size:15px}.ga-col p{margin:0;font-size:13px;line-height:1.7}
+.ga-col .btn.xs{align-self:flex-start}.ga-mem{display:flex;flex-wrap:wrap;gap:6px}.ga-un{margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(240,80,110,.08);border:1px solid rgba(240,80,110,.3)}
+@media (max-width:700px){.ga-plan{grid-template-columns:1fr}}
+/* 연말 결산 올해의 길드 */
+.rcp-gdg{display:grid;grid-template-columns:1fr 1fr;gap:12px}.rcp-gdc{position:relative;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:6px 12px;padding:14px 16px;border-radius:12px;border:1px solid var(--line2);background:var(--panel2)}
+.rcp-gdc>.gem{width:40px;height:40px;margin:0;grid-row:span 4}.rcp-gdc>b{font-size:17px}.rcp-gdc>span{display:flex;justify-content:space-between;gap:8px}.rcp-gdc em{position:absolute;top:10px;right:12px;font-style:normal;font-size:11px;font-weight:800;color:#2b1a0d;background:var(--gold);padding:2px 8px;border-radius:99px}
+.rcp-gdc.g-j.win{border-color:var(--gj);box-shadow:0 0 0 1px var(--gj) inset}.rcp-gdc.g-m.win{border-color:var(--gm);box-shadow:0 0 0 1px var(--gm) inset}
+@media (max-width:600px){.rcp-gdg{grid-template-columns:1fr}}

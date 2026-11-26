@@ -105,7 +105,7 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   ok(await N.evaluate(() => location.hash === '#/maker' && document.title === '제작자 · NAEJEONPOT' && document.querySelector('#side .side-mini a.on')?.dataset.p === 'maker'), '작은 버튼으로 제작자 화면(탭 제목·선택 표시)');
   errs.push(...N.errs);
   await M.tap('#tabbar [data-p=more]'); await M.waitForTimeout(500);
-  ok(await M.evaluate(async () => { const { recapSeason } = await import('/js/core.js'); return [...document.querySelectorAll('#modal.on .mm h6')].map((e) => e.textContent).join() === '내전,기록·분석,즐길 거리,설정·정보' && document.querySelectorAll('#modal.on .mm-it').length === 15 + (recapSeason() ? 1 : 0); }), '휴대폰 메뉴 창도 같은 묶음 + 설정·정보(관리·제작자), 15개(연말 결산 기간에는 16개)');
+  ok(await M.evaluate(async () => { const { recapSeason } = await import('/js/core.js'); return [...document.querySelectorAll('#modal.on .mm h6')].map((e) => e.textContent).join() === '내전,기록·분석,길드,즐길 거리,설정·정보' && document.querySelectorAll('#modal.on .mm-it').length === 16 + (recapSeason() ? 1 : 0); }), '휴대폰 메뉴 창도 같은 묶음 + 설정·정보(관리·제작자), 16개(연말 결산 기간에는 17개, 길드 묶음 포함)');
   console.log('오류:', errs.join(' | ') || '없음'); ok(!errs.length, '페이지 오류 없음');
   await b.close();
 })();

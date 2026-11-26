@@ -1,6 +1,8 @@
 // 관리: 내보내기/백업, 선수 관리, 시트 데이터 가져오기, 설정, 삭제 복구, 칭호 도감
 import { S, page, act, esc, uid, col, settings, pname, refresh, fmtDT, toast, download, csv, modal, closeModal, mh, sha, needAdmin, isAdmin, history, ic, LANES, LANE_NAME, LANE_ICON } from './core.js';
 import { TITLES, DEFAULTS, initMmr, calibrate, CAL_MIN, winProb } from './stats.js';
+import { guildAdminHTML, GUILD_COLS, smaller, adminSet } from './guild.js';
+import { guildOn } from './core.js';
 import { exportMatches } from './app.js';
 import { callWorker, hookOn, USAGE, loadUsage, won, WORKER_VER, workerVer } from './hook.js';
 import { WORKER_URL } from './config.js';
@@ -27,7 +29,7 @@ function calHTML(st, cfg) {
     <p class="hint">스케일은 '누가 유리한가'는 바꾸지 않고 '몇 % 유리한가'만 바꿔요. 그래서 적중률은 그대로이고, 예상 60%인 경기에서 실제로 10판 중 6판쯤 이기도록 맞춰져요(표의 실제 승률이 예상 평균에 가까울수록 정확, 판수를 감안해 우연한 차이 안이면 초록·벗어나면 빨강). 적용하면 오늘의 내전 예상승률과 앞으로 저장하는 경기에 쓰여요. 이미 저장된 경기는 기록 당시 예상승률을 그대로 쓰고${c.noSnap ? `, 기록 당시 값이 없는 옛 경기 ${c.noSnap}판만 새 값으로 다시 계산돼 업셋 수가 조금 바뀔 수 있어요` : ''}. 언제든 위 설정에서 되돌릴 수 있어요.</p></div>`;
 }
 // ---------- 초대 링크 새로 만들기: 모든 기록을 새 코드로 복사하고 옛 코드는 닫는다(meta/closed, 문서는 지우지 않음) ----------
-const ROT_COLS = ['players', 'matches', 'meta', 'chat', 'posts', 'comments', 'auctions', 'history', 'reveals', 'gacha', 'ops']; // presence(접속 표시)는 옮기지 않음
+const ROT_COLS = ['players', 'matches', 'meta', 'chat', 'posts', 'comments', 'auctions', 'history', 'reveals', 'gacha', 'ops', ...GUILD_COLS]; // presence(접속 표시)는 옮기지 않음
 const newKey = () => { const a = crypto.getRandomValues(new Uint8Array(20)); return [...a].map((b) => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join(''); };
 const rotHTML = () => `<div class="panel rot"><div class="ph"><b>${ic('lock')}초대 링크 새로 만들기</b><small class="mut">링크가 밖으로 퍼졌을 때</small></div>
   <p class="sm">모든 기록(선수·경기·설정·채팅·게시판·경매·가챠)을 새 초대 코드로 옮기고, 지금 링크로 들어오는 사람에게는 "이 초대 링크는 더 이상 쓰지 않아요" 안내만 보여 줘요. 옛 기록은 지우지 않아요.</p>
@@ -95,7 +97,7 @@ addEventListener('usage', () => { const el = document.getElementById('uzbox'); i
 
 
 // ---------- 관리 화면 탭(선수 · 내전 · 서버 · 설정 · 칭호): 고른 탭만 그린다. 마지막에 본 탭을 기억(naejeon:admtab), 주소 #/admin/<탭> 으로 바로 열 수도 있음 ----------
-const ATABS = [['players', 'users', '선수', '관리'], ['play', 'target', '내전', '도구'], ['server', 'bolt', '서버', '· 연동'], ['config', 'admin', '설정', '· 백업'], ['titles', 'scroll', '칭호', '도감']];
+const ATABS = [['players', 'users', '선수', '관리'], ['play', 'target', '내전', '도구'], ['server', 'bolt', '서버', '· 연동'], ['config', 'admin', '설정', '· 백업'], ['titles', 'scroll', '칭호', '도감'], ['guild', 'guild', '길드', '관리']];
 const AT_KEY = 'naejeon:admtab';
 function admTab() {
   const ok = (t) => ATABS.some((x) => x[0] === t);
@@ -125,6 +127,7 @@ page('admin', {
       <div class="tw scw"><table class="tbl edit score ${adm ? '' : 'locked'}"><thead><tr><th class="no">#</th><th class="l">이름</th>${LANES.map((l) => `<th class="lh l-${l}">${LANE_ICON[l]}${LANE_NAME[l]}</th>`).join('')}<th>평균</th><th>주라인</th><th title="누구나 바꿀 수 있어요 · 라인 지원에서 기본으로 적용, 그날만 바꿀 수도 있음">소통</th><th class="l">솔랭 티어</th><th>시작 MMR</th><th></th></tr></thead>
       <tbody>${st.list.map((s, i) => `<tr><td class="no mono">${i + 1}</td><td class="l nm"><span class="nmc">${LANE_ICON[s.mainLane]}${esc(s.name)}</span></td>${LANES.map((l) => `<td class="scd l-${l} ${s.mainLane === l ? 'main' : ''}" style="--v:${Math.min(100, (+s.p.scores?.[l] || 0) * 5)}%"><input id="sc-${s.id}-${l}" class="inp cell mono" type="number" min="0" max="20" step="0.5" value="${s.p.scores?.[l] ?? 0}" data-c="plScore" data-id="${s.id}" data-l="${l}" ${adm ? '' : 'disabled'}></td>`).join('')}<td class="num mono avg"><b>${s.avg.toFixed(1)}</b></td><td><select class="inp cell" data-c="plMain" data-id="${s.id}" ${adm ? '' : 'disabled'}>${LANES.map((l) => `<option value="${l}" ${s.mainLane === l ? 'selected' : ''}>${LANE_NAME[l]}</option>`).join('')}</select></td><td><select class="inp cell tk-cell" data-c="plTalk" data-id="${s.id}" title="누구나 바꿀 수 있어요" aria-label="${esc(s.name)} 소통"><option value="0">—</option>${TALK.map((t, k) => `<option value="${k + 1}" ${+s.p.talk === k + 1 ? 'selected' : ''}>${t}</option>`).join('')}</select></td><td class="l tier">${esc(s.p.soloTier || '-')}</td><td class="num mono">${s.mmrInit}</td><td><button class="btn xs" data-a="plEdit" data-id="${s.id}">상세</button></td></tr>`).join('') || '<tr><td colspan="12" class="empty">선수가 없습니다.</td></tr>'}</tbody></table></div>
       ${gone.length ? `<p class="sm mut">숨긴 선수: ${gone.map((p) => `${esc(p.name)} <button class="btn xs ghost" data-a="plRestore" data-id="${p.id}">복구</button>`).join(' ')}</p>` : ''}</div>`,
+      guild: () => guildAdminHTML(),
       play: () => `${luckAdminHTML(st)}${gachaAdminHTML()}`, // 가챠 설정은 안쪽이 3칸이라 반쪽 폭에서는 오히려 길어져서 위아래로 둔다
       server: () => `<div class="panel"><div class="ph"><b>${ic('bolt')}Firebase 사용량</b><small class="mut">무료 한도 대비 오늘 사용량</small><span class="grow"></span>${hookOn() && !/billing/i.test(USAGE.err) ? '<button class="btn xs" data-a="uzLoad">새로고침</button>' : ''}</div>
       <div id="uzbox">${usageHTML()}</div>
@@ -324,6 +327,7 @@ act('plEdit', (d) => needAdmin(() => {
     const scores = Object.fromEntries(LANES.map((l) => [l, Math.max(0, Math.min(20, +f.get('s_' + l) || 0))]));
     if (p.id) await logScores(LANES.filter((l) => (+p.scores?.[l] || 0) !== scores[l]).map((l) => ({ pid: id, name: g('name'), lane: l, from: +p.scores?.[l] || 0, to: scores[l] })));
     await S.store.put('players', id, { ...p, id, name: g('name'), scores, mainLane: g('mainLane'), soloTier: g('soloTier'), riotId: g('riotId'), mmrInit: +g('mmrInit') || 0, talk: Math.max(0, Math.min(TALK.length, +g('talk') || 0)), solo: { ...o, record: g('record'), peak: g('peak'), pos: g('pos'), most: g('most'), comment: g('comment') }, deleted: false });
+    if (!p.id && guildOn() && smaller()) await adminSet(id, smaller()); // 새 선수: 길드 인원이 다르면 적은 쪽으로(같으면 본인이 고름)
     closeModal(); toast('저장했습니다');
   };
   const hide = el.querySelector('#plHide');

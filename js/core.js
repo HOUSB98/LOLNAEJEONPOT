@@ -8,9 +8,37 @@ export const col = (name) => Object.values(S.store.data[name] || {});
 export const settings = () => S.store.data.meta?.settings || {};
 export const pname = (id) => esc(S.st?.P[id]?.name || S.store.data.players?.[id]?.name || '?');
 
+// ---------- 길드(정파·마교) ----------
+// 소속은 players/{id}.guild('j'|'m'), 소속 기록은 players/{id}.glog [{g, at, by}](경기 당시 소속 계산용). 창설일·길드장·소개·공지·비밀번호 확인값은 meta/guild.
+// 이름 옆 작은 엠블럼 + 이름 밑줄(길드 색). 랭킹·채팅은 이름 글자도 길드 색(.gtint). 창설 전에는 아무것도 붙지 않는다
+export const GUILDS = {
+  j: { k: 'j', n: '정파', h: '正派', en: 'ORTHODOX SECTS', lead: '맹주', intro: '검은 바르게, 승리는 당당하게. 정도(正道)를 걷는 자들의 문파' },
+  m: { k: 'm', n: '마교', h: '魔敎', en: 'DEMONIC CULT', lead: '교주', intro: '천마신교의 이름 아래, 오직 승리만을 숭상한다' },
+};
+export const GK = ['j', 'm'];
+export const guildMeta = () => S.store?.data?.meta?.guild || null;
+export const guildOn = () => !!guildMeta()?.at;
+export const gOf = (id) => (guildOn() && GUILDS[S.store.data.players?.[id]?.guild] ? S.store.data.players[id].guild : '');
+// 그때(t)의 소속: 소속 기록 중 t 이전 마지막 값(기록이 없으면 지금 소속)
+export function gAt(id, t) {
+  const p = S.store.data.players?.[id]; if (!p || !guildOn()) return '';
+  const lg = Array.isArray(p.glog) ? p.glog : [];
+  let g = ''; for (const e of lg) if (+e.at <= t && GUILDS[e.g]) g = e.g;
+  return g || (lg.length ? '' : gOf(id));
+}
+export const GEM = {
+  j: '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7.1" fill="#0c2622" stroke="#6fd3b8" stroke-width="1.1"/><path d="M8 2.6v8.2" stroke="#effff9" stroke-width="1.5" stroke-linecap="round"/><path d="M5.4 9.6h5.2M8 11v2.4" stroke="#6fd3b8" stroke-width="1.3" stroke-linecap="round"/></svg>',
+  m: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 .9 15.1 8 8 15.1.9 8z" fill="#1c0d27" stroke="#b77cff" stroke-width="1.1" stroke-linejoin="round"/><path d="M8 3.6c1.7 2 2.7 3.1 2.7 4.8a2.7 2.7 0 0 1-5.4 0c0-1.300.8-2.100 1.500-2.700.1 1 .5 1.500 1 1.700C7.500 6.300 7.600 5 8 3.600z" fill="#ff5c86"/></svg>',
+};
+export const gem = (g) => (GUILDS[g] ? `<i class="gem g-${g}" title="${GUILDS[g].n}">${GEM[g]}</i>` : '');
+export const gmark = (id) => gem(gOf(id));
+// 이름 + 엠블럼 + 밑줄. name을 주면 그 글자(이미 화면에 쓰던 이름), 없으면 선수 이름
+export const gname = (id, name) => { const g = gOf(id), t = esc(name ?? (S.st?.P[id]?.name || S.store.data.players?.[id]?.name || '?')); return g ? `<span class="gnm g-${g}">${gem(g)}<u>${t}</u></span>` : t; };
+
 // ---------- 아이콘 (선형 SVG) ----------
 const I = {
   recap: '<path d="M4 11h16v10H4zM3 7h18v4H3zM12 7v14M12 7C10.500 4 7 3.200 7 5.300S10 7 12 7zm0 0c1.500-3 5-3.800 5-1.700S14 7 12 7z"/>',
+  guild: '<path d="M5 21V3M5 4h13l-3 4.500L18 13H5"/><path d="M9 7.500h4"/>',
   home: '<path d="M3 10.5 12 3l9 7.500V21h-6v-6H9v6H3z"/>',
   rank: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
   today: '<path d="M14.500 17.500 3 6V3h3l11.500 11.500M13 19l6-6M16 16l4 4M14.500 6.500 18 3h3v3l-3.500 3.500M5 14l4 4M7 17l-3 3"/>',
@@ -131,6 +159,7 @@ export const NAV = [
   ['home', '홈'], ['me', '내 페이지'],
   ['', '내전'], ['today', '오늘의 내전'], ['matches', '경기 기록'], ['auction', '팀 경매'], ['replay', '리플레이 분석'],
   ['', '기록·분석'], ['rank', '랭킹'], ['players', '선수 카드'], ['champs', '챔피언'], ['chem', '케미'], ['scores', '점수 변동'], ...(recapSeason() ? [['recap', '연말 결산']] : []),
+  ['', '길드'], ['guild', '정파 · 마교'],
   ['', '즐길 거리'], ['gacha', '가챠'], ['talk', '익명 게시판'],
 ];
 // 거의 안 쓰는 화면: PC는 왼쪽 메뉴 맨 아래 작은 버튼 줄, 휴대폰은 메뉴 창 맨 아래 묶음

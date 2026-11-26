@@ -1,7 +1,7 @@
 // 라인 지원: 참가자가 원하는 라인(탑~서폿·상관없음)을 직접 고르고 '선택 완료'를 누른다. 모두 완료하면 자동으로 추첨이 시작되고,
 // 2명 넘게 몰린 라인은 무작위로 2명을 뽑아 라인업에 넣는다. 연 사람·관리자는 취소하거나 강제 마감할 수 있다.
 // meta/board 문서 하나로 모든 접속자가 같은 지원 현황과 같은 추첨 장면을 같은 시각에 본다(시작 시각은 서버 시계 기준).
-import { S, act, go, isAdmin, esc, modal, closeModal, mh, toast, burst, refresh, ic, LANES, LANE_NAME, LANE_ICON, LANE_COLOR } from './core.js';
+import { gname, S, act, go, isAdmin, esc, modal, closeModal, mh, toast, burst, refresh, ic, LANES, LANE_NAME, LANE_ICON, LANE_COLOR } from './core.js';
 import { recruitIds } from './recruit.js'; // 오늘 내전 모집 참가자(라인 지원 참가자로 미리 골라 둠)
 import { setDraftTeams, placedIds } from './today.js';
 import { aiBalance } from './stats.js';
@@ -199,7 +199,7 @@ function openHTML(d) {
       : `<div class="lp-sec"><div class="lp-sh"><b>참가자</b><small>${isMe ? `<b>${esc(nm(BD.me))}</b>(으)로 지원 중 · 다른 이름을 누르면 대리 지원` : '본인 이름을 눌러 주세요'}</small></div>
       <div class="lp-roster">${d.ids.map(mem).join('')}</div></div>`}
     ${own && BD.edit ? `<div class="lp-sec lp-edit"><div class="lp-sh"><b>참가자 편집</b><small>누르면 추가 ↔ 제외 · 빠진 사람의 지망은 지워져요 · ${d.ids.length}명</small><span class="grow"></span><button class="btn ghost xs" data-a="bdEditOpen">닫기</button></div>
-      <div class="lp-roster">${S.st.list.map((s) => `<button class="lp-mem ${d.ids.includes(s.id) ? 'done' : ''}" data-a="bdEdit" data-id="${s.id}" style="--lc:${d.ids.includes(s.id) ? '#4fd08b' : '#5a6a84'}">${d.ids.includes(s.id) ? '<i>✓</i>' : '<i class="dot"></i>'}${esc(s.name)}</button>`).join('')}</div></div>` : ''}
+      <div class="lp-roster">${S.st.list.map((s) => `<button class="lp-mem ${d.ids.includes(s.id) ? 'done' : ''}" data-a="bdEdit" data-id="${s.id}" style="--lc:${d.ids.includes(s.id) ? '#4fd08b' : '#5a6a84'}">${d.ids.includes(s.id) ? '<i>✓</i>' : '<i class="dot"></i>'}${gname(s.id, s.name)}</button>`).join('')}</div></div>` : ''}
     <div class="lp-grid">${OPTS.map((o) => card(d, o)).join('')}</div>
     ${luckTable()}
     <div class="lp-foot"><div class="lp-count"><b class="mono">${doneN}</b> / <span class="mono">${d.ids.length}</span> 완료<span class="lp-prog"><i style="width:${d.ids.length ? (doneN / d.ids.length) * 100 : 0}%"></i></span><small class="lp-ttl">모두 완료하면 자동으로 추첨이 시작돼요${d.by ? ` · 연 사람 ${esc(d.by)}` : ''}</small></div>

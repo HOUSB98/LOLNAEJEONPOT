@@ -6,7 +6,7 @@
 //   시작 시각 + 6시간이 지나면 끝난 모집으로 보고 보여 주지 않는다(문서는 지우지 않고 다음 모집이 덮어쓴다).
 // 카톡 카드에는 시간만 넣는다(카카오 카드는 보낸 뒤에 바뀌지 않음). '참가하러 가기'를 누르면 사이트에서 실시간 인원을 본다.
 // 대기자(2026-11-25): 누른 순서(at)대로 앞 10명이 참가, 11번째부터 대기. 참가자가 빠지면 대기 1번이 저절로 참가가 된다(따로 저장하지 않고 순서로 정함).
-import { S, act, page, esc, ic, toast, modal, closeModal, mh, refresh, moreHooks } from './core.js';
+import { gname, S, act, page, esc, ic, toast, modal, closeModal, mh, refresh, moreHooks } from './core.js';
 import { cid, nick } from './social.js';
 import { kakaoWarm, shareKakao } from './kakao.js';
 import { KAKAO_JS_KEY } from './config.js';
@@ -49,7 +49,7 @@ export function recruitPanel() {
       <button class="btn kk-btn big" data-a="rcOpen">${KK_SM}시간 정하고 모집 시작</button></section>`;
   }
   const ps = people(d), { main, wait } = split(ps), n = main.length, mine = myPid(), meIn = !!(mine && d.list?.[mine]);
-  const chip = (p, w) => `<span class="rc-p${isMe(p) ? ' me' : ''}${w ? ' wait' : ''}">${w ? `<em>${w}</em>` : ''}${esc(p.n)}</span>`;
+  const chip = (p, w) => `<span class="rc-p${isMe(p) ? ' me' : ''}${w ? ' wait' : ''}">${w ? `<em>${w}</em>` : ''}${p.pid ? gname(p.pid, p.n) : esc(p.n)}</span>`;
   const slots = Array.from({ length: NEED }, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('');
   return `<section class="panel rc-box" data-k="rc">
     <div class="rc-top"><span class="rc-ic">${ic('users')}</span><div class="rc-h"><b>${dayWord(d.when)} ${fmtTime(d.when)} 내전 모집</b><small class="mut">${esc(d.by || '')}님이 시작 · 라인 지원과 따로 세는 참가 인원</small></div>
@@ -134,7 +134,7 @@ function pickHTML() {
       ${on ? `<p class="mut sm"><b>${dayWord(d.when)} ${fmtTime(d.when)}</b> 내전 · 이름을 누르면 바로 <b class="good">참가</b>, 다시 누르면 취소예요. 친구 대신 눌러 줘도 돼요.</p>` : '<p class="mut">모집이 끝났어요. 왼쪽 위(휴대폰은 메뉴) \'내전 모집\'으로 새로 시작해 주세요.</p>'}
       <div class="ph"><b>참가</b><span class="tag ${nMain >= NEED ? 'ok' : ''}">${nMain}/${NEED}명</span>${waitTag(wn.size)}</div>
       ${nMain >= NEED && on ? '<p class="mut sm rc-full">10명이 다 찼어요. 지금 누르면 <b>대기</b>로 들어가고, 참가자가 빠지면 순서대로 자동 참가돼요.</p>' : ''}
-      <div class="chipsel rc-chips">${list.map((s) => `<button class="${inSet.has(s.id) ? 'on' : ''}${s.id === mine ? ' mine' : ''}${wb(s.id)}" data-a="rcToggle" data-id="${s.id}" ${on ? '' : 'disabled'}>${esc(s.name)}</button>`).join('')}</div>
+      <div class="chipsel rc-chips">${list.map((s) => `<button class="${inSet.has(s.id) ? 'on' : ''}${s.id === mine ? ' mine' : ''}${wb(s.id)}" data-a="rcToggle" data-id="${s.id}" ${on ? '' : 'disabled'}>${gname(s.id, s.name)}</button>`).join('')}</div>
       ${guests.length ? `<div class="ph"><b>목록에 없는 사람</b></div><div class="chipsel rc-chips">${guests.map((p) => `<button class="on${wb(p.id)}" data-a="rcGuestOff" data-id="${esc(p.id)}" title="누르면 참가 취소">${esc(p.n)}</button>`).join('')}</div>` : ''}
       ${on ? `<div class="rc-guest"><input class="inp" id="rc-gname" maxlength="12" placeholder="목록에 없는 사람 이름" autocomplete="off"><button class="btn" data-a="rcGuest">${ic('plus')}추가</button></div>` : ''}
       ${extra.length ? `<p class="mut sm">이름 없이 참가: ${extra.map((p) => esc(p.n)).join(', ')}${extra.some((p) => p.id === cid) ? ' <button class="lnk" data-a="rcOldOff">내 참가 취소</button>' : ''}</p>` : ''}
