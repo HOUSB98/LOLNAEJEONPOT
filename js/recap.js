@@ -210,6 +210,6 @@ function guildYear(ms, yr) {
   if (!G.j.g && !G.m.g) return '';
   const rate = (x) => (x.g ? x.w / x.g : 0), win = G.j.war !== G.m.war ? (G.j.war > G.m.war ? 'j' : 'm') : rate(G.j) !== rate(G.m) ? (rate(G.j) > rate(G.m) ? 'j' : 'm') : '';
   const ace = (g) => { const e = Object.entries(G[g].mem).sort((a, b) => b[1] - a[1])[0]; return e ? `${esc(S.st.P[e[0]]?.name || '?')} ${e[1]}승` : '—'; };
-  return `<section class="panel rcp-gd" data-k="gd"><div class="ph"><b>${ic('guild')}올해의 길드</b><small class="mut">${yr}년 · 창설 이후 경기 · 대항전 승수가 같으면 길드 승률로</small></div>
-    <div class="rcp-gdg">${GK.map((g) => `<a class="rcp-gdc g-${g} ${win === g ? 'win' : ''}" href="${ghref(g)}">${gem(g)}<b>${GUILDS[g].n}</b>${win === g ? '<em>올해의 길드</em>' : ''}<span><small>대항전</small><b class="mono">${G[g].war}승</b></span><span><small>길드 승률</small><b class="mono">${G[g].g ? Math.round(rate(G[g]) * 100) + '%' : '—'}</b></span><span><small>최다 승</small><b>${ace(g)}</b></span></a>`).join('')}</div></section>`;
+  return `<section class="panel rcp-gd" data-k="gd"><div class="ph"><b>${ic('guild')}올해의 문파</b><small class="mut">${yr}년 · 창설 이후 경기 · 대항전 승수가 같으면 문파 승률로</small></div>
+    <div class="rcp-gdg">${GK.map((g) => `<a class="rcp-gdc g-${g} ${win === g ? 'win' : ''}" href="${ghref(g)}">${gem(g)}<b>${GUILDS[g].n}</b>${win === g ? '<em>올해의 문파</em>' : ''}<span><small>대항전</small><b class="mono">${G[g].war}승</b></span><span><small>문파 승률</small><b class="mono">${G[g].g ? Math.round(rate(G[g]) * 100) + '%' : '—'}</b></span><span><small>최다 승</small><b>${ace(g)}</b></span></a>`).join('')}</div></section>`;
 }

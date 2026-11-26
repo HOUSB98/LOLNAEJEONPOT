@@ -11,7 +11,7 @@ const N = (g) => GUILDS[g].n;
 const wr = (v) => (v.g ? v.w / v.g : 0);
 const live = () => Object.values(S.store.data.players || {}).filter((p) => !p.deleted);
 const wait = (id) => { loadAssets().then(() => { if (S.page === id) refresh(); }); return '<div class="panel empty lazy-wait">불러오는 중…</div>'; };
-const notYet = () => `<div class="panel empty gd-wait">${gem('j')}${gem('m')}<h2>정파 · 마교</h2><p>관리자가 길드를 창설하면 열려요.</p></div>`;
+const notYet = () => `<div class="panel empty gd-wait">${gem('j')}${gem('m')}<h2>정파 · 마교</h2><p>관리자가 문파를 창설하면 열려요.</p></div>`;
 // 비교 막대(가운데): 정파 몫 %
 const bar = (a, b, fmt = (v) => v) => { const t = Math.abs(a) + Math.abs(b), p = t ? Math.round((Math.abs(a) / t) * 100) : 50; return `<div class="wl-bar"><b class="j">${fmt(a)}</b><i style="--p:${p}%"></i><b class="m">${fmt(b)}</b></div>`; };
 const sec = (k, t, hj, j, m, mid = '') => `<section class="wl-row" data-k="${k}"><div class="wl-h gd-j"><span class="wl-gem">${gem('j')}</span>${j}</div><div class="wl-mid"><i class="wl-hj">${hj}</i><b>${t}</b>${mid}</div><div class="wl-h gd-m"><span class="wl-gem">${gem('m')}</span>${m}</div></section>`;
@@ -34,11 +34,21 @@ page('guilds', {
     const ranks = (g) => { const ids = mem(g), rs = ids.map((id) => rankOf(g, id).n); return `<div class="wl-rk">${[GUILDS[g].lead, ...[...RANKS[g]].reverse().map((x) => x[1])].map((n) => { const k = rs.filter((x) => x === n).length; return k ? `<span>${esc(n)} <b>${k}</b></span>` : ''; }).join('')}</div>`; };
     const champs = (d) => { const t = top3(d); return t.length ? `<div class="wl-ch">${t.map((x) => `<span>${champIcon(x.name, 'sm')}<b>${esc(x.name)}</b><small>${x.g}판 · ${pct(x.w, x.g)}%</small></span>`).join('')}</div>` : '<span class="wl-sub">아직 기록 없음</span>'; };
     const wars = all.wars.slice(0, 6);
+    // 보유 아이템(상점 효과): 지금 걸려 있는 것과 남은 시간, 영약 개수, 지금까지 산 횟수
+    const left = (exp) => { const h = Math.max(0, Math.round((+exp - Date.now()) / 3600e3)); return h >= 24 ? `${Math.floor(h / 24)}일 ${h % 24}시간` : `${h}시간`; };
+    const items = (g) => { const f = fxOf(g), out = [];
+      if (fxOn(g, 'feast')) out.push(['🏮', '연회', `${left(f.feast.exp)} 남음`]);
+      if (fxOn(g, 'banner')) out.push(['📯', '포고문', `${esc(f.banner.t || '')} · ${left(f.banner.exp)}`]);
+      if (fxOn(g, 'favor')) out.push(['🎖️', '총애 하사', `${esc(S.st.P[f.favor.id]?.name || '?')} · ${left(f.favor.exp)}`]);
+      if (fxOn(g, 'chal')) out.push(['⚔️', '도전장', `${left(f.chal.exp)} 남음`]);
+      if (pill(g)) out.push(['💊', '영약', `${pill(g)}개 · 경지 +${pill(g) * 10}승`]);
+      return out.length ? `<ul class="wl-it">${out.map(([e, n, d]) => `<li><span>${e}</span><b>${n}</b><small>${d}</small></li>`).join('')}</ul>` : '<span class="wl-sub">보유한 아이템 없음</span>'; };
     const warList = (g) => { const w = wars.filter((x) => x.wg === g); return w.length ? `<ul class="wl-wl">${w.slice(0, 3).map((x) => `<li>${x.gw ? '<em>정마대전</em>' : '<em class="d">대항전</em>'}<span>${fmtDay(dayKey(x.m.at)).slice(5)} 승리</span></li>`).join('')}</ul>` : '<span class="wl-sub">최근 승리 없음</span>'; };
     return `<div class="wl">
       <div class="h2row" data-k="h"><h1>${ic('guilds')}천하정세</h1><span class="tag">정파 vs 마교</span><span class="grow"></span><small class="mut">왼쪽 정파 · 오른쪽 마교</small></div>
       <section class="wl-row wl-top" data-k="top"><div class="wl-h gd-j wl-scene">${head('j')}</div><div class="wl-mid wl-vs"><b>VS</b></div><div class="wl-h gd-m wl-scene">${head('m')}</div></section>
       ${sec('gold', '문파 금고', '庫', `<div class="wl-big"><b class="mono">${money(T.j.bal)}</b></div><span class="wl-sub">이번 주 ${T.j.week >= 0 ? '+' : ''}${money(T.j.week)}</span>`, `<div class="wl-big"><b class="mono">${money(T.m.bal)}</b></div><span class="wl-sub">이번 주 ${T.m.week >= 0 ? '+' : ''}${money(T.m.week)}</span>`, bar(T.j.bal, T.m.bal, (v) => money(v)) + '<a class="lnk sm" href="#/gshop">상점 가기</a>')}
+      ${sec('it', '보유 아이템', '寶', items('j'), items('m'), '<a class="lnk sm" href="#/gshop">상점에서 사기</a>')}
       ${sec('war', '대항전 · 정마대전', '爭', `<div class="wl-big"><b class="mono">${q.j.war.w}</b><small>승</small></div><span class="wl-sub">이번 분기 · 창설 이후 ${all.j.war.w}승 · 정마대전 ${all.j.gw.w}승</span>${warList('j')}`, `<div class="wl-big"><b class="mono">${q.m.war.w}</b><small>승</small></div><span class="wl-sub">이번 분기 · 창설 이후 ${all.m.war.w}승 · 정마대전 ${all.m.gw.w}승</span>${warList('m')}`, bar(q.j.war.w, q.m.war.w) + GK.filter((G) => fxOn(G, 'chal')).map((G) => `<em class="wl-chal">⚔️ ${N(G)} 도전장</em>`).join(''))}
       ${sec('q', '이번 분기 전적', '勢', rec(q.j), rec(q.m), bar(Math.round(wr(q.j) * 1000) / 10, Math.round(wr(q.m) * 1000) / 10, (v) => v + '%'))}
       ${sec('all', '창설 이후 전적', '史', rec(all.j), rec(all.m), bar(all.j.w, all.m.w, (v) => v + '승'))}
@@ -53,12 +63,12 @@ page('guilds', {
 // ---------- 문파 상점 ----------
 // 효과는 모두 화면 표시만 바꾼다(경기 기록·점수·팀 짜기에는 영향 없음)
 export const SHOP = [
-  { id: 'post', n: '전서구', p: 100, e: '📜', d: '사이트 채팅에 우리 문파 이름으로 공지 한 줄을 띄워요.', ask: '채팅에 띄울 한 줄' },
-  { id: 'feast', n: '연회', p: 150, e: '🏮', d: '24시간 동안 문파 화면 현판에 연회 장식(정파 매화 등불 · 마교 혈등)이 걸려요.', hours: 24 },
-  { id: 'favor', n: '총애 하사', p: 200, e: '🎖️', d: '문도·교도 한 명에게 7일 동안 특별 칭호(맹주의 총애 · 천마의 총애)를 내려요.', pick: true, hours: 168 },
-  { id: 'chal', n: '도전장', p: 250, e: '⚔️', d: '상대 문파에 정마대전 도전장을 보내요. 채팅 공지 + 24시간 동안 천하정세·상대 문파 화면에 도전장 표시.', hours: 24 },
-  { id: 'banner', n: '포고문', p: 300, e: '📯', d: '24시간 동안 모든 사람의 홈 화면 맨 위에 우리 문파 포고문 한 줄이 걸려요.', ask: '포고문 내용', hours: 24 },
-  { id: 'pill', n: '영약', p: 500, e: '💊', d: '문파 경지 게이지에 10승을 영구히 더해요(엠블럼 별이 빨리 늘어나요).' },
+  { id: 'post', n: '전서구', p: 3000, e: '📜', d: '사이트 채팅에 우리 문파 이름으로 공지 한 줄을 띄워요.', ask: '채팅에 띄울 한 줄' },
+  { id: 'feast', n: '연회', p: 6000, e: '🏮', d: '24시간 동안 문파 화면 현판에 연회 장식(정파 매화 등불 · 마교 혈등)이 걸려요.', hours: 24 },
+  { id: 'favor', n: '총애 하사', p: 10000, e: '🎖️', d: '문도·교도 한 명에게 7일 동안 특별 칭호(맹주의 총애 · 천마의 총애)를 내려요.', pick: true, hours: 168 },
+  { id: 'chal', n: '도전장', p: 15000, e: '⚔️', d: '상대 문파에 정마대전 도전장을 보내요. 채팅 공지 + 24시간 동안 천하정세·상대 문파 화면에 도전장 표시.', hours: 24 },
+  { id: 'banner', n: '포고문', p: 20000, e: '📯', d: '24시간 동안 모든 사람의 홈 화면 맨 위에 우리 문파 포고문 한 줄이 걸려요.', ask: '포고문 내용', hours: 24 },
+  { id: 'pill', n: '영약', p: 50000, e: '💊', d: '문파 경지 게이지에 10승을 영구히 더해요(엠블럼 별이 빨리 늘어나요).' },
 ];
 const canBuy = (g) => isAdmin() || (!!leadOf(g) && leadOf(g) === meId());
 const SH = { logs: [], un: null };
@@ -89,7 +99,7 @@ act('gsBuy', async (d) => {
   if (!canBuy(g)) return toast(`관리자 · ${GUILDS[g].lead}만 살 수 있어요`);
   if (treasury()[g].bal < it.p) return toast('금고가 부족해요');
   let note = '', target = '';
-  if (it.ask) { note = (prompt(`${it.n} · ${it.ask} (60자까지)`) || '').trim().slice(0, 60); if (!note) return; }
+  if (it.ask) { note = await askText(`${it.e} ${it.n}`, `${it.ask} (60자까지)`); if (!note) return; }
   if (it.pick) {
     const ids = live().filter((p) => p.guild === g);
     const el = modal(`${mh(`${it.n} · 받을 사람`)}<div class="gs-pick">${ids.map((p) => `<button class="btn" data-a="gsPick" data-id="${p.id}">${esc(p.name)}</button>`).join('')}</div>`);
@@ -118,6 +128,16 @@ act('gsBuy', async (d) => {
     toast(`'${it.n}'을(를) 샀어요`);
   } catch (e) { toast('실패: ' + (e.code || e.message)); }
 });
+// 한 줄 입력 창(전서구·포고문): 브라우저 기본 입력창 대신 사이트 창
+function askText(title, ph) {
+  return new Promise((res) => {
+    const el = modal(`${mh(esc(title))}<form class="col" id="gsask"><input class="inp" id="gsask-t" maxlength="60" autocomplete="off" placeholder="${esc(ph)}" aria-label="${esc(ph)}"><button class="btn pri">다음</button></form>`);
+    el.querySelector('#gsask-t').focus();
+    let done = false; const fin = (v) => { if (!done) { done = true; res(v); } };
+    new MutationObserver((_, ob) => { if (!document.getElementById('gsask')) { ob.disconnect(); fin(''); } }).observe(document.getElementById('modal'), { childList: true });
+    el.querySelector('#gsask').addEventListener('submit', (e) => { e.preventDefault(); const v = el.querySelector('#gsask-t').value.trim().slice(0, 60); if (!v) return toast('내용을 써 주세요'); fin(v); closeModal(); });
+  });
+}
 act('gsPick', (d) => { const f = SH.pick; SH.pick = null; closeModal(); f?.(d.id); });
 
 // 관리 > 길드: 금고 기준·조정

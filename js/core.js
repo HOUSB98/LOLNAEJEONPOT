@@ -16,7 +16,7 @@ export const GUILDS = {
   m: { k: 'm', n: '마교', h: '魔敎', en: 'DEMONIC CULT', lead: '천마', mem: '교도', intro: '천마신교의 이름 아래, 오직 승리만을 숭상한다' },
 };
 export const GK = ['j', 'm'];
-export const GPAGE = { j: 'jeongpa', m: 'magyo' }; // 길드마다 다른 화면(주소 #/jeongpa · #/magyo)
+export const GPAGE = { j: 'jeongpa', m: 'magyo' }; // 문파마다 다른 화면(주소 #/jeongpa · #/magyo)
 export const ghref = (g) => '#/' + (GPAGE[g] || 'jeongpa');
 export const guildMeta = () => S.store?.data?.meta?.guild || null;
 export const guildOn = () => !!guildMeta()?.at;
@@ -167,7 +167,7 @@ export const NAV = [
   ['home', '홈'], ['me', '내 페이지'],
   ['', '내전'], ['today', '팀 구성하기'], ['matches', '경기 기록'], ['auction', '팀 경매'], ['replay', '리플레이 분석'],
   ['', '기록·분석'], ['rank', '랭킹'], ['players', '선수 카드'], ['champs', '챔피언'], ['chem', '케미'], ['scores', '점수 변동'], ...(recapSeason() ? [['recap', '연말 결산']] : []),
-  ['', '길드'], ['guilds', '천하정세'], ['jeongpa', '정파'], ['magyo', '마교'], ['gshop', '문파 상점'],
+  ['', '문파'], ['guilds', '천하정세'], ['jeongpa', '정파'], ['magyo', '마교'], ['gshop', '문파 상점'],
   ['', '즐길 거리'], ['gacha', '가챠'], ['talk', '익명 게시판'],
 ];
 // 거의 안 쓰는 화면: PC는 왼쪽 메뉴 맨 아래 작은 버튼 줄, 휴대폰은 메뉴 창 맨 아래 묶음

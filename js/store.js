@@ -24,7 +24,7 @@ function localStore(key, onChange) {
   const load = (col) => { try { return JSON.parse(localStorage.getItem(k(col))) || {}; } catch { return {}; } };
   const data = {};
   WATCHED.concat('auctions', 'history', 'reveals', 'gacha').forEach((c) => (data[c] = load(c)));
-  const recs = {}; // watchRecent(길드 채팅·게시판): 이 컬렉션이 바뀌면 최신 n개를 다시 넘긴다
+  const recs = {}; // watchRecent(문파 채팅·게시판): 이 컬렉션이 바뀌면 최신 n개를 다시 넘긴다
   const subs = {}; // 체험 모드에서도 다른 탭의 이벤트(승률 공개)를 받을 수 있게 한다
   const bc = 'BroadcastChannel' in window ? new BroadcastChannel('naejeon:' + key) : null;
   if (bc) bc.onmessage = (e) => {
