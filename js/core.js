@@ -12,8 +12,8 @@ export const pname = (id) => esc(S.st?.P[id]?.name || S.store.data.players?.[id]
 // 소속은 players/{id}.guild('j'|'m'), 소속 기록은 players/{id}.glog [{g, at, by}](경기 당시 소속 계산용). 창설일·길드장·소개·공지·비밀번호 확인값은 meta/guild.
 // 이름 옆 작은 엠블럼 + 이름 밑줄(길드 색). 랭킹·채팅은 이름 글자도 길드 색(.gtint). 창설 전에는 아무것도 붙지 않는다
 export const GUILDS = {
-  j: { k: 'j', n: '정파', h: '正派', en: 'ORTHODOX SECTS', lead: '맹주', mem: '문도', intro: '매화는 꺾이지 않는다. 정도(正道)를 걷는 자들의 문파' },
-  m: { k: 'm', n: '마교', h: '魔敎', en: 'DEMONIC CULT', lead: '교주', mem: '교도', intro: '천마신교의 이름 아래, 오직 승리만을 숭상한다' },
+  j: { k: 'j', n: '정파', h: '正派', en: 'ORTHODOX SECTS', lead: '무림맹주', mem: '문도', intro: '매화는 꺾이지 않는다. 정도(正道)를 걷는 자들의 문파' },
+  m: { k: 'm', n: '마교', h: '魔敎', en: 'DEMONIC CULT', lead: '천마', mem: '교도', intro: '천마신교의 이름 아래, 오직 승리만을 숭상한다' },
 };
 export const GK = ['j', 'm'];
 export const GPAGE = { j: 'jeongpa', m: 'magyo' }; // 길드마다 다른 화면(주소 #/jeongpa · #/magyo)
@@ -34,12 +34,16 @@ export const GEM = {
 };
 export const gem = (g) => (GUILDS[g] ? `<i class="gem g-${g}" title="${GUILDS[g].n}">${GEM[g]}</i>` : '');
 export const gmark = (id) => gem(gOf(id));
+// 왼쪽 메뉴·메뉴 창: 정파·마교는 색이 있는 문파 엠블럼(한눈에 구분)
+export const navIc = (p) => (p === 'jeongpa' ? gem('j').replace('class="gem', 'class="gem nvg') : p === 'magyo' ? gem('m').replace('class="gem', 'class="gem nvg') : ic(p));
 // 이름 + 엠블럼 + 밑줄. name을 주면 그 글자(이미 화면에 쓰던 이름), 없으면 선수 이름
 export const gname = (id, name) => { const g = gOf(id), t = esc(name ?? (S.st?.P[id]?.name || S.store.data.players?.[id]?.name || '?')); return g ? `<span class="gnm g-${g}">${gem(g)}<u>${t}</u></span>` : t; };
 
 // ---------- 아이콘 (선형 SVG) ----------
 const I = {
   recap: '<path d="M4 11h16v10H4zM3 7h18v4H3zM12 7v14M12 7C10.500 4 7 3.200 7 5.300S10 7 12 7zm0 0c1.500-3 5-3.800 5-1.700S14 7 12 7z"/>',
+  guilds: '<circle cx="12" cy="12" r="9"/><path d="M12 3a4.500 4.500 0 0 1 0 9 4.500 4.500 0 0 0 0 9"/><circle cx="12" cy="7.500" r="1"/><circle cx="12" cy="16.500" r="1"/>',
+  gshop: '<ellipse cx="12" cy="6" rx="7" ry="2.500"/><path d="M5 6v4c0 1.400 3.100 2.500 7 2.500s7-1.100 7-2.500V6M5 10v4c0 1.400 3.100 2.500 7 2.500s7-1.100 7-2.500v-4M5 14v4c0 1.400 3.100 2.500 7 2.500s7-1.100 7-2.500v-4"/>',
   jeongpa: '<circle cx="12" cy="6.500" r="3.300"/><circle cx="17.200" cy="10.300" r="3.300"/><circle cx="15.200" cy="16.400" r="3.300"/><circle cx="8.800" cy="16.400" r="3.300"/><circle cx="6.800" cy="10.300" r="3.300"/><circle cx="12" cy="12" r="1.400"/>',
   magyo: '<path d="M12 2.500c3 3.500 5 6 5 9.500a5 5 0 0 1-10 0c0-2.500 1.200-4.200 2.800-5.300.3 1.700 1.100 2.600 2 2.900-.6-2.500-.3-4.900.2-7.100z"/><path d="M5 21c2-1.500 4.500-2.200 7-2.200s5 .7 7 2.200"/>',
   guild: '<path d="M5 21V3M5 4h13l-3 4.500L18 13H5"/><path d="M9 7.500h4"/>',
@@ -161,9 +165,9 @@ export function recapSeason(d = new Date()) { const md = (d.getMonth() + 1) * 10
 export const recapYear = (d = new Date()) => (d.getMonth() === 0 ? d.getFullYear() - 1 : d.getFullYear());
 export const NAV = [
   ['home', '홈'], ['me', '내 페이지'],
-  ['', '내전'], ['today', '오늘의 내전'], ['matches', '경기 기록'], ['auction', '팀 경매'], ['replay', '리플레이 분석'],
+  ['', '내전'], ['today', '팀 구성하기'], ['matches', '경기 기록'], ['auction', '팀 경매'], ['replay', '리플레이 분석'],
   ['', '기록·분석'], ['rank', '랭킹'], ['players', '선수 카드'], ['champs', '챔피언'], ['chem', '케미'], ['scores', '점수 변동'], ...(recapSeason() ? [['recap', '연말 결산']] : []),
-  ['', '길드'], ['jeongpa', '정파'], ['magyo', '마교'],
+  ['', '길드'], ['guilds', '천하정세'], ['jeongpa', '정파'], ['magyo', '마교'], ['gshop', '문파 상점'],
   ['', '즐길 거리'], ['gacha', '가챠'], ['talk', '익명 게시판'],
 ];
 // 거의 안 쓰는 화면: PC는 왼쪽 메뉴 맨 아래 작은 버튼 줄, 휴대폰은 메뉴 창 맨 아래 묶음
@@ -260,7 +264,7 @@ function tabbar() {
 }
 export const moreHooks = []; // 더보기 창 아래쪽 버튼을 다른 모듈이 덧붙일 때 쓴다
 act('tabMore', () => {
-  const it = ([p, t]) => `<a class="mm-it ${p === S.page ? 'on' : ''}" href="#/${p}" data-a="close">${ic(p)}<span>${t}</span></a>`;
+  const it = ([p, t]) => `<a class="mm-it ${p === S.page ? 'on' : ''}" href="#/${p}" data-a="close">${navIc(p)}<span>${t}</span></a>`;
   const body = [...navGroups(), { t: '설정·정보', items: NAV_MINI, mini: true }].map((g) => `${g.t ? `<h6>${g.t}</h6>` : ''}<div class="mm-g${g.mini ? ' mm-mini' : ''}">${g.items.map(it).join('')}</div>`).join('');
   modal(`${mh('메뉴')}<div class="mm">${body}</div><div class="row mm-foot">${liteBtn()}${diagBtn()}${moreHooks.map((f) => f()).join('')}<button class="btn" data-a="copyLink">초대 링크 복사</button></div>`, 'more-sheet');
 });
@@ -378,11 +382,11 @@ export function initShell() {
   tabbar();
   // 왼쪽 메뉴: 묶음(내전·기록·분석·즐길 거리) 제목을 누르면 접고 편다. 접은 묶음도 지금 보고 있는 메뉴 하나는 보여 준다. 접은 상태는 이 브라우저에 기억
   const fold = navFold();
-  const link = ([p, t, soon]) => `<a href="#/${p}" data-p="${p}">${ic(p)}<span>${t}</span>${soon ? `<em>${soon}</em>` : ''}</a>`;
+  const link = ([p, t, soon]) => `<a href="#/${p}" data-p="${p}">${navIc(p)}<span>${t}</span>${soon ? `<em>${soon}</em>` : ''}</a>`;
   document.getElementById('nav').innerHTML = navGroups().map(({ t, items }) => (t
     ? `<button type="button" class="nav-h ${fold.includes(t) ? 'fold' : ''}" data-a="navGrp" data-g="${t}" aria-expanded="${!fold.includes(t)}"><h6>${t}</h6><i class="nav-chev"></i></button><div class="nav-g ${fold.includes(t) ? 'fold' : ''}" data-g="${t}">${items.map(link).join('')}</div>`
     : `<div class="nav-g nav-top">${items.map(link).join('')}</div>`)).join('');
-  document.getElementById('nav').insertAdjacentHTML('afterend', `<div class="side-mini">${NAV_MINI.map(([p, t]) => `<a href="#/${p}" data-p="${p}" title="${t}">${ic(p)}<span>${t}</span></a>`).join('')}</div>`);
+  document.getElementById('nav').insertAdjacentHTML('afterend', `<div class="side-mini">${NAV_MINI.map(([p, t]) => `<a href="#/${p}" data-p="${p}" title="${t}">${navIc(p)}<span>${t}</span></a>`).join('')}</div>`);
   document.getElementById('mode').innerHTML = S.store.mode === 'local' ? '<span class="tag warn" title="이 브라우저에만 저장됩니다">체험 모드</span>' : ''; // 실제 리그에서는 표시하지 않는다(사이드바 공간 절약)
   // 누르는 사이에 화면이 다시 그려지면(다른 사람이 입찰·지원) 누른 버튼이 새 버튼으로 바뀌어 클릭이 사라진다(PC 마우스).
   // 누를 때의 버튼(이름·data 값)을 기억해 두고, 뗀 자리에 똑같은 버튼이 있으면 그 버튼을 누른 것으로 처리한다(이때 브라우저는 클릭을 아예 보내지 않음).

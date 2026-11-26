@@ -97,10 +97,13 @@ let done = false;
 // 처음 한 번: 배경 그림을 CSS로 넣는다(문서에 style 하나)
 export function ensureArt() {
   if (done) return; done = true;
+  const J = url(sceneJ()), M = url(sceneM()); // 같은 그림 주소를 여러 곳에서 써서 한 번만 그린다
   const st = document.createElement('style'); st.id = 'gd-art';
-  st.textContent = `.gd-j .gd-hero{background-image:linear-gradient(90deg,rgba(20,12,22,.92) 0,rgba(20,12,22,.55) 38%,rgba(20,12,22,.08) 70%),${url(sceneJ())}}
-.gd-m .gd-hero{background-image:linear-gradient(90deg,rgba(3,6,4,.94) 0,rgba(3,6,4,.6) 38%,rgba(3,6,4,.1) 70%),${url(sceneM())}}
-.gd-j .gp::before{background-image:${url(PLUM)}}`;
+  st.textContent = `.gd-j .gd-hero{background-image:linear-gradient(90deg,rgba(20,12,22,.92) 0,rgba(20,12,22,.55) 38%,rgba(20,12,22,.08) 70%),${J}}
+.gd-m .gd-hero{background-image:linear-gradient(90deg,rgba(3,6,4,.94) 0,rgba(3,6,4,.6) 38%,rgba(3,6,4,.1) 70%),${M}}
+.gd-j .gp::before{background-image:${url(PLUM)}}
+.wl-scene.gd-j{background-image:linear-gradient(90deg,rgba(20,12,22,.9),rgba(20,12,22,.35)),${J}}
+.wl-scene.gd-m{background-image:linear-gradient(270deg,rgba(3,6,4,.92),rgba(3,6,4,.4)),${M}}`;
   document.head.appendChild(st);
 }
 // 히어로에 떠다니는 꽃잎(정파)·불티(마교) 8개

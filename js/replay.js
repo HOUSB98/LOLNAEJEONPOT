@@ -106,7 +106,7 @@ page('replay', {
         <div class="stat purple"><small>선수 매칭</small><b class="mono">${R.rows.filter((r) => r.pid).length}/${R.rows.length}</b><span>롤 닉네임으로 자동 연결</span></div></div>
       ${team('blue')}${team('red')}
       <div class="panel"><p class="sm">내전 선수가 비어 있는 칸은 직접 골라 주세요. 롤 닉네임은 관리 › 선수 상세에서 등록하면 다음부터 자동으로 연결됩니다.</p>
-        <button class="btn pri block big" data-a="rpSend">${ic('today')}오늘의 내전 입력 화면으로 보내기</button><p class="hint center">보낸 뒤 입력 화면에서 확인하고 "경기 결과 저장"을 눌러야 기록됩니다. 피어리스·시리즈 판정도 그 화면에서 그대로 적용됩니다.</p></div>`
+        <button class="btn pri block big" data-a="rpSend">${ic('today')}팀 구성하기 화면으로 보내기</button><p class="hint center">보낸 뒤 입력 화면에서 확인하고 "경기 결과 저장"을 눌러야 기록됩니다. 피어리스·시리즈 판정도 그 화면에서 그대로 적용됩니다.</p></div>`
     : Q.items.length ? '' : `<div class="grid2"><div class="panel"><div class="ph"><b>읽을 수 있는 정보</b></div><ul class="rlist">
         <li>챔피언, 소환사(롤 닉네임), 진영, 포지션, 승패</li><li>킬 · 데스 · 어시스트, 최대 연속 킬</li><li>CS(미니언 + 정글몹), 골드, 레벨</li>
         <li>챔피언에게 가한 피해량, 받은 피해량</li><li>시야 점수, 와드 설치·제거, 제어 와드 구매</li><li>물리·마법·고정 피해 구성, 오브젝트·포탑 피해</li><li>치유·아군 보호막·피해 경감·CC 시간, 멀티킬, 사망 시간</li><li>최종 아이템 7칸, 경기 시간, 게임 버전</li></ul></div>

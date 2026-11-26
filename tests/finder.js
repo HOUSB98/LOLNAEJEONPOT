@@ -32,9 +32,9 @@ const SHOT = process.env.SHOT;
   ok(await A.$('.fd-none') !== null, '결과 없음 안내');
   await A.keyboard.press('Escape'); await A.waitForTimeout(150); ok(!(await isOpen()), 'Esc로 닫힘');
   // 클릭 이동
-  await A.click('#side .fd-btn'); await A.waitForTimeout(150); await A.fill('#fd-q', '오늘'); await A.waitForTimeout(100);
+  await A.click('#side .fd-btn'); await A.waitForTimeout(150); await A.fill('#fd-q', '팀 구성'); await A.waitForTimeout(100);
   await A.click('.fd-it'); await A.waitForTimeout(500);
-  ok(await A.evaluate(() => location.hash) === '#/today', '버튼으로 열고 클릭해서 오늘의 내전 이동');
+  ok(await A.evaluate(() => location.hash) === '#/today', '버튼으로 열고 클릭해서 팀 구성하기 이동');
   // 입력칸에서 / 는 그냥 글자(챔피언 화면 검색칸)
   await A.evaluate(() => (location.hash = '#/champs')); await A.waitForTimeout(500);
   const qs = '#main input[data-i=chQ]';

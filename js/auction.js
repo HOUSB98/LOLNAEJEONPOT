@@ -379,7 +379,7 @@ function roomView(id, token) {
       ${r.cfg.blind ? revealHTML(r) : ''}
       <button class="btn block" data-a="auResult" data-id="${r.id}">${ic('copy')}결과 복사 (단톡방에 붙여 넣기)</button>${kakaoBtn('auction', r.id, '카톡으로 결과 공유').replace('class="btn kk-btn"', 'class="btn block kk-btn"')}
       ${r.teams.length >= 2 ? `${r.teams.length > 2 ? `<div class="row au-dl">${['블루', '레드'].map((side, k) => `<label class="fld"><span>${side}</span><select class="inp" data-c="auDl" data-i="${k}">${r.teams.map((t, i) => `<option value="${i}" ${Math.min(AU.dl[k], r.teams.length - 1) === i ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>`).join('')}</div>` : ''}
-      <button class="btn pri block big" data-a="auToDraft" data-id="${r.id}">${ic('today')}이 팀으로 오늘의 내전 라인업 채우기</button><p class="hint">${r.teams.length > 2 ? '고른 두 팀이' : '첫 번째 팀이 블루, 두 번째 팀이 레드로'} 들어가고 라인은 점수 기준으로 자동 배치됩니다(이후 수정 가능).</p>` : ''}
+      <button class="btn pri block big" data-a="auToDraft" data-id="${r.id}">${ic('today')}이 팀으로 팀 구성하기 라인업 채우기</button><p class="hint">${r.teams.length > 2 ? '고른 두 팀이' : '첫 번째 팀이 블루, 두 번째 팀이 레드로'} 들어가고 라인은 점수 기준으로 자동 배치됩니다(이후 수정 가능).</p>` : ''}
       ${me.host && r.undo ? `<button class="btn ghost block" data-a="auUndo" data-id="${r.id}">↩ 직전 낙찰 취소</button>` : ''}</div>`;
   } else if (r.cfg.mode === 'batch' && r.status === 'running') {
     stage = batchStage(r, me);

@@ -2589,3 +2589,21 @@ b.cn.gtint{display:block}
 #chat.gtab #chatform .cbtn2:not(.go),#chat.gtab #chattray{display:none!important}#chat.glock #chatform{display:none}
 .gc-lock{display:flex;flex-direction:column;align-items:center;gap:10px;margin:auto;padding:22px 16px;text-align:center;max-width:280px}.gc-lock p{margin:0;line-height:1.6;color:var(--mut)}.gc-lock .inp,.gc-lock .btn{width:100%;min-height:44px}
 .gc-bar{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:-4px 0 6px;padding:6px 10px;border-radius:8px;font-size:11.5px;background:rgba(10,15,25,.92)}.gc-bar.g-j{color:var(--gj2);box-shadow:inset 3px 0 0 var(--gj)}.gc-bar.g-m{color:var(--gm2);box-shadow:inset 3px 0 0 var(--gm)}.gc-bar .lnk{font-size:11.5px;color:var(--mut);background:none;border:0;cursor:pointer;text-decoration:underline}
+/* 채팅창 길드 탭 테마: 크리스마스 장식(밤하늘·장식 줄·리본)을 끄고 정파 = 매화 / 마교 = 귀화·핏빛 */
+#chat.gt-j #xsky,#chat.gt-m #xsky,#chat.gt-j .xswag,#chat.gt-m .xswag,#chat.gt-j::after,#chat.gt-m::after{display:none!important}
+#chat.gt-j .cb::after,#chat.gt-m .cb::after,#chat.gt-j .cb::before,#chat.gt-m .cb::before{display:none!important}
+#chat.gt-j{background:radial-gradient(5px 4px at 12% 18%,rgba(247,169,201,.55),transparent),radial-gradient(4px 3px at 82% 32%,rgba(247,169,201,.45),transparent),radial-gradient(5px 4px at 30% 64%,rgba(247,169,201,.4),transparent),radial-gradient(4px 3px at 68% 82%,rgba(247,169,201,.5),transparent),radial-gradient(3px 3px at 90% 58%,rgba(255,214,110,.45),transparent),radial-gradient(120% 50% at 50% 0,rgba(245,154,194,.18),transparent 60%),linear-gradient(180deg,#1f1220,#140c16 55%,#0f0912)!important}
+#chat.gt-m{background:radial-gradient(3px 3px at 15% 70%,rgba(125,255,176,.6),transparent),radial-gradient(2px 2px at 78% 60%,rgba(125,255,176,.5),transparent),radial-gradient(3px 3px at 42% 85%,rgba(255,68,88,.55),transparent),radial-gradient(2px 2px at 88% 82%,rgba(125,255,176,.45),transparent),radial-gradient(120% 40% at 50% 100%,rgba(31,191,99,.16),transparent 70%),radial-gradient(100% 30% at 50% 0,rgba(224,48,63,.12),transparent 70%),linear-gradient(180deg,#050907,#030604)!important}
+#chat.gt-j header,#chat.gt-j .ch-tabs{background:rgba(30,18,32,.92)}#chat.gt-m header,#chat.gt-m .ch-tabs{background:rgba(5,10,7,.94)}
+#chat.gt-j .cb{color:#fbeef3;border:1px solid rgba(245,154,194,.35)!important;background:linear-gradient(170deg,#3a2034,#28162a)!important;box-shadow:0 8px 18px -12px #000!important;text-shadow:none}
+#chat.gt-j .cm.me .cb{color:#2a0f1c;border-color:rgba(255,214,230,.6)!important;background:linear-gradient(170deg,#f7a9c9,#d9789f)!important}
+#chat.gt-m .cb{color:#dff5e7;border:1px solid rgba(79,224,143,.3)!important;border-radius:4px!important;background:linear-gradient(170deg,#0c1a12,#07100b)!important;box-shadow:0 8px 18px -12px #000,inset 0 0 12px rgba(79,224,143,.08)!important;text-shadow:none}
+#chat.gt-m .cm.me .cb{color:#ffe6e9;border-color:rgba(224,48,63,.55)!important;background:linear-gradient(170deg,#3a0d14,#22070c)!important}
+#chat.gt-j .cn .gnm u{color:#ffc9de}#chat.gt-m .cn .gnm u{color:#9ff2c0}
+#chat.gt-j #chatinp{border-color:rgba(245,154,194,.35)}#chat.gt-m #chatinp{border-color:rgba(79,224,143,.3);border-radius:4px}
+/* 왼쪽 메뉴 정파·마교 엠블럼 */
+.gem.nvg{width:18px;height:18px;margin:0;vertical-align:-3px}
+/* 홈 포고문 */
+.gd-ban{display:flex;align-items:center;gap:10px;margin:0 0 10px;padding:10px 16px;border-radius:12px;font-size:14px}.gd-ban .gem{width:22px;height:22px;margin:0}.gd-ban small{font-weight:800;white-space:nowrap}.gd-ban b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gd-ban.g-j{background:linear-gradient(90deg,rgba(245,154,194,.22),rgba(245,154,194,.04));border:1px solid rgba(245,154,194,.45)}.gd-ban.g-j small{color:var(--gj2)}
+.gd-ban.g-m{background:linear-gradient(90deg,rgba(79,224,143,.18),rgba(224,48,63,.06));border:1px solid rgba(79,224,143,.4)}.gd-ban.g-m small{color:var(--gm2)}

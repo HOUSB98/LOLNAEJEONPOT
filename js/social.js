@@ -409,7 +409,7 @@ function chTabs() {
   const op = (k) => !!GC?.isOpen(k);
   const sig = on + CT + op('j') + op('m'); if (sig === tabSig) return; tabSig = sig;
   el.hidden = !on;
-  document.getElementById('chat').classList.toggle('gtab', CT !== 'lobby');
+  const ch = document.getElementById('chat'); ch.classList.toggle('gtab', CT !== 'lobby'); ch.classList.toggle('gt-j', CT === 'j'); ch.classList.toggle('gt-m', CT === 'm'); // 길드 탭: 크리스마스 장식 대신 문파 테마
   el.innerHTML = on ? [['lobby', '로비'], ['j', GUILDS.j.n], ['m', GUILDS.m.n]].map(([k, n]) => `<button role="tab" aria-selected="${CT === k}" class="ct-${k} ${CT === k ? 'on' : ''}" data-a="chTab" data-t="${k}">${k === 'lobby' ? '' : gem(k)}${n}${k !== 'lobby' && !op(k) ? `<span class="ct-lk" title="비밀번호로 잠김">${ic('lock')}</span>` : ''}</button>`).join('') : '';
   const inp = document.getElementById('chatinp'); if (inp) inp.placeholder = CT === 'lobby' ? '메시지 입력…' : `${GUILDS[CT].n} ${GUILDS[CT].mem}에게만 보여요`;
 }
