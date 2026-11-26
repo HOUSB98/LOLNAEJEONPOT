@@ -96,7 +96,7 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   // 7) 왼쪽 메뉴 정리: 홈·내 페이지(묶음 제목 없음) + 3묶음(내전·기록·분석·즐길 거리), 즐길 거리는 처음엔 접힘, 맨 아래 관리·제작자 작은 버튼 줄
   const N = await client(b, be, 'WORK', 'N'); await open(N, 'home', 800);
   const nv = await N.evaluate(() => ({ top: [...document.querySelectorAll('#nav .nav-top a')].map((a) => a.dataset.p), heads: [...document.querySelectorAll('#nav .nav-h h6')].map((e) => e.textContent), fun: document.querySelector('#nav .nav-g[data-g="즐길 거리"]')?.classList.contains('fold'), funVis: [...document.querySelectorAll('#nav .nav-g[data-g="즐길 거리"] a')].filter((a) => a.offsetParent).length, mini: [...document.querySelectorAll('#side .side-mini a')].map((a) => a.dataset.p), inNav: !!document.querySelector('#nav a[data-p=admin], #nav a[data-p=maker]') }));
-  ok(nv.top.join() === 'home,me' && nv.heads.join() === '내전,기록·분석,즐길 거리', '왼쪽 메뉴: 맨 위 홈·내 페이지 + 묶음 3개(내전 · 기록·분석 · 즐길 거리)');
+  ok(nv.top.join() === 'home,me' && nv.heads.join() === '내전,기록·분석,길드,즐길 거리', '왼쪽 메뉴: 맨 위 홈·내 페이지 + 묶음 4개(내전 · 기록·분석 · 길드 · 즐길 거리)');
   ok(nv.fun && nv.funVis === 0, "'즐길 거리'는 처음엔 접힌 채로");
   ok(nv.mini.join() === 'admin,maker' && !nv.inNav, '관리·제작자는 메뉴 맨 아래 작은 버튼 줄로');
   await N.click('#nav .nav-h[data-g="즐길 거리"]'); await N.waitForTimeout(200);
