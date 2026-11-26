@@ -193,3 +193,32 @@ body.lite .gd-drift,body.bd-open .gd-drift{display:none}
 @media (max-width:860px){.gp-rec .gr-list{grid-template-columns:1fr 1fr}}
 @media (max-width:600px){.gp-rec .gr-list{grid-template-columns:1fr}.gb-list{max-height:none}}
 @media (max-width:600px){.gd-hero{padding-top:44px}.gd-hero>.gd-other{top:10px;right:10px;font-size:11px;padding:4px 9px}.gd-hero>.gd-mine{top:10px;left:10px}.gd-realm{flex-wrap:wrap}.gd-realm i{width:90px}.gd-realm small{white-space:nowrap}}
+
+/* ---- 디자인 다듬기(2026-11-26): 현판은 이름·소개·전적만, 나머지는 아래 띠 / 전적 뒤 받침 / 문파마다 칸 모양 / 빈 칸 문구 / 명조 숫자 / 모바일 압축 ---- */
+.gd-hero{min-height:300px}
+.gd-rec{padding:14px 18px 12px;border-radius:14px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.08);box-shadow:0 8px 30px rgba(0,0,0,.35)}
+.gd-big b,.gd-wr b{font-family:var(--song);font-weight:400;letter-spacing:0}.gd-big b{font-size:48px}.gd-wr b{font-size:28px}
+.gd-strip{display:flex;align-items:center;flex-wrap:wrap;gap:8px 24px;padding:11px 18px;border-radius:12px;border:1px solid color-mix(in srgb,var(--ac) 22%,var(--line));background:linear-gradient(90deg,color-mix(in srgb,var(--ac) 8%,var(--panel)),var(--panel))}
+.gd-strip .gd-meta{font-size:13px}.gd-strip .gd-realm{margin:0 0 0 auto}
+/* 정파 칸: 둥근 모서리 + 얇은 금테 + 한지 결 */
+.gd-j .gp,.gd-j .gd-kp,.gd-j .gd-strip{border-radius:16px;border-color:rgba(226,178,90,.32)}
+.gd-j .gp{background-image:radial-gradient(rgba(255,236,244,.035) 1px,transparent 1.2px),radial-gradient(80% 60% at 100% 0,rgba(245,154,194,.12),transparent 60%),linear-gradient(180deg,#1e1220,#130c15);background-size:7px 7px,auto,auto}
+.gd-j .gd-hero{border-radius:18px;border-color:rgba(226,178,90,.45)}
+/* 마교 칸: 각진 모서리 + 붉은 실선 + 검은 철판 */
+.gd-m .gp,.gd-m .gd-kp,.gd-m .gd-strip,.gd-m .gd-hero,.gd-m .gd-rec{border-radius:3px}
+.gd-m .gp{background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.012) 0 1px,transparent 1px 5px),radial-gradient(80% 60% at 100% 0,rgba(79,224,143,.08),transparent 60%),linear-gradient(180deg,#07100b,#040705);box-shadow:inset 0 2px 0 rgba(224,48,63,.55)}
+.gd-m .gd-strip{box-shadow:inset 3px 0 0 rgba(224,48,63,.7)}
+.gd-m .gc-c,.gd-m .gm-c,.gd-m .gb-list button,.gd-m .gr-list>div,.gd-m .gw-list li,.gd-m .gf-list li,.gd-m .gd-duo li,.gd-m .gt-rank li,.gd-m .gn-box{border-radius:2px}
+/* 빈 칸 */
+.gp-none{display:flex;flex-direction:column;align-items:center;gap:6px}.gp-none .gem{width:22px;height:22px;margin:0;opacity:.85}.gp-none b{font:400 15px var(--song);color:var(--ac2)}.gp-none span{font-size:12.5px}
+@media (max-width:860px){.gd-strip .gd-realm{margin-left:0}}
+@media (max-width:600px){
+  .gd-hero{grid-template-columns:56px 1fr;gap:10px 12px;padding:42px 14px 14px}.gd-seal{width:56px;height:56px}
+  .gd-id h1{font-size:24px;gap:8px}.gd-hj{font-size:17px}.gd-en{font-size:9.5px;letter-spacing:.24em}
+  .gd-intro{font-size:13px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+  .gd-rec{padding:10px 12px}.gd-big b{font-size:34px}.gd-wr b{font-size:22px}
+  .gd-strip{padding:10px 14px;gap:6px 14px}.gd-strip .gd-meta{font-size:12px;gap:4px 12px}
+}
+/* 들어갈 때 꽃잎은 현판 안에서만 */
+.gd-fx.fx-j{position:fixed;inset:auto;border-radius:18px}
+@keyframes fxPetal{0%{opacity:0;transform:translate(0,0) rotate(0) scale(var(--s))}15%{opacity:.95}100%{opacity:0;transform:translate(var(--dx),var(--h,300px)) rotate(var(--r)) scale(var(--s))}}
