@@ -2516,3 +2516,5 @@ body.lite #chtb tr.ch-hit td{animation:none;background:rgba(217,164,65,.14)}
 @keyframes spcollab{to{opacity:1;transform:translate(-50%,0)}}
 @media (max-width:600px){.sp-collab{bottom:58px;gap:8px;padding:4px 12px 4px 4px}.sp-collab small{font-size:9px;letter-spacing:.24em}.sp-collab b{font-size:12px}}
 @media (max-height:560px){.sp-collab{display:none}}
+/* 라인 지원 창이 떠 있는 동안(board.js body.bd-open): 뒤 화면(본문·메뉴·시즌 장식)의 CSS 움직임을 멈춘다. 창 안은 그대로 */
+body.bd-open>:not(#modal):not(#toast),body.bd-open>:not(#modal):not(#toast) *,body.bd-open>:not(#modal):not(#toast)::before,body.bd-open>:not(#modal):not(#toast)::after,body.bd-open>:not(#modal):not(#toast) *::before,body.bd-open>:not(#modal):not(#toast) *::after{animation-play-state:paused!important}
