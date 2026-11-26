@@ -2,11 +2,12 @@
 // 라인 지원 상태, 뽑기권, 내가 쓴 익명 글의 새 댓글을 한 화면에 모은다.
 // 숫자는 모두 다른 화면과 같은 계산을 그대로 쓴다(랭킹 = 1판 이상·OVR 순, 뽑기권 = 가챠 화면 계산, 보정 = 라인 지원 계산).
 // 무거운 계산은 통계(S.st)가 바뀔 때만 다시 하고, DB 읽기는 가챠 문서 1건(2분 캐시)과 실시간 목록에 없는 내 글뿐이다.
-import { S, page, act, esc, ic, refresh, modal, closeModal, mh, toast, champIcon, artUrl, cardChamp, fmtDT, fmtDay, dots, titleChips, countUp, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct } from './core.js';
+import { gname, S, page, act, esc, ic, refresh, modal, closeModal, mh, toast, champIcon, artUrl, cardChamp, fmtDT, fmtDay, dots, titleChips, countUp, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct } from './core.js';
 import { chem, dayKey, ovrOf } from './stats.js';
 import { missOf, weightOf, LUCK_MAX, boardLive } from './board.js';
 import { ticketInfo } from './gacha.js';
 import { myPostAlerts } from './talk.js';
+import { meStrip } from './guild.js';
 
 const meKey = () => 'naejeon:me:' + S.key;
 // 저장한 '나'가 없으면 라인 지원·가챠에서 고른 선수를 이어받는다
@@ -178,7 +179,7 @@ page('me', {
     return `<div class="me-pg" style="--tc:${LANE_COLOR[s.mainLane]}">
     <section class="me-hero" style="--img:url('${artUrl(sig)}')">
       <div class="me-id"><span class="me-lane">${LANE_ICON[s.mainLane]}</span>
-        <div class="me-nm"><small>MY PAGE · 주라인 ${LANE_NAME[s.mainLane]}${sig ? ` · ${esc(sig)}` : ''}</small><h1>${esc(s.name)}</h1></div>
+        <div class="me-nm"><small>MY PAGE · 주라인 ${LANE_NAME[s.mainLane]}${sig ? ` · ${esc(sig)}` : ''}</small><h1>${gname(s.id, s.name)}</h1></div>
         <button class="btn ghost xs me-sw" data-a="meSwitch" aria-label="선수 바꾸기">${ic('swap')}<span>선수 바꾸기</span></button></div>
       ${acctHTML(s)}
       <div class="me-rk">
@@ -187,6 +188,7 @@ page('me', {
       </div>
       ${s.titles.length ? `<div class="me-ttl">${titleChips(s, 4)}</div>` : ''}
     </section>
+    ${meStrip(id)}
     <div class="me-ks">
       ${kpi('전적', `${s.g}<i>판</i>`, `${s.w}승 ${l}패`, '', undefined)}
       ${kpi('승률', s.g ? `${s.wr}<i>%</i>` : '—', s.recent.length ? dots(s.recent) : '최근 경기 없음', s.g ? (s.wr >= 60 ? 'pos' : s.wr <= 40 ? 'neg' : '') : '')}

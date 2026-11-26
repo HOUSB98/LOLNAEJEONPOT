@@ -1,7 +1,7 @@
 // 선수 카드(홀로 카드) / 솔랭 분석 / 케미 분석
 import { S, page, act, esc, pname, go, refresh, fmtDT, wrClass, wrBar, dots, streak, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, baseChamp, skinList, skinBad, pickChamp, needAdmin, isAdmin, modal, closeModal, mh, toast, ic, logo, countUp, burst, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct } from './core.js';
 import { chem, playerLine, duoRank, CHEM_RULE } from './stats.js';
-import { cardChamp, canPickChamp, swipeZone, swiping } from './core.js';
+import { cardChamp, canPickChamp, swipeZone, swiping, gname, gOf, GUILDS } from './core.js';
 import { gcBadge } from './gacha.js';
 
 const PV = { view: 'card', dl: 'all', gr: 'mmr' };
@@ -22,9 +22,9 @@ function listView() {
       ${o.most ? `<div class="sm">모스트 3 · ${esc(o.most)}</div>` : ''}${o.comment ? `<p>${esc(o.comment)}</p>` : '<p class="mut">솔랭 분석 정보가 없습니다.</p>'}</div>`; }).join('')}</div>`;
   }
   // 주라인별로 묶고, 묶음 안에서는 오버롤 높은 순
-  const card = (s, i) => { const r = rarity(s, n); return `<a class="pcard ${r[2]} ${skinTier(s)}" href="#/players/${s.id}" style="--tc:${LANE_COLOR[s.mainLane]};--img:url('${tileUrl(cardChamp(s))}');--d:${Math.min(i, 16)}">
+  const card = (s, i) => { const r = rarity(s, n); return `<a class="pcard ${r[2]} ${skinTier(s)}${gOf(s.id) ? ' gcard g-' + gOf(s.id) : ''}" href="#/players/${s.id}" style="--tc:${LANE_COLOR[s.mainLane]};--img:url('${tileUrl(cardChamp(s))}');--d:${Math.min(i, 16)}">
     <div class="pc-art"></div><i class="pc-no mono">${i + 1}</i>
-    <div class="pc-top"><span class="pc-type">${LANE_ICON[s.mainLane]}</span><b>${esc(s.name)}</b><span class="pc-ovr mono"><small>OVR</small>${s.ovr}</span></div>
+    <div class="pc-top"><span class="pc-type">${LANE_ICON[s.mainLane]}</span><b>${gname(s.id, s.name)}</b><span class="pc-ovr mono"><small>OVR</small>${s.ovr}</span></div>
     <div class="pc-bot"><span class="mono">${s.g ? `${s.wr}% · ${s.g}판` : '출전 없음'}</span><span class="pc-rar">${r[0]}</span></div>
     <div class="pc-title">${s.titles[0] ? `${s.titles[0].e} ${s.titles[0].n}` : '&nbsp;'}</div></a>`; };
   let k = 0;
@@ -40,12 +40,12 @@ function holo(s, n) {
   const p = s.p, r = rarity(s, n), sc = LANES.map((l) => [l, +p.scores?.[l] || 0]).sort((a, b) => b[1] - a[1]);
   const weak = sc[4][0], sig = cardChamp(s), line = playerLine(s, S.st).split('. ')[0].replace(/\.$/, '') + '.';
   const move = ([l, v]) => `<div class="hc-move"><span class="en">${LANE_ICON[l].repeat(v >= 15 ? 3 : v >= 9 ? 2 : 1)}</span><div><b>${MOVE[l]}</b><small>${LANE_NAME[l]} 승률 ${s.lanes[l].g ? `${pct(s.lanes[l].w, s.lanes[l].g)}% (${s.lanes[l].g}판)` : '기록 없음'}</small></div><em class="mono">${Math.round(v * 10)}</em></div>`;
-  return `<div class="holo-wrap ${r[2]} ${skinTier(s)}" style="--tc:${LANE_COLOR[s.mainLane]}">
+  return `<div class="holo-wrap ${r[2]} ${skinTier(s)}${gOf(s.id) ? ' gcard g-' + gOf(s.id) : ''}" style="--tc:${LANE_COLOR[s.mainLane]}">
     <div class="holo-tilt"><div class="holo ${r[2]}">
     <div class="hc-in">
-      <div class="hc-head"><span class="hc-stage">${r[1]}</span><b>${esc(s.name)}</b><span class="hc-hp mono"><small>OVR</small>${s.ovr}</span><span class="hc-type">${LANE_ICON[s.mainLane]}</span></div>
+      <div class="hc-head"><span class="hc-stage">${r[1]}</span><b>${gname(s.id, s.name)}</b><span class="hc-hp mono"><small>OVR</small>${s.ovr}</span><span class="hc-type">${LANE_ICON[s.mainLane]}</span></div>
       <div class="hc-art" style="--img:url('${artUrl(sig)}')">${sig ? `<span>SIGNATURE · ${esc(sig)}</span>` : `<i>${LANE_ICON[s.mainLane]}</i>`}</div>
-      <div class="hc-strip">No.${String(s.ovrRank).padStart(3, '0')} · ${LANE_NAME[s.mainLane]} 타입 · ${s.g ? `${s.g}전 ${s.w}승 ${s.g - s.w}패` : '미데뷔'} · MMR ${Math.round(s.mmr)}</div>
+      <div class="hc-strip">No.${String(s.ovrRank).padStart(3, '0')} · ${LANE_NAME[s.mainLane]} 타입${gOf(s.id) ? ` · ${GUILDS[gOf(s.id)].n}` : ''} · ${s.g ? `${s.g}전 ${s.w}승 ${s.g - s.w}패` : '미데뷔'} · MMR ${Math.round(s.mmr)}</div>
       ${move(sc[0])}${move(sc[1])}
       <div class="hc-foot"><div><small>약점</small>${LANE_ICON[weak]}<b class="mono">${sc[4][1]}</b></div><div><small>폼</small><b>${{ '⬆️': '최상', '↗️': '좋음', '➡️': '보통', '↘️': '주춤', '⬇️': '부진', '➖': '—' }[s.cond]}</b></div><div><small>통산 승률</small><b class="mono">${s.g ? s.wr + '%' : '—'}</b></div></div>
       <p class="hc-flavor">${esc(line)}</p>
@@ -286,7 +286,7 @@ page('chem', {
     const lvl = (w) => (w >= 60 ? 'hi' : w >= 45 ? 'mid' : 'lo');
     const row = (tone) => (x, i) => `<div class="duo ${tone}" style="--img:url('${artUrl(sigChamp(st.P[x.ids[i % 2]]))}');--d:${i % PER}">
       <i class="drk mono">${i + 1}</i><span class="faces">${face(x.ids[0])}${face(x.ids[1])}</span>
-      <span class="dnm"><b>${pname(x.ids[0])}</b><em>&amp;</em><b>${pname(x.ids[1])}</b><small class="mono">${x.g}판 · ${x.w}승 ${x.g - x.w}패</small></span>
+      <span class="dnm"><b>${gname(x.ids[0])}</b><em>&amp;</em><b>${gname(x.ids[1])}</b><small class="mono">${x.g}판 · ${x.w}승 ${x.g - x.w}패</small></span>
       <span class="dwr"><b class="mono ${tone}">${x.wr}<small>%</small></b><span class="wrb"><i style="width:${x.wr}%" class="${lvl(x.wr)}"></i></span></span></div>`;
     const rank = (arr, tone, key) => {
       if (!arr.length) return `<p class="mut">${CM.min}판 이상 함께한 조합 중 해당하는 듀오가 없습니다.</p>`;
@@ -296,7 +296,7 @@ page('chem', {
     };
     const hi = (cap, t, x, f, tone) => `<div class="ins ${tone}" style="--img:url('${x ? tileUrl(sigChamp(st.P[x.id])) : ''}')"><small>${cap}</small><span>${t}</span><b>${x ? pname(x.id) : '—'}</b><em>${x ? f(x) : `${CM.min}판 이상 기록 없음`}</em></div>`;
     const duoF = (x) => `함께 ${x.g}판 · 승률 ${x.wr}%`, vsF = (x) => `${x.g}번 대결 · ${x.w}승 ${x.g - x.w}패`;
-    const bars = (arr) => [...arr].sort((x, y) => y.wr - x.wr || y.g - x.g).map((x, i) => `<a class="rel" href="#/chem/${x.id}" style="--d:${i}">${face(x.id)}<span class="rnm"><b>${pname(x.id)}</b><small class="mono">${x.g}판 · ${x.w}승 ${x.g - x.w}패</small></span><span class="wrb"><i style="width:${x.wr}%" class="${lvl(x.wr)}"></i></span><b class="mono ${wrClass(x.wr)}">${x.wr}%</b></a>`).join('') || `<p class="mut">${CM.min}판 이상 기록이 없습니다.</p>`;
+    const bars = (arr) => [...arr].sort((x, y) => y.wr - x.wr || y.g - x.g).map((x, i) => `<a class="rel" href="#/chem/${x.id}" style="--d:${i}">${face(x.id)}<span class="rnm"><b>${gname(x.id)}</b><small class="mono">${x.g}판 · ${x.w}승 ${x.g - x.w}패</small></span><span class="wrb"><i style="width:${x.wr}%" class="${lvl(x.wr)}"></i></span><b class="mono ${wrClass(x.wr)}">${x.wr}%</b></a>`).join('') || `<p class="mut">${CM.min}판 이상 기록이 없습니다.</p>`;
     const cell = (a, b) => {
       if (a === b) return '<td class="self">—</td>';
       const v = CM.mode === 'duo' ? st.together[a < b ? a + '|' + b : b + '|' + a] : st.versus[a + '>' + b];
@@ -311,7 +311,7 @@ page('chem', {
     </div>
     <div class="sec-h"><h2>${ic('users')}선수별 관계도</h2><span class="mut sm">선수를 누르면 그 선수 기준으로 바뀝니다</span></div>
     <div class="psel">${LANES.map((l) => { const g = on.filter((s) => s.mainLane === l).sort((a, b) => b.ovr - a.ovr); return g.length ? `<div class="psel-r" style="--tc:${LANE_COLOR[l]}"><span class="psel-l">${LANE_ICON[l]}<b>${LANE_NAME[l]}</b></span><div>${g.map((s) => `<a class="${s.id === cur ? 'on' : ''}" href="#/chem/${s.id}" title="${s.g}판 · 승률 ${s.wr}%">${face(s.id)}<span>${esc(s.name)}</span><small class="mono">${s.g}</small></a>`).join('')}</div></div>` : ''; }).join('')}</div>
-    <div class="focus" style="--img:url('${artUrl(sigChamp(st.P[cur]))}')"><div class="fc-in">${face(cur)}<div><small>FOCUS</small><b>${pname(cur)}</b><span class="mono">${st.P[cur].g}판 · 승률 ${st.P[cur].wr}% · MMR ${Math.round(st.P[cur].mmr)}</span></div></div></div>
+    <div class="focus" style="--img:url('${artUrl(sigChamp(st.P[cur]))}')"><div class="fc-in">${face(cur)}<div><small>FOCUS</small><b>${gname(cur)}</b><span class="mono">${st.P[cur].g}판 · 승률 ${st.P[cur].wr}% · MMR ${Math.round(st.P[cur].mmr)}</span></div></div></div>
     <div class="insg">${hi('BEST PARTNER', '베스트 듀오', c.best, duoF, 'teal')}${hi('WORST PARTNER', '상극 듀오', c.worst, duoF, 'purple')}${hi('NEMESIS', '천적 (내가 약한 상대)', c.nemesis, vsF, 'red')}${hi('STRONG AGAINST', '내가 강한 상대', c.prey, vsF, 'gold')}</div>
     <p class="hint">선정 기준 · ${CHEM_RULE} · 최소 ${CM.min}판</p>
     <div class="grid2"><div class="cbox"><div class="cbh"><small>TEAMMATE</small><h2>${pname(cur)}와 같은 팀일 때</h2><span>듀오 승률 · 높은 순</span></div>${bars(c.duo)}</div>

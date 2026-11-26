@@ -1,5 +1,5 @@
 // 오늘의 내전: 라인업 보드(점수·예상승률·해설) + 경기 결과 입력/수정
-import { S, page, act, esc, uid, pname, go, refresh, ddMenu, champIcon, artUrl, toast, pickChamp, pickPlayer, history, ic, dots, burst, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
+import { gname, gOf, gem, guildOn, S, page, act, esc, uid, pname, go, refresh, ddMenu, champIcon, artUrl, toast, pickChamp, pickPlayer, history, ic, dots, burst, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
 import { kakaoBtn } from './kakao.js';
 import { evalLineup, commentary, bestDuo, aiBalance } from './stats.js';
 import { notify } from './hook.js';
@@ -17,7 +17,7 @@ function draftState(d) {
   return JSON.stringify({
     blue: d.blue, red: d.red, winner: d.winner || '',
     champs: d.champs, bans: d.bans, kda: d.kda || {},
-    newSeries: !!d.newSeries, at: d.at || '', more: !!d.more
+    newSeries: !!d.newSeries, at: d.at || '', more: !!d.more, gw: !!d.gw
   });
 }
 
@@ -39,7 +39,7 @@ function mergeDraftChanges(base, local, remote) {
     arr('bans', side);
   });
 
-  const scalars = ['winner', 'newSeries', 'at', 'more'];
+  const scalars = ['winner', 'newSeries', 'at', 'more', 'gw']; // gw: 길드전
   scalars.forEach((k) => {
     const b = base?.[k], l = local?.[k], r = remote?.[k];
     if (l !== b) next[k] = l;
@@ -186,13 +186,13 @@ page('today', {
       if (!s) return `<div class="slot ${side} emp${art}" data-ds="${side}" data-di="${i}">${champ}<button class="sl-body" data-a="tSlot" data-s="${side}" data-i="${i}"><span>${ic('plus')}${LANE_NAME[l]}<em class="m-hide"> 선수 선택</em></span></button></div>`;
       const ln = s.lanes[l], off = s.mainLane !== l;
       return `<div class="slot ${side}${art}" data-ds="${side}" data-di="${i}">${champ}<button class="sl-body" data-a="tSlot" data-s="${side}" data-i="${i}">
-        <span class="sl-top"><b>${esc(s.name)}</b>${(() => { const t = talkOf(id); return t ? talkIcon(t, 'sl-talk') : ''; })()}${off ? `<i class="off" title="주라인은 ${LANE_NAME[s.mainLane]}">${LANE_ICON[s.mainLane]}오프</i>` : '<i class="main">주라인</i>'}</span>
+        <span class="sl-top"><b>${gname(id, s.name)}</b>${(() => { const t = talkOf(id); return t ? talkIcon(t, 'sl-talk') : ''; })()}${off ? `<i class="off" title="주라인은 ${LANE_NAME[s.mainLane]}">${LANE_ICON[s.mainLane]}오프</i>` : '<i class="main">주라인</i>'}</span>
         <span class="sl-meta"><span>${LANE_NAME[l]} ${ln.g ? `${pct(ln.w, ln.g)}% · ${ln.g}판` : '기록 없음'}</span><span class="mono">MMR ${Math.round(s.mmr)}</span>${dots(s.recent)}</span>
       </button><span class="sl-score mono">${(+s.p.scores?.[l] || 0).toFixed(1)}</span></div>`;
     };
-    const duo = (side) => { const b = bestDuo(d[side], st); return b ? `<span class="${side}">${pname(b.a)} + ${pname(b.b)} <b class="mono">${pct(b.w, b.g)}%</b> <small>${b.g}판</small></span>` : `<span class="mut">${side === 'blue' ? '블루' : '레드'} — 함께한 기록 부족</span>`; };
-    return `<div class="h2row td-h" data-k="hd"><h1>${ic('today')}${edit ? `경기 수정 <span class="mono">#${st.MI[edit.id]?.no ?? ''}</span>` : '오늘의 내전'}</h1><span class="tag ${full ? 'ok' : ''}">${filled}/10 배치</span><span class="grow"></span>
-      ${edit ? '<a class="btn" href="#/matches">취소</a>' : `<button class="btn gold" data-a="tAi" ${full ? '' : 'disabled'} title="${full ? '라인은 그대로 두고, 점수 차이가 가장 작아지도록 블루·레드를 나눕니다 (높은 원딜·높은 서폿은 같은 팀 안 됨)' : '10명을 모두 배치하면 쓸 수 있어요'}">${ic('bolt')}AI<span class="m-hide"> 추천</span></button><button class="btn gold gbtn ${boardLive() ? 'bd-on' : ''}" data-a="tBoard" title="라인 지원: 모두 함께 원하는 라인 고르기 → 몰린 라인은 추첨">${ic('users')}<span><span class="n-hide">라인 </span>${boardLive() ? '지원 중' : '지원'}</span></button><button class="btn gold" data-a="tDice">${ic('dice')}<span class="n-hide">라인 </span>주사위</button>${ddMenu(`<button data-a="tSwap">${ic('swap')}진영 교체</button><button class="danger" data-a="tClear">${ic('trash')}비우기</button>`)}`}</div>
+    const duo = (side) => { const b = bestDuo(d[side], st); return b ? `<span class="${side}">${gname(b.a)} + ${gname(b.b)} <b class="mono">${pct(b.w, b.g)}%</b> <small>${b.g}판</small></span>` : `<span class="mut">${side === 'blue' ? '블루' : '레드'} — 함께한 기록 부족</span>`; };
+    return `<div class="h2row td-h" data-k="hd"><h1>${ic('today')}${edit ? `경기 수정 <span class="mono">#${st.MI[edit.id]?.no ?? ''}</span>` : '오늘의 내전'}</h1><span class="tag ${full ? 'ok' : ''}">${filled}/10 배치</span>${d.gw && guildOn() ? `<span class="tag gwt">${gem('j')}정파 vs 마교${gem('m')}</span>` : ''}<span class="grow"></span>
+      ${edit ? '<a class="btn" href="#/matches">취소</a>' : `<button class="btn gold" data-a="tAi" ${full ? '' : 'disabled'} title="${full ? '라인은 그대로 두고, 점수 차이가 가장 작아지도록 블루·레드를 나눕니다 (높은 원딜·높은 서폿은 같은 팀 안 됨)' : '10명을 모두 배치하면 쓸 수 있어요'}">${ic('bolt')}AI<span class="m-hide"> 추천</span></button>${guildOn() ? `<button class="btn gwbtn ${d.gw ? 'on' : ''}" data-a="tGw" ${full || d.gw ? '' : 'disabled'} aria-pressed="${!!d.gw}" title="${d.gw ? '길드전 끄기(라인업은 그대로)' : '라인은 그대로 두고 정파는 블루, 마교는 레드로 나눕니다(같은 라인에 같은 길드면 용병). 길드전으로 기록돼요'}">${ic('guild')}<span class="m-hide">${d.gw ? ' 길드전 ON' : ' 길드전'}</span></button>` : ''}<button class="btn gold gbtn ${boardLive() ? 'bd-on' : ''}" data-a="tBoard" title="라인 지원: 모두 함께 원하는 라인 고르기 → 몰린 라인은 추첨">${ic('users')}<span><span class="n-hide">라인 </span>${boardLive() ? '지원 중' : '지원'}</span></button><button class="btn gold" data-a="tDice">${ic('dice')}<span class="n-hide">라인 </span>주사위</button>${ddMenu(`<button data-a="tSwap">${ic('swap')}진영 교체</button><button class="danger" data-a="tClear">${ic('trash')}비우기</button>`)}`}</div>
     <section class="arena">
       <div class="scorebar" data-k="sb" style="--wi:${fav ? wi.toFixed(2) : 0}"><div class="sb blue${fav === 'blue' ? ' fav' : ''}">${fav === 'blue' ? FAV_RING : ''}<small>BLUE TEAM</small><b class="mono" data-live="bs">${ev.bs.toFixed(1)}</b><span>평균 MMR ${ev.mmrB ? Math.round(ev.mmrB) : '—'}</span>${tkSum(d.blue)}</div>
         <div class="sb-mid">${winRing(pb, full, any, filled, wi)}</div>
@@ -296,6 +296,19 @@ act('tAi', () => {
   keep(); burst(innerWidth / 2, innerHeight / 3, 60);
   toast(`AI 추천 배치 · 점수 ${r.bs.toFixed(1)} : ${r.rs.toFixed(1)} (차이 ${r.diff.toFixed(1)})`);
 });
+// 길드전: 라인마다 두 사람을 맞바꿔 정파는 블루, 마교는 레드로(같은 라인 두 사람이 같은 길드면 한쪽은 용병)
+act('tGw', () => {
+  const dr = D();
+  if (dr.gw) { dr.gw = false; keep(); return toast('길드전을 껐어요(라인업은 그대로)'); }
+  if (!isFull(dr)) return toast('양 팀 10명을 모두 배치해 주세요');
+  LANES.forEach((_, i) => {
+    const a = gOf(dr.blue[i]), b = gOf(dr.red[i]);
+    if ((a === 'm' && b !== 'm') || (b === 'j' && a !== 'j')) { [dr.blue[i], dr.red[i]] = [dr.red[i], dr.blue[i]]; [dr.champs.blue[i], dr.champs.red[i]] = [dr.champs.red[i], dr.champs.blue[i]]; }
+  });
+  const merc = dr.blue.filter((id) => gOf(id) !== 'j').length + dr.red.filter((id) => gOf(id) !== 'm').length;
+  dr.gw = true; keep();
+  toast(`길드전 · 정파(블루) vs 마교(레드)${merc ? ` · 용병 ${merc}명` : ' · 순수 대결'}`);
+});
 act('tSwap', () => { const dr = D(); [dr.blue, dr.red] = [dr.red, dr.blue]; [dr.champs.blue, dr.champs.red] = [dr.champs.red, dr.champs.blue]; [dr.bans.blue, dr.bans.red] = [dr.bans.red, dr.bans.blue]; if (dr.winner) dr.winner = dr.winner === 'blue' ? 'red' : 'blue'; keep(); });
 act('tClear', () => { if (confirm('라인업과 입력 내용을 모두 비울까요?')) { draft = blank(); keep(); } });
 act('tSave', async (d, btn) => {
@@ -314,6 +327,7 @@ act('tSave', async (d, btn) => {
     id, at, seq: old?.seq || 0, seriesId: seriesFor(dr) || id, blue: [...dr.blue], red: [...dr.red], winner: dr.winner,
     champs: { blue: [...dr.champs.blue], red: [...dr.champs.red] }, bans: { blue: dr.bans.blue.filter(Boolean), red: dr.bans.red.filter(Boolean) }, kda,
     snap: sameLine && old.snap ? old.snap : { bs: ev.bs, rs: ev.rs, pBlue: +ev.pBlue.toFixed(4) },
+    ...((dr.gw ?? old?.gw) ? { gw: true } : {}), // 길드전으로 짠 경기(길드 화면의 길드전 기록)
     ...(dr.stats || old?.stats ? { stats: dr.stats || old.stats } : {}), ...(dr.dur || old?.dur ? { dur: dr.dur || old.dur } : {}), // 리플레이에서 읽은 상세 기록
   };
   btn.disabled = true;
@@ -327,7 +341,7 @@ act('tSave', async (d, btn) => {
   sysChat(`경기 기록 · ${dr.winner === 'blue' ? '블루' : '레드'} 승리 (${m[dr.winner].map((p) => S.st.P[p]?.name).join(', ')})`);
   notify('match', id); // 디스코드 알림(연동 서버가 설정돼 있을 때만)
   lastSaved = id;
-  draft = { ...blank(), blue: dr.blue, red: dr.red }; // 같은 팀으로 다음 판을 바로 기록할 수 있게 라인업은 유지
+  draft = { ...blank(), blue: dr.blue, red: dr.red, ...(dr.gw ? { gw: true } : {}) }; // 같은 팀으로 다음 판을 바로 기록할 수 있게 라인업은 유지
   keep(); window.scrollTo(0, 0); document.getElementById('main').scrollTop = 0;
 });
 
