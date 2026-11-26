@@ -22,6 +22,17 @@ const crypto = require('crypto');
   const cnt = { j: 0, m: 0 }; Object.values(P()).forEach((p) => cnt[p.guild]++);
   const mmr = await A.evaluate(async () => { const { S } = await import('/js/core.js'); const a = { j: [], m: [] }; Object.values(S.store.data.players).forEach((p) => a[p.guild]?.push(S.st.P[p.id].mmr)); const av = (x) => x.reduce((s, v) => s + v, 0) / x.length; return Math.abs(av(a.j) - av(a.m)); });
   ok(G()?.at && Math.abs(cnt.j - cnt.m) <= 1 && cnt.j + cnt.m === ids.length && P()[ids[3]].guild === P()[ids[7]].guild && mmr < 40 && P()[ids[0]].glog?.[0]?.by === 'init', `창설: 정파 ${cnt.j} · 마교 ${cnt.m}(차이 1 이하), 묶은 두 사람 같은 길드, 평균 MMR 차 ${mmr.toFixed(1)}, 소속 기록 남김`);
+  // 공지 창: 창설 뒤 3일 동안 홈이 열리면 한 번(접속마다), '다시 보지 않기'면 이 기기에서는 끝
+  const C = await client(b, be, 'WORK', 'C');
+  await open(C, 'home', 2000);
+  const pop = await C.evaluate(() => document.querySelector('#modal.on .np-pop')?.innerText || '');
+  ok(/정파 · 마교, 두 문파가 열렸습니다/.test(pop) && !/선수\d/.test(pop), '창설 뒤 홈을 열면 공지 창(멤버 이름 없음)');
+  await C.click('#npp-no'); await C.click('[data-a=nppClose]'); await C.waitForTimeout(300);
+  await open(C, 'home', 2000);
+  ok(!(await C.$('#modal.on .np-pop')), "'다시 보지 않기' 뒤에는 다시 안 뜸");
+  await C.evaluate(async () => { const { S } = await import('/js/core.js'); await S.store.patch('meta', 'guild', { at: Date.now() - 4 * 864e5 }); localStorage.clear(); sessionStorage.clear(); localStorage.setItem('naejeon:nick', 'C'); sessionStorage.setItem('naejeon:welcomed', '1'); });
+  await open(C, 'home', 2000);
+  ok(!(await C.$('#modal.on .np-pop')), '창설 3일이 지나면 공지 창이 안 뜸');
   // 창설 시각을 경기 기록 중간으로 옮기고(창설 이전 경기는 길드 기록에서 빠져야 함), 한 명(x)을 창설 직후 옮긴 것처럼 소속 기록을 둠
   const ms = seed.matches.map((m) => m.at).sort((a, b) => a - b), t0 = ms[Math.floor(ms.length * 0.5)], t1 = ms[Math.floor(ms.length * 0.8)];
   const x = ids[5], gx = P()[x].guild, ox = gx === 'j' ? 'm' : 'j';
@@ -131,6 +142,6 @@ const crypto = require('crypto');
   // 휴대폰
   const Mo = await client(b, be, 'WORK', 'Mo', { ctx: await device(b, be, 'WORK', 'Mo', { viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true }) });
   for (const h of ['jeongpa', 'magyo', 'admin/guild', 'me']) { await open(Mo, h, 1300); const w = await Mo.evaluate(() => document.documentElement.scrollWidth); ok(w <= 361, `휴대폰(360px) ${h} 가로 넘침 없음(${w})`); }
-  const errs = [...A.errs, ...B.errs, ...Mo.errs]; console.log('오류:', errs.join(' | ') || '없음'); ok(!errs.length, '페이지 오류 없음');
+  const errs = [...A.errs, ...B.errs, ...Mo.errs, ...C.errs]; console.log('오류:', errs.join(' | ') || '없음'); ok(!errs.length, '페이지 오류 없음');
   await b.close();
 })();

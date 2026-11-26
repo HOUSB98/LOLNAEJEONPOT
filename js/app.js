@@ -780,7 +780,7 @@ window.NP_OK = 1; // index.html의 시작 확인(이 줄까지 왔다면 모든 
   if (MAINT && !maintPass()) return maintGate();
   await SEASON.ready; // 시즌이 아니면 바로 끝난다. 시즌이면 시작 화면 장식 전에 받아 둔다(DB 연결과 동시에 받으므로 보통 기다리지 않는다)
   metaDiff(); up = true; watchDice(true); watchBoard(true); watchPosts(true); initShell(); mountRecruit(); initSocial(); SEASON.x?.initXmas(); SEASON.n?.initNewYear(); loadChamps();
-  checkPause(); closedCheck(); if (MAINT) maintBar();
+  checkPause(); closedCheck(); if (MAINT) maintBar(); noticePop();
 })();
 // 초대 링크를 바꾼 뒤 옛 링크(meta/closed가 있는 리그)로 들어오면: 실시간 구독을 끊고 안내 화면만 보여 준다(새 링크는 알려 주지 않음)
 // 링크를 바꾼 관리자 본인 화면은 결과 창을 보고 있어야 하므로 이번 접속에서는 띄우지 않는다(S.rotating)
@@ -818,3 +818,33 @@ function maintGate() {
 }
 // 관리자 화면에는 점검 중이라는 작은 띠를 띄워 둔다(공개를 잊지 않게)
 function maintBar() { if (document.getElementById('np-mbar')) return; document.body.insertAdjacentHTML('beforeend', '<div id="np-mbar" class="np-mbar" role="status">점검 모드 · 관리자만 접속 중</div>'); }
+// 공지 창(로딩 창이 끝나고 홈이 열릴 때 한 번): 길드 창설 안내. 창설 시각부터 3일 동안만, 접속(탭)마다 한 번, '다시 보지 않기'를 누르면 이 기기에서는 끝
+// 저장·읽기 없음(문구는 코드에 있음). 다른 창이 떠 있으면 닫힐 때까지 기다린다
+const POP = { id: 'guild-open', days: 3 };
+function noticePop() {
+  const gm = S.store.data.meta?.guild, k = 'naejeon:pop:' + POP.id;
+  if (!guildOn() || !gm?.at || Date.now() > +gm.at + POP.days * 864e5) return;
+  try { if (localStorage.getItem(k) || sessionStorage.getItem(k)) return; } catch { return; }
+  let n = 0;
+  const t = setInterval(() => {
+    if (++n > 120) return clearInterval(t); // 1분 안에 홈이 안 열리면 이번 접속은 건너뜀
+    if (document.getElementById('splash') || S.page !== 'home' || document.getElementById('modal').classList.contains('on') || document.getElementById('np-closed')) return;
+    clearInterval(t);
+    try { sessionStorage.setItem(k, '1'); } catch {}
+    const mine = (() => { try { const id = localStorage.getItem('naejeon:me:' + S.key); return gOf(id); } catch { return ''; } })();
+    const el = modal(`<div class="np-pop"><div class="npp-top">${gem('j')}<i>VS</i>${gem('m')}</div><small class="npp-k">NOTICE · 길드 창설</small>
+      <h2>정파 · 마교, 두 문파가 열렸습니다</h2>
+      <p>오늘부터 NAEJEONPOT에 두 개의 길드 <b class="npp-j">정파</b>와 <b class="npp-m">마교</b>가 창설되었어요.</p>
+      <ul><li>모든 소환사는 두 문파 중 한 곳에 소속되고, 이름 옆에 문파 엠블럼이 표시돼요.</li>
+        <li>길드 페이지에서 문파 전적 · 대항전 · 챔피언 활용 · 명예의 전당을 확인할 수 있어요.</li>
+        <li>길드원끼리만 들어가는 사랑방(채팅 · 게시판)도 열려요.</li>
+        <li>오늘의 내전에서 '길드전'으로 문파끼리 맞붙을 수도 있어요.</li></ul>
+      <p class="npp-s">내 문파는 홈의 '내 문파' 띠나 내 페이지에서 확인해 보세요.</p>
+      <label class="mini"><input type="checkbox" id="npp-no"> 다시 보지 않기</label>
+      <div class="row npp-b"><button class="btn" data-a="nppClose">닫기</button><button class="btn pri" data-a="nppGo" data-h="${ghref(mine || 'j')}">${mine ? '내 문파 보러 가기' : '길드 보러 가기'}</button></div></div>`, 'np-popw');
+    el.querySelector('.btn.pri')?.focus({ preventScroll: true });
+  }, 500);
+}
+const nppDone = () => { try { if (document.getElementById('npp-no')?.checked) localStorage.setItem('naejeon:pop:' + POP.id, '1'); } catch {} };
+act('nppClose', () => { nppDone(); closeModal(); });
+act('nppGo', (d) => { nppDone(); closeModal(); go(d.h); });
