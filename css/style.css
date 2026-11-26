@@ -2527,7 +2527,7 @@ body.bd-open>:not(#modal):not(#toast),body.bd-open>:not(#modal):not(#toast) *,bo
 .np-mbar{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:9000;padding:5px 12px;border-radius:99px;background:rgba(217,164,65,.92);color:#2b1a0d;font-size:11.5px;font-weight:800;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.4)}
 @media (max-width:860px){.np-mbar{bottom:auto;top:8px}}
 /* ---------- 길드(정파·마교) 공통 표시: 이름 옆 엠블럼 + 밑줄(길드 색). 랭킹·채팅은 이름 글자도 길드 색(.gtint) ---------- */
-:root{--gj:#6fd3b8;--gj2:#8fe8cf;--gm:#b77cff;--gm2:#cfa3ff}
+:root{--gj:#f59ac2;--gj2:#ffbfdb;--gm:#4fe08f;--gm2:#9ff2c0}
 .gem{display:inline-grid;place-items:center;width:1.05em;height:1.05em;margin-right:.28em;vertical-align:-.16em;flex:none;font-style:normal}.gem svg{width:100%;height:100%;display:block}
 .gnm{display:inline-flex;align-items:center;max-width:100%;min-width:0}.gnm u{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .gnm.g-j u{text-decoration-color:color-mix(in srgb,var(--gj) 75%,transparent)}.gnm.g-m u{text-decoration-color:color-mix(in srgb,var(--gm) 80%,transparent)}
@@ -2554,7 +2554,7 @@ b.cn.gtint{display:block}
 .gd-tt{display:inline-flex;align-items:center;padding:1px 7px;margin-left:5px;border-radius:99px;font-size:11px;font-weight:700;background:rgba(217,164,65,.14);color:#ffe09a;white-space:nowrap}
 /* 오늘의 내전 길드전 */
 .gwbtn.on{background:linear-gradient(90deg,color-mix(in srgb,var(--gj) 30%,#0b111c),color-mix(in srgb,var(--gm) 30%,#0b111c));border-color:color-mix(in srgb,var(--gm) 50%,var(--line2));color:#fff}
-.tag.gwt{display:inline-flex;align-items:center;gap:4px;background:linear-gradient(90deg,rgba(111,211,184,.16),rgba(183,124,255,.16));color:#f1e9ff}.tag.gwt .gem{margin:0}
+.tag.gwt{display:inline-flex;align-items:center;gap:4px;background:linear-gradient(90deg,rgba(245,154,194,.18),rgba(79,224,143,.16));color:#f4f0f2}.tag.gwt .gem{margin:0}
 /* 채팅 길드별 보기 */
 .ch-gf{font-size:11px;min-width:40px}.ch-gf.on{color:#fff;border-color:var(--gold)}
 /* 관리 > 길드 */
@@ -2568,3 +2568,6 @@ b.cn.gtint{display:block}
 .rcp-gdc>.gem{width:40px;height:40px;margin:0;grid-row:span 4}.rcp-gdc>b{font-size:17px}.rcp-gdc>span{display:flex;justify-content:space-between;gap:8px}.rcp-gdc em{position:absolute;top:10px;right:12px;font-style:normal;font-size:11px;font-weight:800;color:#2b1a0d;background:var(--gold);padding:2px 8px;border-radius:99px}
 .rcp-gdc.g-j.win{border-color:var(--gj);box-shadow:0 0 0 1px var(--gj) inset}.rcp-gdc.g-m.win{border-color:var(--gm);box-shadow:0 0 0 1px var(--gm) inset}
 @media (max-width:600px){.rcp-gdg{grid-template-columns:1fr}}
+.ga-roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px;margin:10px 0 14px}.ga-r{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px 6px 10px;border-radius:9px;background:var(--panel2);min-width:0}.ga-r>span:first-child{min-width:0;overflow:hidden}
+.ga-seg{display:flex;gap:2px;padding:2px;border-radius:8px;background:#070b13;flex:none}.ga-seg button{border:0;background:none;color:var(--mut);font:600 12px var(--sans);padding:6px 10px;border-radius:6px;cursor:pointer;min-height:32px}
+.ga-seg button.g-j.on{background:var(--gj);color:#2a0f1c}.ga-seg button.g-m.on{background:var(--gm);color:#03140a}.ga-mv{color:var(--gold)}

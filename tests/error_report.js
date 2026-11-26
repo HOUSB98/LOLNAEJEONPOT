@@ -4,7 +4,7 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
 (async () => {
   const b = await chromium.launch(); const seed = await makeSeed(b);
   const be = new Backend(); for (const [c, d] of Object.entries(seed)) be.seed(c, d);
-  const W = { ver: '2026-11-26a', reports: [] };
+  const W = { ver: '2026-11-26b', reports: [] };
   const mk = async (name, ctx) => {
     const p = await client(b, be, 'WORK', name, ctx ? { ctx } : {});
     await p.route(/workers\.dev/, async (r) => { const u = new URL(r.request().url()); const h = { 'Access-Control-Allow-Origin': 'https://site.test' };
@@ -44,18 +44,18 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   // 6) 관리 화면 버전 표시
   await A.evaluate(() => (location.hash = '#/admin/server')); await A.waitForTimeout(1200);
   const v1 = await A.evaluate(() => document.querySelector('.wk-ver')?.innerText);
-  ok(/연동 서버 최신 버전 \(2026-11-26a\)/.test(v1 || ''), '같은 버전: ' + v1);
+  ok(/연동 서버 최신 버전 \(2026-11-26b\)/.test(v1 || ''), '같은 버전: ' + v1);
   W.ver = '2026-11-17a';
   const B = await mk('기기B'); await open(B, 'admin'); await B.waitForTimeout(1500);
   ok(await B.evaluate(() => document.querySelector('.adm-tabs .on')?.dataset.t === 'players' && !!document.querySelector('[data-t=server] .adm-dot') && !document.querySelector('.wk-ver')), '옛 버전: 다른 탭에 있어도 서버 탭에 빨간 점');
   await B.evaluate(() => document.querySelector('[data-a=admTab][data-t=server]').click()); await B.waitForTimeout(600);
   const v2 = await B.evaluate(() => document.querySelector('.wk-ver')?.innerText.replace(/\s+/g, ' '));
-  ok(/옛 버전이에요/.test(v2 || '') && /2026-11-17a/.test(v2) && /2026-11-26a/.test(v2) && /Deploy/.test(v2), '옛 버전: ' + (v2 || '').slice(0, 120));
+  ok(/옛 버전이에요/.test(v2 || '') && /2026-11-17a/.test(v2) && /2026-11-26b/.test(v2) && /Deploy/.test(v2), '옛 버전: ' + (v2 || '').slice(0, 120));
   W.ver = '';
   await B.evaluate(() => document.querySelector('[data-a=wkVer]').click()); await B.waitForTimeout(800);
   const v3 = await B.evaluate(() => document.querySelector('.wk-ver')?.innerText.replace(/\s+/g, ' '));
   ok(/알 수 없음\(아주 옛 버전\)/.test(v3 || ''), '버전 정보가 없는 옛 Worker: ' + (v3 || '').slice(0, 80));
-  W.ver = '2026-11-26a'; await B.evaluate(() => document.querySelector('[data-a=wkVer]').click()); await B.waitForTimeout(800);
+  W.ver = '2026-11-26b'; await B.evaluate(() => document.querySelector('[data-a=wkVer]').click()); await B.waitForTimeout(800);
   ok(/최신 버전/.test(await B.evaluate(() => document.querySelector('.wk-ver')?.innerText)) && !(await B.$('[data-t=server] .adm-dot')), '다시 배포 후 "다시 확인": 최신 버전, 빨간 점 사라짐');
   // 8) 체험 모드에서는 보내지 않음
   const C = await mk('체험'); await C.goto('https://site.test/?demo#/rank'); await C.waitForFunction(() => window.NP_OK); await C.waitForTimeout(800);

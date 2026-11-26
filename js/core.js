@@ -12,10 +12,12 @@ export const pname = (id) => esc(S.st?.P[id]?.name || S.store.data.players?.[id]
 // 소속은 players/{id}.guild('j'|'m'), 소속 기록은 players/{id}.glog [{g, at, by}](경기 당시 소속 계산용). 창설일·길드장·소개·공지·비밀번호 확인값은 meta/guild.
 // 이름 옆 작은 엠블럼 + 이름 밑줄(길드 색). 랭킹·채팅은 이름 글자도 길드 색(.gtint). 창설 전에는 아무것도 붙지 않는다
 export const GUILDS = {
-  j: { k: 'j', n: '정파', h: '正派', en: 'ORTHODOX SECTS', lead: '맹주', intro: '검은 바르게, 승리는 당당하게. 정도(正道)를 걷는 자들의 문파' },
+  j: { k: 'j', n: '정파', h: '正派', en: 'ORTHODOX SECTS', lead: '맹주', intro: '매화는 꺾이지 않는다. 정도(正道)를 걷는 자들의 문파' },
   m: { k: 'm', n: '마교', h: '魔敎', en: 'DEMONIC CULT', lead: '교주', intro: '천마신교의 이름 아래, 오직 승리만을 숭상한다' },
 };
 export const GK = ['j', 'm'];
+export const GPAGE = { j: 'jeongpa', m: 'magyo' }; // 길드마다 다른 화면(주소 #/jeongpa · #/magyo)
+export const ghref = (g) => '#/' + (GPAGE[g] || 'jeongpa');
 export const guildMeta = () => S.store?.data?.meta?.guild || null;
 export const guildOn = () => !!guildMeta()?.at;
 export const gOf = (id) => (guildOn() && GUILDS[S.store.data.players?.[id]?.guild] ? S.store.data.players[id].guild : '');
@@ -27,8 +29,8 @@ export function gAt(id, t) {
   return g || (lg.length ? '' : gOf(id));
 }
 export const GEM = {
-  j: '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7.1" fill="#0c2622" stroke="#6fd3b8" stroke-width="1.1"/><path d="M8 2.6v8.2" stroke="#effff9" stroke-width="1.5" stroke-linecap="round"/><path d="M5.4 9.6h5.2M8 11v2.4" stroke="#6fd3b8" stroke-width="1.3" stroke-linecap="round"/></svg>',
-  m: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 .9 15.1 8 8 15.1.9 8z" fill="#1c0d27" stroke="#b77cff" stroke-width="1.1" stroke-linejoin="round"/><path d="M8 3.6c1.7 2 2.7 3.1 2.7 4.8a2.7 2.7 0 0 1-5.4 0c0-1.300.8-2.100 1.500-2.700.1 1 .5 1.500 1 1.700C7.500 6.300 7.600 5 8 3.600z" fill="#ff5c86"/></svg>',
+  j: '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="3.900" r="3" fill="#f7a9c9"/><circle cx="11.900" cy="6.700" r="3" fill="#f59ac2"/><circle cx="10.400" cy="11.300" r="3" fill="#f7a9c9"/><circle cx="5.600" cy="11.300" r="3" fill="#f59ac2"/><circle cx="4.100" cy="6.700" r="3" fill="#f7a9c9"/><circle cx="8" cy="7.900" r="2" fill="#ffd66e"/></svg>',
+  m: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 .7 15.300 8 8 15.300.7 8z" fill="#030604" stroke="#4fe08f" stroke-width="1.100" stroke-linejoin="round"/><path d="M8 3.200c1.600 1.900 2.500 3 2.500 4.600a2.500 2.500 0 0 1-5 0c0-1.200.6-2 1.400-2.600.1.900.5 1.400 1 1.600-.3-1.300-.2-2.500.1-3.600z" fill="#4fe08f"/><path d="M5.900 10.600h1.500M8.600 10.600h1.500" stroke="#ff2a3c" stroke-width="1.100" stroke-linecap="round"/></svg>',
 };
 export const gem = (g) => (GUILDS[g] ? `<i class="gem g-${g}" title="${GUILDS[g].n}">${GEM[g]}</i>` : '');
 export const gmark = (id) => gem(gOf(id));
@@ -38,6 +40,8 @@ export const gname = (id, name) => { const g = gOf(id), t = esc(name ?? (S.st?.P
 // ---------- 아이콘 (선형 SVG) ----------
 const I = {
   recap: '<path d="M4 11h16v10H4zM3 7h18v4H3zM12 7v14M12 7C10.500 4 7 3.200 7 5.300S10 7 12 7zm0 0c1.500-3 5-3.800 5-1.700S14 7 12 7z"/>',
+  jeongpa: '<circle cx="12" cy="6.500" r="3.300"/><circle cx="17.200" cy="10.300" r="3.300"/><circle cx="15.200" cy="16.400" r="3.300"/><circle cx="8.800" cy="16.400" r="3.300"/><circle cx="6.800" cy="10.300" r="3.300"/><circle cx="12" cy="12" r="1.400"/>',
+  magyo: '<path d="M12 2.500c3 3.500 5 6 5 9.500a5 5 0 0 1-10 0c0-2.500 1.200-4.200 2.800-5.300.3 1.700 1.100 2.600 2 2.900-.6-2.500-.3-4.900.2-7.100z"/><path d="M5 21c2-1.500 4.500-2.200 7-2.200s5 .7 7 2.200"/>',
   guild: '<path d="M5 21V3M5 4h13l-3 4.500L18 13H5"/><path d="M9 7.500h4"/>',
   home: '<path d="M3 10.5 12 3l9 7.500V21h-6v-6H9v6H3z"/>',
   rank: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
@@ -159,7 +163,7 @@ export const NAV = [
   ['home', '홈'], ['me', '내 페이지'],
   ['', '내전'], ['today', '오늘의 내전'], ['matches', '경기 기록'], ['auction', '팀 경매'], ['replay', '리플레이 분석'],
   ['', '기록·분석'], ['rank', '랭킹'], ['players', '선수 카드'], ['champs', '챔피언'], ['chem', '케미'], ['scores', '점수 변동'], ...(recapSeason() ? [['recap', '연말 결산']] : []),
-  ['', '길드'], ['guild', '정파 · 마교'],
+  ['', '길드'], ['jeongpa', '정파'], ['magyo', '마교'],
   ['', '즐길 거리'], ['gacha', '가챠'], ['talk', '익명 게시판'],
 ];
 // 거의 안 쓰는 화면: PC는 왼쪽 메뉴 맨 아래 작은 버튼 줄, 휴대폰은 메뉴 창 맨 아래 묶음

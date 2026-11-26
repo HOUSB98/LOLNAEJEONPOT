@@ -8,7 +8,7 @@ export const hookOn = () => !!WORKER_URL && S.store?.mode === 'firebase';
 const base = () => WORKER_URL.replace(/\/+$/, '');
 
 // 연동 서버 버전: worker/worker.js 의 WORKER_VER 와 같아야 한다(Worker를 고치면 둘 다 올린다). 관리 화면이 비교해서 '옛 버전' 경고를 띄운다.
-export const WORKER_VER = '2026-11-26a';
+export const WORKER_VER = '2026-11-26b';
 const VER = { at: 0, p: null };
 // 배포된 연동 서버의 버전을 확인한다(주소 GET /, Firestore 사용 없음). 10분 동안은 다시 묻지 않는다. { ver } 또는 { error }
 export function workerVer(force) {
