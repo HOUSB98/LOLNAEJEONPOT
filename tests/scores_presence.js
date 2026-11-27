@@ -76,19 +76,19 @@ const SHOT = process.env.SHOT; // 폴더를 주면 화면을 찍어 둔다
   const total = await A.$eval('#presence .pcount b', (e) => +e.textContent);
   ok(faces === 5 && more === '+' + (total - 5), `얼굴 5개 겹침 + ${more} (접속 ${total}명)`);
   ok(await A.$eval('#presence', (e) => e.scrollHeight <= e.clientHeight + 1), '접속자 칸에 스크롤 없음');
-  await A.hover('#rail [data-fly=on]'); await A.waitForTimeout(450); await A.click('#presence .prf'); await A.waitForTimeout(300);
+  await A.waitForTimeout(300); // PC 레일 접속자 창은 열 때 전체 목록이 바로 펼쳐짐(누를 필요 없음)
   const pop = await A.$$eval('.prpop-l button', (bs) => bs.map((x) => x.querySelector('span').textContent));
   ok(pop.length === total && pop[0] === 'A', `작은 창: ${pop.length}명, 나(A) 맨 위`);
   const rest = pop.slice(1), sorted = [...rest].sort((a, c) => a.localeCompare(c, 'ko', { numeric: true }));
   ok(JSON.stringify(rest) === JSON.stringify(sorted), '나머지 가나다순');
-  const box = await A.$eval('.prpop', (e) => { const r = e.getBoundingClientRect(), q = document.getElementById('presence').getBoundingClientRect(); return r.bottom <= q.top && r.top >= 0; });
-  ok(box, '창이 접속자 칸 위쪽, 화면 안');
+  const box = await A.evaluate(() => { const r = document.querySelector('.prpop').getBoundingClientRect(), f = document.getElementById('fly').getBoundingClientRect(), b = document.querySelector('#rail [data-fly=on]').getBoundingClientRect(); return r.top >= f.top && r.bottom <= f.bottom && f.top >= 0 && f.left >= b.right && Math.abs(f.bottom - b.bottom) < 2; });
+  ok(box, '접속자 창은 레일 숫자 바로 오른쪽(아래 끝 맞춤), 목록이 창 안에 다 보임(잘림 없음)');
   if (SHOT) await A.screenshot({ path: SHOT + '/presence_pc.png' });
   await A.mouse.click(800, 400); await A.waitForTimeout(200);
   ok(!(await A.$('.prpop')), '바깥을 누르면 닫힘');
-  await A.hover('#rail [data-fly=on]'); await A.waitForTimeout(450); await A.click('#presence .prf'); await A.waitForTimeout(200); await A.keyboard.press('Escape'); await A.waitForTimeout(200);
+  await A.hover('#rail [data-fly=on]'); await A.waitForTimeout(450); if (!(await A.$('.prpop'))) await A.click('#presence .prf'); await A.waitForTimeout(200); await A.keyboard.press('Escape'); await A.waitForTimeout(200);
   ok(!(await A.$('.prpop')), 'Esc로 닫힘');
-  await A.hover('#rail [data-fly=on]'); await A.waitForTimeout(450); await A.click('#presence .prf'); await A.waitForTimeout(200);
+  await A.hover('#rail [data-fly=on]'); await A.waitForTimeout(450); if (!(await A.$('.prpop'))) await A.click('#presence .prf'); await A.waitForTimeout(200); // 창을 다시 열면 목록이 펼쳐진 상태(이미 열려 있으면 그대로)
   await B.close(); await A.waitForTimeout(1500);
   ok(!!(await A.$('.prpop')), '접속자가 바뀌어도 열린 창 유지');
 

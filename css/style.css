@@ -2689,12 +2689,12 @@ body.lite .gwind{animation:none}
 #rail .rl-on b{font-size:16px;color:#e8ecf4;line-height:1}#rail .rl-on small{font:700 8.5px var(--mono);color:#7fe0a8;letter-spacing:.06em}
 #fly{position:fixed;left:76px;top:0;bottom:0;width:286px;z-index:60;padding:16px 14px;overflow-y:auto;background:linear-gradient(180deg,#0b1120,#070b14);border-right:1px solid var(--line2);box-shadow:24px 0 60px -20px rgba(0,0,0,.8);opacity:0;transform:translateX(-8px);pointer-events:none;transition:opacity .16s ease,transform .16s ease}
 #fly.on{opacity:1;transform:none;pointer-events:auto}
-#fly.low{bottom:auto;max-height:min(520px,calc(100vh - 16px));border:1px solid var(--line2);border-radius:14px;left:84px}
+#fly.low{top:auto;max-height:calc(100vh - 16px);border:1px solid var(--line2);border-radius:14px;left:84px}
 #fly h3{margin:2px 6px 12px;font:800 12px var(--mono);letter-spacing:.2em;color:var(--gold)}
 #fly>a{display:grid;grid-template-columns:38px 1fr;align-items:center;gap:1px 12px;padding:9px 10px;border-radius:12px;color:var(--text);text-decoration:none}
 #fly>a i.fi{grid-row:span 2;width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:rgba(255,255,255,.04);border:1px solid var(--line2);color:var(--gold2)}#fly>a i.fi .ic,#fly>a i.fi .gem{width:18px;height:18px;margin:0}
 #fly>a b{font-size:14.5px}#fly>a small{font-size:11.5px}#fly>a:hover,#fly>a.on{background:rgba(217,164,65,.1)}#fly>a.on b{color:var(--gold2)}
-#fly #presence{max-height:none}#fly .side-mini{display:flex;gap:6px;margin:0 0 10px}#fly .sidefoot{display:flex;flex-direction:column;align-items:stretch;gap:6px}
+#fly #presence{max-height:none;padding:0;border:0;background:none}#fly #presence .prpop{position:static;max-height:min(52vh,420px);margin:0 0 8px;box-shadow:none;animation:none}#fly #presence .prpop-l{max-height:min(44vh,360px)}#fly[data-k=on] h3,#fly #presence .prpop-h{display:none} /* 접속자 창: '접속 중' 제목이 세 번 겹치지 않게 숫자 줄만 */#fly .side-mini{display:flex;gap:6px;margin:0 0 10px}#fly .sidefoot{display:flex;flex-direction:column;align-items:stretch;gap:6px}
 @media (max-width:860px){#rail,#fly{display:none!important}}
 /* 합친 화면 위쪽 탭(문파·랭킹·경기 기록) */
 .subnav{display:flex;gap:4px;margin:0 0 14px;padding:3px;width:max-content;max-width:100%;overflow-x:auto;scrollbar-width:none;border:1px solid var(--line2);border-radius:11px;background:var(--panel)}.subnav::-webkit-scrollbar{display:none}
