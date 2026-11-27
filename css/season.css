@@ -39,6 +39,12 @@ body.xmas .panel,body.xmas .stat{border-color:color-mix(in srgb,var(--line) 75%,
 body.lite #xsky *{animation:none!important}
 /* 트리: 더 화려하게 + 살짝 더 투명하게 */
 /* ---------- 시즌 장식(새해: 불꽃놀이·풍등) ---------- */
+/* 새해 시작 화면: 평소 배경 그림 위로 불꽃놀이 캔버스 + 풍등 */
+#splash.ny>canvas{display:none}
+.ny-scene{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.ny-scene canvas{position:absolute;inset:0;width:100%;height:100%}
+#splash.ny .sp-box{z-index:2}#splash.ny .sp-skip,#splash.ny .sp-collab{z-index:2}
+@media (prefers-reduced-motion:reduce){.ny-scene .ny-lan{display:none}}
 .ny-lan,.nk-lan{position:absolute;inset:0;overflow:hidden}
 .ny-l,.nk-l{position:absolute;bottom:-70px;width:calc(46px * var(--s));animation:nyrise var(--d) linear var(--dl) infinite;filter:drop-shadow(0 0 12px rgba(255,190,90,.75)) drop-shadow(0 0 26px rgba(255,150,60,.35))}
 .ny-l svg,.nk-l svg{display:block;width:100%;animation:nysway 3.6s ease-in-out infinite alternate}

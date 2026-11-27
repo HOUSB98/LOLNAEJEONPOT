@@ -1,5 +1,5 @@
 // 환영 인트로, 닉네임, 접속자 표시, 공용 채팅
-import { gname, gOf, guildOn, GUILDS, gem, S, act, esc, uid, col, settings, toast, modal, closeModal, mh, ic, logo, needAdmin, swipeZone, LANE_ICON, LANE_COLOR, LANE_NAME } from './core.js';
+import { gname, gOf, guildOn, GUILDS, gem, S, act, esc, uid, col, settings, toast, modal, closeModal, mh, ic, needAdmin, swipeZone, LANE_ICON, LANE_COLOR, LANE_NAME } from './core.js';
 import { xmasOn, inSeason, SEASON } from './season.js'; // 장식 모듈(SEASON.x·n)은 시즌에만 받아진다
 import { hookOn, USAGE, loadUsage, won, kfmt } from './hook.js';
 import { KAKAO_JS_KEY } from './config.js';
@@ -327,21 +327,23 @@ function splash() {
   if (sessionStorage.getItem('naejeon:welcomed') && nick()) { el.remove(); return; }
   const first = !nick(), name = settings().leagueName || '친구 내전 리그';
   el.innerHTML = `<canvas></canvas><div class="sp-rays"></div>
-    <div class="sp-box"><div class="sp-mark"><i class="sp-glow"></i>${logo(true, 148)}<i class="sp-shine"></i></div>
-      <div class="sp-word">${[...'NAEJEON'].map((c, i) => `<span style="--i:${i}">${c}</span>`).join('')}${[...'POT'].map((c, i) => `<i style="--i:${i + 7}">${c}</i>`).join('')}</div>
+    <div class="sp-box"><div class="sp-logo"><i class="sp-glow"></i><img src="img/logo.webp" alt="NAEJEONPOT" width="960" height="339" decoding="async" fetchpriority="high" onerror="this.parentNode.classList.add('noimg')"><i class="sp-shine"></i>
+      <div class="sp-word" aria-hidden="true">${[...'NAEJEON'].map((c, i) => `<span style="--i:${i}">${c}</span>`).join('')}${[...'POT'].map((c, i) => `<i style="--i:${i + 7}">${c}</i>`).join('')}</div></div>
       <p class="sp-sub">${first ? '소환사의 협곡에 오신 것을 환영합니다' : `${esc(nick())} 님, 다시 오셨군요`}</p>
       <p class="sp-league">${esc(name)}</p>
       ${first ? `<form id="spf"><input id="spn" class="inp" maxlength="12" placeholder="닉네임을 입력하세요" autocomplete="off"><button class="btn pri">입장</button></form>` : '<div class="sp-bar"><i></i></div>'}
     </div>${KAKAO_JS_KEY ? SP_KK : ''}<small class="sp-skip">${first ? '닉네임은 접속자 목록과 채팅에 표시됩니다' : '화면을 누르면 바로 입장합니다'}</small>`;
   el.classList.add('on'); el.classList.remove('boot');
   SEASON.x?.splashScene(el); // 크리스마스 장식 기간이면 배경 그림 위로 반짝이는 산타 썰매·루돌프
-  // 기본 불씨 캔버스는 크리스마스(썰매)에서는 돌리지 않는다(동시에 움직이는 것을 줄여 인트로가 끊기지 않게)
-  const stop = el.classList.contains('xs') ? () => {} : embers(el.querySelector('canvas'));
+  SEASON.n?.nySplash(el); // 새해(1/1~1/15)면 배경 그림 위로 불꽃놀이·풍등
+  // 기본 불씨 캔버스는 시즌 장식(크리스마스 썰매·새해 불꽃)과 함께 돌리지 않는다(동시에 움직이는 것을 줄여 인트로가 끊기지 않게)
+  const season = el.classList.contains('xs') || el.classList.contains('ny');
+  const stop = season ? () => {} : embers(el.querySelector('canvas'));
   const close = () => { if (el.dataset.done) return; el.dataset.done = 1; sessionStorage.setItem('naejeon:welcomed', '1'); el.classList.add('out'); setTimeout(() => { stop(); el.remove(); }, 850); };
   if (first) {
     setTimeout(() => el.querySelector('#spn')?.focus(), 1900);
     el.querySelector('#spf').onsubmit = (e) => { e.preventDefault(); if (setNick(el.querySelector('#spn').value)) close(); };
-  } else { setTimeout(close, el.classList.contains('xs') ? 5600 : 3600); el.addEventListener('click', close); } // 시즌 장식 땐 썰매가 지나갈 만큼 조금 더 보여 준다
+  } else { setTimeout(close, season ? 5600 : 3600); el.addEventListener('click', close); } // 시즌 장식 땐 썰매가 지나갈 만큼 조금 더 보여 준다
 }
 
 export function initSocial() {
