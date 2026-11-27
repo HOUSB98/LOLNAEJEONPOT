@@ -362,12 +362,12 @@ page('rank', {
     // 시즌 순위: 순위에 든 사람(2/3 이상 출전) 승률 순 → 아직 덜 뛴 사람은 판수 순으로 아래에
     const rows = srk ? [...ss.ranked.filter((s) => s.g >= LB.min), ...base.filter((s) => !s.srk).sort((a, b) => b.g - a.g || b.ovr - a.ovr)]
       : base.sort((a, b) => LB.dir * (sortCol[2](a) - sortCol[2](b)) || b.ovr - a.ovr);
-    // 상단 TOP 3 카드: 시즌 순위면 순위에 든 1~3위(승률), 아니면 지금 정렬 기준의 1~3위(OVR)
+    // 상단 TOP 3 카드: 시즌 순위면 순위에 든 1~3위, 아니면 지금 정렬 기준의 1~3위. 큰 숫자는 늘 OVR(승률은 아래 줄)
     const medal = ['CHAMPION', 'RUNNER-UP', 'THIRD'], top = srk ? ss.ranked.slice(0, 3) : rows.slice(0, 3);
     const spot = top.map((s, i) => `<a class="spot s${i + 1}" href="#/players/${s.id}" style="--img:url('${artUrl(sig(s))}');--d:${i}">
       <span class="sp-rk mono">${i + 1}</span><small>${medal[i]}</small><b>${gname(s.id, s.name)}</b>
-      <span class="sp-meta">${LANE_ICON[s.mainLane]}${LANE_NAME[s.mainLane]}<i></i>${s.g ? `${srk ? `${s.w}승 ${s.g - s.w}패` : `${s.wr}%`} · ${s.g}판` : '출전 없음'}${T(s)[0] ? `<i></i>${T(s)[0].e} ${T(s)[0].n}` : ''}</span>
-      <span class="sp-val">${srk ? `<em class="mono">${s.wr}%</em><small>승률</small>` : `<em class="mono">${s.ovr}</em><small>OVR</small>`}</span></a>`).join('');
+      <span class="sp-meta">${LANE_ICON[s.mainLane]}${LANE_NAME[s.mainLane]}<i></i>${s.g ? `${s.wr}% · ${s.g}판` : '출전 없음'}${T(s)[0] ? `<i></i>${T(s)[0].e} ${T(s)[0].n}` : ''}</span>
+      <span class="sp-val"><em class="mono">${s.ovr}</em><small>OVR</small></span></a>`).join('');
     const rk = (s, i) => (srk ? (s.srk ? `<span class="rkb r${s.srk}">${s.srk}</span>` : '<span class="rkb unr" title="시즌 순위 기준 판수 미달">–</span>') : `<span class="rkb r${i + 1}">${i + 1}</span>`);
     const topCls = (s, i) => (srk ? (s.srk && s.srk <= 3 ? 'top t' + s.srk : s.srk ? '' : 'unr') : i < 3 ? 'top t' + (i + 1) : '');
     return `<div class="h2row"><h1>${ic('rank')}랭킹</h1><span class="tag gold">${ss ? `SEASON ${szNo(szk)}` : 'ALL-TIME'}</span><span class="grow"></span>
