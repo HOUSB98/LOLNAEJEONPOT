@@ -2546,7 +2546,7 @@ body.bd-open>:not(#modal):not(#toast),body.bd-open>:not(#modal):not(#toast) *,bo
 .np-mbar{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:9000;padding:5px 12px;border-radius:99px;background:rgba(217,164,65,.92);color:#2b1a0d;font-size:11.5px;font-weight:800;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.4)}
 @media (max-width:860px){.np-mbar{bottom:auto;top:8px}}
 /* ---------- 길드(정파·마교) 공통 표시: 이름 옆 엠블럼 + 밑줄(길드 색). 랭킹·채팅은 이름 글자도 길드 색(.gtint) ---------- */
-:root{--gj:#f59ac2;--gj2:#ffbfdb;--gm:#4fe08f;--gm2:#9ff2c0}
+:root{--gj:#f59ac2;--gj2:#ffbfdb;--gm:#a065e4;--gm2:#d3b5f5}
 .gem{display:inline-grid;place-items:center;width:1.05em;height:1.05em;margin-right:.28em;vertical-align:-.16em;flex:none;font-style:normal}.gem svg{width:100%;height:100%;display:block}
 .gnm{display:inline-flex;align-items:center;max-width:100%;min-width:0}.gnm u{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .gnm.g-j u{text-decoration-color:color-mix(in srgb,var(--gj) 75%,transparent)}.gnm.g-m u{text-decoration-color:color-mix(in srgb,var(--gm) 80%,transparent)}
@@ -2573,7 +2573,7 @@ b.cn.gtint{display:block}
 .gd-tt{display:inline-flex;align-items:center;padding:1px 7px;margin-left:5px;border-radius:99px;font-size:11px;font-weight:700;background:rgba(217,164,65,.14);color:#ffe09a;white-space:nowrap}
 /* 오늘의 내전 길드전 */
 .gwbtn.on{background:linear-gradient(90deg,color-mix(in srgb,var(--gj) 30%,#0b111c),color-mix(in srgb,var(--gm) 30%,#0b111c));border-color:color-mix(in srgb,var(--gm) 50%,var(--line2));color:#fff}
-.tag.gwt{display:inline-flex;align-items:center;gap:4px;background:linear-gradient(90deg,rgba(245,154,194,.18),rgba(79,224,143,.16));color:#f4f0f2}.tag.gwt .gem{margin:0}
+.tag.gwt{display:inline-flex;align-items:center;gap:4px;background:linear-gradient(90deg,rgba(245,154,194,.18),rgba(160,101,228,.16));color:#f4f0f2}.tag.gwt .gem{margin:0}
 /* 채팅 길드별 보기 */
 .ch-gf{font-size:11px;min-width:40px}.ch-gf.on{color:#fff;border-color:var(--gold)}
 /* 관리 > 길드 */
@@ -2589,11 +2589,11 @@ b.cn.gtint{display:block}
 @media (max-width:600px){.rcp-gdg{grid-template-columns:1fr}}
 .ga-roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px;margin:10px 0 14px}.ga-r{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px 6px 10px;border-radius:9px;background:var(--panel2);min-width:0}.ga-r>span:first-child{min-width:0;overflow:hidden}
 .ga-seg{display:flex;gap:2px;padding:2px;border-radius:8px;background:#070b13;flex:none}.ga-seg button{border:0;background:none;color:var(--mut);font:600 12px var(--sans);padding:6px 10px;border-radius:6px;cursor:pointer;min-height:32px}
-.ga-seg button.g-j.on{background:var(--gj);color:#2a0f1c}.ga-seg button.g-m.on{background:var(--gm);color:#03140a}.ga-mv{color:var(--gold)}
+.ga-seg button.g-j.on{background:var(--gj);color:#2a0f1c}.ga-seg button.g-m.on{background:var(--gm);color:#0b0314}.ga-mv{color:var(--gold)}
 /* 공지 창(길드 창설 안내) */
 .sheet.np-popw{max-width:460px;padding:0;overflow:hidden}
-.np-pop{display:flex;flex-direction:column;gap:10px;padding:24px 24px 20px;background:radial-gradient(90% 60% at 20% 0,rgba(245,154,194,.16),transparent 60%),radial-gradient(90% 60% at 80% 0,rgba(79,224,143,.13),transparent 60%),var(--panel)}
-.npp-top{display:flex;align-items:center;justify-content:center;gap:14px}.npp-top .gem{width:46px;height:46px;margin:0}.npp-top i{font:800 13px var(--mono);letter-spacing:.2em;color:var(--gold);font-style:normal}
+.np-pop{display:flex;flex-direction:column;gap:10px;padding:24px 24px 20px;background:radial-gradient(90% 60% at 20% 0,rgba(245,154,194,.16),transparent 60%),radial-gradient(90% 60% at 80% 0,rgba(160,101,228,.13),transparent 60%),var(--panel)}
+.npp-top{display:flex;align-items:center;justify-content:center;gap:14px}.npp-top .gem{width:46px;height:46px;margin:0}.npp-top .npp-lg{width:58px;height:58px;object-fit:contain}.npp-top i{font:800 13px var(--mono);letter-spacing:.2em;color:var(--gold);font-style:normal}
 .npp-k{text-align:center;font:700 11px var(--mono);letter-spacing:.24em;color:var(--gold)}
 .np-pop h2{justify-content:center;text-align:center;font-size:20px;line-height:1.35}
 .np-pop p{margin:0;line-height:1.7}.np-pop ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px;line-height:1.6;font-size:13.5px;color:#d7dce6}
@@ -2612,27 +2612,27 @@ b.cn.gtint{display:block}
 #chat.gt-j #xsky,#chat.gt-m #xsky,#chat.gt-j .xswag,#chat.gt-m .xswag,#chat.gt-j::after,#chat.gt-m::after{display:none!important}
 #chat.gt-j .cb::after,#chat.gt-m .cb::after,#chat.gt-j .cb::before,#chat.gt-m .cb::before{display:none!important}
 #chat.gt-j{background:radial-gradient(5px 4px at 12% 18%,rgba(247,169,201,.55),transparent),radial-gradient(4px 3px at 82% 32%,rgba(247,169,201,.45),transparent),radial-gradient(5px 4px at 30% 64%,rgba(247,169,201,.4),transparent),radial-gradient(4px 3px at 68% 82%,rgba(247,169,201,.5),transparent),radial-gradient(3px 3px at 90% 58%,rgba(255,214,110,.45),transparent),radial-gradient(120% 50% at 50% 0,rgba(245,154,194,.18),transparent 60%),linear-gradient(180deg,#1f1220,#140c16 55%,#0f0912)!important}
-#chat.gt-m{background:radial-gradient(3px 3px at 15% 70%,rgba(125,255,176,.6),transparent),radial-gradient(2px 2px at 78% 60%,rgba(125,255,176,.5),transparent),radial-gradient(3px 3px at 42% 85%,rgba(255,68,88,.55),transparent),radial-gradient(2px 2px at 88% 82%,rgba(125,255,176,.45),transparent),radial-gradient(120% 40% at 50% 100%,rgba(31,191,99,.16),transparent 70%),radial-gradient(100% 30% at 50% 0,rgba(224,48,63,.12),transparent 70%),linear-gradient(180deg,#050907,#030604)!important}
+#chat.gt-m{background:radial-gradient(3px 3px at 15% 70%,rgba(200,156,250,.6),transparent),radial-gradient(2px 2px at 78% 60%,rgba(200,156,250,.5),transparent),radial-gradient(3px 3px at 42% 85%,rgba(255,68,88,.55),transparent),radial-gradient(2px 2px at 88% 82%,rgba(200,156,250,.45),transparent),radial-gradient(120% 40% at 50% 100%,rgba(111,32,200,.16),transparent 70%),radial-gradient(100% 30% at 50% 0,rgba(224,48,63,.12),transparent 70%),linear-gradient(180deg,#050907,#030604)!important}
 #chat.gt-j header,#chat.gt-j .ch-tabs{background:rgba(30,18,32,.92)}#chat.gt-m header,#chat.gt-m .ch-tabs{background:rgba(5,10,7,.94)}
 #chat.gt-j .cb{color:#fbeef3;border:1px solid rgba(245,154,194,.35)!important;background:linear-gradient(170deg,#3a2034,#28162a)!important;box-shadow:0 8px 18px -12px #000!important;text-shadow:none}
 #chat.gt-j .cm.me .cb{color:#2a0f1c;border-color:rgba(255,214,230,.6)!important;background:linear-gradient(170deg,#f7a9c9,#d9789f)!important}
-#chat.gt-m .cb{color:#dff5e7;border:1px solid rgba(79,224,143,.3)!important;border-radius:4px!important;background:linear-gradient(170deg,#0c1a12,#07100b)!important;box-shadow:0 8px 18px -12px #000,inset 0 0 12px rgba(79,224,143,.08)!important;text-shadow:none}
+#chat.gt-m .cb{color:#f6f2fb;border:1px solid rgba(160,101,228,.3)!important;border-radius:4px!important;background:linear-gradient(170deg,#130c1a,#0b0710)!important;box-shadow:0 8px 18px -12px #000,inset 0 0 12px rgba(160,101,228,.08)!important;text-shadow:none}
 #chat.gt-m .cm.me .cb{color:#ffe6e9;border-color:rgba(224,48,63,.55)!important;background:linear-gradient(170deg,#3a0d14,#22070c)!important}
-#chat.gt-j .cn .gnm u{color:#ffc9de}#chat.gt-m .cn .gnm u{color:#9ff2c0}
-#chat.gt-j #chatinp{border-color:rgba(245,154,194,.35)}#chat.gt-m #chatinp{border-color:rgba(79,224,143,.3);border-radius:4px}
+#chat.gt-j .cn .gnm u{color:#ffc9de}#chat.gt-m .cn .gnm u{color:#d3b5f5}
+#chat.gt-j #chatinp{border-color:rgba(245,154,194,.35)}#chat.gt-m #chatinp{border-color:rgba(160,101,228,.3);border-radius:4px}
 /* 왼쪽 메뉴 정파·마교 엠블럼 */
 .gem.nvg{width:18px;height:18px;margin:0;vertical-align:-3px}
 /* 홈 포고문 */
 .gd-ban{display:flex;align-items:center;gap:10px;margin:0 0 10px;padding:10px 16px;border-radius:12px;font-size:14px}.gd-ban .gem{width:22px;height:22px;margin:0}.gd-ban small{font-weight:800;white-space:nowrap}.gd-ban b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gd-ban.g-j{background:linear-gradient(90deg,rgba(245,154,194,.22),rgba(245,154,194,.04));border:1px solid rgba(245,154,194,.45)}.gd-ban.g-j small{color:var(--gj2)}
-.gd-ban.g-m{background:linear-gradient(90deg,rgba(79,224,143,.18),rgba(224,48,63,.06));border:1px solid rgba(79,224,143,.4)}.gd-ban.g-m small{color:var(--gm2)}
+.gd-ban.g-m{background:linear-gradient(90deg,rgba(160,101,228,.18),rgba(224,48,63,.06));border:1px solid rgba(160,101,228,.4)}.gd-ban.g-m small{color:var(--gm2)}
 .ga-arc td,.ga-arc th{white-space:nowrap;font-size:12.5px}.ga-arc tr.now td{background:rgba(217,164,65,.06)}.ga-arc .gem{width:14px;height:14px}
 .ga-seg button.g-x.on{background:#2a3446;color:#e8ecf4}
 /* 팀 구성하기: 버튼 묶음(휴대폰에서 줄이 바뀌면 오른쪽 끝에 붙음) + 정마대전 버튼(늘 보임, 양 팀이 각각 한 문파로만 구성되면 빛남) */
 .td-acts{display:flex;align-items:center;gap:inherit;margin-left:auto;flex-wrap:wrap;justify-content:flex-end}
 .td-h{flex-wrap:wrap}.gwind{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;font:800 13px var(--sans);color:var(--mut);background:rgba(255,255,255,.04);border:1px solid var(--line);cursor:pointer;transition:background .3s,border-color .3s,color .3s}
 .gwind .gem{opacity:.55;filter:grayscale(.6);transition:opacity .3s,filter .3s}.gwind:hover{border-color:rgba(255,230,170,.35)}
-.gwind.on{color:#fff;background:linear-gradient(90deg,rgba(245,154,194,.32),rgba(79,224,143,.3));border-color:rgba(255,230,170,.55);animation:gwglow 1.8s ease-in-out infinite}.gwind.on .gem{opacity:1;filter:none}
+.gwind.on{color:#fff;background:linear-gradient(90deg,rgba(245,154,194,.32),rgba(160,101,228,.3));border-color:rgba(255,230,170,.55);animation:gwglow 1.8s ease-in-out infinite}.gwind.on .gem{opacity:1;filter:none}
 .gwind .gem{width:18px;height:18px;margin:0}
 @keyframes gwglow{0%,100%{box-shadow:0 0 6px 0 rgba(243,210,122,.35)}50%{box-shadow:0 0 18px 3px rgba(243,210,122,.6)}}
 body.lite .gwind{animation:none}
