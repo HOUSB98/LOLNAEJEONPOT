@@ -45,6 +45,8 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   ok(rk.tag === 'SEASON 0' && /S0/.test(rk.on) && /진행 중/.test(rk.on), '랭킹 기본은 이번 시즌(S0 진행 중)');
   ok(rk.rule.includes(`최다 출전 ${want.max}판의 2/3인 ${want.need}판 이상`) && rk.rule.includes('승률 순'), '순위 기준 문구(작게): ' + rk.rule);
   ok(rk.first === '1' && rk.unr === want.unr && (await A.$eval('.spot.s1 b', (e) => e.innerText)) === want.top, `시즌 1위가 맨 위·TOP 카드, 기준 미달 ${want.unr}명은 순위 없이 아래`);
+  const sv = await A.evaluate(() => ({ big: document.querySelector('.spot.s1 .sp-val small')?.textContent, meta: document.querySelector('.spot.s1 .sp-meta')?.innerText }));
+  ok(sv.big === 'OVR' && /%/.test(sv.meta), 'TOP 카드 큰 숫자는 시즌에서도 OVR(승률은 아랫줄): ' + JSON.stringify(sv));
   await A.click('.sz-seg button[data-v=all]'); await A.clock.runFor(600);
   const all = await A.evaluate(async () => { const { S } = await import('/js/core.js'); const ovr = [...document.querySelectorAll('.tbl.lb tbody tr')].map((t) => +t.querySelector('.ovr')?.innerText); return { tag: document.querySelector('.h2row .tag.gold').innerText, sorted: ovr.every((v, i) => i === 0 || ovr[i - 1] >= v), n: ovr.length, total: S.st.list.filter((s) => s.g >= 1).length }; });
   ok(all.tag === 'ALL-TIME' && all.sorted && all.n === all.total, '통산으로 바꾸면 예전처럼 OVR 순(전체 기간)');
