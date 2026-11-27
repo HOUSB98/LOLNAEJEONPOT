@@ -17,5 +17,5 @@ export const WORKER_URL = 'https://naejeonpot.idairo0401.workers.dev';
 // 카카오 개발자 콘솔에 등록한 사이트 주소(https://housb98.github.io)에서만 동작한다. 비워 두면 카톡 공유 버튼이 숨는다.
 export const KAKAO_JS_KEY = '6316315a1de926afd006fa59bc5bcf1c';
 
-// 점검 모드: true면 관리자 PIN을 넣은 사람만 들어올 수 있다(다른 접속자에게는 '점검 중' 화면). 공개할 때 false로 바꾸고 index.html의 V를 올린다.
+// 폐쇄(점검) 모드: true면 관리자 PIN을 넣은 사람만 들어올 수 있다(다른 접속자에게는 '사이트 폐쇄' 화면, 열어 둔 화면도 10분 안에 막힘). 공개할 때 false로 바꾸고 index.html의 V를 올린다.
 export const MAINT = true;
