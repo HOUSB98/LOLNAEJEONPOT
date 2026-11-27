@@ -660,6 +660,18 @@ i.live::after,.pcount i::after{content:"";position:absolute;inset:0;border-radiu
 .rkb{display:inline-grid;place-items:center;min-width:28px;height:28px;font-size:14px;border-radius:8px;transition:.25s}
 .rkb.r1,.rkb.r2,.rkb.r3{color:#141006;font-size:15px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);border-radius:0;width:28px;height:31px}
 .rkb.r1{background:linear-gradient(160deg,#fff3c9,#d9a441 55%,#8a5a16)}.rkb.r2{background:linear-gradient(160deg,#fff,#aeb9c9 55%,#5d6a7e)}.rkb.r3{background:linear-gradient(160deg,#ffd0a3,#cd8a52 55%,#7a4a22)}
+.rkb.unr{color:var(--mut);opacity:.7}.tbl.lb tr.unr td:not(.art){opacity:.62}
+/* 랭킹 시즌 고르기(S0·S1…·통산) + 시즌 이름·남은 날 + 순위 기준(작게) + 시즌 기록. 시즌이 늘면 옆으로 밀어 보기 */
+.sz-bar{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:6px 14px;margin:-4px 0 14px}
+.sz-seg{display:flex;gap:4px;padding:3px;border:1px solid var(--line2);border-radius:10px;background:var(--panel);overflow-x:auto;scrollbar-width:none;max-width:100%}.sz-seg::-webkit-scrollbar{display:none}
+.sz-seg button{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:0 12px;border:0;border-radius:7px;background:transparent;color:var(--mut);font:700 13px var(--sans);cursor:pointer;white-space:nowrap}
+.sz-seg button:hover{color:#fff}.sz-seg button.on{background:linear-gradient(180deg,#e9bb5c,#c08a2b);color:#1a1204}
+.sz-seg button i{font:700 10px var(--sans);font-style:normal;padding:1px 6px;border-radius:99px;background:rgba(79,208,139,.16);color:#7fe0a8}.sz-seg button.on i{background:rgba(26,18,4,.18);color:#1a1204}
+.sz-info{display:flex;align-items:baseline;gap:8px;min-width:0}.sz-info b{font-size:15px;color:var(--gold2);white-space:nowrap}.sz-info small{font-size:12px;white-space:nowrap}
+.sz-rule{grid-column:1/-1;margin:0;font-size:11.5px;color:var(--mut);line-height:1.5}.sz-rule b{color:var(--text);font-weight:700}
+.sz-rec{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px}.sz-rec span{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;border:1px solid var(--line2);background:rgba(255,255,255,.03);font-size:12px;color:var(--mut)}.sz-rec b{color:var(--text)}
+@media (max-width:600px){.sz-bar{grid-template-columns:1fr;gap:6px}.sz-info{order:-1}.sz-seg{justify-self:start}}
+.spots.few{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
 .tbl.lb tr.top .nm{color:var(--gold2)}.tbl.lb tr.t2 .nm{color:#e6ebf3}.tbl.lb tr.t3 .nm{color:#f0c29a}
 .tbl.lb tr.top td.rk{background:linear-gradient(90deg,rgba(217,164,65,.16),transparent)}.tbl.lb tr.t2 td.rk{background:linear-gradient(90deg,rgba(207,214,226,.12),transparent)}.tbl.lb tr.t3 td.rk{background:linear-gradient(90deg,rgba(205,138,82,.13),transparent)}
 /* 행 전체 호버: 표의 마지막 칸에서 왼쪽으로 길게 뻗은 한 장의 레이어(.rowfx)가 행 전체를 덮는다 */
@@ -2419,6 +2431,16 @@ body.lite #chtb tr.ch-hit td{animation:none;background:rgba(217,164,65,.14)}
    듀오/라인(7:5) · 내 결산 · 챔피언/명장면(5:7) · 월별 막대. 반복 애니메이션 없음(그림은 MVP·챔피언 4장만) */
 .rcp-home{display:flex;align-items:center;gap:12px;margin:0 0 14px;padding:10px 12px;border:1px solid color-mix(in srgb,var(--gold) 45%,transparent);border-radius:14px;background:linear-gradient(110deg,rgba(217,164,65,.14),transparent 60%),var(--panel);color:var(--text);text-decoration:none;transition:border-color .2s}
 .rcp-home:hover{border-color:var(--gold)}.rcp-home .btn{pointer-events:none;flex:none}
+/* 홈 시즌 띠(연말 결산 띠와 같은 모양, 보랏빛) */
+/* 선수 상세 시즌 기록·배지 */
+.szp-r{display:grid;grid-template-columns:96px 1fr auto;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}.szp .ph+.szp-r{border-top:0}
+.szp-r b{display:flex;align-items:center;gap:6px;font-size:14px}.szp-r b i{font:700 10px var(--sans);font-style:normal;padding:1px 6px;border-radius:99px;background:rgba(79,208,139,.16);color:#7fe0a8}
+.szp-r span{font-size:13px}.szp-r em{font-style:normal;font-weight:700}.szp-rk{text-align:right;font-weight:700;white-space:nowrap}.szp-rk small{font-weight:400}
+@media (max-width:600px){.szp-r{grid-template-columns:72px 1fr;gap:4px 10px}.szp-rk{grid-column:2;text-align:left}}
+.chip.szb{border-color:rgba(217,164,65,.45);background:rgba(217,164,65,.12);color:var(--gold2)}
+.sz-home{border-color:rgba(160,120,230,.4);background:linear-gradient(110deg,rgba(150,110,230,.14),transparent 60%),var(--panel)}.sz-home:hover{border-color:rgba(190,150,255,.75)}
+.sz-home .rcp-hi{background:rgba(150,110,230,.16);font-size:17px}.sz-home b em{margin-left:8px;font:700 11.5px var(--sans);font-style:normal;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,.06);color:var(--mut);vertical-align:2px}
+.sz-home.end b em{background:rgba(240,80,110,.16);color:#ff9aad}
 .rcp-hi{display:grid;place-items:center;flex:none;width:34px;height:34px;border-radius:10px;background:rgba(217,164,65,.14);color:var(--gold2)}.rcp-hi .ic{width:18px;height:18px}
 .rcp-htx{display:flex;flex-direction:column;min-width:0}.rcp-htx b{font-size:15px}.rcp-htx small{font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* 머리 카드 */
@@ -2508,7 +2530,7 @@ body.lite #chtb tr.ch-hit td{animation:none;background:rgba(217,164,65,.14)}
   .rcp-mg{grid-template-columns:1fr 1fr;gap:8px}.rcp-mg b{font-size:18px}
   .rcp-ul li{grid-template-columns:32px 92px 1fr}.rcp-si{width:32px;height:32px}
   .rcp-bars{gap:3px;height:140px}.rcp-bars small{font-size:10.5px}.rcp-bars em{font-size:10px}
-  .rcp-home{gap:10px;padding:9px 10px}.rcp-htx small{display:none}
+  .rcp-home{gap:10px;padding:9px 10px}.rcp-htx small{display:none}.sz-home .rcp-htx small{display:block;font-size:11.5px}
 }
 /* 초대 링크 새로 만들기(admin.js) · 닫힌 옛 링크 안내(app.js closedCheck) */
 .rot-done{display:flex;flex-direction:column;gap:12px}.rot-done p{margin:0;line-height:1.6}

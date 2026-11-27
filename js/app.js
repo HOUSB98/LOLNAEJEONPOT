@@ -4,13 +4,13 @@ import { createStore } from './store.js';
 import { cardChamp, prefetchChamps, isAdmin, sha } from './core.js';
 import { S, page, act, ddMenu, cho, esc, col, settings, pname, go, refresh, initShell, loadChamps, fmtDT, fmtDay, wr, wrClass, wrBar, dots, streak, laneTag, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, toast, download, csv, needAdmin, history, flipSides, modal, closeModal, mh, ic, logo, countUp, LANES, LANE_NAME, LANE_ICON, pct } from './core.js';
 import { initSocial, renderChat, renderPresence, onMeta, chatStartsOpen } from './social.js';
-import { duoRank, dayKey } from './stats.js';
+import { duoRank, dayKey, szCur, szList, szName, szShort, szNo, szMonths } from './stats.js';
 import { watchDice } from './dice.js';
 import { watchBoard } from './board.js';
 import './players.js';
 import './finder.js';
 import './gacha.js';
-import { lazyPage, swipeZone, swiping, recapSeason, recapYear, gname, gOf, gAt, gem, guildOn, GUILDS, ghref } from './core.js';
+import { lazyPage, swipeZone, swiping, recapSeason, recapYear, gname, gOf, gAt, gem, guildOn, GUILDS, ghref, szStats } from './core.js';
 // 자주 안 쓰는 화면은 들어갈 때 받는다. 접속 후 한가할 때 미리 받아 두므로 보통은 기다림 없이 열린다.
 const LAZY_GET = [
   lazyPage('replay', () => import('./replay.js'), ['matchReplay']),
@@ -225,6 +225,15 @@ function formPanel() {
       <div><small class="fmh cold">${ic('alert')}반등 필요</small>${cold.map(li).join('') || '<p class="mut sm">—</p>'}</div></div></section>`;
 }
 // 홈 연말 결산 띠: 11/20 ~ 1/31, 그해 경기가 있을 때만(누르면 #/recap)
+// 홈 시즌 띠: 이번 시즌 이름·남은 날·현재 1위. 시즌 마지막 7일은 '종료 n일 전', 새 시즌 첫 7일은 지난 시즌 1위를 알려 준다
+const szHomeBar = () => {
+  if (!S.st.matches.length) return '';
+  const k = szCur(), ss = szStats(k), left = Math.max(1, Math.ceil((ss.b - Date.now()) / 864e5)), fresh = Date.now() - ss.a < 7 * 864e5;
+  const prev = fresh && szList()[1] ? szStats(szList()[1]) : null, pw = prev?.ranked[0];
+  const sub = pw ? `지난 시즌 1위 ${esc(pw.name)} · 승률 ${pw.wr}% (${pw.g}판)` : ss.ranked[0] ? `현재 1위 ${esc(ss.ranked[0].name)} · 승률 ${ss.ranked[0].wr}% (${ss.ranked[0].g}판)` : '이번 시즌 첫 경기를 기다리는 중';
+  return `<a class="rcp-home sz-home${left <= 7 ? ' end' : ''}" href="#/rank" data-a="szHome"><span class="rcp-hi">🏆</span><span class="rcp-htx"><b>${szName(k)}<em>${left <= 7 ? `종료 ${left}일 전` : `남은 ${left}일`}</em></b><small>${sub}</small></span><span class="grow"></span><span class="btn gold xs">시즌 순위</span></a>`;
+};
+act('szHome', () => { LB.sz = 'cur'; LB.view = 'all'; LB.sort = 'srk'; LB.dir = -1; });
 const recapBar = (st) => { if (!recapSeason()) return ''; const y = recapYear(); if (!st.matches.some((m) => +dayKey(m.at).slice(0, 4) === y)) return ''; return `<a class="rcp-home" href="#/recap"><span class="rcp-hi">${ic('recap')}</span><span class="rcp-htx"><b>${y} 연말 결산</b><small>올해의 MVP · 개근상 · 베스트 듀오 · 내 결산</small></span><span class="grow"></span><span class="btn gold xs">보러 가기</span></a>`; };
 // 문파 포고문(상점에서 산 24시간 공지): 모든 사람 홈 맨 위에
 const bannerBar = () => { if (!guildOn()) return ''; const fx = S.store.data.meta.guild?.fx || {}; return ['j', 'm'].filter((g) => fx[g]?.banner?.t && +fx[g].banner.exp > Date.now()).map((g) => `<a class="gd-ban g-${g}" href="${ghref(g)}">${gem(g)}<small>${GUILDS[g].n} 포고문</small><b>${esc(fx[g].banner.t)}</b></a>`).join(''); };
@@ -250,7 +259,7 @@ page('home', {
     const hof = hofList(), top = st.list.filter((s) => s.g >= 3).sort((a, b) => b.ovr - a.ovr).slice(0, 3), nt0 = notices(), nt = nt0.map((_, i) => nt0[(i - (NT.off % nt0.length) + nt0.length) % nt0.length]);
     const last = [...st.matches].slice(-2).reverse();
     HERO.flip = 0;
-    return `${recruitHomeBar()}${bannerBar()}${guildBar(st)}${recapBar(st)}
+    return `${recruitHomeBar()}${bannerBar()}${guildBar(st)}${recapBar(st)}${szHomeBar()}
     <section class="hero">
       <div class="hero-bg on" style="--img:url('${hero?.url || ''}')"></div><div class="hero-bg alt"></div>
       <div class="hero-in">
@@ -324,7 +333,7 @@ swipeZone('#car .car-view', {
 act('carSet', (d) => carMove(0, +d.i));
 
 // ---------- 랭킹 ----------
-const LB = { view: 'all', sort: 'ovr', dir: -1, min: 1 }; // 기본: 1판 이상 뛴 선수만
+const LB = { view: 'all', sort: 'srk', dir: -1, min: 1, sz: 'cur' }; // 기본: 이번 시즌 · 시즌 순위 · 1판 이상 뛴 선수만. sz: 'cur'(이번 시즌) | 시즌 키(예: 2026Q4) | 'all'(통산)
 const COLS = {
   all: [
     ['g', '판', (s) => s.g, (s) => `<span class="mono">${s.g}</span>`],
@@ -343,35 +352,58 @@ const COLS = {
 page('rank', {
   keyed: 'auto', // 바뀐 구역만 다시 그림(core.js autoKeys)
   render() {
-    const st = S.st, x = st.sum;
+    // 시즌: '라인 점수'(관리자가 정하는 값)는 시즌과 상관없어 늘 그대로, 종합·라인별 승률은 고른 시즌(기본 이번 시즌)의 경기로 계산
+    const szk = LB.sz === 'cur' ? szCur() : LB.sz, ss = LB.view !== 'score' && LB.sz !== 'all' ? szStats(szk) : null;
+    const st = ss ? ss.st : S.st, x = st.sum, full = S.st.P, srk = !!ss && LB.sort === 'srk';
+    const T = (s) => full[s.id]?.titles || s.titles; // 칭호는 통산 기록 기준(시즌 표에서도 같은 칭호)
     const cols = COLS[LB.view], sortCol = cols.find((c) => c[0] === LB.sort) || cols[0];
     const sig = cardChamp; // 선수가 고른 대표 챔피언
-    const rows = st.list.filter((s) => s.g >= LB.min).sort((a, b) => LB.dir * (sortCol[2](a) - sortCol[2](b)) || b.ovr - a.ovr);
-    // 상단 TOP 3 카드: 지금 정렬 기준의 1~3위
-    const medal = ['CHAMPION', 'RUNNER-UP', 'THIRD'];
-    const spot = rows.slice(0, 3).map((s, i) => `<a class="spot s${i + 1}" href="#/players/${s.id}" style="--img:url('${artUrl(sig(s))}');--d:${i}">
+    const base = st.list.filter((s) => s.g >= LB.min);
+    // 시즌 순위: 순위에 든 사람(2/3 이상 출전) 승률 순 → 아직 덜 뛴 사람은 판수 순으로 아래에
+    const rows = srk ? [...ss.ranked.filter((s) => s.g >= LB.min), ...base.filter((s) => !s.srk).sort((a, b) => b.g - a.g || b.ovr - a.ovr)]
+      : base.sort((a, b) => LB.dir * (sortCol[2](a) - sortCol[2](b)) || b.ovr - a.ovr);
+    // 상단 TOP 3 카드: 시즌 순위면 순위에 든 1~3위(승률), 아니면 지금 정렬 기준의 1~3위(OVR)
+    const medal = ['CHAMPION', 'RUNNER-UP', 'THIRD'], top = srk ? ss.ranked.slice(0, 3) : rows.slice(0, 3);
+    const spot = top.map((s, i) => `<a class="spot s${i + 1}" href="#/players/${s.id}" style="--img:url('${artUrl(sig(s))}');--d:${i}">
       <span class="sp-rk mono">${i + 1}</span><small>${medal[i]}</small><b>${gname(s.id, s.name)}</b>
-      <span class="sp-meta">${LANE_ICON[s.mainLane]}${LANE_NAME[s.mainLane]}<i></i>${s.g ? `${s.wr}% · ${s.g}판` : '출전 없음'}${s.titles[0] ? `<i></i>${s.titles[0].e} ${s.titles[0].n}` : ''}</span>
-      <span class="sp-val"><em class="mono">${s.ovr}</em><small>OVR</small></span></a>`).join('');
-    return `<div class="h2row"><h1>${ic('rank')}랭킹</h1><span class="tag gold">SEASON LADDER</span><span class="grow"></span>
+      <span class="sp-meta">${LANE_ICON[s.mainLane]}${LANE_NAME[s.mainLane]}<i></i>${s.g ? `${srk ? `${s.w}승 ${s.g - s.w}패` : `${s.wr}%`} · ${s.g}판` : '출전 없음'}${T(s)[0] ? `<i></i>${T(s)[0].e} ${T(s)[0].n}` : ''}</span>
+      <span class="sp-val">${srk ? `<em class="mono">${s.wr}%</em><small>승률</small>` : `<em class="mono">${s.ovr}</em><small>OVR</small>`}</span></a>`).join('');
+    const rk = (s, i) => (srk ? (s.srk ? `<span class="rkb r${s.srk}">${s.srk}</span>` : '<span class="rkb unr" title="시즌 순위 기준 판수 미달">–</span>') : `<span class="rkb r${i + 1}">${i + 1}</span>`);
+    const topCls = (s, i) => (srk ? (s.srk && s.srk <= 3 ? 'top t' + s.srk : s.srk ? '' : 'unr') : i < 3 ? 'top t' + (i + 1) : '');
+    return `<div class="h2row"><h1>${ic('rank')}랭킹</h1><span class="tag gold">${ss ? `SEASON ${szNo(szk)}` : 'ALL-TIME'}</span><span class="grow"></span>
       <div class="seg">${[['all', '종합'], ['score', '라인 점수'], ['lane', '라인별 승률']].map(([k, t]) => `<button class="${LB.view === k ? 'on' : ''}" data-a="lbView" data-v="${k}">${t}</button>`).join('')}</div>
       <label class="mini">최소 <input class="inp xs" type="number" min="0" value="${LB.min}" data-c="lbMin"> 판</label></div>
+    ${LB.view !== 'score' ? szBar(szk, ss) : ''}
     <div class="stats">
-      ${stat('today', '총 경기', x.n, `내전 ${x.days}일 · 참가 ${x.active}명`, 'gold')}
+      ${stat('today', ss ? '시즌 경기' : '총 경기', x.n, `내전 ${x.days}일 · 참가 ${x.active}명`, 'gold')}
       ${stat('cal', '최근 내전', st.lastDay ? fmtDay(st.lastDay).slice(5) : '-', `${x.lastDayN}경기`, 'teal')}
       ${stat('scale', '팀 밸런스 지수', x.balance === null ? '-' : x.balance + '%', `평균 점수 차 ${x.avgGap.toFixed(1)}점`, 'purple')}
       ${stat('alert', '업셋', x.upsets, '예상 40% 미만 팀 승리', 'red')}
     </div>
-    ${rows.length >= 3 ? `<div class="spots">${spot}</div>` : ''}
+    ${top.length >= (srk ? 1 : 3) ? `<div class="spots${top.length < 3 ? ' few' : ''}">${spot}</div>` : ''}
     <div class="tw lbw"><table class="tbl lb">
-      <thead><tr><th>#</th><th class="l">소환사</th>${cols.map((c) => `<th data-a="lbSort" data-k="${c[0]}" class="s ${sortCol[0] === c[0] ? 'on' : ''}">${c[1]}${sortCol[0] === c[0] ? (LB.dir < 0 ? ' ▾' : ' ▴') : ''}</th>`).join('')}${LB.view === 'all' ? '<th class="l">칭호</th>' : ''}<th class="art"></th></tr></thead>
-      <tbody>${rows.map((s, i) => `<tr class="${i < 3 ? 'top t' + (i + 1) : ''}" data-a="goPlayer" data-id="${s.id}" style="--d:${Math.min(i, 14)}"><td class="rk mono"><span class="rkb r${i + 1}">${i + 1}</span></td><td class="l nm gtint">${gname(s.id, s.name)}</td>${cols.map((c) => num(c[3](s))).join('')}${LB.view === 'all' ? `<td class="l chips">${titleChips(s, 1)}</td>` : ''}<td class="art"><u class="rowfx"></u><i data-art="${artUrl(sig(s))}" title="${esc(sig(s))}"></i></td></tr>`).join('') || `<tr><td colspan="20" class="empty">조건에 맞는 선수가 없습니다.</td></tr>`}</tbody>
+      <thead><tr><th>#</th><th class="l">소환사</th>${cols.map((c) => `<th data-a="lbSort" data-k="${c[0]}" class="s ${!srk && sortCol[0] === c[0] ? 'on' : ''}">${c[1]}${!srk && sortCol[0] === c[0] ? (LB.dir < 0 ? ' ▾' : ' ▴') : ''}</th>`).join('')}${LB.view === 'all' ? '<th class="l">칭호</th>' : ''}<th class="art"></th></tr></thead>
+      <tbody>${rows.map((s, i) => `<tr class="${topCls(s, i)}" data-a="goPlayer" data-id="${s.id}" style="--d:${Math.min(i, 14)}"><td class="rk mono">${rk(s, i)}</td><td class="l nm gtint">${gname(s.id, s.name)}</td>${cols.map((c) => num(c[3](s))).join('')}${LB.view === 'all' ? `<td class="l chips">${titleChips({ titles: T(s) }, 1)}</td>` : ''}<td class="art"><u class="rowfx"></u><i data-art="${artUrl(sig(s))}" title="${esc(sig(s))}"></i></td></tr>`).join('') || `<tr><td colspan="20" class="empty">${ss && !ss.n ? '이 시즌 경기가 아직 없어요. 첫 내전을 기록하면 순위가 생겨요.' : '조건에 맞는 선수가 없습니다.'}</td></tr>`}</tbody>
     </table></div>
-    <p class="hint">머리글을 누르면 정렬됩니다. 행을 누르면 선수 카드가 열립니다. OVR = 내전 MMR 50% + 상위 3개 라인 점수 50%.</p>`;
+    <p class="hint">머리글을 누르면 정렬됩니다${srk ? '' : ss ? ' (<button class="lnk" data-a="lbSort" data-k="srk">시즌 순위로 되돌리기</button>)' : ''}. 행을 누르면 선수 카드가 열립니다. OVR = 내전 MMR 50% + 상위 3개 라인 점수 50%. MMR은 시즌이 바뀌어도 이어집니다. 칭호는 통산 기록 기준입니다.</p>`;
   },
   after(entering) { if (entering) countUp(document.getElementById('main')); },
 });
-act('lbView', (d) => { LB.view = d.v; LB.sort = d.v === 'all' ? 'ovr' : d.v === 'score' ? 'avg' : 'top'; LB.dir = -1; refresh(); });
+const lbDef = () => (LB.view === 'all' ? (LB.sz === 'all' ? 'ovr' : 'srk') : LB.view === 'score' ? 'avg' : 'top');
+act('lbView', (d) => { LB.view = d.v; LB.sort = lbDef(); LB.dir = -1; refresh(); });
+act('lbSz', (d) => { LB.sz = d.v; LB.sort = lbDef(); LB.dir = -1; refresh(); });
+// 시즌 고르기 + 기준(작게) + 시즌 기록(최다 출전·MMR 상승). 시즌이 늘어나도 한 줄(넘치면 옆으로 밀어 보기)
+function szBar(k, ss) {
+  const cur = szCur(), left = ss && !ss.done ? Math.max(1, Math.ceil((ss.b - Date.now()) / 864e5)) : 0;
+  const seg = `<div class="sz-seg" role="tablist">${szList().map((q) => `<button class="${(LB.sz === 'cur' ? cur : LB.sz) === q ? 'on' : ''}" data-a="lbSz" data-v="${q === cur ? 'cur' : q}" role="tab">${szShort(q)}${q === cur ? '<i>진행 중</i>' : ''}</button>`).join('')}<button class="${LB.sz === 'all' ? 'on' : ''}" data-a="lbSz" data-v="all" role="tab">통산</button></div>`;
+  if (!ss) return `<div class="sz-bar">${seg}<p class="sz-rule">통산: 지금까지의 모든 경기 · 기본 정렬 OVR</p></div>`;
+  const nm = (s) => esc(s.name);
+  const rec = [ss.ranked[0] && `<span>🏆 ${ss.done ? '시즌 1위' : '현재 1위'} <b>${nm(ss.ranked[0])}</b> ${ss.ranked[0].wr}%</span>`, ss.mvp && ss.mvp.up > 0 && `<span>📈 MMR 상승 <b>${nm(ss.mvp.s)}</b> +${Math.round(ss.mvp.up)}</span>`, ss.most && `<span>🔥 최다 출전 <b>${nm(ss.most)}</b> ${ss.most.g}판</span>`].filter(Boolean).join('');
+  return `<div class="sz-bar">${seg}
+    <div class="sz-info"><b>${szName(k)}</b><small>${szMonths(k)}${ss.done ? ' · 종료' : ` · 남은 ${left}일`}</small></div>
+    <p class="sz-rule">${ss.n ? `순위 기준: 이 시즌 최다 출전 ${ss.max}판의 2/3인 <b>${ss.need}판 이상</b> 뛴 소환사 중 승률 순 (같으면 판수 → MMR)` : '아직 이 시즌 경기가 없어요 · 순위 기준: 이 시즌 최다 출전 판수의 2/3 이상 뛴 소환사 중 승률 순'}</p>
+    ${rec ? `<div class="sz-rec">${rec}</div>` : ''}</div>`;
+}
 act('lbSort', (d) => { if (LB.sort === d.k) LB.dir *= -1; else { LB.sort = d.k; LB.dir = -1; } refresh(); });
 act('lbMin', (d, el) => { LB.min = +el.value || 0; refresh(); });
 act('goPlayer', (d) => go('#/players/' + d.id));
