@@ -794,9 +794,23 @@ window.NP_OK = 1; // index.html의 시작 확인(이 줄까지 왔다면 모든 
   maintWatch(); // 열어 둔 화면도 폐쇄(MAINT)가 켜지면 스스로 막힌다(옛 화면·저장된 옛 페이지로 들어온 경우 대비)
   await SEASON.ready; // 시즌이 아니면 바로 끝난다. 시즌이면 시작 화면 장식 전에 받아 둔다(DB 연결과 동시에 받으므로 보통 기다리지 않는다)
   metaDiff(); up = true; watchDice(true); watchBoard(true); watchPosts(true); initShell(); mountRecruit(); initSocial(); SEASON.x?.initXmas(); SEASON.n?.initNewYear(); loadChamps();
-  siteBg();
+  siteBg(); offPause();
   checkPause(); closedCheck(); if (MAINT) maintBar(); noticePop();
 })();
+// 화면 밖 애니메이션 쉬기: 본문(#main)의 구역이 화면에서 완전히 벗어나면 그 안의 '끝없이 반복되는' 애니메이션(배너 확대·통계 카드 빛·반짝이 등)만 멈추고,
+// 다시 보이면 이어서 움직인다. 한 번만 도는 등장·숫자 애니메이션은 건드리지 않는다(끝을 기다리는 코드가 있을 수 있어서).
+// 화면이 다시 그려져 구역이 바뀌면(MutationObserver, 한 프레임에 한 번만) 새 구역을 지켜보고, 화면 밖 구역에 새로 생긴 애니메이션도 멈춘다
+function offPause() {
+  const main = document.getElementById('main'); if (!main || !window.IntersectionObserver || !main.getAnimations) return;
+  const off = new WeakSet(), seen = new WeakSet(), mine = new WeakSet(); // mine: 여기서 멈춘 애니메이션만 다시 움직인다(다른 이유로 멈춘 것은 건드리지 않음)
+  const loops = (el) => el.getAnimations({ subtree: true }).filter((a) => a.effect?.getTiming?.().iterations === Infinity);
+  const set = (el, hide) => { if (hide) off.add(el); else off.delete(el); loops(el).forEach((a) => { try { if (hide) { if (a.playState === 'running') { a.pause(); mine.add(a); } } else if (mine.has(a)) { mine.delete(a); a.play(); } } catch {} }); };
+  const io = new IntersectionObserver((es) => es.forEach((e) => set(e.target, !e.isIntersecting)), { rootMargin: '120px 0px' });
+  let q = 0;
+  const scan = () => { q = 0; for (const el of main.children) { if (!seen.has(el)) { seen.add(el); io.observe(el); } else if (off.has(el)) set(el, true); } };
+  new MutationObserver(() => { if (!q) q = requestAnimationFrame(scan); }).observe(main, { childList: true, subtree: true });
+  scan();
+}
 // 사이트 배경 그림: 첫 화면·DB 연결이 끝나 한가할 때 받는다(첫 화면에 쓰는 파일과 경쟁하지 않게). 다 받은 뒤 CSS 층(#sitebg)에 붙여 서서히 나타나게.
 // CSS의 그림 주소와 같은 주소라 브라우저가 받은 것을 그대로 다시 씀(두 번 받지 않음). 화면을 돌리면 CSS가 알아서 다른 그림으로 바꾼다
 function siteBg() {
