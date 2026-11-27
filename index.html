@@ -46,7 +46,7 @@
 </script>
 <script>
 (function () {
-  var V = '20261127g'; window.NP_V = V; // NP_V: 열어 둔 화면이 새 버전이 나왔는지 비교하는 값(core.js initVer)
+  var V = '20261127h'; window.NP_V = V; // NP_V: 열어 둔 화면이 새 버전이 나왔는지 비교하는 값(core.js initVer)
   var JS = ['app', 'core', 'stats', 'store', 'config', 'social', 'season', 'today', 'board', 'dice', 'talk', 'players', 'hook', 'gacha', 'finder', 'kakao', 'recruit', 'me', 'admin', 'auction', 'replay', 'maker', 'scores', 'xmas', 'newyear', 'recap', 'guild', 'guildart', 'gchat', 'guildx'];
   var ok = !!(window.HTMLScriptElement && HTMLScriptElement.supports && HTMLScriptElement.supports('importmap'));
   var q = ok ? '?v=' + V : '', map = {};
@@ -70,6 +70,7 @@
 </script>
 </head>
 <body>
+<div id="sitebg" aria-hidden="true"></div>
 <div id="splash"></div>
 <script>
 // 첫 화면부터 로딩창을 바로 덮는다(모듈·DB 연결을 기다리는 동안 홈 화면이 잠깐 보이는 문제 방지).

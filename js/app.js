@@ -794,8 +794,17 @@ window.NP_OK = 1; // index.html의 시작 확인(이 줄까지 왔다면 모든 
   maintWatch(); // 열어 둔 화면도 폐쇄(MAINT)가 켜지면 스스로 막힌다(옛 화면·저장된 옛 페이지로 들어온 경우 대비)
   await SEASON.ready; // 시즌이 아니면 바로 끝난다. 시즌이면 시작 화면 장식 전에 받아 둔다(DB 연결과 동시에 받으므로 보통 기다리지 않는다)
   metaDiff(); up = true; watchDice(true); watchBoard(true); watchPosts(true); initShell(); mountRecruit(); initSocial(); SEASON.x?.initXmas(); SEASON.n?.initNewYear(); loadChamps();
+  siteBg();
   checkPause(); closedCheck(); if (MAINT) maintBar(); noticePop();
 })();
+// 사이트 배경 그림: 첫 화면·DB 연결이 끝나 한가할 때 받는다(첫 화면에 쓰는 파일과 경쟁하지 않게). 다 받은 뒤 CSS 층(#sitebg)에 붙여 서서히 나타나게.
+// CSS의 그림 주소와 같은 주소라 브라우저가 받은 것을 그대로 다시 씀(두 번 받지 않음). 화면을 돌리면 CSS가 알아서 다른 그림으로 바꾼다
+function siteBg() {
+  const el = document.getElementById('sitebg'); if (!el || el.classList.contains('on')) return;
+  const url = matchMedia('(max-aspect-ratio:4/5)').matches ? 'img/bg-m.webp' : 'img/bg-pc.webp';
+  const go = () => { const im = new Image(); im.decoding = 'async'; im.onload = () => (im.decode ? im.decode().catch(() => {}) : Promise.resolve()).then(() => el.classList.add('on')); im.src = url; };
+  window.requestIdleCallback ? requestIdleCallback(go, { timeout: 2500 }) : setTimeout(go, 1200);
+}
 // 초대 링크를 바꾼 뒤 옛 링크(meta/closed가 있는 리그)로 들어오면: 실시간 구독을 끊고 안내 화면만 보여 준다(새 링크는 알려 주지 않음)
 // 링크를 바꾼 관리자 본인 화면은 결과 창을 보고 있어야 하므로 이번 접속에서는 띄우지 않는다(S.rotating)
 function closedCheck() {
