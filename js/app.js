@@ -731,7 +731,7 @@ function pauseHTML() {
     <small>다시 열면 오늘 남은 시간은 쉬지 않고, 무료 한도를 넘은 만큼 요금이 붙을 수 있어요.</small></div>`;
 }
 function checkPause() {
-  if (!S.store) return;
+  if (!S.store || document.getElementById('np-maint')) return; // 폐쇄 화면은 일부러 구독을 멈춘 것이라 '쉬기 끝 → 새로고침'을 하지 않는다(1분마다 새로고침되던 문제)
   const on = pausedNow();
   let el = document.getElementById('pause');
   if (on) {
@@ -790,7 +790,8 @@ window.NP_OK = 1; // index.html의 시작 확인(이 줄까지 왔다면 모든 
     }, { chatOpen: chatStartsOpen() }); // 채팅창이 닫힌 채 시작하면 채팅은 최신 1개만 받는다
     await S.store.ready;
   } catch (e) { document.getElementById('splash')?.remove(); main.innerHTML = `<div class="panel landing"><h1>연결 실패</h1><p>${esc(e.message || e)}</p><p class="hint">js/config.js 의 Firebase 설정과 Firestore 규칙을 확인하세요.</p></div>`; return; }
-  if (MAINT && !maintPass()) return maintGate();
+  if (MAINT && !maintPass()) { maintWatch(); return maintGate(); }
+  maintWatch(); // 열어 둔 화면도 폐쇄(MAINT)가 켜지면 스스로 막힌다(옛 화면·저장된 옛 페이지로 들어온 경우 대비)
   await SEASON.ready; // 시즌이 아니면 바로 끝난다. 시즌이면 시작 화면 장식 전에 받아 둔다(DB 연결과 동시에 받으므로 보통 기다리지 않는다)
   metaDiff(); up = true; watchDice(true); watchBoard(true); watchPosts(true); initShell(); mountRecruit(); initSocial(); SEASON.x?.initXmas(); SEASON.n?.initNewYear(); loadChamps();
   checkPause(); closedCheck(); if (MAINT) maintBar(); noticePop();
@@ -804,19 +805,23 @@ function closedCheck() {
   document.body.insertAdjacentHTML('beforeend', `<div id="np-closed" class="np-closed" role="alertdialog" aria-modal="true"><div class="panel">${logo(true, 72)}<h1>이 초대 링크는 더 이상 쓰지 않아요</h1><p>관리자가 ${new Date(c.at).toLocaleDateString('ko-KR')}에 초대 링크를 새로 만들었어요.<br>단톡방이나 관리자에게 <b>새 초대 링크</b>를 받아 들어와 주세요.</p><p class="hint">기록은 모두 새 링크로 옮겨졌어요. 이 주소로는 더 이상 저장되지 않아요.</p></div></div>`);
   return true;
 }
-// 점검 모드(config.js MAINT): 관리자 PIN을 넣은 기기만 들어온다. 다른 접속자는 실시간 구독을 멈추고(읽기 거의 0) 안내 화면만 본다.
+// 폐쇄 모드(config.js MAINT): 관리자 PIN을 넣은 기기만 들어온다. 다른 접속자는 실시간 구독을 멈추고(읽기 거의 0) '사이트 폐쇄' 화면만 본다.
 // 한 번 통과한 기기는 PIN이 바뀌기 전까지 다시 묻지 않는다(localStorage에 PIN 해시)
 const MAINT_K = () => 'naejeon:maint:' + S.key;
 function maintPass() { const h = settings().pinHash; if (isAdmin()) return true; try { return !!h && localStorage.getItem(MAINT_K()) === h; } catch { return false; } }
 function maintGate() {
+  if (document.getElementById('np-maint')) return;
   document.getElementById('splash')?.remove();
   try { S.store.pause?.(); } catch {}
+  try { closeModal(); } catch {}
   document.body.classList.add('bare');
   document.getElementById('main').innerHTML = '';
+  document.getElementById('np-mbar')?.remove();
+  document.title = '사이트 폐쇄 · NAEJEONPOT';
   document.body.insertAdjacentHTML('beforeend', `<div id="np-maint" class="np-closed np-maint" role="alertdialog" aria-modal="true" aria-labelledby="mt-h"><div class="panel">${logo(true, 72)}
-    <span class="mt-tag">${ic('bolt')}MAINTENANCE</span><h1 id="mt-h">사이트 점검 중이에요</h1>
-    <p>새 기능을 준비하고 있어요.<br>점검이 끝나면 지금 주소 그대로 다시 들어올 수 있어요.</p>
-    <p class="hint">기록은 모두 안전하게 보관되어 있어요.</p>
+    <span class="mt-tag">${ic('lock')}CLOSED</span><h1 id="mt-h">사이트가 폐쇄되었습니다</h1>
+    <p>운영자의 사정으로 NAEJEONPOT 운영을 종료합니다.<br>그동안 이용해 주셔서 감사합니다.</p>
+    <p class="hint">재개 여부는 운영자에게 문의해 주세요.</p>
     <details class="mt-adm"><summary>관리자 입장</summary><form id="mt-f" class="row"><input class="inp grow" id="mt-pin" type="password" inputmode="numeric" autocomplete="off" placeholder="관리자 PIN" aria-label="관리자 PIN"><button class="btn pri">입장</button></form></details></div></div>`);
   document.getElementById('mt-f').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -829,8 +834,26 @@ function maintGate() {
     location.reload();
   });
 }
-// 관리자 화면에는 점검 중이라는 작은 띠를 띄워 둔다(공개를 잊지 않게)
-function maintBar() { if (document.getElementById('np-mbar')) return; document.body.insertAdjacentHTML('beforeend', '<div id="np-mbar" class="np-mbar" role="status">점검 모드 · 관리자만 접속 중</div>'); }
+// 열어 둔 화면 감시: 10분마다 + 다른 앱에 갔다가 돌아올 때(2분 넘게 지났으면) 최신 config.js를 받아(DB 읽기 아님, 작은 파일 하나)
+// 폐쇄가 켜졌고 이 기기가 통과 기기가 아니면 바로 폐쇄 화면으로 바꾼다. 폐쇄 화면을 보는 중에 폐쇄가 풀리면 새로고침해서 다시 들어오게 한다
+const MW = { at: Date.now(), busy: false };
+async function maintCheck() {
+  if (MW.busy || document.hidden) return;
+  MW.busy = true; MW.at = Date.now();
+  try {
+    const t = await (await fetch('js/config.js?mc=' + Date.now(), { cache: 'no-store' })).text();
+    const on = /export const MAINT = true/.test(t), off = /export const MAINT = false/.test(t);
+    if (on && !maintPass()) maintGate();
+    else if (off && document.getElementById('np-maint')) location.reload();
+  } catch {} finally { MW.busy = false; }
+}
+function maintWatch() {
+  if (MW.on) return; MW.on = 1;
+  setInterval(maintCheck, 10 * 60e3);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - MW.at > 2 * 60e3) maintCheck(); });
+}
+// 관리자 화면에는 폐쇄 중이라는 작은 띠를 띄워 둔다(공개를 잊지 않게)
+function maintBar() { if (document.getElementById('np-mbar')) return; document.body.insertAdjacentHTML('beforeend', '<div id="np-mbar" class="np-mbar" role="status">폐쇄 모드 · 관리자만 접속 중</div>'); }
 // 공지 창(로딩 창이 끝나고 홈이 열릴 때 한 번): 길드 창설 안내. 창설 시각부터 3일 동안만, 접속(탭)마다 한 번, '다시 보지 않기'를 누르면 이 기기에서는 끝
 // 저장·읽기 없음(문구는 코드에 있음). 다른 창이 떠 있으면 닫힐 때까지 기다린다
 const POP = { id: 'guild-open2', days: 3 }; // 문구가 바뀌면 id를 바꿔 다시 보이게
