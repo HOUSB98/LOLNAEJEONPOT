@@ -39,20 +39,11 @@ body.xmas .panel,body.xmas .stat{border-color:color-mix(in srgb,var(--line) 75%,
 body.lite #xsky *{animation:none!important}
 /* 트리: 더 화려하게 + 살짝 더 투명하게 */
 /* ---------- 시즌 장식(새해: 불꽃놀이·풍등) ---------- */
-#splash.ny{background:linear-gradient(180deg,#070a26 0%,#181650 45%,#3b2468 72%,#7a3a5e 100%)}
-#splash.ny .sp-rays,#splash.ny>canvas{display:none}
-.ny-scene{position:absolute;inset:0;overflow:hidden;pointer-events:none}
-.ny-scene canvas{position:absolute;inset:0;width:100%;height:100%}
-.ny-dawn{position:absolute;left:0;right:0;bottom:0;height:45%;background:radial-gradient(70% 70% at 50% 100%,rgba(255,170,110,.55),rgba(255,120,120,.18) 45%,transparent 75%);animation:nydawn 6s ease-in-out infinite}
-@keyframes nydawn{50%{opacity:.75}}
 .ny-lan,.nk-lan{position:absolute;inset:0;overflow:hidden}
 .ny-l,.nk-l{position:absolute;bottom:-70px;width:calc(46px * var(--s));animation:nyrise var(--d) linear var(--dl) infinite;filter:drop-shadow(0 0 12px rgba(255,190,90,.75)) drop-shadow(0 0 26px rgba(255,150,60,.35))}
 .ny-l svg,.nk-l svg{display:block;width:100%;animation:nysway 3.6s ease-in-out infinite alternate}
 @keyframes nyrise{0%{transform:translateY(0);opacity:0}8%{opacity:1}85%{opacity:.9}100%{transform:translateY(-118vh);opacity:0}}
 @keyframes nysway{from{transform:translateX(calc(var(--sw) * -1)) rotate(-4deg)}to{transform:translateX(var(--sw)) rotate(4deg)}}
-.ny-hills{position:absolute;left:0;right:0;bottom:0;width:100%;height:30vh}
-.ny-win{animation:xswin 3s ease-in-out infinite}
-#splash.ny .sp-box{z-index:2;text-shadow:0 2px 12px rgba(7,10,38,.9)}#splash.ny .sp-skip{z-index:2;color:#d9c8f0}
 /* 채팅창 */
 #nysky{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;background:linear-gradient(180deg,rgba(14,16,60,.75),rgba(40,26,92,.55) 60%,rgba(120,52,80,.35))}
 #nysky b{position:absolute;width:2px;height:2px;border-radius:50%;background:#fff;box-shadow:0 0 6px #fff;animation:xktw 3.2s var(--d) ease-in-out infinite}
@@ -68,8 +59,8 @@ body.newyear #chatlog{background:transparent}
 .nyspark{position:absolute;left:-8px;top:-10px;width:22px;height:22px;z-index:2;pointer-events:none;animation:nyspin 6s linear infinite;filter:drop-shadow(0 0 4px rgba(255,214,120,.8))}
 @keyframes nyspin{to{transform:rotate(360deg)}}
 body.newyear .btn.pri{box-shadow:0 0 0 1px rgba(255,236,190,.35),0 8px 24px -10px rgba(255,143,176,.5)}
-body.lite .ny-scene *,body.lite #nysky *,body.lite #nyglint *,body.lite .nyspark{animation:none!important}
-@media (max-width:860px){.ny-hills{height:24vh}.nk-sun{width:260px;height:260px}}
+body.lite #nysky *,body.lite #nyglint *,body.lite .nyspark{animation:none!important}
+@media (max-width:860px){.nk-sun{width:260px;height:260px}}
 /* 시즌 접속자 얼굴: 산타 / 루돌프 */
 i.face.xface{overflow:hidden;background:radial-gradient(circle at 50% 35%,#24385e,#0d1628)!important;box-shadow:0 0 0 1.5px rgba(246,214,140,.75),0 0 8px -2px rgba(246,214,140,.6)!important}
 i.face.xface.rudolph{background:radial-gradient(circle at 50% 35%,#2e4a3a,#0e1a16)!important}
@@ -134,7 +125,6 @@ body.xmas #presence{background:rgba(8,12,22,.82);position:relative}
 /* ===== 성능 경량화: 움직이는 건 작은 HTML 요소의 투명도·회전만 ===== */
 .xst{position:absolute;left:0;top:0;width:1.4px;height:1.4px;border-radius:50%;opacity:.85;will-change:opacity;animation:xstw 3.6s ease-in-out infinite}
 .xst.s1{animation-delay:-1.2s}.xst.s2{animation-delay:-2.4s}
-@keyframes xstw{0%,100%{opacity:.9}50%{opacity:.25}}
 #xsky b{display:none}
 /* 트리: 정지 이미지 + 전구 빛 + 소용돌이 빛 알갱이 */
 body.lite .xst,body.lite .xg-ball,body.lite .xg-lt{animation:none!important}
@@ -155,45 +145,25 @@ body.idle .xst,body.idle .xg-ball,body.idle .xg-lt,body.idle #xsky b{animation-p
 body.xmas .btn.pri::after,body.xmas .btn.gold::after{animation:none}
 body.xmas #nav a.on::after{animation:none}
 
-/* 시작 화면(크리스마스): 한밤중 달빛 밤하늘. 처음 한 번 그린 그림을 CSS가 투명도·transform만 바꿔 움직인다(매 프레임 JS 없음 → 바쁠 때도 부드러움) */
-#splash.xs{background:radial-gradient(50vmax 40vmax at 80% 18%,rgba(110,140,210,.1),transparent 65%),linear-gradient(180deg,#010208 0%,#01030b 55%,#030716 100%)}
-#splash.xs .sp-rays,#splash.xs>canvas{display:none}
+/* 시작 화면(크리스마스): 평소 배경 그림 그대로 + 금빛으로 반짝이며 날아가는 산타 썰매·루돌프만 얹는다 */
+#splash.xs>canvas{display:none}
+.xs-scene .xs-sleigh{filter:drop-shadow(0 0 6px rgba(255,214,130,.85)) drop-shadow(0 0 18px rgba(255,190,90,.45))}
+.xs-spk{position:absolute;width:var(--s);height:var(--s);margin:calc(var(--s) / -2);background:radial-gradient(circle,#fff 0 12%,rgba(255,226,150,.8) 22%,transparent 62%);clip-path:polygon(50% 0,58% 42%,100% 50%,58% 58%,50% 100%,42% 58%,0 50%,42% 42%);animation:xsspk var(--t) var(--d) ease-in-out infinite;will-change:transform,opacity}
+@keyframes xsspk{0%,100%{opacity:0;transform:scale(.3)}50%{opacity:1;transform:scale(1)}}
 #splash.xs .sp-box{z-index:2;text-shadow:0 2px 16px rgba(0,0,0,.9)}
 #splash.xs .sp-skip{z-index:2;color:rgba(200,210,232,.55)}
 .xs-scene{position:absolute;inset:0;overflow:hidden;pointer-events:none;contain:strict}
-.xs-scene canvas{position:absolute;inset:0;width:100%;height:100%}
-.sk-tw b{position:absolute;width:var(--s);height:var(--s);margin:calc(var(--s) * -2.5);padding:calc(var(--s) * 2.5);box-sizing:content-box;border-radius:50%;background:radial-gradient(circle,var(--c) 0 16%,color-mix(in srgb,var(--c) 35%,transparent) 22%,transparent 60%);animation:xstw var(--t) var(--d) ease-in-out infinite;will-change:opacity}
-@keyframes xstw{0%,100%{opacity:1}50%{opacity:.25}}
-.xs-shoot{position:absolute;left:12%;top:10%;width:130px;height:2px;border-radius:2px;background:linear-gradient(90deg,rgba(255,255,255,0),#fff);opacity:0;transform:rotate(18deg);animation:xsshoot 7s 2.2s ease-out infinite;will-change:transform,opacity}
-@keyframes xsshoot{0%{opacity:0;transform:translate(0,0) rotate(18deg)}2%{opacity:1}12%{opacity:0;transform:translate(46vw,15vw) rotate(18deg)}100%{opacity:0;transform:translate(46vw,15vw) rotate(18deg)}}
-.sk-moon{position:absolute;right:15%;top:11%;width:min(15vw,220px);aspect-ratio:1}
-.xs-scene .sk-moon canvas{filter:drop-shadow(0 0 14px rgba(230,236,255,.4))}
-.sk-halo{position:absolute;inset:-100%;border-radius:50%;background:radial-gradient(closest-side,rgba(205,218,255,.22),rgba(160,180,240,.08) 40%,transparent 72%);animation:skhalo 7s ease-in-out infinite;will-change:opacity}
-@keyframes skhalo{0%,100%{opacity:.6}50%{opacity:1}}
-.sk-cloud{position:absolute;left:0;width:150vw;height:20vh;will-change:transform;
-  background:radial-gradient(14% 34% at 12% 55%,rgba(150,166,214,.16),transparent 70%),radial-gradient(20% 30% at 30% 45%,rgba(110,128,186,.16),transparent 70%),radial-gradient(12% 40% at 52% 60%,rgba(140,156,206,.14),transparent 70%),radial-gradient(22% 30% at 72% 48%,rgba(100,118,176,.16),transparent 70%),radial-gradient(14% 36% at 90% 56%,rgba(150,166,214,.14),transparent 70%)}
-.sk-cloud.c1{top:4%;animation:skdrift 80s linear infinite alternate}
-.sk-cloud.c3{top:15%;height:11vh;opacity:.8;animation:skdrift 64s linear -20s infinite alternate}
-@keyframes skdrift{from{transform:translate3d(-45vw,0,0)}to{transform:translate3d(0,0,0)}}
-.sk-ridge{position:absolute;left:0;right:0;bottom:0;width:100%;height:36vh}
-.sk-mist{position:absolute;left:0;right:0;bottom:0;height:34vh;background:linear-gradient(0deg,rgba(2,4,11,.8),transparent)}
-/* 썰매: 달 앞을 실루엣으로 가로지른다(입장 3~4초쯤). 금빛 꼬리는 썰매에 붙어 함께 움직이며 두 장이 엇갈려 반짝인다 */
+/* 썰매: 화면을 가로지른다(입장 3~4초쯤). 금빛 꼬리는 썰매에 붙어 함께 움직이며 두 장이 엇갈려 반짝인다 */
 .xs-scene .xs-fly{position:absolute;left:0;top:0;width:min(26vw,280px);animation:skfly 10s cubic-bezier(.45,.1,.55,.9) -3.2s infinite;will-change:transform}
 @keyframes skfly{0%{transform:translate3d(-30vw,48vh,0) rotate(-8deg)}100%{transform:translate3d(105vw,8vh,0) rotate(-4deg)}}
 .xs-scene .xs-sleigh{position:relative;will-change:transform}
 #splash .sk-trail{position:absolute;inset:46% auto auto -88%;width:95%;height:auto;aspect-ratio:95/34;will-change:opacity;animation:sktr .9s ease-in-out infinite alternate}#splash .sk-trail.b{animation-delay:-.45s}
 @keyframes sktr{from{opacity:.35}to{opacity:1}}
-/* 눈: 송이마다 작은 점 하나. 떨어짐과 좌우 살랑임을 한 동작(transform)으로 합쳐 층 하나로 움직인다 */
-.sk-snow{position:absolute;inset:0;opacity:0;transition:opacity 1.6s ease}.xs-scene.snowing .sk-snow{opacity:1}
-.sk-snow i{position:absolute;top:0;width:var(--s);height:var(--s);border-radius:50%;opacity:var(--o);background:radial-gradient(circle,#fff 0 30%,rgba(235,242,255,.45) 55%,transparent 72%);animation:sksnow 20s linear infinite;will-change:transform}
-.sk-snow i.n{background:radial-gradient(circle,#fff 0 22%,rgba(235,242,255,.5) 48%,transparent 72%)}
-@keyframes sksnow{0%{transform:translate3d(0.0px,-3.00vh,0)}6.25%{transform:translate3d(9.2px,3.62vh,0)}12.5%{transform:translate3d(13.0px,10.25vh,0)}18.75%{transform:translate3d(9.2px,16.88vh,0)}25%{transform:translate3d(0.0px,23.50vh,0)}31.25%{transform:translate3d(-9.2px,30.12vh,0)}37.5%{transform:translate3d(-13.0px,36.75vh,0)}43.75%{transform:translate3d(-9.2px,43.38vh,0)}50%{transform:translate3d(-0.0px,50.00vh,0)}56.25%{transform:translate3d(9.2px,56.62vh,0)}62.5%{transform:translate3d(13.0px,63.25vh,0)}68.75%{transform:translate3d(9.2px,69.88vh,0)}75%{transform:translate3d(0.0px,76.50vh,0)}81.25%{transform:translate3d(-9.2px,83.12vh,0)}87.5%{transform:translate3d(-13.0px,89.75vh,0)}93.75%{transform:translate3d(-9.2px,96.38vh,0)}100%{transform:translate3d(-0.0px,103.00vh,0)}}
-@keyframes sksnow2{0%{transform:translate3d(0.0px,-3.00vh,0)}6.25%{transform:translate3d(-7.1px,3.62vh,0)}12.5%{transform:translate3d(-10.0px,10.25vh,0)}18.75%{transform:translate3d(-7.1px,16.88vh,0)}25%{transform:translate3d(-0.0px,23.50vh,0)}31.25%{transform:translate3d(7.1px,30.12vh,0)}37.5%{transform:translate3d(10.0px,36.75vh,0)}43.75%{transform:translate3d(7.1px,43.38vh,0)}50%{transform:translate3d(0.0px,50.00vh,0)}56.25%{transform:translate3d(-7.1px,56.62vh,0)}62.5%{transform:translate3d(-10.0px,63.25vh,0)}68.75%{transform:translate3d(-7.1px,69.88vh,0)}75%{transform:translate3d(-0.0px,76.50vh,0)}81.25%{transform:translate3d(7.1px,83.12vh,0)}87.5%{transform:translate3d(10.0px,89.75vh,0)}93.75%{transform:translate3d(7.1px,96.38vh,0)}100%{transform:translate3d(0.0px,103.00vh,0)}}
-@media (max-width:860px){.sk-moon{width:30vw;top:6%;right:8%}.sk-ridge{height:28vh}.xs-scene .xs-fly{width:56vw;animation-name:skflym}.sk-cloud{width:260vw}}
+@media (max-width:860px){.xs-scene .xs-fly{width:56vw;animation-name:skflym}}
 @keyframes skflym{0%{transform:translate3d(-30vw,48vh,0) rotate(-10deg)}100%{transform:translate3d(105vw,-5vh,0) rotate(-6deg)}}
 #splash .xs-rd,#splash .xs-nose{animation:none} /* 시작 화면 썰매는 다리·코 깜빡임 없이(SVG 안쪽 애니메이션은 매 프레임 다시 그려야 해서 무겁다). 비행·흔들림은 그대로 */
-body.lite .xs-scene *{animation:none!important}body.lite .xs-scene .xs-fly,body.lite .xs-shoot{display:none}
-@media (prefers-reduced-motion:reduce){.xs-scene *{animation:none!important}.xs-scene .xs-fly,.xs-shoot{display:none}}
+body.lite .xs-scene .xs-spk,body.lite #splash .sk-trail{animation:none}body.lite .xs-spk{display:none}body.lite .xs-scene .xs-sleigh{filter:drop-shadow(0 0 6px rgba(255,214,130,.85))} /* 가벼운 모드: 썰매 비행(위치만 바뀜)은 그대로, 반짝임만 멈춤 */
+@media (prefers-reduced-motion:reduce){.xs-scene *{animation:none!important}.xs-scene .xs-fly{display:none}}
 /* ---------- 크리스마스 말풍선(크리스마스 장식 켠 동안 12/25까지, body.xchat) ----------
    고급스러운 미국식 크리스마스: 상록수 벨벳(남)·크랜베리 벨벳(나) 위에 금박 테두리, 첫 말풍선에 호랑가시나무·금색 리본,
    내 말풍선엔 아주 옅은 캔디케인 사선. 모두 정지된 그림(움직임 없음) → 성능 영향 없음 */
@@ -233,7 +203,3 @@ body.xchat #chat header{overflow:visible}
 body.lite .xswag .xs-img{filter:none}
 @keyframes xtmag{0%,100%{opacity:0;transform:scale(.4) rotate(0)}50%{opacity:1;transform:scale(1.4) rotate(45deg)}}
 @keyframes xtstar{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.06);opacity:.85}}
-/* 새해 시작 화면: 언덕 마을 창문 불빛이 은은하게 깜빡임(빠져 있던 움직임 정의). 창문마다 박자를 어긋나게 */
-@keyframes xswin{0%,100%{opacity:1}45%{opacity:.4}60%{opacity:.85}}
-.ny-win:nth-of-type(2){animation-delay:-.8s}.ny-win:nth-of-type(3){animation-delay:-1.7s}.ny-win:nth-of-type(4){animation-delay:-2.4s}
-body.lite .ny-win{animation:none}

@@ -184,7 +184,11 @@ function lobbyList() {
   <h2>새 경매 만들기</h2>
   <div class="panel">
     <label class="fld"><span>방 이름</span><input id="auName" class="inp" value="${esc(AU.name)}" placeholder="예: 11월 2주차 내전" data-i="auF" data-k="name"></label>
-    <div class="fld"><span>경매 방식</span><div class="row"><label class="mini"><input type="radio" name="auMode" value="live" data-c="auMode" ${AU.mode === 'live' ? 'checked' : ''}> 실시간 경매</label><label class="mini"><input type="radio" name="auMode" value="batch" data-c="auMode" ${AU.mode === 'batch' ? 'checked' : ''}> 일괄 입찰</label></div><small class="mut">일괄 입찰은 팀장이 모든 매물의 가격을 제출한 뒤 한 번에 공개합니다.</small></div>
+    <div class="fld"><span>경매 방식</span><div class="au-modes" role="radiogroup" aria-label="경매 방식">${[
+      ['live', 'bolt', '실시간 경매', '이름을 보고 실시간으로 입찰'],
+      ['blind', 'mask', '익명 경매', '누구인지 숨기고 힌트만 보고 입찰 · 끝나면 한꺼번에 공개'],
+      ['batch', 'edit', '일괄 입찰', '모든 매물 가격을 제출한 뒤 한 번에 공개'],
+    ].map(([v, i, t, d]) => { const on = v === 'blind' ? AU.mode === 'live' && AU.blind : v === 'live' ? AU.mode === 'live' && !AU.blind : AU.mode === v; return `<label class="au-mode m-${v}${on ? ' on' : ''}"><input type="radio" name="auMode" value="${v}" data-c="auMode" ${on ? 'checked' : ''}>${ic(i)}<b>${t}</b><small>${d}</small></label>`; }).join('')}</div>${AU.mode === 'live' && AU.blind ? '<small class="mut">익명 경매: 라인 유형·라인 점수 등급·최근 승률·플레이 스타일·소통 같은 힌트만 보여요.</small>' : ''}</div>
     <div class="ausel">
       <div class="au-pool">
         <div class="ph"><b>참가자</b><span class="tag ok">${parts.length + caps.length}명 선택</span><small class="mut">이름을 누르면 참가 ↔ 제외 · 왕관을 누르면 팀장</small><span class="grow"></span><button class="btn xs" data-a="auRecent">최근 내전 참가자</button><button class="btn xs" data-a="auAll">전원</button><button class="btn xs ghost" data-a="auNone">해제</button></div>
@@ -206,7 +210,6 @@ function lobbyList() {
       <label class="fld"><span>매물 사이 대기(초)</span><select id="auD" class="inp" data-c="auDelay">${[5, 10, 15].map((v) => `<option value="${v}" ${AU.delay === v ? 'selected' : ''}>${v}초</option>`).join('')}</select></label>` : ''}
     </div>
     ${AU.mode === 'live' ? `<p class="au-est" id="au-est">${estHTML(formEst())}</p>` : ''}
-    ${AU.mode === 'live' ? `<label class="mini au-blindopt"><input type="checkbox" data-c="auBlind" ${AU.blind ? 'checked' : ''}> ${ic('mask', 'ie')}익명 경매 <small class="mut">누구인지 숨기고 힌트(라인 유형·라인 점수 등급·최근 승률·플레이 스타일·소통 등)만 보고 입찰 · 끝나면 한꺼번에 공개</small></label>` : ''}
     ${AU.mode === 'live' ? '<label class="mini"><input type="checkbox" data-c="auHide" ' + (AU.hide ? 'checked' : '') + '> 경매 순서 비공개 (무작위)</label>' : '<p class="hint">팀장은 매물별 입찰가 합계가 보유 포인트를 넘지 않도록 제출합니다. 낙찰된 금액만 차감됩니다.</p>'}
     <button class="btn pri block big" data-a="auCreate">경매 방 만들기</button>
   </div>`;
@@ -539,9 +542,8 @@ act('auF', (d, el) => {
 act('auExtRec', () => { AU.ext = recExt(AU.sec); AU.extTouched = false; const e = document.getElementById('auE'); if (e) e.value = AU.ext; formLive(); });
 act('auHc', (d, el) => { AU.hcap[d.id] = +el.value || 0; });
 act('auHide', (d, el) => { AU.hide = el.checked; });
-act('auBlind', (d, el) => { AU.blind = el.checked; });
 act('auDelay', (d, el) => { AU.delay = +el.value || 15; formLive(); });
-act('auMode', (d, el) => { AU.mode = el.value; refresh(); });
+act('auMode', (d, el) => { AU.blind = el.value === 'blind'; AU.mode = el.value === 'batch' ? 'batch' : 'live'; refresh(); }); // 익명 경매 = 실시간 경매 + 이름 숨김
 // r=1: 이름(참가 ↔ 제외, 팀장이면 일반 참가자로) · r=2: 왕관(팀장 ↔ 참가자)
 act('auRole', (d) => { const cur = AU.role[d.id] || 0; AU.role[d.id] = d.r === '2' ? (cur === 2 ? 1 : 2) : cur === 1 ? 0 : 1; refresh(); });
 act('auAll', () => { S.st.list.forEach((s) => { AU.role[s.id] ||= 1; }); refresh(); });

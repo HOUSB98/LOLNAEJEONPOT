@@ -13,8 +13,8 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   for (const id of ids.slice(0, 2)) await H.click(`[data-a=auRole][data-id="${id}"][data-r="2"]`);
   for (const id of ids.slice(2, 5)) await H.click(`[data-a=auRole][data-id="${id}"][data-r="1"]`);
   await H.waitForTimeout(300);
-  ok(!!(await H.$('[data-c=auBlind]')), '방 만들기에 🎭 익명 경매 선택');
-  await H.check('[data-c=auBlind]'); await H.uncheck('[data-c=auHide]');
+  ok(!!(await H.$('.au-mode.m-blind')), '방 만들기 맨 위 경매 방식에 🎭 익명 경매 카드');
+  await H.click('.au-mode.m-blind'); await H.waitForTimeout(300); ok(await H.$eval('.au-mode.m-blind', (e) => e.classList.contains('on')), '익명 경매 카드를 누르면 선택됨'); await H.uncheck('[data-c=auHide]');
   await H.fill('#auS', '20'); await H.selectOption('#auD', '5');
   await H.click('[data-a=auCreate]'); await H.waitForTimeout(1200);
   const rid = await H.evaluate(() => location.hash.split('/')[2]), R = () => be.db.auctions[rid];

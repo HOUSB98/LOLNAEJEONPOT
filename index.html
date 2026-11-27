@@ -44,7 +44,7 @@
 </script>
 <script>
 (function () {
-  var V = '20261127d'; window.NP_V = V; // NP_V: 열어 둔 화면이 새 버전이 나왔는지 비교하는 값(core.js initVer)
+  var V = '20261127e'; window.NP_V = V; // NP_V: 열어 둔 화면이 새 버전이 나왔는지 비교하는 값(core.js initVer)
   var JS = ['app', 'core', 'stats', 'store', 'config', 'social', 'season', 'today', 'board', 'dice', 'talk', 'players', 'hook', 'gacha', 'finder', 'kakao', 'recruit', 'me', 'admin', 'auction', 'replay', 'maker', 'scores', 'xmas', 'newyear', 'recap', 'guild', 'guildart', 'gchat', 'guildx'];
   var ok = !!(window.HTMLScriptElement && HTMLScriptElement.supports && HTMLScriptElement.supports('importmap'));
   var q = ok ? '?v=' + V : '', map = {};
@@ -75,7 +75,7 @@
   var n = localStorage.getItem('naejeon:nick'), qs = location.search;
   if ((sessionStorage.getItem('naejeon:welcomed') && n) || !(/[?&](k|demo)\b/.test(qs))) return;
   var e = document.getElementById('splash'), d = new Date(), m = d.getMonth() + 1, md = m * 100 + d.getDate();
-  e.className = 'on boot' + (md >= 1116 && md <= 1226 && localStorage.getItem('naejeon:xmas') !== '0' ? ' xs' : m === 1 && d.getDate() <= 15 && localStorage.getItem('naejeon:newyear') !== '0' ? ' ny' : '');
+  e.className = 'on boot' + (md >= 1116 && md <= 1226 && localStorage.getItem('naejeon:xmas') !== '0' ? ' xs' : '');
   e.innerHTML = '<div class="sp-boot"><b>NAEJEON<i>POT</i></b><span></span></div>';
 } catch (x) {} })();
 </script>

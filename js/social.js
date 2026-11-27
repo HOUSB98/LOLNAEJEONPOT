@@ -334,15 +334,14 @@ function splash() {
       ${first ? `<form id="spf"><input id="spn" class="inp" maxlength="12" placeholder="닉네임을 입력하세요" autocomplete="off"><button class="btn pri">입장</button></form>` : '<div class="sp-bar"><i></i></div>'}
     </div>${KAKAO_JS_KEY ? SP_KK : ''}<small class="sp-skip">${first ? '닉네임은 접속자 목록과 채팅에 표시됩니다' : '화면을 누르면 바로 입장합니다'}</small>`;
   el.classList.add('on'); el.classList.remove('boot');
-  SEASON.x?.splashScene(el); // 시즌 장식 기간이면 밤하늘·달·산타 썰매 배경
-  SEASON.n?.nySplash(el); // 새해(1/1~1/15)면 불꽃놀이·풍등 배경
-  // 기본 불씨 캔버스는 시즌 배경(크리스마스·새해)에서는 가려지므로 아예 돌리지 않는다(보이지 않는 캔버스를 계속 그리면 인트로가 끊긴다)
-  const stop = el.classList.contains('xs') || el.classList.contains('ny') ? () => {} : embers(el.querySelector('canvas'));
+  SEASON.x?.splashScene(el); // 크리스마스 장식 기간이면 배경 그림 위로 반짝이는 산타 썰매·루돌프
+  // 기본 불씨 캔버스는 크리스마스(썰매)에서는 돌리지 않는다(동시에 움직이는 것을 줄여 인트로가 끊기지 않게)
+  const stop = el.classList.contains('xs') ? () => {} : embers(el.querySelector('canvas'));
   const close = () => { if (el.dataset.done) return; el.dataset.done = 1; sessionStorage.setItem('naejeon:welcomed', '1'); el.classList.add('out'); setTimeout(() => { stop(); el.remove(); }, 850); };
   if (first) {
     setTimeout(() => el.querySelector('#spn')?.focus(), 1900);
     el.querySelector('#spf').onsubmit = (e) => { e.preventDefault(); if (setNick(el.querySelector('#spn').value)) close(); };
-  } else { setTimeout(close, el.classList.contains('xs') || el.classList.contains('ny') ? 5600 : 3600); el.addEventListener('click', close); } // 시즌 장식 땐 썰매가 지나갈 만큼 조금 더 보여 준다
+  } else { setTimeout(close, el.classList.contains('xs') ? 5600 : 3600); el.addEventListener('click', close); } // 시즌 장식 땐 썰매가 지나갈 만큼 조금 더 보여 준다
 }
 
 export function initSocial() {
