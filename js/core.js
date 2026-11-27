@@ -184,16 +184,23 @@ export function lazyPage(id, load, actNames = []) {
 // 연말 결산(js/recap.js): 11월 20일 ~ 1월 31일에만 메뉴·홈 배너에 보인다(주소 #/recap 은 언제나 열림). 1월에는 지난해 결산
 export function recapSeason(d = new Date()) { const md = (d.getMonth() + 1) * 100 + d.getDate(); return md >= 1120 || md <= 131; }
 export const recapYear = (d = new Date()) => (d.getMonth() === 0 ? d.getFullYear() - 1 : d.getFullYear());
+// 메뉴(2026-11-27 개편): 큰 분류 5개. 비슷한 화면은 한 칸으로 합치고 그 화면 위쪽 탭(SUBS)으로 오간다
 export const NAV = [
   ['home', '홈'], ['me', '내 페이지'],
-  ['', '내전'], ['today', '팀 구성하기'], ['matches', '경기 기록'], ['auction', '팀 경매'], ['replay', '리플레이 분석'],
-  ['', '기록·분석'], ['rank', '랭킹'], ['players', '선수 카드'], ['champs', '챔피언'], ['chem', '케미'], ['scores', '점수 변동'], ...(recapSeason() ? [['recap', '연말 결산']] : []),
-  ['', '문파'], ['guilds', '천하정세'], ['jeongpa', '정파'], ['magyo', '마교'], ['gshop', '문파 상점'],
+  ['', '내전'], ['today', '팀 구성하기'], ['matches', '경기 기록'], ['auction', '팀 경매'],
+  ['', '기록'], ['rank', '랭킹'], ['players', '선수 카드'], ['champs', '챔피언'], ['chem', '케미'],
+  ['', '문파'], ['guilds', '문파'],
   ['', '즐길 거리'], ['gacha', '가챠'], ['talk', '익명 게시판'],
 ];
+// 합친 화면: 메뉴에는 대표 한 칸만, 들어가면 위쪽 탭으로 오간다(주소는 예전 그대로 열림). 연말 결산은 홈 띠로
+export const SUBS = { guilds: [['guilds', '천하정세'], ['jeongpa', '정파'], ['magyo', '마교'], ['gshop', '문파 상점']], rank: [['rank', '랭킹'], ['scores', '점수 변동']], matches: [['matches', '경기 기록'], ['replay', '리플레이 분석']] };
+export const PARENT = Object.fromEntries(Object.entries(SUBS).flatMap(([r, l]) => l.map(([p]) => [p, r])));
+const NAV_SUB = [['replay', '리플레이 분석'], ['scores', '점수 변동'], ['jeongpa', '정파'], ['magyo', '마교'], ['gshop', '문파 상점'], ['recap', '연말 결산']];
+const navOn = (p) => p === S.page || p === PARENT[S.page];
+const subnav = () => { const r = PARENT[S.page]; return r ? `<nav class="subnav" data-k="subnav">${SUBS[r].map(([p, t]) => `<a href="#/${p}" class="${p === S.page ? 'on' : ''}">${navIc(p)}<span>${t}</span></a>`).join('')}</nav>` : ''; };
 // 거의 안 쓰는 화면: PC는 왼쪽 메뉴 맨 아래 작은 버튼 줄, 휴대폰은 메뉴 창 맨 아래 묶음
 export const NAV_MINI = [['admin', '관리'], ['maker', '제작자']];
-export const NAV_ALL = [...NAV, ...NAV_MINI]; // 탭 제목·빠른 이동 검색에 쓰는 전체 목록
+export const NAV_ALL = [...NAV.map((n) => (n[0] === 'guilds' ? ['guilds', '천하정세'] : n)), ...NAV_SUB, ...NAV_MINI]; // 탭 제목·빠른 이동 검색에 쓰는 전체 목록(합친 화면 포함)
 // 묶음 나누기: [{ t: 묶음 이름('' = 맨 위 묶음 없음), items: [[화면, 이름, 표시]] }]
 const navGroups = () => { const g = [{ t: '', items: [] }]; NAV.forEach((n) => (n[0] ? g[g.length - 1].items.push(n) : g.push({ t: n[1], items: [] }))); return g.filter((x) => x.items.length); };
 // 브라우저 탭 제목: 'NAEJEONPOT · 내전 기록실'(홈) / '랭킹 · NAEJEONPOT' / 선수 카드는 '이름 · 선수 카드 · NAEJEONPOT'
@@ -225,15 +232,15 @@ export function render() {
   if (S.dirty) { S.st = compute(col('players'), col('matches'), settings()); S.dirty = false; }
   const main = document.getElementById('main');
   const f = document.activeElement, fid = f && main.contains(f) ? f.id : '', sel = fid && f.selectionStart;
-  document.querySelectorAll('#nav a, #side .side-mini a').forEach((a) => a.classList.toggle('on', a.dataset.p === S.page));
-  document.querySelectorAll('#tabbar [data-p]').forEach((a) => a.classList.toggle('on', a.dataset.p === S.page || (a.dataset.p === 'more' && !TABS.includes(S.page))));
+  document.querySelectorAll('#nav a, #side .side-mini a, #rail [data-p]').forEach((a) => a.classList.toggle('on', navOn(a.dataset.p) || (a.dataset.cat && RAIL_CAT[S.page] === a.dataset.cat)));
+  document.querySelectorAll('#tabbar [data-p]').forEach((a) => a.classList.toggle('on', a.dataset.cat ? MCAT() === a.dataset.cat : a.dataset.p === S.page || (a.dataset.p === 'more' && !TAB_ON.includes(MCAT() || S.page))));
   document.getElementById('league').textContent = settings().leagueName || '친구 내전 리그';
   const route = S.page + '/' + S.arg.join('/'), entering = route !== lastRoute;
   lastRoute = route;
   // 화면 전환 효과: 새 화면의 요소는 새로 만들어지므로, 내용을 넣기 전에 enter 를 붙여 두면 효과가 처음부터 걸린다.
   // (예전에는 넣은 뒤 void offsetWidth 로 페이지 전체 배치를 억지로 계산시켜 다시 걸어서 휴대폰 첫 화면이 0.4초 멈칫했다.)
   if (entering) { main.classList.add('enter'); clearTimeout(render.t); render.t = setTimeout(() => main.classList.remove('enter'), 900); }
-  const html = pages[S.page].render(...S.arg);
+  const html = subnav() + pages[S.page].render(...S.arg);
   if (pages[S.page].keyed) keyedRender(main, html, entering, pages[S.page].keyed === 'auto'); else { main.innerHTML = html; KR.shell = null; }
   const t = pageTitle(); if (document.title !== t) document.title = t;
   lazyArt(main);
@@ -291,16 +298,21 @@ export function liveMarks(root, entering) {
   });
 }
 // 모바일 하단 탭바: 자주 쓰는 4개 + 더보기(나머지 메뉴를 아래에서 올라오는 창으로)
-const TABS = ['home', 'rank', 'today', 'matches'];
+const TABS = ['home', 'rank', 'today', 'guilds']; const TAB_ON = ['home', 'stat', 'today', 'guild']; const MCAT = () => (['matches', 'replay'].includes(S.page) ? 'stat' : S.page === 'today' ? 'today' : S.page === 'home' ? 'home' : RAIL_CAT[S.page]); // 휴대폰: 경기 기록은 '기록' 판에 있어서 기록 탭에 불
 const MORE_IC = '<svg class="ic" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
 function tabbar() {
   const nm = Object.fromEntries(NAV_ALL.filter((n) => n[0]).map(([p, t]) => [p, t]));
-  const short = { matches: '기록', today: '내전' };
+  const short = { rank: '기록', today: '내전', guilds: '문파' };
   const el = document.createElement('nav'); el.id = 'tabbar';
-  el.innerHTML = TABS.map((p) => `<a href="#/${p}" data-p="${p}" class="${p === 'today' ? 'tb-main' : ''}"><i>${ic(p)}</i><span>${short[p] || nm[p]}</span></a>`).join('') + `<button data-p="more" data-a="tabMore"><i>${MORE_IC}</i><span>더보기</span></button>`;
+  el.innerHTML = TABS.map((p) => p === 'rank' ? `<button data-p="rank" data-cat="stat" data-a="tabCat"><i>${ic(p)}</i><span>기록</span></button>` : `<a href="#/${p}" data-p="${p}" ${p === 'guilds' ? 'data-cat="guild"' : ''} class="${p === 'today' ? 'tb-main' : ''}"><i>${ic(p)}</i><span>${short[p] || nm[p]}</span></a>`).join('') + `<button data-p="more" data-a="tabMore"><i>${MORE_IC}</i><span>더보기</span></button>`;
   document.body.appendChild(el);
 }
 export const moreHooks = []; // 더보기 창 아래쪽 버튼을 다른 모듈이 덧붙일 때 쓴다
+// 휴대폰 '기록' 탭: 아래에서 올라오는 판(3칸씩)에 기록 묶음 + 경기 기록
+act('tabCat', () => {
+  const items = [...RAIL[2].items, ['matches', '경기 기록']];
+  modal(`${mh('기록')}<div class="cat-sheet">${items.map(([p, t]) => `<a class="${navOn(p) ? 'on' : ''}" href="#/${p}" data-a="close">${navIc(p)}<span>${t}</span></a>`).join('')}</div>`, 'more-sheet cat-sh');
+});
 act('tabMore', () => {
   const it = ([p, t]) => `<a class="mm-it ${p === S.page ? 'on' : ''}" href="#/${p}" data-a="close">${navIc(p)}<span>${t}</span></a>`;
   const body = [...navGroups(), { t: '설정·정보', items: NAV_MINI, mini: true }].map((g) => `${g.t ? `<h6>${g.t}</h6>` : ''}<div class="mm-g${g.mini ? ' mm-mini' : ''}">${g.items.map(it).join('')}</div>`).join('');
@@ -413,6 +425,50 @@ act('navGrp', (d) => {
   document.querySelectorAll(`#nav [data-g="${d.g}"]`).forEach((el) => el.classList.toggle('fold', on));
   document.querySelector(`#nav .nav-h[data-g="${d.g}"]`)?.setAttribute('aria-expanded', String(!on));
 });
+// ---------- PC 왼쪽: 아이콘 레일(큰 분류 5개) + 마우스를 올리면 펼쳐지는 패널 ----------
+// 휴대폰(860px 이하)에서는 쓰지 않는다(아래 탭바). 패널 안 메뉴는 NAV 묶음과 같고 한 줄 설명을 붙인다
+const RAIL = [{ id: 'home', t: '홈', ic: 'home' }, { id: 'play', t: '내전', ic: 'today' }, { id: 'stat', t: '기록', ic: 'rank' }, { id: 'guild', t: '문파', ic: 'guilds' }, { id: 'fun', t: '즐길 거리', ic: 'gacha' }];
+const DESC = { home: '오늘의 소식 · 시즌 띠 · 최근 경기', me: '내 기록 · 내 문파 · 내 카드', today: '라인 지원 · AI 팀 배정 · 정마대전', matches: '지난 경기 · 리플레이 분석', auction: '실시간 · 익명 · 일괄 입찰', rank: '시즌 순위 · 통산 · 점수 변동', players: '홀로 카드 · 시즌 기록', champs: '많이 쓴 챔피언 · 승률', chem: '베스트 듀오 · 상극', guilds: '천하정세 · 정파 · 마교 · 상점', gacha: '챔피언 · 스킨 뽑기', talk: '하고 싶은 말 남기기' };
+const RAIL_CAT = {};
+(() => { const g = navGroups(); RAIL.forEach((c, i) => { c.items = g[i]?.items || []; c.items.forEach(([p]) => (RAIL_CAT[p] = c.id)); }); Object.entries(PARENT).forEach(([p, r]) => (RAIL_CAT[p] = RAIL_CAT[r])); RAIL_CAT.recap = 'stat'; RAIL_CAT.recruit = 'play'; })();
+function buildRail() {
+  const side = document.getElementById('side'); if (!side || document.getElementById('rail')) return;
+  const rail = document.createElement('div'); rail.id = 'rail';
+  rail.innerHTML = `<a class="rl-logo" href="#/home" title="홈">${logo(false, 40).replace(/id="([^"]+)"/g, 'id="$1_r"').replace(/url\(#([^)]+)\)/g, 'url(#$1_r)').replace(/href="#(?!\/)([^"]+)"/g, 'href="#$1_r"')}</a>
+    <a class="rl-q go" href="#/today" data-p="today" title="내전 시작(팀 구성하기)">${ic('today')}<span>시작</span></a><a class="rl-q kk" href="#/recruit" data-p="recruit" title="내전 모집(카톡)">${ic('users')}<span>모집</span></a><i class="rl-sep"></i>
+    ${RAIL.map((c) => `<button type="button" class="rl-c" data-cat="${c.id}" data-p="${c.id}" aria-label="${c.t}">${ic(c.ic)}<span>${c.t}</span></button>`).join('')}
+    <span class="rl-sp"></span><button type="button" class="rl-b" data-a="fdOpen" title="빠른 이동 (Ctrl+K)">${ic('search')}</button>
+    <button type="button" class="rl-b rl-on" data-fly="on" title="접속 중"><b class="mono" id="rl-n">0</b><small>ONLINE</small></button>
+    <button type="button" class="rl-b" data-fly="set" title="설정·관리">${ic('admin')}</button>`;
+  side.appendChild(rail);
+  const fly = document.createElement('div'); fly.id = 'fly'; fly.setAttribute('role', 'menu'); document.body.appendChild(fly);
+  // 접속자 목록·설정 버튼은 원래 칸을 패널로 옮겨 그대로 쓴다(버튼 동작 그대로)
+  const park = document.createElement('div'); park.id = 'fly-park'; park.hidden = true; document.body.appendChild(park);
+  let t = 0, cur = '';
+  const open = (k, btn) => {
+    clearTimeout(t); if (cur === k && fly.classList.contains('on')) return; cur = k;
+    [...fly.querySelectorAll('#presence, .sidefoot, .side-mini')].forEach((el) => park.appendChild(el));
+    const c = RAIL.find((x) => x.id === k);
+    if (c) fly.innerHTML = `<h3>${c.t}</h3>${c.items.map(([p, n]) => `<a href="#/${p}" data-p="${p}" class="${navOn(p) ? 'on' : ''}" role="menuitem"><i class="fi">${navIc(p)}</i><b>${n}</b><small>${DESC[p] || ''}</small></a>`).join('')}`;
+    else { fly.innerHTML = `<h3>${k === 'on' ? '접속 중' : '설정 · 관리'}</h3>`; (k === 'on' ? ['#presence'] : ['.side-mini', '.sidefoot']).forEach((q) => { const el = park.querySelector(q) || document.querySelector('#side ' + q); if (el) fly.appendChild(el); }); }
+    fly.classList.toggle('low', !c); fly.style.top = c ? '' : Math.max(8, Math.min(innerHeight - 380, btn.getBoundingClientRect().top - 120)) + 'px';
+    fly.classList.add('on');
+  };
+  const close = () => { t = setTimeout(() => { fly.classList.remove('on'); cur = ''; }, 180); };
+  // 마우스가 레일을 스치기만 할 때는 열지 않는다(0.12초 머물면 열림). 패널 밖을 누르면 바로 닫힘
+  let hv = 0;
+  rail.addEventListener('mouseover', (e) => { const b = e.target.closest('[data-cat],[data-fly]'); clearTimeout(hv); if (b) hv = setTimeout(() => open(b.dataset.cat || b.dataset.fly, b), fly.classList.contains('on') ? 0 : 120); });
+  rail.addEventListener('mouseout', (e) => { if (!e.relatedTarget?.closest?.('[data-cat],[data-fly]')) clearTimeout(hv); });
+  document.addEventListener('pointerdown', (e) => { if (fly.classList.contains('on') && !e.target.closest('#fly,#rail')) { fly.classList.remove('on'); cur = ''; } }, true);
+  rail.addEventListener('click', (e) => { const b = e.target.closest('[data-cat],[data-fly]'); if (b) { if (cur === (b.dataset.cat || b.dataset.fly) && fly.classList.contains('on')) { fly.classList.remove('on'); cur = ''; } else open(b.dataset.cat || b.dataset.fly, b); } });
+  rail.addEventListener('mouseleave', () => { clearTimeout(hv); close(); }); fly.addEventListener('mouseenter', () => clearTimeout(t)); fly.addEventListener('mouseleave', close);
+  fly.addEventListener('click', (e) => { if (e.target.closest('a[href]')) { fly.classList.remove('on'); cur = ''; } });
+  addEventListener('hashchange', () => { fly.classList.remove('on'); cur = ''; });
+  // 처음에는 접속자 목록·설정 칸을 보관함으로(원래 자리는 레일이 덮음). 접속자 수는 목록 숫자를 따라간다
+  ['#presence', '.side-mini', '.sidefoot'].forEach((q) => { const el = document.querySelector('#side ' + q); if (el) park.appendChild(el); });
+  const sync = () => { const n = document.querySelector('#presence .pcount b')?.textContent; if (n != null) document.getElementById('rl-n').textContent = n; };
+  const pr = document.getElementById('presence'); if (pr) new MutationObserver(sync).observe(pr, { childList: true, subtree: true, characterData: true }); sync();
+}
 export function initShell() {
   document.getElementById('brandlogo').innerHTML = logo(false, 40);
   initPerf(); initVer();
@@ -425,6 +481,7 @@ export function initShell() {
     ? `<button type="button" class="nav-h ${fold.includes(t) ? 'fold' : ''}" data-a="navGrp" data-g="${t}" aria-expanded="${!fold.includes(t)}"><h6>${t}</h6><i class="nav-chev"></i></button><div class="nav-g ${fold.includes(t) ? 'fold' : ''}" data-g="${t}">${items.map(link).join('')}</div>`
     : `<div class="nav-g nav-top">${items.map(link).join('')}</div>`)).join('');
   document.getElementById('nav').insertAdjacentHTML('afterend', `<div class="side-mini">${NAV_MINI.map(([p, t]) => `<a href="#/${p}" data-p="${p}" title="${t}">${navIc(p)}<span>${t}</span></a>`).join('')}</div>`);
+  if (matchMedia('(min-width:861px)').matches) buildRail();
   document.getElementById('mode').innerHTML = S.store.mode === 'local' ? '<span class="tag warn" title="이 브라우저에만 저장됩니다">체험 모드</span>' : ''; // 실제 리그에서는 표시하지 않는다(사이드바 공간 절약)
   // 누르는 사이에 화면이 다시 그려지면(다른 사람이 입찰·지원) 누른 버튼이 새 버튼으로 바뀌어 클릭이 사라진다(PC 마우스).
   // 누를 때의 버튼(이름·data 값)을 기억해 두고, 뗀 자리에 똑같은 버튼이 있으면 그 버튼을 누른 것으로 처리한다(이때 브라우저는 클릭을 아예 보내지 않음).

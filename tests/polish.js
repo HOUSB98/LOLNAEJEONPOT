@@ -30,8 +30,9 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   ok(await nav, '새로고침을 누르면 사이트를 다시 엶');
   await A.waitForTimeout(1500);
   // 2) 진단 정보 복사(사이드바)
-  ok(!!(await A.$('.sidefoot [data-a=diagCopy]')), '사이드바에 진단 복사 버튼');
-  await A.click('.sidefoot [data-a=diagCopy]'); await A.waitForTimeout(2900);
+  await A.hover('#rail [data-fly=set]'); await A.waitForTimeout(450);
+  ok(!!(await A.$('#fly .sidefoot [data-a=diagCopy]')), '왼쪽 레일 설정 패널에 진단 복사 버튼');
+  await A.click('#fly .sidefoot [data-a=diagCopy]'); await A.waitForTimeout(2900);
   const clip = await A.evaluate(() => navigator.clipboard.readText()).catch(() => '');
   ok(/NAEJEONPOT 진단 정보/.test(clip) && /프레임: 실제 \d+fps · 모니터 약 \d+Hz/.test(clip) && /화면: \d+×\d+/.test(clip) && /그래픽/.test(clip) && !/A\b.*닉네임/.test(clip), '진단 정보 복사: 프레임·주사율·화면·그래픽카드: ' + clip.split('\n').slice(2, 4).join(' / '));
   ok(!clip.includes('test') || !/k=test/.test(clip), '주소(리그 코드)는 넣지 않음');
@@ -93,19 +94,23 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   ok(await M.$$eval('.fm .dots i', (x) => x.length && x.every((e) => parseFloat(getComputedStyle(e).fontSize) >= 11)), '홈 요즘 폼 승패 글씨 11px 이상');
   ok(await M.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), '휴대폰 가로 넘침 없음');
   errs.push(...M.errs);
-  // 7) 왼쪽 메뉴 정리: 홈·내 페이지(묶음 제목 없음) + 3묶음(내전·기록·분석·즐길 거리), 즐길 거리는 처음엔 접힘, 맨 아래 관리·제작자 작은 버튼 줄
+  // 7) 왼쪽 메뉴(2026-11-27 개편): PC는 아이콘 레일(내전 시작·모집 + 큰 분류 5개) + 마우스를 올리면 펼침 패널. 합친 화면은 위쪽 탭, 관리·제작자는 설정 패널
   const N = await client(b, be, 'WORK', 'N'); await open(N, 'home', 800);
-  const nv = await N.evaluate(() => ({ top: [...document.querySelectorAll('#nav .nav-top a')].map((a) => a.dataset.p), heads: [...document.querySelectorAll('#nav .nav-h h6')].map((e) => e.textContent), fun: document.querySelector('#nav .nav-g[data-g="즐길 거리"]')?.classList.contains('fold'), funVis: [...document.querySelectorAll('#nav .nav-g[data-g="즐길 거리"] a')].filter((a) => a.offsetParent).length, mini: [...document.querySelectorAll('#side .side-mini a')].map((a) => a.dataset.p), inNav: !!document.querySelector('#nav a[data-p=admin], #nav a[data-p=maker]') }));
-  ok(nv.top.join() === 'home,me' && nv.heads.join() === '내전,기록·분석,문파,즐길 거리', '왼쪽 메뉴: 맨 위 홈·내 페이지 + 묶음 4개(내전 · 기록·분석 · 문파 · 즐길 거리)');
-  ok(nv.fun && nv.funVis === 0, "'즐길 거리'는 처음엔 접힌 채로");
-  ok(nv.mini.join() === 'admin,maker' && !nv.inNav, '관리·제작자는 메뉴 맨 아래 작은 버튼 줄로');
-  await N.click('#nav .nav-h[data-g="즐길 거리"]'); await N.waitForTimeout(200);
-  ok(await N.evaluate(() => [...document.querySelectorAll('#nav .nav-g[data-g="즐길 거리"] a')].filter((a) => a.offsetParent).length === 2 && JSON.parse(localStorage.getItem('naejeon:navfold')).length === 0), '눌러서 펼치면 가챠·익명 게시판이 보이고 그 상태를 기억');
-  await N.click('#side .side-mini a[data-p=maker]'); await N.waitForTimeout(800);
-  ok(await N.evaluate(() => location.hash === '#/maker' && document.title === '제작자 · NAEJEONPOT' && document.querySelector('#side .side-mini a.on')?.dataset.p === 'maker'), '작은 버튼으로 제작자 화면(탭 제목·선택 표시)');
+  const nv = await N.evaluate(() => ({ cats: [...document.querySelectorAll('#rail .rl-c span')].map((e) => e.textContent), q: [...document.querySelectorAll('#rail .rl-q')].map((e) => e.getAttribute('href')), w: document.getElementById('side').getBoundingClientRect().width, navHidden: !document.getElementById('nav').offsetParent }));
+  ok(nv.cats.join() === '홈,내전,기록,문파,즐길 거리' && nv.q.join() === '#/today,#/recruit' && nv.w <= 80 && nv.navHidden, '왼쪽 레일: 내전 시작·모집 아이콘 + 큰 분류 5개(76px), 예전 긴 메뉴는 숨김: ' + JSON.stringify(nv));
+  await N.hover('#rail [data-cat=stat]'); await N.waitForTimeout(450);
+  ok(await N.evaluate(() => document.getElementById('fly').classList.contains('on') && [...document.querySelectorAll('#fly>a')].map((a) => a.dataset.p).join() === 'rank,players,champs,chem'), "'기록'에 마우스를 올리면 패널: 랭킹·선수 카드·챔피언·케미(점수 변동은 랭킹 위쪽 탭)");
+  await N.click('#fly a[data-p=champs]'); await N.waitForTimeout(700);
+  ok(await N.evaluate(() => location.hash === '#/champs' && !document.getElementById('fly').classList.contains('on') && document.querySelector('#rail .rl-c.on')?.dataset.cat === 'stat'), '패널에서 고르면 이동 · 패널 닫힘 · 레일에 지금 분류 표시');
+  await open(N, 'scores', 800);
+  ok(await N.evaluate(() => [...document.querySelectorAll('.subnav a')].map((a) => a.textContent).join() === '랭킹,점수 변동' && document.querySelector('.subnav a.on')?.textContent === '점수 변동' && document.title === '점수 변동 · NAEJEONPOT'), '점수 변동 = 랭킹 위쪽 탭(예전 주소 그대로·탭 제목)');
+  await N.hover('#rail [data-fly=set]'); await N.waitForTimeout(450); await N.click('#fly .side-mini a[data-p=maker]'); await N.waitForTimeout(800);
+  ok(await N.evaluate(() => location.hash === '#/maker' && document.title === '제작자 · NAEJEONPOT'), '설정 패널의 작은 버튼으로 제작자 화면(탭 제목)');
+  await N.hover('#rail [data-fly=on]'); await N.waitForTimeout(450);
+  ok(await N.evaluate(() => !!document.querySelector('#fly #presence .prh') && document.getElementById('rl-n').textContent === document.querySelector('#presence .pcount b')?.textContent), '접속자 수는 레일에 숫자, 올리면 접속자 목록');
   errs.push(...N.errs);
   await M.tap('#tabbar [data-p=more]'); await M.waitForTimeout(500);
-  ok(await M.evaluate(async () => { const { recapSeason } = await import('/js/core.js'); return [...document.querySelectorAll('#modal.on .mm h6')].map((e) => e.textContent).join() === '내전,기록·분석,문파,즐길 거리,설정·정보' && document.querySelectorAll('#modal.on .mm-it').length === 19 + (recapSeason() ? 1 : 0); }), '휴대폰 메뉴 창도 같은 묶음 + 설정·정보(관리·제작자), 19개(연말 결산 기간에는 20개, 길드 묶음 천하정세·정파·마교·상점 포함)');
+  ok(await M.evaluate(async () => { const { recapSeason } = await import('/js/core.js'); return [...document.querySelectorAll('#modal.on .mm h6')].map((e) => e.textContent).join() === '내전,기록,문파,즐길 거리,설정·정보' && document.querySelectorAll('#modal.on .mm-it').length === 14 && !recapSeason.x; }), '휴대폰 메뉴 창도 같은 묶음 + 설정·정보(관리·제작자), 합친 뒤 14개(문파 1칸, 점수 변동·리플레이·연말 결산은 각 화면 탭·홈 띠로)');
   console.log('오류:', errs.join(' | ') || '없음'); ok(!errs.length, '페이지 오류 없음');
   await b.close();
 })();
