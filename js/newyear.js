@@ -62,6 +62,20 @@ const lanterns = (n, cls) => Array.from({ length: n }, (_, i) => {
   return `<i class="${cls}" style="left:${x}%;--s:${s.toFixed(2)};--d:${d}s;--dl:${delay.toFixed(1)}s;--sw:${(i % 2 ? 1 : -1) * (8 + (i % 5) * 4)}px">${LANTERN}</i>`;
 }).join('');
 
+// ---------- 시작 화면: 평소 배경 그림 그대로 + 떠오르는 금빛 풍등 + 위쪽 불꽃놀이 ----------
+// 풍등은 CSS 위치(transform)만 바뀌어 가벼운 모드에서도 떠오른다(동작 줄이기에선 숨김). 불꽃(캔버스)은 가벼운 모드·동작 줄이기에선 쉰다
+export function nySplash(splash) {
+  if (!nyOn()) return;
+  splash.classList.add('ny');
+  const sc = document.createElement('div'); sc.className = 'ny-scene';
+  sc.innerHTML = `<canvas class="ny-fw"></canvas><div class="ny-lan">${lanterns(22, 'ny-l')}</div>`;
+  splash.prepend(sc);
+  if (document.body.classList.contains('lite') || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const stop = fireworks(sc.querySelector('.ny-fw'), { always: true, every: 650, top: 0.08, span: 0.35 });
+  const gone = new MutationObserver(() => { if (!document.body.contains(splash)) { stop(); gone.disconnect(); } });
+  gone.observe(document.body, { childList: true });
+}
+
 // ---------- 사이트 전체 ----------
 let fwStop = null;
 function place() {

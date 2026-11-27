@@ -18,7 +18,9 @@
 <meta property="og:image:alt" content="NAEJEONPOT 롤 내전 기록실">
 <meta property="og:locale" content="ko_KR">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" type="image/svg+xml" href="favicon.svg?v=2">
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
 <link rel="preconnect" href="https://ddragon.leagueoflegends.com">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -44,7 +46,7 @@
 </script>
 <script>
 (function () {
-  var V = '20261127e'; window.NP_V = V; // NP_V: 열어 둔 화면이 새 버전이 나왔는지 비교하는 값(core.js initVer)
+  var V = '20261127f'; window.NP_V = V; // NP_V: 열어 둔 화면이 새 버전이 나왔는지 비교하는 값(core.js initVer)
   var JS = ['app', 'core', 'stats', 'store', 'config', 'social', 'season', 'today', 'board', 'dice', 'talk', 'players', 'hook', 'gacha', 'finder', 'kakao', 'recruit', 'me', 'admin', 'auction', 'replay', 'maker', 'scores', 'xmas', 'newyear', 'recap', 'guild', 'guildart', 'gchat', 'guildx'];
   var ok = !!(window.HTMLScriptElement && HTMLScriptElement.supports && HTMLScriptElement.supports('importmap'));
   var q = ok ? '?v=' + V : '', map = {};
@@ -76,7 +78,7 @@
   if ((sessionStorage.getItem('naejeon:welcomed') && n) || !(/[?&](k|demo)\b/.test(qs))) return;
   var e = document.getElementById('splash'), d = new Date(), m = d.getMonth() + 1, md = m * 100 + d.getDate();
   e.className = 'on boot' + (md >= 1116 && md <= 1226 && localStorage.getItem('naejeon:xmas') !== '0' ? ' xs' : '');
-  e.innerHTML = '<div class="sp-boot"><b>NAEJEON<i>POT</i></b><span></span></div>';
+  e.innerHTML = '<div class="sp-boot"><img src="img/logo.webp" alt="NAEJEONPOT" width="960" height="339" fetchpriority="high"><span></span></div>'; // 로고 그림을 여기서 먼저 받아 두면 본 로딩창에서 바로 보인다
 } catch (x) {} })();
 </script>
 <aside id="side">
