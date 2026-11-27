@@ -51,7 +51,7 @@ export function gActiveFrom(g) {
 }
 export const GEM = {
   j: '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="3.900" r="3" fill="#f7a9c9"/><circle cx="11.900" cy="6.700" r="3" fill="#f59ac2"/><circle cx="10.400" cy="11.300" r="3" fill="#f7a9c9"/><circle cx="5.600" cy="11.300" r="3" fill="#f59ac2"/><circle cx="4.100" cy="6.700" r="3" fill="#f7a9c9"/><circle cx="8" cy="7.900" r="2" fill="#ffd66e"/></svg>',
-  m: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 .7 15.300 8 8 15.300.7 8z" fill="#030604" stroke="#4fe08f" stroke-width="1.100" stroke-linejoin="round"/><path d="M8 3.200c1.600 1.900 2.500 3 2.500 4.600a2.500 2.500 0 0 1-5 0c0-1.200.6-2 1.400-2.600.1.900.5 1.400 1 1.600-.3-1.300-.2-2.500.1-3.600z" fill="#4fe08f"/><path d="M5.900 10.600h1.500M8.600 10.600h1.500" stroke="#ff2a3c" stroke-width="1.100" stroke-linecap="round"/></svg>',
+  m: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 .7 15.300 8 8 15.300.7 8z" fill="#030604" stroke="#a065e4" stroke-width="1.100" stroke-linejoin="round"/><path d="M8 3.200c1.600 1.900 2.500 3 2.500 4.600a2.500 2.500 0 0 1-5 0c0-1.200.6-2 1.400-2.600.1.900.5 1.400 1 1.600-.3-1.300-.2-2.500.1-3.600z" fill="#a065e4"/><path d="M5.900 10.600h1.500M8.600 10.600h1.500" stroke="#ff2a3c" stroke-width="1.100" stroke-linecap="round"/></svg>',
 };
 export const gem = (g) => (GUILDS[g] ? `<i class="gem g-${g}" title="${GUILDS[g].n}">${GEM[g]}</i>` : '');
 export const gmark = (id) => gem(gOf(id));

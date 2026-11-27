@@ -877,7 +877,7 @@ function noticePop() {
     clearInterval(t);
     try { sessionStorage.setItem(k, '1'); } catch {}
     const mine = (() => { try { const id = localStorage.getItem('naejeon:me:' + S.key); return gOf(id); } catch { return ''; } })();
-    const el = modal(`<div class="np-pop"><div class="npp-top">${gem('j')}<i>VS</i>${gem('m')}</div><small class="npp-k">NOTICE · 문파 창설</small>
+    const el = modal(`<div class="np-pop"><div class="npp-top"><img class="npp-lg" src="img/gl-j.webp" alt="정파" width="280" height="280"><i>VS</i><img class="npp-lg" src="img/gl-m.webp" alt="마교" width="280" height="280"></div><small class="npp-k">NOTICE · 문파 창설</small>
       <h2>정파 · 마교, 두 문파가 열렸습니다</h2>
       <p>오늘부터 NAEJEONPOT에 두 개의 문파 <b class="npp-j">정파</b>와 <b class="npp-m">마교</b>가 창설되었어요.</p>
       <ul><li>관리자가 소환사를 문파에 배정하고, 이름 옆에 문파 엠블럼이 표시돼요.</li>
