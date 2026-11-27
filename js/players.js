@@ -1,7 +1,8 @@
 // 선수 카드(홀로 카드) / 솔랭 분석 / 케미 분석
 import { S, page, act, esc, pname, go, refresh, fmtDT, wrClass, wrBar, dots, streak, titleChips, champIcon, splashUrl, tileUrl, artUrl, sigChamp, baseChamp, skinList, skinBad, pickChamp, needAdmin, isAdmin, modal, closeModal, mh, toast, ic, logo, countUp, burst, LANES, LANE_NAME, LANE_ICON, LANE_COLOR, pct } from './core.js';
 import { chem, playerLine, duoRank, CHEM_RULE } from './stats.js';
-import { cardChamp, canPickChamp, swipeZone, swiping, gname, gOf, GUILDS } from './core.js';
+import { cardChamp, canPickChamp, swipeZone, swiping, gname, gOf, GUILDS, szStats } from './core.js';
+import { szList, szCur, szShort, szName } from './stats.js';
 import { gcBadge } from './gacha.js';
 
 const PV = { view: 'card', dl: 'all', gr: 'mmr' };
@@ -97,6 +98,19 @@ function detailPanel(s) {
     <p class="hint">${x.xg < x.g ? `세부 지표(피해 구성·치유·CC 등)는 새 형식으로 넣은 리플레이 ${x.xg}판만 집계됩니다. 예전에 넣은 경기는 경기 상세의 "리플레이 교체"로 다시 넣으면 채워집니다. ` : ''}라인을 고르면 그 라인으로 뛴 판만 따로 봅니다. 표본이 적을 때는 참고용으로만 보세요.</p></div>`;
 }
 
+// 시즌 배지: 끝난 시즌에서 시즌 순위 1~3위면 영구히 표시(저장 없이 경기 기록에서 계산)
+const MEDAL = ['', '🥇', '🥈', '🥉'];
+function szBadges(id) {
+  return szList().map((k) => szStats(k)).filter((x) => x.done).map((x) => { const r = x.st.P[id]?.srk; return r && r <= 3 ? `<span class="chip szb r${r}" title="${szName(x.k)} 시즌 순위 ${r}위">${MEDAL[r]} ${szShort(x.k)} ${r}위</span>` : ''; }).join('');
+}
+// 시즌 기록: 뛴 시즌마다 전적·승률·시즌 순위(기준 미달이면 몇 판 더 필요한지)
+function szPanel(id) {
+  const cur = szCur();
+  const rows = szList().map((k) => ({ k, x: szStats(k) })).map(({ k, x }) => ({ k, x, s: x.st.P[id] })).filter((r) => r.s?.g);
+  const body = rows.map(({ k, x, s }) => `<div class="szp-r"><b>${szShort(k)}${k === cur ? '<i>진행 중</i>' : ''}</b><span>${s.g}판 ${s.w}승 ${s.g - s.w}패 · <em class="${wrClass(s.wr)}">${s.wr}%</em></span><span class="szp-rk">${s.srk ? `${s.srk <= 3 ? MEDAL[s.srk] + ' ' : ''}시즌 ${s.srk}위` : `<small>순위 기준 ${x.need}판까지 ${x.need - s.g}판</small>`}</span></div>`).join('');
+  return `<div class="panel szp"><div class="ph"><b>시즌 기록</b><small class="mut">시즌 순위: 그 시즌 최다 출전의 2/3 이상 뛴 사람 중 승률 순</small></div>${body || `<p class="mut sm">${szName(cur)} 출전 기록이 아직 없어요.</p>`}</div>`;
+}
+
 // 성장 그래프: 경기마다 내전 MMR / 누적 승률(+최근 10판 승률)의 변화. 선은 SVG로 늘려 그리고, 점·눈금 글자는 HTML로 얹어 화면 폭이 달라도 찌그러지지 않게 한다
 function growthPanel(s) {
   const h = s.hist || [];
@@ -163,7 +177,8 @@ function cardView(id) {
       <div class="ks mmr"><small>IN-HOUSE MMR</small><b class="mono" data-count="${Math.round(s.mmr)}">${Math.round(s.mmr).toLocaleString()}</b><span>${s.g ? `<em class="${s.mmrLast >= 0 ? 'good' : 'bad'}">${s.mmrLast >= 0 ? '▲' : '▼'}${Math.abs(Math.round(s.mmrLast))}</em> 최근 경기 · ` : ''}시작 ${s.mmrInit}</span></div>
       <div class="ks form"><small>RECENT FORM</small><b>${dots(s.recent)}</b><span>${streak(s.cur) || (s.g ? '연속 기록 없음' : '출전 기록 없음')}</span></div>
     </div>
-    <div class="chips big">${titleChips(s) || '<span class="mut sm">아직 칭호 없음</span>'}</div>
+    <div class="chips big">${szBadges(id)}${titleChips(s) || '<span class="mut sm">아직 칭호 없음</span>'}</div>
+    ${szPanel(id)}
     ${growthPanel(s)}
     <div class="panel"><div class="ph"><b>라인 파워</b><small class="mut">점수(20점 만점) · 세로선은 리그 평균 · 오른쪽은 라인 승률</small></div>
       ${LANES.map((l) => { const v = +p.scores?.[l] || 0, a = st.laneAvg[l], rk = st.laneRank[id][l]; return `<div class="pw">${LANE_ICON[l]}<span>${LANE_NAME[l]}</span><div class="bar"><i style="width:${v * 5}%;background:${LANE_COLOR[l]}"></i><u style="left:${a * 5}%"></u></div><b class="mono">${v}</b><small class="mono">${rk}위</small><small class="mono ${wrClass(pct(s.lanes[l].w, s.lanes[l].g))}">${s.lanes[l].g ? `${pct(s.lanes[l].w, s.lanes[l].g)}% (${s.lanes[l].g})` : '—'}</small></div>`; }).join('')}</div>

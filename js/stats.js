@@ -30,13 +30,13 @@ const add = (o, win) => { o.g++; if (win) o.w++; };
 // 리플레이에서 읽는 확장 지표(경기별 stats에 v:2와 함께 저장). 뜻은 js/replay.js의 toRows 참고
 export const XKEYS = ['mk', 'jk', 'pd', 'md', 'td', 'obj', 'tur', 'heal', 'healT', 'shT', 'mit', 'cc', 'wk', 'cw', 'dk', 'tk', 'qk', 'pk', 'spree', 'tw', 'spent', 'dead', 'crit'];
 
-export function compute(playerList, matchList, settings) {
+export function compute(playerList, matchList, settings, opt = {}) { // opt.mmr0: 선수별 시작 MMR(시즌 계산 때 그 시즌 직전의 통산 MMR로 이어 가기)
   const cfg = { ...DEFAULTS, ...settings };
   const players = playerList.filter((p) => !p.deleted);
   const matches = matchList.filter((m) => !m.deleted && m.winner).sort((a, b) => a.at - b.at || (a.seq || 0) - (b.seq || 0));
   const P = {};
   for (const p of players) {
-    const mmr = initMmr(p);
+    const mmr = opt.mmr0?.[p.id] ?? initMmr(p);
     P[p.id] = {
       id: p.id, name: p.name, p, g: 0, w: 0, results: [], mmrInit: mmr, mmr, mmrLast: 0,
       lanes: Object.fromEntries(LANES.map((l) => [l, blank()])), side: { blue: blank(), red: blank() },
@@ -203,6 +203,35 @@ export function compute(playerList, matchList, settings) {
 // 예상승률 = 1 / (1 + 10^(−점수차/스케일)). 스케일은 '점수 몇 점 차이가 몇 % 유리한가'를 정한다(작을수록 점수 차에 민감).
 // 지금까지 경기마다 '기록 당시 라인 점수 차(블루−레드)'와 실제 결과로, 결과를 가장 잘 설명하는 스케일(로그 손실 최소)을 찾는다.
 // 스케일은 '누가 유리한가'를 바꾸지 않으므로 적중률은 그대로이고, '몇 %'가 실제 승률과 맞아지게 한다(60%라고 하면 실제로 10판 중 6판 정도 이김).
+// ---------- 시즌: 3개월(문파 분기와 같은 기간, 새벽 6시 기준 dayKey). 2026년 4분기(10~12월)가 시즌 0(프리시즌) ----------
+// 저장하는 값 없음. 그 시즌 경기만 골라 compute()로 다시 계산하되, MMR은 시즌 직전의 통산 MMR에서 이어 간다(초기화 없음 → 팀 균형·예측과 같은 값).
+// 시즌 순위: 그 시즌 최다 출전자 판수의 2/3(올림) 이상 뛴 사람 중 승률 순 → 같으면 판수 많은 순 → MMR 높은 순
+export const SZ0 = 2026 * 4 + 3; // 2026년 4분기
+const szIdx = (k) => +k.slice(0, 4) * 4 + (+k.slice(5) - 1);
+const szOf = (i) => `${Math.floor(i / 4)}Q${(i % 4) + 1}`;
+export const szKey = (at) => { const d = dayKey(at); return `${d.slice(0, 4)}Q${Math.ceil(+d.slice(5, 7) / 3)}`; };
+export const szNo = (k) => szIdx(k) - SZ0;
+export const szName = (k) => (szNo(k) === 0 ? '시즌 0 · 프리시즌' : `시즌 ${szNo(k)}`);
+export const szShort = (k) => `S${szNo(k)}`;
+export const szRange = (k) => { const y = +k.slice(0, 4), q = +k.slice(5); return [new Date(y, (q - 1) * 3, 1, 6).getTime(), new Date(y, q * 3, 1, 6).getTime()]; }; // [시작, 끝)
+export const szMonths = (k) => { const q = +k.slice(5); return `${k.slice(0, 4)}년 ${(q - 1) * 3 + 1}~${q * 3}월`; };
+export const szCur = (t = Date.now()) => szKey(t);
+export const szList = (t = Date.now()) => { const out = []; for (let i = szIdx(szCur(t)); i >= SZ0; i--) out.push(szOf(i)); return out; }; // 최신 시즌부터
+export function seasonCompute(full, playerList, matchList, settings, k) {
+  const [a, b] = szRange(k);
+  const ms = matchList.filter((m) => !m.deleted && m.winner && m.at >= a && m.at < b);
+  const mmr0 = {};
+  for (const s of full.list) { let v = s.mmrInit; for (const h of s.hist) { if (h.at >= a) break; v = h.mmr; } mmr0[s.id] = v; }
+  const st = compute(playerList, ms, settings, { mmr0 });
+  const played = st.list.filter((s) => s.g > 0), max = played.reduce((m, s) => Math.max(m, s.g), 0), need = Math.ceil((max * 2) / 3);
+  const ranked = played.filter((s) => s.g >= need).sort((x, y) => y.w / y.g - x.w / x.g || y.g - x.g || y.mmr - x.mmr);
+  for (const s of st.list) s.srk = 0;
+  ranked.forEach((s, i) => (s.srk = i + 1));
+  const mvp = played.map((s) => ({ s, up: s.mmr - mmr0[s.id] })).sort((x, y) => y.up - x.up)[0] || null; // 시즌 중 MMR이 가장 많이 오른 사람
+  const most = [...played].sort((x, y) => y.g - x.g || y.w - x.w)[0] || null;
+  return { k, a, b, st, n: ms.length, max, need, ranked, mvp, most, mmr0, done: Date.now() >= b };
+}
+
 export const CAL_MIN = 30, CAL_BINS = [[0.5, 0.55], [0.55, 0.6], [0.6, 0.65], [0.65, 0.7], [0.7, 1.01]];
 export function calibrate(st, scale = st.cfg.scale) {
   const rows = st.matches.map((m) => { const mi = st.MI[m.id]; return { d: mi.bs - mi.rs, w: m.winner === 'blue' ? 1 : 0, eb: mi.eb, snap: m.snap?.pBlue != null }; });

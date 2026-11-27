@@ -1,5 +1,5 @@
 // 공통: 상태, 라우터, 이벤트 위임, 아이콘·로고, 모달, 챔피언/선수 선택창, 관리자 PIN, 이펙트
-import { compute, LANES, LANE_NAME, pct } from './stats.js';
+import { compute, seasonCompute, szCur, LANES, LANE_NAME, pct } from './stats.js';
 
 export const S = { store: null, key: 'local', st: null, dirty: true, page: 'home', arg: [], admin: false, champs: [], champBy: {}, ver: '' };
 export const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -212,6 +212,14 @@ let raf = 0, lastRoute = '';
 export function refresh(dataChanged) {
   if (dataChanged) S.dirty = true;
   if (!raf) raf = requestAnimationFrame(() => { raf = 0; render(); });
+}
+// 시즌 통계(stats.js seasonCompute): 통산 통계(S.st)가 다시 계산될 때까지 시즌별로 한 번만 계산해 기억한다
+const SZC = new WeakMap();
+export function szStats(k = szCur()) {
+  if (S.dirty) { S.st = compute(col('players'), col('matches'), settings()); S.dirty = false; }
+  let m = SZC.get(S.st); if (!m) SZC.set(S.st, (m = new Map()));
+  if (!m.has(k)) m.set(k, seasonCompute(S.st, col('players'), col('matches'), settings(), k));
+  return m.get(k);
 }
 export function render() {
   if (S.dirty) { S.st = compute(col('players'), col('matches'), settings()); S.dirty = false; }
