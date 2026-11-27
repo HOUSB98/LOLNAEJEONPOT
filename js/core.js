@@ -451,7 +451,9 @@ function buildRail() {
     const c = RAIL.find((x) => x.id === k);
     if (c) fly.innerHTML = `<h3>${c.t}</h3>${c.items.map(([p, n]) => `<a href="#/${p}" data-p="${p}" class="${navOn(p) ? 'on' : ''}" role="menuitem"><i class="fi">${navIc(p)}</i><b>${n}</b><small>${DESC[p] || ''}</small></a>`).join('')}`;
     else { fly.innerHTML = `<h3>${k === 'on' ? '접속 중' : '설정 · 관리'}</h3>`; (k === 'on' ? ['#presence'] : ['.side-mini', '.sidefoot']).forEach((q) => { const el = park.querySelector(q) || document.querySelector('#side ' + q); if (el) fly.appendChild(el); }); }
-    fly.classList.toggle('low', !c); fly.style.top = c ? '' : Math.max(8, Math.min(innerHeight - 380, btn.getBoundingClientRect().top - 120)) + 'px';
+    // 접속자·설정 창: 누른 버튼 바로 오른쪽, 아래 끝을 버튼 아래 끝에 맞춘다(위로 자라고, 넘치면 창 안에서 스크롤)
+    fly.dataset.k = k; fly.classList.toggle('low', !c); fly.style.top = c ? '' : 'auto'; fly.style.bottom = c ? '' : Math.max(8, innerHeight - btn.getBoundingClientRect().bottom) + 'px';
+    if (k === 'on') { const t = fly.querySelector('#presence .prf'); if (t && t.getAttribute('aria-expanded') !== 'true') t.click(); } // 접속자 창은 전체 목록을 바로 펼쳐 보여 준다
     fly.classList.add('on');
   };
   const close = () => { t = setTimeout(() => { fly.classList.remove('on'); cur = ''; }, 180); };
