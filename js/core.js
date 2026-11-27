@@ -446,14 +446,14 @@ function buildRail() {
   const park = document.createElement('div'); park.id = 'fly-park'; park.hidden = true; document.body.appendChild(park);
   let t = 0, cur = '';
   const open = (k, btn) => {
-    clearTimeout(t); if (cur === k && fly.classList.contains('on')) return; cur = k;
+    clearTimeout(t); if (k === 'on') { const t2 = fly.querySelector('#presence .prf') || park.querySelector('#presence .prf'); if (t2 && t2.getAttribute('aria-expanded') !== 'true') queueMicrotask(() => t2.click()); } // 접속자 창: 얼굴 줄은 숨기고 목록을 늘 펼쳐 둔다
+    if (cur === k && fly.classList.contains('on')) return; cur = k;
     [...fly.querySelectorAll('#presence, .sidefoot, .side-mini')].forEach((el) => park.appendChild(el));
     const c = RAIL.find((x) => x.id === k);
     if (c) fly.innerHTML = `<h3>${c.t}</h3>${c.items.map(([p, n]) => `<a href="#/${p}" data-p="${p}" class="${navOn(p) ? 'on' : ''}" role="menuitem"><i class="fi">${navIc(p)}</i><b>${n}</b><small>${DESC[p] || ''}</small></a>`).join('')}`;
     else { fly.innerHTML = `<h3>${k === 'on' ? '접속 중' : '설정 · 관리'}</h3>`; (k === 'on' ? ['#presence'] : ['.side-mini', '.sidefoot']).forEach((q) => { const el = park.querySelector(q) || document.querySelector('#side ' + q); if (el) fly.appendChild(el); }); }
     // 접속자·설정 창: 누른 버튼 바로 오른쪽, 아래 끝을 버튼 아래 끝에 맞춘다(위로 자라고, 넘치면 창 안에서 스크롤)
     fly.dataset.k = k; fly.classList.toggle('low', !c); fly.style.top = c ? '' : 'auto'; fly.style.bottom = c ? '' : Math.max(8, innerHeight - btn.getBoundingClientRect().bottom) + 'px';
-    if (k === 'on') { const t = fly.querySelector('#presence .prf'); if (t && t.getAttribute('aria-expanded') !== 'true') t.click(); } // 접속자 창은 전체 목록을 바로 펼쳐 보여 준다
     fly.classList.add('on');
   };
   const close = () => { t = setTimeout(() => { fly.classList.remove('on'); cur = ''; }, 180); };
@@ -468,7 +468,8 @@ function buildRail() {
   addEventListener('hashchange', () => { fly.classList.remove('on'); cur = ''; });
   // 처음에는 접속자 목록·설정 칸을 보관함으로(원래 자리는 레일이 덮음). 접속자 수는 목록 숫자를 따라간다
   ['#presence', '.side-mini', '.sidefoot'].forEach((q) => { const el = document.querySelector('#side ' + q); if (el) park.appendChild(el); });
-  const sync = () => { const n = document.querySelector('#presence .pcount b')?.textContent; if (n != null) document.getElementById('rl-n').textContent = n; };
+  const sync = () => { const n = document.querySelector('#presence .pcount b')?.textContent; if (n != null) document.getElementById('rl-n').textContent = n;
+    if (cur === 'on' && fly.classList.contains('on') && fly.querySelector('#presence') && !fly.querySelector('.prpop')) { fly.classList.remove('on'); cur = ''; } }; // 접속자 목록이 닫히면(Esc 등) 빈 창이 남지 않게 창도 닫음
   const pr = document.getElementById('presence'); if (pr) new MutationObserver(sync).observe(pr, { childList: true, subtree: true, characterData: true }); sync();
 }
 export function initShell() {

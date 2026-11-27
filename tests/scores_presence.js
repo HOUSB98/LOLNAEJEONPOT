@@ -86,9 +86,10 @@ const SHOT = process.env.SHOT; // 폴더를 주면 화면을 찍어 둔다
   if (SHOT) await A.screenshot({ path: SHOT + '/presence_pc.png' });
   await A.mouse.click(800, 400); await A.waitForTimeout(200);
   ok(!(await A.$('.prpop')), '바깥을 누르면 닫힘');
-  await A.hover('#rail [data-fly=on]'); await A.waitForTimeout(450); if (!(await A.$('.prpop'))) await A.click('#presence .prf'); await A.waitForTimeout(200); await A.keyboard.press('Escape'); await A.waitForTimeout(200);
-  ok(!(await A.$('.prpop')), 'Esc로 닫힘');
-  await A.hover('#rail [data-fly=on]'); await A.waitForTimeout(450); if (!(await A.$('.prpop'))) await A.click('#presence .prf'); await A.waitForTimeout(200); // 창을 다시 열면 목록이 펼쳐진 상태(이미 열려 있으면 그대로)
+  await A.mouse.move(700, 400); await A.hover('#rail [data-fly=on]'); await A.waitForTimeout(450); await A.keyboard.press('Escape'); await A.waitForTimeout(200);
+  ok(!(await A.$('.prpop')) && !(await A.evaluate(() => document.getElementById('fly').classList.contains('on'))), 'Esc로 목록과 창이 함께 닫힘');
+  await A.mouse.move(700, 400); await A.hover('#rail [data-fly=on]'); await A.waitForTimeout(450); // 다시 열면 목록이 펼쳐진 상태(얼굴 줄 없이)
+  ok(!(await A.evaluate(() => document.querySelector('#fly #presence .prf')?.offsetParent)), '접속자 창에 얼굴 줄(큰 아이콘)은 없음');
   await B.close(); await A.waitForTimeout(1500);
   ok(!!(await A.$('.prpop')), '접속자가 바뀌어도 열린 창 유지');
 
