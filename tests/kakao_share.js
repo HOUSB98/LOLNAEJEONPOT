@@ -67,7 +67,7 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   errs.push(...M.errs);
   // 로딩창 아래 'Works with KakaoTalk'(작게, 가운데, 입장 안내 위)
   const Sp = await client(b, be, 'WORK', 'S'); await Sp.addInitScript(() => sessionStorage.removeItem('naejeon:welcomed'));
-  await Sp.goto('https://site.test/?k=test#/home'); await Sp.waitForTimeout(3300);
+  await Sp.goto('https://site.test/?k=test#/home'); await Sp.waitForFunction(() => { const e = document.querySelector('#splash .sp-collab'); return e && +getComputedStyle(e).opacity > 0.95; }, null, { timeout: 15000 }).catch(() => {});
   const sp = await Sp.evaluate(() => { const e = document.querySelector('#splash .sp-collab'), k = document.querySelector('#splash .sp-skip'); if (!e) return null; const r = e.getBoundingClientRect(), q = k.getBoundingClientRect(); return { t: e.innerText.replace(/\s+/g, ' ').trim(), op: +getComputedStyle(e).opacity, h: Math.round(r.height), mid: Math.abs(r.x + r.width / 2 - innerWidth / 2) < 2, above: r.bottom <= q.top, kk: getComputedStyle(e.querySelector('.sp-kk')).backgroundColor }; });
   ok(sp && sp.t === 'WORKS WITH KakaoTalk' && sp.op > 0.95 && sp.h <= 40 && sp.mid && sp.above && sp.kk === 'rgb(254, 229, 0)', '로딩창: 작은 "Works with KakaoTalk"(카카오 노랑 아이콘)가 가운데·입장 안내 위에: ' + JSON.stringify(sp));
   errs.push(...Sp.errs);

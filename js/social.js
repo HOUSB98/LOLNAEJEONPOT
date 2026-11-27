@@ -341,9 +341,9 @@ function splash() {
   const stop = season ? () => {} : embers(el.querySelector('canvas'));
   const close = () => { if (el.dataset.done) return; el.dataset.done = 1; sessionStorage.setItem('naejeon:welcomed', '1'); el.classList.add('out'); setTimeout(() => { stop(); el.remove(); }, 850); };
   if (first) {
-    setTimeout(() => el.querySelector('#spn')?.focus(), 1900);
+    setTimeout(() => el.querySelector('#spn')?.focus(), 1200);
     el.querySelector('#spf').onsubmit = (e) => { e.preventDefault(); if (setNick(el.querySelector('#spn').value)) close(); };
-  } else { setTimeout(close, season ? 5600 : 3600); el.addEventListener('click', close); } // 시즌 장식 땐 썰매가 지나갈 만큼 조금 더 보여 준다
+  } else { setTimeout(close, season ? 3200 : 2600); el.addEventListener('click', close); } // 로딩창은 데이터가 준비된 뒤에 뜨므로 로고·인사·진행 막대만 보여 주고 바로 닫는다(예전 3.6초·시즌 5.6초 → 2.6초·시즌 3.2초)
 }
 
 export function initSocial() {

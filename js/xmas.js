@@ -39,10 +39,14 @@ function snowCanvas(cv, opts = {}) {
   const Q = opts.full ? 1 : 0.5; // 눈은 원래 부드러운 모양이라 절반 해상도로 그리고 늘려도 티가 안 난다(그릴 픽셀 1/4)
   const fit = () => { [W, H] = size(); cv.width = Math.round(W * Q); cv.height = Math.round(H * Q); g.setTransform(Q, 0, 0, Q, 0, 0); flakes = Array.from({ length: Math.round(Math.min(count, W / 18)) }, () => mk(true)); glints = opts.glint ? Array.from({ length: Math.round(Math.min(opts.glint, W / 60)) }, mkG) : []; };
   fit(); addEventListener('resize', fit);
+  // 그릴 때만 깨어난다: 매 프레임(초당 60번) 깨어나 건너뛰면 브라우저가 매번 화면 준비(스타일·배치 계산)를 해서 무거웠다 →
+  // 그린 뒤 step(50ms)만큼 쉬었다가 다음 프레임을 요청(초당 20번). 가벼운 모드·창 비활성·숨김일 때는 0.5초마다 확인만
+  let tm = 0;
+  const next = (ms) => { tm = setTimeout(() => { tm = 0; raf = requestAnimationFrame(loop); }, ms); };
   const loop = (t) => {
-    raf = requestAnimationFrame(loop);
-    if (t - last < (opts.step || 33)) return; last = t;
-    if (!opts.always && (document.body.classList.contains('lite') || document.body.classList.contains('idle') || document.body.classList.contains('bd-open') || document.hidden)) { g.clearRect(0, 0, W, H); return; }
+    raf = 0; last = t;
+    if (!opts.always && (document.body.classList.contains('lite') || document.body.classList.contains('idle') || document.body.classList.contains('bd-open') || document.hidden)) { g.clearRect(0, 0, W, H); return next(500); }
+    next(opts.step || 33);
     g.clearRect(0, 0, W, H);
     for (const f of flakes) {
       f.y += f.v; f.w += 0.02; f.x += Math.sin(f.w) * 0.4;
@@ -60,7 +64,7 @@ function snowCanvas(cv, opts = {}) {
     g.globalAlpha = 1;
   };
   raf = requestAnimationFrame(loop);
-  return () => { cancelAnimationFrame(raf); removeEventListener('resize', fit); };
+  return () => { cancelAnimationFrame(raf); clearTimeout(tm); removeEventListener('resize', fit); };
 }
 
 // ---------- 갈랜드: 동화풍 전나무 가랜드 + 벨벳 리본 + 매달린 장식 공 ----------
@@ -268,7 +272,7 @@ function place() {
   deco(true); pixie(); // 배경은 사이트 공통 배경 그림(2026-11-27부터, 예전 오로라 밤하늘 대신)
   const brand = document.querySelector('#side .brand');
   if (brand && !brand.querySelector('.xhat')) brand.insertAdjacentHTML('afterbegin', `<svg class="xhat" viewBox="0 0 44 34" aria-hidden="true"><defs><linearGradient id="xhR" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff5b4f"/><stop offset="1" stop-color="#9e1414"/></linearGradient></defs><path d="M5 26C10 12 18 4 30 4c5 0 8 3 9 9-7-3-12 1-14 7l-4 8z" fill="url(#xhR)"/><path d="M12 20c4-6 9-10 15-11" stroke="#fff" stroke-opacity=".25" stroke-width="2" fill="none"/><rect x="2" y="22" width="28" height="9" rx="4.500" fill="#fbfbfb"/><rect x="2" y="22" width="28" height="3" rx="1.500" fill="#fff"/><circle cx="39" cy="13" r="4.500" fill="#fff"/></svg>`);
-  if (!snowStop) { const cv = document.createElement('canvas'); cv.id = 'xsnow'; document.body.appendChild(cv); const stop = snowCanvas(cv, { count: 45, step: 50 }); snowStop = () => { stop(); cv.remove(); snowStop = null; }; }
+  if (!snowStop) { const cv = document.createElement('canvas'); cv.id = 'xsnow'; document.body.appendChild(cv); const stop = snowCanvas(cv, { count: 32, step: 50 }); /* 눈송이 45 → 32(넓은 화면 기준, 휴대폰은 원래도 21개 안팎) */ snowStop = () => { stop(); cv.remove(); snowStop = null; }; }
 }
 function clear() {
   ['xsky', 'xlights', 'xfrost', 'xflyby'].forEach((id) => document.getElementById(id)?.remove());
