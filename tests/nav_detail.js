@@ -35,7 +35,7 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   await A.evaluate(() => history.back()); await A.waitForTimeout(600);
   ok((await hash()) === '#/today', '뒤로 가기 → 오늘의 내전(중간 기록 없음): ' + await hash());
   // 바깥 눌러 닫기 → 기록 정리
-  await A.click('[data-a=tChamp][data-s=blue][data-i="3"]'); await A.waitForTimeout(200); await A.mouse.click(5, 450); await A.waitForTimeout(500);
+  await A.click('[data-a=tChamp][data-s=blue][data-i="3"]'); await A.waitForTimeout(200); await A.mouse.click(90, 450); await A.waitForTimeout(500);
   ok(!(await on()), '바깥 눌러 닫힘');
   ok(await A.evaluate(() => !history.state?.npModal), '닫은 뒤 창 기록이 남지 않음');
   // 창 연 채 새로고침 → 남은 기록 정리
@@ -50,7 +50,7 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   await A.evaluate(() => history.back()); await A.waitForTimeout(900);
   const y1 = await A.evaluate(() => scrollY);
   ok(y0 > 300 && Math.abs(y1 - y0) < 5, `뒤로 가면 보던 위치(${y0} → ${y1})`);
-  await A.click('#nav a[data-p=home]'); await A.waitForTimeout(600); await A.click('#nav a[data-p=rank]'); await A.waitForTimeout(800);
+  await A.evaluate(() => (location.hash = '#/home')); await A.mouse.move(700, 400); await A.waitForTimeout(600); await A.hover('#rail [data-cat=stat]'); await A.waitForTimeout(450); await A.click('#fly a[data-p=rank]'); await A.waitForTimeout(800);
   ok(await A.evaluate(() => scrollY) === 0, '메뉴로 다시 들어가면 맨 위(새 방문)');
   // 탭 제목
   const title = () => A.evaluate(() => document.title);

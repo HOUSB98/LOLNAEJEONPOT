@@ -2666,3 +2666,41 @@ body.lite .gwind{animation:none}
 @media (max-width:430px){.gwind{padding:5px 10px;font-size:12.5px;gap:4px}.gwind .gem{width:15px;height:15px}}
 /* 케미 화면: 화면 밖(아래쪽) 큰 칸은 보일 때만 그린다(content-visibility). 한 번 그린 크기는 기억해서(auto) 스크롤이 튀지 않음 */
 #main .psel,#main .insg,#main .grid2>.cbox{content-visibility:auto;contain-intrinsic-size:auto 700px}
+
+/* ---------- 메뉴 개편(2026-11-27): PC 아이콘 레일 + 펼침 패널, 합친 화면 위쪽 탭, 휴대폰 '기록' 판 ---------- */
+@media (min-width:861px){
+  :root{--sw:76px}
+  #side:has(#rail){padding:0;overflow:visible}#side:has(#rail)>*:not(#rail){display:none!important}
+  body.xmas #side:has(#rail)::before{display:none}
+}
+#rail{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 0 10px;overflow-y:auto;overflow-x:hidden;scrollbar-width:none}#rail::-webkit-scrollbar{display:none}
+#rail .rl-logo{display:block;width:44px;height:44px;margin-bottom:8px;flex:none}#rail .rl-logo svg{width:44px;height:44px;display:block}
+#rail .rl-q{display:flex;flex-direction:column;align-items:center;gap:2px;width:56px;padding:7px 0 5px;border-radius:12px;font:800 10.5px var(--sans);text-decoration:none;flex:none}
+#rail .rl-q .ic{width:19px;height:19px}
+#rail .rl-q.go{background:linear-gradient(180deg,#e9bb5c,#c08a2b);color:#1a1204}#rail .rl-q.kk{background:#fee500;color:#191600;margin-top:4px}
+#rail .rl-q:hover{filter:brightness(1.08)}
+#rail .rl-sep{width:36px;height:1px;background:var(--line2);margin:8px 0 4px;flex:none}
+#rail .rl-c{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;width:64px;padding:9px 0 7px;border:0;border-radius:14px;background:transparent;color:var(--mut);font:700 11px var(--sans);cursor:pointer;flex:none}
+#rail .rl-c .ic{width:22px;height:22px}#rail .rl-c:hover{background:rgba(255,255,255,.05);color:#fff}
+#rail .rl-c.on{background:linear-gradient(180deg,rgba(217,164,65,.22),rgba(217,164,65,.08));color:var(--gold2)}
+#rail .rl-c.on::before{content:"";position:absolute;left:-6px;top:12px;bottom:12px;width:3px;border-radius:3px;background:var(--gold)}
+#rail .rl-sp{flex:1;min-height:8px}
+#rail .rl-b{display:grid;place-items:center;width:46px;min-height:42px;margin-top:6px;border-radius:12px;border:1px solid var(--line2);background:transparent;color:var(--mut);cursor:pointer;flex:none;padding:4px 0}#rail .rl-b .ic{width:18px;height:18px}#rail .rl-b:hover{color:#fff;border-color:var(--gold)}
+#rail .rl-on b{font-size:16px;color:#e8ecf4;line-height:1}#rail .rl-on small{font:700 8.5px var(--mono);color:#7fe0a8;letter-spacing:.06em}
+#fly{position:fixed;left:76px;top:0;bottom:0;width:286px;z-index:60;padding:16px 14px;overflow-y:auto;background:linear-gradient(180deg,#0b1120,#070b14);border-right:1px solid var(--line2);box-shadow:24px 0 60px -20px rgba(0,0,0,.8);opacity:0;transform:translateX(-8px);pointer-events:none;transition:opacity .16s ease,transform .16s ease}
+#fly.on{opacity:1;transform:none;pointer-events:auto}
+#fly.low{bottom:auto;max-height:min(520px,calc(100vh - 16px));border:1px solid var(--line2);border-radius:14px;left:84px}
+#fly h3{margin:2px 6px 12px;font:800 12px var(--mono);letter-spacing:.2em;color:var(--gold)}
+#fly>a{display:grid;grid-template-columns:38px 1fr;align-items:center;gap:1px 12px;padding:9px 10px;border-radius:12px;color:var(--text);text-decoration:none}
+#fly>a i.fi{grid-row:span 2;width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:rgba(255,255,255,.04);border:1px solid var(--line2);color:var(--gold2)}#fly>a i.fi .ic,#fly>a i.fi .gem{width:18px;height:18px;margin:0}
+#fly>a b{font-size:14.5px}#fly>a small{font-size:11.5px}#fly>a:hover,#fly>a.on{background:rgba(217,164,65,.1)}#fly>a.on b{color:var(--gold2)}
+#fly #presence{max-height:none}#fly .side-mini{display:flex;gap:6px;margin:0 0 10px}#fly .sidefoot{display:flex;flex-direction:column;align-items:stretch;gap:6px}
+@media (max-width:860px){#rail,#fly{display:none!important}}
+/* 합친 화면 위쪽 탭(문파·랭킹·경기 기록) */
+.subnav{display:flex;gap:4px;margin:0 0 14px;padding:3px;width:max-content;max-width:100%;overflow-x:auto;scrollbar-width:none;border:1px solid var(--line2);border-radius:11px;background:var(--panel)}.subnav::-webkit-scrollbar{display:none}
+.subnav a{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:0 13px;border-radius:8px;color:var(--mut);font:700 13px var(--sans);text-decoration:none;white-space:nowrap}
+.subnav a .ic,.subnav a .gem{width:15px;height:15px;margin:0}.subnav a:hover{color:#fff}.subnav a.on{background:linear-gradient(180deg,#e9bb5c,#c08a2b);color:#1a1204}.subnav a.on .ic{color:#1a1204}
+/* 휴대폰 '기록' 판 */
+.cat-sheet{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:4px 2px 6px}
+.cat-sheet a{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 4px 12px;border-radius:14px;background:rgba(255,255,255,.035);border:1px solid var(--line2);color:var(--text);text-decoration:none;font:700 12.5px var(--sans);text-align:center}
+.cat-sheet a .ic{width:22px;height:22px;color:var(--gold2)}.cat-sheet a.on{border-color:var(--gold);background:rgba(217,164,65,.12)}

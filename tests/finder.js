@@ -9,7 +9,7 @@ const SHOT = process.env.SHOT;
   const A = await client(b, be, 'WORK', 'A'); await A.setViewportSize({ width: 1440, height: 900 });
   await open(A, 'home', 1200);
   const isOpen = () => A.$('#modal.on .finder').then(Boolean);
-  ok(await A.$('#side .fd-btn') !== null, 'PC 왼쪽 메뉴에 빠른 이동 버튼');
+  ok(await A.$('#rail [data-a=fdOpen]') !== null, 'PC 왼쪽 레일에 빠른 이동 버튼');
   await A.keyboard.press('Control+k'); await A.waitForTimeout(200);
   ok(await isOpen(), 'Ctrl+K로 열림');
   ok(await A.evaluate(() => document.activeElement?.id === 'fd-q'), '검색칸에 바로 입력 가능(포커스)');
@@ -32,7 +32,7 @@ const SHOT = process.env.SHOT;
   ok(await A.$('.fd-none') !== null, '결과 없음 안내');
   await A.keyboard.press('Escape'); await A.waitForTimeout(150); ok(!(await isOpen()), 'Esc로 닫힘');
   // 클릭 이동
-  await A.click('#side .fd-btn'); await A.waitForTimeout(150); await A.fill('#fd-q', '팀 구성'); await A.waitForTimeout(100);
+  await A.click('#rail [data-a=fdOpen]'); await A.waitForTimeout(150); await A.fill('#fd-q', '팀 구성'); await A.waitForTimeout(100);
   await A.click('.fd-it'); await A.waitForTimeout(500);
   ok(await A.evaluate(() => location.hash) === '#/today', '버튼으로 열고 클릭해서 팀 구성하기 이동');
   // 입력칸에서 / 는 그냥 글자(챔피언 화면 검색칸)

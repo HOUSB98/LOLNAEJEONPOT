@@ -17,7 +17,7 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   ok(JSON.stringify(sea.s) === '[false,true,true,true,false,false]' && sea.y.join() === '2026,2026', '메뉴·홈 띠 기간 11/20 ~ 1/31, 1월에는 지난해 결산: ' + JSON.stringify(sea));
   const inSeason = await A.evaluate(async () => (await import('/js/core.js')).recapSeason());
   const nav = !!(await A.$('#nav a[data-p=recap], #side a[href="#/recap"]')), bar = !!(await A.$('#main .rcp-home'));
-  ok(inSeason ? nav && bar : !nav && !bar, `오늘(${inSeason ? '기간 안' : '기간 밖'}): 왼쪽 메뉴 '연말 결산'·홈 결산 띠 ${inSeason ? '보임' : '안 보임'}`);
+  ok(!nav && (inSeason ? bar : !bar), `오늘(${inSeason ? '기간 안' : '기간 밖'}): 연말 결산은 메뉴 대신 홈 결산 띠로 ${inSeason ? '보임' : '안 보임'}(2026-11-27 메뉴 개편)`);
   await open(A, 'recap', 1500);
   ok(await A.evaluate(() => document.title === '연말 결산 · NAEJEONPOT' && !!document.querySelector('#main .rcp-hero')), '연말 결산 화면 열림(탭 제목)');
   // 따로 계산한 값과 비교: 그해 경기(내전 날짜 기준)

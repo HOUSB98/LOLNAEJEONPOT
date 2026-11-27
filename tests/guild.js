@@ -11,7 +11,7 @@ const crypto = require('crypto');
   const ids = seed.players.map((p) => p.id), nm = Object.fromEntries(seed.players.map((p) => [p.id, p.name]));
   const A = await client(b, be, 'WORK', 'A'); A.on('dialog', (d) => d.accept());
   await open(A, 'home', 900); await A.evaluate(() => (location.hash = '#/guild')); await A.waitForTimeout(1200);
-  ok(await A.evaluate(() => !!document.querySelector('.gd-wait') && !document.querySelector('#main .gem:not(.gd-wait .gem)')), '창설 전: 길드 화면은 대기 안내, 다른 곳에 엠블럼 없음');
+  ok(await A.evaluate(() => !!document.querySelector('.gd-wait') && !document.querySelector('#main .gem:not(.gd-wait .gem):not(.subnav .gem)')), '창설 전: 길드 화면은 대기 안내, 다른 곳에 엠블럼 없음');
   // 관리자 창설: 두 사람 묶기 → 미리보기 → 창설
   await open(A, 'admin/guild', 1000);
   await A.evaluate(async () => { const { S } = await import('/js/core.js'); S.admin = true; });
@@ -63,10 +63,10 @@ const crypto = require('crypto');
   ok(!sec.length && await A.evaluate(() => !!document.querySelector('.gd.gd-j') && getComputedStyle(document.querySelector('.gd-hero')).borderTopColor !== ''), '길드 화면 구성(히어로·숫자·대항전·공지·순위·챔피언·라인·듀오·최근 경기·흐름·길드원·명예의 전당·연혁·사랑방) 모두 있음 ' + sec.join());
   const bg = await A.evaluate(async () => { const j = getComputedStyle(document.querySelector('.gd-hero')).backgroundImage; location.hash = '#/magyo'; await new Promise((r) => setTimeout(r, 700)); return [j, getComputedStyle(document.querySelector('.gd-hero')).backgroundImage, !!document.querySelector('.gd.gd-m')]; });
   ok(bg[0] !== bg[1] && bg[2], '정파·마교 화면 분위기(배경)가 서로 다름');
-  // 정파·마교는 각각 다른 화면(메뉴 2개), 예전 주소 #/guild/m 은 마교 화면으로
-  const nav = await A.$$eval('#nav a[data-p=jeongpa], #nav a[data-p=magyo]', (x) => x.map((e) => e.innerText.trim()));
+  // 정파·마교는 각각 다른 화면(문파 화면 위쪽 탭 2개), 예전 주소 #/guild/m 은 마교 화면으로
+  const nav = await A.$$eval('.subnav a[href="#/jeongpa"], .subnav a[href="#/magyo"]', (x) => x.map((e) => e.innerText.trim()));
   await A.evaluate(() => (location.hash = '#/guild/m')); await A.waitForTimeout(900);
-  ok(nav.join() === '정파,마교' && (await A.evaluate(() => location.hash === '#/magyo' && !!document.querySelector('.gd.gd-m') && !document.querySelector('.gd-j'))), '메뉴에 정파·마교 따로, 예전 주소 #/guild/m → 마교 화면: ' + nav.join());
+  ok(nav.join() === '정파,마교' && (await A.evaluate(() => location.hash === '#/magyo' && !!document.querySelector('.gd.gd-m') && !document.querySelector('.gd-j'))), '문파 위쪽 탭에 정파·마교 따로, 예전 주소 #/guild/m → 마교 화면: ' + nav.join());
   // 관리자: 창설 뒤에도 인원 조정(누르면 바로 옮김)
   await open(A, 'admin/guild', 1000); await A.evaluate(async () => { const { S } = await import('/js/core.js'); S.admin = true; });
   const y = ids[9], gy = P()[y].guild, oy = gy === 'j' ? 'm' : 'j';
@@ -187,9 +187,9 @@ const crypto = require('crypto');
   const tg = await A.evaluate(async () => { const t = (await import('/js/guild.js')).treasury(); return { j: t.j.bal, m: t.m.bal }; });
   ok(tg.j === tw.j && tg.m === tw.m, `금고: 일반 내전 승 +10·패 −5(1인당), 정마대전 승 +100·패 −50 = 따로 계산: 정파 ${tg.j} · 마교 ${tg.m}`);
   await open(A, 'guilds', 1500);
-  const gxv = await A.evaluate(() => ({ rows: document.querySelectorAll('.wl-row').length, halves: [...document.querySelectorAll('.wl-row')].every((r) => r.querySelector('.wl-h.gd-j .gem, .wl-h.gd-j .wl-seal') && r.querySelector('.wl-h.gd-m .gem, .wl-h.gd-m .wl-seal')), gold: document.querySelector('[data-k=gold]')?.innerText || '', nav: [...document.querySelectorAll('#nav a')].map((a) => a.dataset.p).join() }));
-  ok(gxv.rows >= 8 && gxv.halves && gxv.gold.includes('냥') && /guilds,jeongpa,magyo,gshop/.test(gxv.nav), `천하정세: 구역 ${gxv.rows}개 모두 왼쪽 정파·오른쪽 마교(엠블럼), 금고(냥) 공개, 메뉴 순서 천하정세·정파·마교·상점`);
-  ok(await A.evaluate(() => !!document.querySelector('#nav a[data-p=jeongpa] .gem.nvg') && !!document.querySelector('#nav a[data-p=magyo] .gem.nvg')), '왼쪽 메뉴 정파·마교에 문파 엠블럼');
+  const gxv = await A.evaluate(() => ({ rows: document.querySelectorAll('.wl-row').length, halves: [...document.querySelectorAll('.wl-row')].every((r) => r.querySelector('.wl-h.gd-j .gem, .wl-h.gd-j .wl-seal') && r.querySelector('.wl-h.gd-m .gem, .wl-h.gd-m .wl-seal')), gold: document.querySelector('[data-k=gold]')?.innerText || '', nav: [...document.querySelectorAll('.subnav a')].map((a) => a.getAttribute('href').slice(2)).join() }));
+  ok(gxv.rows >= 8 && gxv.halves && gxv.gold.includes('냥') && /guilds,jeongpa,magyo,gshop/.test(gxv.nav), `천하정세: 구역 ${gxv.rows}개 모두 왼쪽 정파·오른쪽 마교(엠블럼), 금고(냥) 공개, 위쪽 탭 순서 천하정세·정파·마교·상점`);
+  ok(await A.evaluate(() => !!document.querySelector('.subnav a[href="#/jeongpa"] .gem.nvg') && !!document.querySelector('.subnav a[href="#/magyo"] .gem.nvg')), '문파 위쪽 탭 정파·마교에 문파 엠블럼');
   await A.evaluate(async () => { const { S } = await import('/js/core.js'); await S.store.patch('meta', 'guild', { aq: { [(await import('/js/guild.js')).curQ()]: { j: 100000, m: 0 } } }); S.admin = true; }); await A.waitForTimeout(500);
   await open(A, 'gshop', 1500);
   const b0 = await A.evaluate(async () => (await import('/js/guild.js')).treasury().j.bal);

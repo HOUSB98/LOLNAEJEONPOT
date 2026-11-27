@@ -16,7 +16,7 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   ok(!(await A.$('#main .rc-home')), '모집 전: 홈에 모집 띠 없음');
   await A.evaluate(() => (location.hash = '#/today')); await A.waitForTimeout(600);
   ok(!(await A.$('#main .rc-box, #main .rc-empty, #main .rc-bar')), '오늘의 내전 화면에는 모집 칸이 없음(따로 만든 내전 모집 화면으로 옮김)');
-  await A.click('#side .kk-side'); await A.waitForTimeout(600);
+  await A.click('#rail .rl-q.kk'); await A.waitForTimeout(600);
   ok(await A.evaluate(() => location.hash === '#/recruit' && document.title === '내전 모집 · NAEJEONPOT'), "왼쪽 위 '내전 모집' → 내전 모집 화면(탭 제목 '내전 모집')");
   ok(await A.$eval('#main .rc-empty', (e) => /진행 중인 모집이 없어요/.test(e.innerText)).catch(() => false) && !!(await A.$('#main .rc-how')), '모집 전: 빈 칸(시간 정하고 모집 시작) + 사용법');
   // 시작: 21:30, 나도 참가 = 닉네임과 같은 선수가 자동 선택

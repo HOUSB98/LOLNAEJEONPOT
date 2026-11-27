@@ -11,11 +11,11 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   // 1) 왼쪽 위 '내전 시작' 옆 '내전 모집'(반씩), 랭킹에는 공유 버튼 없음
   await open(A, 'rank', 800);
   ok(!(await A.$('#main [data-a=kkShare]')), '랭킹 화면에는 카톡 공유 버튼 없음');
-  const side = await A.evaluate(() => { const g = document.querySelector('#side .side-cta>a.btn.gold'), k = document.querySelector('#side .side-cta .kk-side'); if (!g || !k) return null; const a = g.getBoundingClientRect(), c = k.getBoundingClientRect(); return { gw: a.width, kw: c.width, same: Math.abs(a.top - c.top) < 2, bg: getComputedStyle(k).backgroundColor, t: k.innerText.trim(), g: g.innerText.trim() }; });
-  ok(side && side.same && Math.abs(side.gw - side.kw) < 4 && side.bg === 'rgb(254, 229, 0)' && side.t === '내전 모집' && side.g === '내전 시작', '왼쪽 위: 내전 시작 · 내전 모집(노란 카톡)이 한 줄에 반씩: ' + JSON.stringify(side));
+  const side = await A.evaluate(() => { const g = document.querySelector('#rail .rl-q.go'), k = document.querySelector('#rail .rl-q.kk'); if (!g || !k) return null; const a = g.getBoundingClientRect(), c = k.getBoundingClientRect(); return { gw: a.width, kw: c.width, same: c.top > a.top && Math.abs(a.left - c.left) < 2, bg: getComputedStyle(k).backgroundColor, t: k.innerText.trim(), g: g.innerText.trim(), gh: g.getAttribute('href'), kh: k.getAttribute('href') }; });
+  ok(side && side.same && Math.abs(side.gw - side.kw) < 4 && side.bg === 'rgb(254, 229, 0)' && side.t === '모집' && side.g === '시작' && side.gh === '#/today' && side.kh === '#/recruit', '왼쪽 레일 위: 내전 시작 · 내전 모집(노란 카톡) 아이콘이 위아래로 같은 크기: ' + JSON.stringify(side));
   ok(!(await A.evaluate(() => [...document.scripts].some((x) => /kakao_js_sdk/.test(x.src)))), '버튼만 있을 때는 카카오 프로그램을 받지 않음');
   // 내전 모집 → 시간 정하기 창 → 저장하고 카톡으로 보내기
-  await A.click('#side .kk-side'); await A.waitForTimeout(600);
+  await A.click('#rail .rl-q.kk'); await A.waitForTimeout(600);
   await A.click('#main [data-a=rcOpen]'); await A.waitForTimeout(400);
   await A.click('#modal.on [data-a=rcTime][data-v="22:00"]');
   await A.click('#modal.on [data-a=rcShare]'); await A.waitForTimeout(900);
@@ -44,7 +44,7 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
   // 4) 카카오 SDK를 못 받으면(막힘) 글 복사로 대신
   const B = await client(b, be, 'WORK', 'B', { ctx: await device(b, be, 'WORK', 'B', { permissions: ['clipboard-read', 'clipboard-write'] }) });
   await open(B, 'home', 800);
-  await B.click('#side .kk-side'); await B.waitForTimeout(600); await B.click('#main [data-a=rcShare]'); await B.waitForTimeout(1800);
+  await B.click('#rail .rl-q.kk'); await B.waitForTimeout(600); await B.click('#main [data-a=rcShare]'); await B.waitForTimeout(1800);
   const clip = await B.evaluate(() => navigator.clipboard.readText()).catch(() => '');
   ok(/내전 하실 분/.test(clip) && /\?k=test#\/recruit\/join/.test(clip), '카카오를 못 열면 공유할 글을 복사(단톡방에 붙여 넣기)');
   ok(/카카오톡을 열 수 없어/.test(await B.$eval('#toast', (e) => e.textContent).catch(() => '')), '복사했다고 안내');
