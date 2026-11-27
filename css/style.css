@@ -1048,6 +1048,10 @@ i.live::after,.pcount i::after{content:"";position:absolute;inset:0;border-radiu
 @media (max-width:1100px){.gdeck{height:160px}}
 /* --- 리플레이 상세 지표 --- */
 .dxseg button small{opacity:.65;margin-left:2px;font-size:11px}.dxp .dgrid{margin:10px 0}
+/* 휴대폰: 선수 상세 리플레이 라인 고르기(전체+5라인, 판수 포함)는 한 줄에 다 안 들어가 서폿이 잘렸다 → 3칸×2줄로(모두 보이고 누르기 쉽게) */
+@media (max-width:600px){.seg.full.dxseg{display:grid;grid-template-columns:repeat(3,1fr)}.seg.dxseg button{min-width:0;padding:8px 4px}.dxseg button:nth-child(n+4){border-top:1px solid var(--line2)}.dxseg button:not(:nth-child(3n+1)){border-left:1px solid var(--line2)}}
+/* 아주 좁은 휴대폰(374px 이하): 라인 탭(전체+5라인)이 몇 px 넘쳐 끝이 잘리던 것 → 간격만 살짝 줄임 */
+@media (max-width:374px){.lseg button{min-width:0;gap:3px;padding:7px 2px;font-size:12.5px}.lseg .lic{width:14px;height:14px}}
 .dgrid.six .dcell b{font-size:19px}.dcell b small{font:400 11px var(--sans);color:var(--mut)}
 .dcell.hot{border-color:rgba(217,164,65,.7);box-shadow:0 0 20px -8px var(--gold);background:linear-gradient(160deg,rgba(217,164,65,.12),var(--panel2))}
 .dmix{display:grid;grid-template-columns:70px 1fr;gap:4px 10px;align-items:center;margin:10px 0;font-size:13px}
@@ -2319,6 +2323,8 @@ body.lite #chtb tr.ch-hit td{animation:none;background:rgba(217,164,65,.14)}
 .fm .dots i{width:16px;height:16px;font-size:11px}
 .tiers.mini .trow>b small{font-size:11px;letter-spacing:.1em}
 @media (max-width:860px){.adm-tabs button{min-height:40px}}
+/* 좁은 휴대폰(420px 이하): 관리 탭 6개가 한 줄에 안 들어가 '문파'가 잘렸다 → 3칸×2줄 */
+@media (max-width:420px){.seg.full.adm-tabs{display:grid;grid-template-columns:repeat(3,1fr)}.seg.adm-tabs button{min-width:0}.adm-tabs button:nth-child(n+4){border-top:1px solid var(--line2)}.adm-tabs button:not(:nth-child(3n+1)){border-left:1px solid var(--line2)}}
 /* 글자 사이에 들어가는 작은 선 아이콘(예전 이모지 자리): 글자 크기에 맞춤 */
 .ic.ie{width:1.1em;height:1.1em;vertical-align:-.17em;margin-right:.18em}
 /* 새 버전 알림 띠(core.js verBar): 위쪽 가운데, 누르면 새로고침 · X로 닫기 */
