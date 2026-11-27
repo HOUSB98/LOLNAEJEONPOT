@@ -107,31 +107,6 @@ function hang() {
 }
 
 // 반짝이는 별: 별마다 애니메이션을 따로 돌리지 않고, 박스 그림자로 찍은 별 묶음 3겹의 투명도만 번갈아 바꾼다
-function starLayers(count, W, H, cls = 'xst') {
-  const L = [[], [], []];
-  for (let i = 0; i < count; i++) { const x = Math.round(((i * 47.3) % 100) / 100 * W), y = Math.round(((i * 29.7) % 100) / 100 * H), s = i % 3 ? 0 : 0.6; L[i % 3].push(`${x}px ${y}px 0 ${s}px rgba(255,255,255,.9)`); }
-  return L.map((l, i) => `<i class="${cls} s${i}" style="box-shadow:${l.join(',')}"></i>`).join('');
-}
-
-// ---------- 배경: 오로라 밤하늘 + 멀리 보이는 눈 덮인 동화 마을 ----------
-function aura() {
-  if (document.getElementById('xaura')) return;
-  const el = document.createElement('div'); el.id = 'xaura'; el.setAttribute('aria-hidden', 'true');
-  const stars = starLayers(46, Math.max(screen.width, innerWidth), Math.max(screen.height, innerHeight) * 0.58);
-  const win = (x, y) => `<rect class="xa-win" x="${x}" y="${y}" width="3" height="4" rx="1.4" fill="#ffd27a"/>`;
-  const pine = (x, y, h) => `<path d="M${x} ${y - h}l${h * 0.28} ${h * 0.42}h${-h * 0.1}l${h * 0.24} ${h * 0.34}h${-h * 0.12}l${h * 0.24} ${h * 0.24}h${-h * 1.28}l${h * 0.24} ${-h * 0.24}h${-h * 0.12}l${h * 0.24} ${-h * 0.34}h${-h * 0.1}z" fill="#0d1a33"/><path d="M${x} ${y - h}l${h * 0.16} ${h * 0.24}q${-h * 0.16} ${h * 0.06} ${-h * 0.32} 0z" fill="#e9f2ff" opacity=".85"/>`;
-  const castle = `<g transform="translate(700 92)"><path d="M0 60V22h10V8l6-14 6 14v14h12V-6l8-20 8 20v28h12V8l6-14 6 14v14h10v38z" fill="#121f3e"/><path d="M10 8l6-14 6 14zM34-6l8-20 8 20zM62 8l6-14 6 14z" fill="#d9e6ff" opacity=".9"/><path d="M42-26v-12l9 4-9 4" fill="#e9c46a"/>${win(14, 30)}${win(39, 10)}${win(45, 10)}${win(40, 32)}${win(66, 30)}<path d="M36 60v-12a6 6 0 0 1 12 0v12z" fill="#ffd27a" opacity=".85"/></g>`;
-  const house = (x, y) => `<g transform="translate(${x} ${y})"><path d="M0 18V7l9-7 9 7v11z" fill="#13213f"/><path d="M-2 8 9-1l11 9-2 1-9-7-9 7z" fill="#eef5ff"/>${win(4, 10)}${win(11, 10)}</g>`;
-  el.innerHTML = `<i class="xa-au a"></i>${stars}
-    ${svgImg(`<defs><linearGradient id="xaSnow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfdcf5"/><stop offset="1" stop-color="#5f6f9c"/></linearGradient><linearGradient id="xaFar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a3a6e"/><stop offset="1" stop-color="#121c3a"/></linearGradient></defs>
-      <path d="M0 120C140 80 260 96 380 104S640 70 760 88s300 10 440-12V170H0z" fill="url(#xaFar)"/>${castle}
-      ${house(250, 92)}${house(285, 98)}${house(930, 86)}${house(965, 92)}
-      ${[60, 120, 170, 450, 500, 560, 860, 1050, 1110, 1160].map((x, i) => pine(x, 128 - (i % 3) * 4, 26 + (i % 4) * 6)).join('')}
-      <path d="M0 150C200 120 400 140 600 132s420-20 600 6V170H0z" fill="url(#xaSnow)" opacity=".9"/>
-      <path d="M0 150C200 120 400 140 600 132s420-20 600 6" stroke="#fff" stroke-opacity=".6" stroke-width="2" fill="none"/>`, '0 0 1200 170', 'xa-town')}`;
-  document.body.prepend(el);
-}
-
 // ---------- 패널 장식: 눈 쌓인 윗면 + 홀리 잎 + 히어로 반짝임 ----------
 // 화면이 다시 그려지면 새로 생긴 패널에만 장식을 붙인다(이미 붙은 곳은 건너뜀).
 const HOLLY = `<svg viewBox="0 0 44 30" aria-hidden="true"><defs><linearGradient id="xhL" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3fa45f"/><stop offset="1" stop-color="#0d4a27"/></linearGradient><radialGradient id="xhB" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#ff9a9a"/><stop offset=".5" stop-color="#d4142c"/><stop offset="1" stop-color="#6a0612"/></radialGradient></defs><path d="M22 16C17 9 9 7 2 9l3 2-2 3 4 0-1 4 4-2 1 4 3-3 2 3 2-4 3 2z" fill="url(#xhL)" stroke="#0a3a1e" stroke-width=".6"/><path d="M22 16c5-7 13-9 20-7l-3 2 2 3h-4l1 4-4-2-1 4-3-3-2 3-2-4-3 2z" fill="url(#xhL)" stroke="#0a3a1e" stroke-width=".6"/><path d="M21 15 6 11M23 15l15-4" stroke="#9fe0b0" stroke-opacity=".5" stroke-width=".7"/><circle cx="18.5" cy="17.5" r="3.6" fill="url(#xhB)"/><circle cx="25.5" cy="17.5" r="3.6" fill="url(#xhB)"/><circle cx="22" cy="22.5" r="3.6" fill="url(#xhB)"/><circle cx="17.4" cy="16.4" r="1" fill="#fff" opacity=".8"/><circle cx="24.4" cy="16.4" r="1" fill="#fff" opacity=".8"/><circle cx="20.9" cy="21.4" r="1" fill="#fff" opacity=".8"/></svg>`;
@@ -290,13 +265,13 @@ function place() {
   const chat = document.getElementById('chat');
   chatLux();
   if (!document.getElementById('xlights')) garland();
-  aura(); deco(true); pixie();
+  deco(true); pixie(); // 배경은 사이트 공통 배경 그림(2026-11-27부터, 예전 오로라 밤하늘 대신)
   const brand = document.querySelector('#side .brand');
   if (brand && !brand.querySelector('.xhat')) brand.insertAdjacentHTML('afterbegin', `<svg class="xhat" viewBox="0 0 44 34" aria-hidden="true"><defs><linearGradient id="xhR" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff5b4f"/><stop offset="1" stop-color="#9e1414"/></linearGradient></defs><path d="M5 26C10 12 18 4 30 4c5 0 8 3 9 9-7-3-12 1-14 7l-4 8z" fill="url(#xhR)"/><path d="M12 20c4-6 9-10 15-11" stroke="#fff" stroke-opacity=".25" stroke-width="2" fill="none"/><rect x="2" y="22" width="28" height="9" rx="4.500" fill="#fbfbfb"/><rect x="2" y="22" width="28" height="3" rx="1.500" fill="#fff"/><circle cx="39" cy="13" r="4.500" fill="#fff"/></svg>`);
   if (!snowStop) { const cv = document.createElement('canvas'); cv.id = 'xsnow'; document.body.appendChild(cv); const stop = snowCanvas(cv, { count: 45, step: 50 }); snowStop = () => { stop(); cv.remove(); snowStop = null; }; }
 }
 function clear() {
-  ['xsky', 'xlights', 'xfrost', 'xflyby', 'xaura'].forEach((id) => document.getElementById(id)?.remove());
+  ['xsky', 'xlights', 'xfrost', 'xflyby'].forEach((id) => document.getElementById(id)?.remove());
   document.querySelector('#chat .xswag')?.remove(); document.body.classList.remove('xchat');
   deco(false); dustOff?.();
   document.querySelector('#side .xhat')?.remove();

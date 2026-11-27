@@ -42,5 +42,12 @@ const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) proce
     await p.evaluate(() => document.querySelector('[data-a="xmasToggle"]')?.click()); await p.clock.runFor(2000); await p.waitForTimeout(300);
     const y = await look(p); ok(y.xchat && y.sky && y.swag, '다시 켜면 다시 나타남');
   });
+  // 사이트 배경 그림(아주 은은하게): 크리스마스에도 예전 오로라 밤하늘 대신 배경 그림, 눈·갈랜드 효과는 그대로. 2월(시즌 아님)에도 같은 배경
+  for (const [nm, t, xm] of [['E', '2026-12-10T20:00:00', true], ['F', '2027-02-10T20:00:00', false]]) await run(nm, t, async (p) => {
+    await p.clock.runFor(4000); await p.waitForTimeout(600);
+    const g = await p.evaluate(() => { const e = document.getElementById('sitebg'), cs = getComputedStyle(e); return { on: e.classList.contains('on'), op: +cs.opacity, img: cs.backgroundImage, pos: cs.position, z: cs.zIndex, aura: !!document.getElementById('xaura'), snow: !!document.getElementById('xsnow'), lights: !!document.getElementById('xlights') }; });
+    ok(g.on && g.op <= 0.2 && /bg-pc\.webp/.test(g.img) && g.pos === 'fixed' && g.z === '-1', `${nm}: 배경 그림 깔림(고정 층·투명도 ${g.op})`);
+    ok(!g.aura && (xm ? g.snow && g.lights : !g.snow && !g.lights), xm ? '크리스마스: 오로라 밤하늘 없음 · 눈·갈랜드는 그대로' : '시즌 아님: 장식 없이 배경 그림만');
+  });
   await b.close();
 })();
