@@ -2,7 +2,7 @@
 const { chromium } = require('playwright'); const { execSync } = require('child_process'); const fs = require('fs'), path = require('path');
 const { Backend } = require('./backend');
 const REPO = process.env.REPO || path.join(__dirname, '..'); // 기본: 이 저장소(REPO=다른 폴더 로 옛 버전과 비교 가능)
-const TYPES = { '.js': 'text/javascript', '.html': 'text/html', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png' };
+const TYPES = { '.js': 'text/javascript', '.html': 'text/html', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp' };
 const PNG = fs.readFileSync(path.join(REPO, 'og.png'));
 const gitCache = {};
 const file = (tree, f) => { if (tree === 'WORK') { const p = path.join(REPO, f); return fs.existsSync(p) ? fs.readFileSync(p) : null; } const k = tree + ':' + f; if (!(k in gitCache)) { try { gitCache[k] = execSync(`git -C ${REPO} show ${tree}:${f}`, { maxBuffer: 1 << 26, stdio: ['ignore', 'pipe', 'ignore'] }); } catch { gitCache[k] = null; } } return gitCache[k]; };

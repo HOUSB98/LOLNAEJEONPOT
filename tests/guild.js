@@ -158,15 +158,17 @@ const crypto = require('crypto');
   ok((await A.evaluate(() => document.getElementById('gd-fx')?.className || '')).includes('fx-j'), '정파 화면에 들어갈 때 꽃잎 효과');
   await A.waitForTimeout(2100); await A.evaluate(() => { document.body.classList.add('lite'); location.hash = '#/rank'; }); await A.waitForTimeout(400); await A.evaluate(() => (location.hash = '#/magyo')); await A.waitForTimeout(250);
   ok(!(await A.$('#gd-fx')), '가벼운 모드에서는 들어갈 때 효과 없음');
-  // 팀 구성하기 정마대전 알림: 블루·레드가 각각 한 문파로만 → 빛나는 표시(누르는 버튼 없음), 한 명이라도 섞이면 표시 없음
+  // 팀 구성하기 정마대전 버튼: 처음부터 흐리게 보이고, 블루·레드가 각각 한 문파로만 → 빛남(.on). 한 명이라도 섞이면 흐린 채. 누르면 요건 안내
   const J = ids.filter((id) => P()[id].guild === 'j').slice(0, 5), M = ids.filter((id) => P()[id].guild === 'm').slice(0, 5);
   await open(A, 'today', 1000);
+  ok(!!(await A.$('.gwind:not(.on)')), '빈 팀에서도 정마대전 버튼이 처음부터 보임(흐리게)');
+  await A.click('.gwind'); await A.waitForTimeout(300); ok(/다섯 명으로 채우면 정마대전/.test(await A.evaluate(() => document.body.innerText)), '누르면 정마대전 요건 안내');
   await A.evaluate(async ([J, M]) => { const t = await import('/js/today.js'); t.setDraftTeams([J[0], M[1], J[2], M[3], J[4]], [M[0], J[1], M[2], J[3], M[4]]); }, [J, M]); await A.waitForTimeout(600);
-  ok(!(await A.$('.gwind')) && !(await A.$('[data-a=tGw]')), '섞인 팀이면 정마대전 표시 없음, 정마대전 버튼도 없음');
+  ok(!!(await A.$('.gwind:not(.on)')) && !(await A.$('.gwind.on')), '섞인 팀이면 정마대전 버튼은 흐린 채(강조 없음)');
   await A.evaluate(async ([J, M]) => { const t = await import('/js/today.js'); t.setDraftTeams([...J.slice(0, 4), M[4]], [...M.slice(0, 4), J[4]]); }, [J, M]); await A.waitForTimeout(600);
-  ok(!(await A.$('.gwind')), '4명만 같은 문파(1명 섞임)면 정마대전 아님');
+  ok(!(await A.$('.gwind.on')), '4명만 같은 문파(1명 섞임)면 정마대전 아님');
   await A.evaluate(async ([J, M]) => { const t = await import('/js/today.js'); t.setDraftTeams(J, M); }, [J, M]); await A.waitForTimeout(600);
-  ok(!!(await A.$('.gwind')), '양 팀이 각각 한 문파로만 → 정마대전 표시가 빛남');
+  ok(!!(await A.$('.gwind.on')), '양 팀이 각각 한 문파로만 → 정마대전 버튼이 빛남');
   const w0 = await A.evaluate(async () => (await import('/js/guild.js')).gData('all').j.war.g);
   await A.click('[data-a=tWin][data-w=blue]'); await A.click('[data-a=tSave]'); await A.waitForTimeout(1200);
   const w1 = await A.evaluate(async () => (await import('/js/guild.js')).gData('all').j.war.g);

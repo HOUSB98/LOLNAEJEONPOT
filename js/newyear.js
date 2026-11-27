@@ -10,7 +10,6 @@ export { nySeason, nyOn };
 
 const KEY = 'naejeon:newyear';
 const quiet = () => { const b = document.body.classList; return b.contains('lite') || b.contains('idle') || document.hidden; };
-const calm = () => document.body.classList.contains('lite') || matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // ---------- 불꽃놀이(캔버스) ----------
 const PAL = [['255,214,120', '255,246,210'], ['255,120,150', '255,210,225'], ['140,200,255', '225,240,255'], ['190,140,255', '235,220,255'], ['120,240,190', '220,255,240'], ['255,170,90', '255,230,190']];
@@ -62,30 +61,6 @@ const lanterns = (n, cls) => Array.from({ length: n }, (_, i) => {
   const s = 0.45 + ((i * 37) % 60) / 100, x = (i * 53) % 100, d = 14 + ((i * 29) % 16), delay = -((i * 7.3) % d);
   return `<i class="${cls}" style="left:${x}%;--s:${s.toFixed(2)};--d:${d}s;--dl:${delay.toFixed(1)}s;--sw:${(i % 2 ? 1 : -1) * (8 + (i % 5) * 4)}px">${LANTERN}</i>`;
 }).join('');
-
-// ---------- 시작 화면 ----------
-export function nySplash(splash) {
-  if (!nyOn()) return;
-  splash.classList.add('ny');
-  const sc = document.createElement('div'); sc.className = 'ny-scene';
-  sc.innerHTML = `<canvas class="ny-stars"></canvas><div class="ny-dawn"></div><canvas class="ny-fw"></canvas><div class="ny-lan">${lanterns(26, 'ny-l')}</div>
-    <svg class="ny-hills" viewBox="0 0 1200 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><defs><linearGradient id="nyH1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2160"/><stop offset="1" stop-color="#120d33"/></linearGradient><linearGradient id="nyH2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a1442"/><stop offset="1" stop-color="#07051a"/></linearGradient></defs>
-      <path d="M0 200 L120 150 L230 190 L360 120 L470 180 L600 110 L720 175 L860 125 L980 185 L1100 140 L1200 175 V300 H0z" fill="url(#nyH1)"/>
-      <path d="M0 240 C200 200 380 236 600 228 S980 196 1200 222 V300 H0z" fill="url(#nyH2)"/>
-      ${[160, 420, 760, 1040].map((x, i) => `<g class="ny-win"><rect x="${x}" y="${232 - (i % 2) * 8}" width="5" height="6" fill="#ffcf6b"/><rect x="${x + 9}" y="${232 - (i % 2) * 8}" width="5" height="6" fill="#ffb24a"/></g>`).join('')}</svg>`;
-  splash.prepend(sc);
-  if (calm()) return;
-  const stops = [];
-  (() => { // 별
-    const cv = sc.querySelector('.ny-stars'), g = cv.getContext('2d'); let raf; cv.width = innerWidth; cv.height = innerHeight;
-    const st = Array.from({ length: Math.round(innerWidth * innerHeight / 6000) }, () => ({ x: Math.random() * innerWidth, y: Math.random() * innerHeight * 0.7, r: Math.random() * 1.2 + 0.2, p: Math.random() * 6.28 }));
-    const loop = (t) => { raf = requestAnimationFrame(loop); g.clearRect(0, 0, cv.width, cv.height); for (const s of st) { g.globalAlpha = 0.3 + 0.7 * Math.abs(Math.sin(s.p + t / 900)); g.fillStyle = '#fff'; g.fillRect(s.x, s.y, s.r, s.r); } g.globalAlpha = 1; };
-    raf = requestAnimationFrame(loop); stops.push(() => cancelAnimationFrame(raf));
-  })();
-  stops.push(fireworks(sc.querySelector('.ny-fw'), { always: true, every: 650, top: 0.08, span: 0.35 }));
-  const gone = new MutationObserver(() => { if (!document.body.contains(splash)) { stops.forEach((f) => f()); gone.disconnect(); } });
-  gone.observe(document.body, { childList: true });
-}
 
 // ---------- 사이트 전체 ----------
 let fwStop = null;
