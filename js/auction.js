@@ -1,5 +1,5 @@
 // 팀 경매: 팀장이 한정 포인트로 선수를 한 명씩 입찰. 타이머·입찰은 DB 트랜잭션으로 모든 접속자에게 동기화된다.
-import { gname, S, page, act, esc, uid, col, pname, go, refresh, toast, needAdmin, isAdmin, ic, champIcon, sigChamp, dots, streak, titleChips, LANES, LANE_NAME, LANE_ICON, LANE_COLOR } from './core.js';
+import { gname, gOf, GUILDS, S, page, act, esc, uid, col, pname, go, refresh, toast, needAdmin, isAdmin, ic, champIcon, sigChamp, dots, streak, titleChips, LANES, LANE_NAME, LANE_ICON, LANE_COLOR } from './core.js';
 import { kakaoBtn } from './kakao.js';
 import { dayKey } from './stats.js';
 import { setDraftTeams } from './today.js';
@@ -188,7 +188,8 @@ function lobbyList() {
       ['live', 'bolt', '실시간 경매', '이름을 보고 실시간으로 입찰'],
       ['blind', 'mask', '익명 경매', '누구인지 숨기고 힌트만 보고 입찰 · 끝나면 한꺼번에 공개'],
       ['batch', 'edit', '일괄 입찰', '모든 매물 가격을 제출한 뒤 한 번에 공개'],
-    ].map(([v, i, t, d]) => { const on = v === 'blind' ? AU.mode === 'live' && AU.blind : v === 'live' ? AU.mode === 'live' && !AU.blind : AU.mode === v; return `<label class="au-mode m-${v}${on ? ' on' : ''}"><input type="radio" name="auMode" value="${v}" data-c="auMode" ${on ? 'checked' : ''}>${ic(i)}<b>${t}</b><small>${d}</small></label>`; }).join('')}</div>${AU.mode === 'live' && AU.blind ? '<small class="mut">익명 경매: 라인 유형·라인 점수 등급·최근 승률·플레이 스타일·소통 같은 힌트만 보여요.</small>' : ''}</div>
+      ['sect', 'guilds', '인재 쟁탈전', '문파 대장이 익명으로 문파원을 영입 · 인원 제한 없이 모두 영입할 때까지'],
+    ].map(([v, i, t, d]) => { const on = v === 'sect' ? AU.mode === 'live' && AU.sect : v === 'blind' ? AU.mode === 'live' && AU.blind && !AU.sect : v === 'live' ? AU.mode === 'live' && !AU.blind : AU.mode === v; return `<label class="au-mode m-${v}${on ? ' on' : ''}"><input type="radio" name="auMode" value="${v}" data-c="auMode" ${on ? 'checked' : ''}>${ic(i)}<b>${t}</b><small>${d}</small></label>`; }).join('')}</div>${AU.mode === 'live' && AU.blind ? `<small class="mut">${AU.sect ? '인재 쟁탈전: 익명 경매와 같고 팀 인원 제한이 없어요. 팀장은 정파·마교 대장으로 정하면 팀 이름이 문파 이름이 돼요. ' : '익명 경매: '}라인 유형·라인 점수 등급·최근 승률·플레이 스타일·소통 같은 힌트만 보여요.</small>` : ''}</div>
     <div class="ausel">
       <div class="au-pool">
         <div class="ph"><b>참가자</b><span class="tag ok">${parts.length + caps.length}명 선택</span><small class="mut">이름을 누르면 참가 ↔ 제외 · 왕관을 누르면 팀장</small><span class="grow"></span><button class="btn xs" data-a="auRecent">최근 내전 참가자</button><button class="btn xs" data-a="auAll">전원</button><button class="btn xs ghost" data-a="auNone">해제</button></div>
@@ -198,8 +199,8 @@ function lobbyList() {
       <div class="au-caps">
         <div class="ph">${ic('crown')}<b>팀장</b><span class="tag gold">${caps.length}팀</span><span class="grow"></span><small class="mut">핸디캡 = 시작 포인트에서 차감</small></div>
         ${caps.map((id, i) => { const c = st.P[id]; return c ? `<div class="aucap" style="--tc:${LANE_COLOR[c.mainLane]}"><i class="mono">${i + 1}</i>${champIcon(sigChamp(c), 'face')}<div><b>${esc(c.name)}</b><small>${LANE_ICON[c.mainLane]} ${LANE_NAME[c.mainLane]} · OVR ${c.ovr}</small></div><label title="시작 포인트에서 차감할 포인트"><span>핸디캡</span><input id="auH${id}" class="inp xs mono" type="number" value="${AU.hcap[id] || 0}" data-i="auHc" data-id="${id}"></label><button class="btn ghost xs" data-a="auRole" data-id="${id}" data-r="2" title="팀장 해제">${ic('x')}</button></div>` : ''; }).join('') || `<div class="aucap-emp">${ic('crown')}<p>왼쪽 참가자 이름 옆의 <b>왕관</b>을 눌러<br>팀장을 2명 이상 지정하세요.</p></div>`}
-        <div class="au-sum"><div><small>팀장</small><b class="mono">${caps.length}</b></div><div><small>매물</small><b class="mono">${parts.length}</b></div><div><small>필요</small><b class="mono">${caps.length * 4}</b></div></div>
-        <p class="sm ${caps.length >= 2 && parts.length < caps.length * 4 ? 'bad' : 'mut'}">${caps.length < 2 ? '팀장이 정해지면 필요한 인원이 계산됩니다.' : parts.length < caps.length * 4 ? `팀당 4명이 필요합니다 · 매물이 ${caps.length * 4 - parts.length}명 부족합니다.` : parts.length > caps.length * 4 ? `${caps.length * 4}명 배정 · ${parts.length - caps.length * 4}명은 예비가 됩니다.` : '인원이 딱 맞습니다.'}</p>
+        <div class="au-sum"><div><small>팀장</small><b class="mono">${caps.length}</b></div><div><small>매물</small><b class="mono">${parts.length}</b></div><div><small>필요</small><b class="mono">${AU.sect ? '제한 없음' : caps.length * 4}</b></div></div>
+        ${AU.sect && AU.mode === 'live' ? '<p class="sm mut">인재 쟁탈전: 팀 인원 제한 없이 매물 전원을 영입할 때까지 진행합니다.</p>' : ''}<p class="sm ${caps.length >= 2 && parts.length < caps.length * 4 ? 'bad' : 'mut'}"${AU.sect && AU.mode === 'live' ? ' hidden' : ''}>${caps.length < 2 ? '팀장이 정해지면 필요한 인원이 계산됩니다.' : parts.length < caps.length * 4 ? `팀당 4명이 필요합니다 · 매물이 ${caps.length * 4 - parts.length}명 부족합니다.` : parts.length > caps.length * 4 ? `${caps.length * 4}명 배정 · ${parts.length - caps.length * 4}명은 예비가 됩니다.` : '인원이 딱 맞습니다.'}</p>
       </div>
     </div>
     <div class="fgrid">
@@ -294,6 +295,7 @@ function cues(r, me) {
 }
 // 팀 카드 아래: 주라인 구성(없는 라인·겹친 라인)과 남은 자리당 평균 포인트. 팀장은 다음 매물 판단, 관전자는 '저 팀 미드 급하다' 보는 재미
 function teamFoot(r, t) {
+  if (r.cfg.sect) return `<div class="au-tf"><div class="au-tfn"><span class="au-per">영입 <b class="mono">${t.members.length}</b>명 · 남은 <b class="mono">${t.points}P</b></span></div></div>`; // 인재 쟁탈전: 인원 제한 없음
   if (blindOn(r)) { // 익명 경매: 주라인 구성은 매물 주라인을 알려 주므로 숨기고 자리·포인트만
     const left = Math.max(0, r.cfg.size - 1 - t.members.length);
     return `<div class="au-tf"><div class="au-tfn">${left ? `<span class="au-per">남은 ${left}자리 · 자리당 <b class="mono">${Math.floor(t.points / left)}P</b></span>` : '<span class="au-full">팀 완성</span>'}</div></div>`;
@@ -365,12 +367,12 @@ function roomView(id, token) {
     <div class="ph"><b class="au-tname"><i class="au-dot"></i>${esc(t.name)}</b>${me.team === i ? '<span class="tag ok">내 팀</span>' : ''}${c?.pass?.[i] ? '<span class="tag au-ps">패스</span>' : ''}<span class="grow"></span><b class="pts">${t.points}P</b></div>
     <div class="kv"><span>${ic('crown')}${pname(t.captain)}</span><small class="mut">팀장</small></div>
     ${t.members.map((m) => `<div class="kv${m.pid === AU.sold?.pid && Date.now() < AU.sold.until ? ` au-sold" style="--t:-${Date.now() - AU.sold.at}ms` : ''}"><span>${who(r, m.pid)}${blindOn(r) ? '' : ` <small class="mut">${LANE_ICON[st.P[m.pid]?.mainLane] || ''}</small>`}</span><b>${m.price}P</b></div>`).join('')}
-    ${Array(Math.max(0, r.cfg.size - 1 - t.members.length)).fill('<div class="kv emp"><span>빈 자리</span></div>').join('')}
+    ${r.cfg.sect ? '' : Array(Math.max(0, r.cfg.size - 1 - t.members.length)).fill('<div class="kv emp"><span>빈 자리</span></div>').join('')}
     ${teamFoot(r, t)}</div>`).join('');
   let stage = '';
   if (r.status === 'lobby') {
     stage = `<div class="panel stage"><h2>대기 중</h2><p class="mut">팀장에게 각자의 링크를 보내고, 모두 들어오면 시작하세요.</p>
-      ${r.cfg.blind ? '<p class="au-blindnote">' + ic('mask', 'ie') + '<b>익명 경매</b> · 매물은 \'매물 A·B…\'로만 보이고 힌트만 공개돼요. 누구인지는 경매가 모두 끝나면 한꺼번에 공개!</p>' : ''}
+      ${r.cfg.blind ? '<p class="au-blindnote">' + ic('mask', 'ie') + (r.cfg.sect ? '<b>인재 쟁탈전</b> · 팀 인원 제한 없음 · ' : '<b>익명 경매</b> · ') + '매물은 \'매물 A·B…\'로만 보이고 힌트만 공개돼요. 누구인지는 경매가 모두 끝나면 한꺼번에 공개!</p>' : ''}
       ${r.cfg.mode !== 'batch' ? `<p class="au-est">${estHTML(auEstimate(r.cfg, r.pool.length, r.teams.length))}<small class="au-rule">매물마다 대기 ${r.cfg.delay ?? 15}초 + 경매 ${r.cfg.sec}초 · 마감 ${r.cfg.ext}초 전에 입찰하면 ${r.cfg.ext}초로 연장</small></p>` : ''}
       ${me.host ? `<div class="links"><div class="kv"><span>${ic('eye')}관전 링크</span><span class="grow"></span><button class="btn xs" data-a="auCopy" data-u="${esc(base)}">복사</button><button class="btn xs" data-a="auSendLink" data-u="${esc(base)}" data-label="관전 링크">채팅 전송</button></div>
         <div class="au-online">${r.teams.map((t) => { const on = t.seen && S.store.serverNow() - t.seen < 90e3; return `<span class="au-on ${on ? 'on' : ''}"><i></i>${pname(t.captain)}<small>${on ? '접속 중' : t.seen ? '나감' : '아직 안 들어옴'}</small></span>`; }).join('')}</div>
@@ -543,7 +545,7 @@ act('auExtRec', () => { AU.ext = recExt(AU.sec); AU.extTouched = false; const e 
 act('auHc', (d, el) => { AU.hcap[d.id] = +el.value || 0; });
 act('auHide', (d, el) => { AU.hide = el.checked; });
 act('auDelay', (d, el) => { AU.delay = +el.value || 15; formLive(); });
-act('auMode', (d, el) => { AU.blind = el.value === 'blind'; AU.mode = el.value === 'batch' ? 'batch' : 'live'; refresh(); }); // 익명 경매 = 실시간 경매 + 이름 숨김
+act('auMode', (d, el) => { AU.sect = el.value === 'sect'; AU.blind = el.value === 'blind' || AU.sect; AU.mode = el.value === 'batch' ? 'batch' : 'live'; refresh(); }); // 익명 경매 = 실시간 경매 + 이름 숨김
 // r=1: 이름(참가 ↔ 제외, 팀장이면 일반 참가자로) · r=2: 왕관(팀장 ↔ 참가자)
 act('auRole', (d) => { const cur = AU.role[d.id] || 0; AU.role[d.id] = d.r === '2' ? (cur === 2 ? 1 : 2) : cur === 1 ? 0 : 1; refresh(); });
 act('auAll', () => { S.st.list.forEach((s) => { AU.role[s.id] ||= 1; }); refresh(); });
@@ -569,14 +571,14 @@ act('auCreate', async () => {
   const id = uid(), host = tok();
   const r = {
     id, name: AU.name.trim() || `${dayKey(Date.now()).slice(5)} 경매`, createdAt: Date.now(), status: 'lobby', host,
-    cfg: { points: AU.points, unit: AU.unit, sec: AU.sec, ext: AU.ext, delay: AU.delay, size: 5, hide: AU.hide, mode: AU.mode, ...(AU.mode === 'live' && AU.blind ? { blind: true } : {}) },
-    teams: caps.map((pid) => ({ name: nm(pid) + ' 팀', captain: pid, token: tok(), points: Math.max(0, AU.points - (AU.hcap[pid] || 0)), members: [] })),
+    cfg: { points: AU.points, unit: AU.unit, sec: AU.sec, ext: AU.ext, delay: AU.delay, size: AU.mode === 'live' && AU.sect ? 99 : 5, hide: AU.hide, mode: AU.mode, ...(AU.mode === 'live' && AU.blind ? { blind: true } : {}), ...(AU.mode === 'live' && AU.sect ? { sect: true } : {}) },
+    teams: caps.map((pid) => ({ name: AU.mode === 'live' && AU.sect && GUILDS[gOf(pid)] ? GUILDS[gOf(pid)].n : nm(pid) + ' 팀', captain: pid, token: tok(), points: Math.max(0, AU.points - (AU.hcap[pid] || 0)), members: [] })),
     pool: parts, unsold: [], round: 1, cur: null, log: [], chat: [],
     ...(AU.mode === 'live' && AU.blind ? { alias: Object.fromEntries(parts.map((p, i) => [p, letter(i)])) } : {}), // 매물 A·B…(경매 순서와 같음)
   };
   await S.store.put('auctions', id, r);
   localStorage.setItem(hostKey(id), host);
-  AU.role = {}; AU.name = ''; AU.mode = 'live'; AU.blind = false; AU.as = 0; AU.batchDraft = {}; AU.extTouched = false;
+  AU.role = {}; AU.name = ''; AU.mode = 'live'; AU.blind = false; AU.sect = false; AU.as = 0; AU.batchDraft = {}; AU.extTouched = false;
   go(`#/auction/${id}/${host}`);
 });
 act('auStart', (d) => tx(d.id, (r, t, err) => { const now = t + err;

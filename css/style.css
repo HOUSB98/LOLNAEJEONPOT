@@ -2276,12 +2276,13 @@ body.lite .au-banner{animation:aubfade 1.9s linear both}body.lite .au-tbar i{tra
 .au-banner::before{content:"";position:absolute;left:18px;right:18px;top:-1px;height:3px;border-radius:0 0 3px 3px;background:var(--tc,transparent)}
 .au-stats>.au-st{border-top:2px solid color-mix(in srgb,var(--tc) 70%,transparent)}.au-stats>.au-st small{color:color-mix(in srgb,var(--tc) 60%,#fff)}
 /* 익명 경매: 힌트 카드 · 정체 공개 */
-.au-modes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:2px 0 4px}
+.au-modes{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:2px 0 4px}
 .au-mode{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:12px 12px 11px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.02);cursor:pointer;transition:border-color .2s,background .2s}
 .au-mode input{position:absolute;opacity:0;pointer-events:none}.au-mode .ic{width:20px;height:20px;color:var(--mut)}.au-mode b{font-size:14.5px}.au-mode small{font-size:11.5px;color:var(--mut);line-height:1.35}
 .au-mode:hover{border-color:rgba(217,164,65,.4)}.au-mode.on{border-color:var(--gold);background:linear-gradient(180deg,rgba(217,164,65,.14),rgba(217,164,65,.04));box-shadow:0 0 0 1px rgba(217,164,65,.35) inset}.au-mode.on .ic{color:var(--gold2)}
 .au-mode.m-blind .ic{color:#c9a8ff}.au-mode.m-blind.on{border-color:#a98bff;background:linear-gradient(180deg,rgba(169,139,255,.18),rgba(169,139,255,.05));box-shadow:0 0 0 1px rgba(169,139,255,.4) inset}
 .au-mode:has(input:focus-visible){outline:2px solid var(--gold2);outline-offset:2px}
+@media (max-width:980px){.au-modes{grid-template-columns:repeat(2,1fr)}}
 @media (max-width:600px){.au-modes{grid-template-columns:1fr}.au-mode{display:grid;grid-template-columns:22px auto 1fr;align-items:center;column-gap:8px;padding:11px 12px}.au-mode small{grid-column:2 / -1}}
 .au-blindnote{margin:8px 0;padding:8px 12px;border:1px dashed rgba(176,124,255,.5);border-radius:9px;background:rgba(176,124,255,.07);font-size:13px;color:#d9ccff}
 .au-anon{color:#d9ccff;font-weight:700}
