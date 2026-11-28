@@ -266,7 +266,10 @@ textarea.inp{width:100%;resize:vertical}
 .slot.emp .sl-body{color:var(--mut);align-items:center;justify-content:center}.slot.emp .sl-body span{display:inline-flex;align-items:center;gap:6px}
 .sl-top{display:flex;align-items:center;gap:8px}.slot.red .sl-top{flex-direction:row-reverse}.sl-top b{font-size:15px;font-weight:700}
 .sl-body{gap:2px!important}
-.sl-top i{font-style:normal;font-size:11px;font-weight:700;padding:1px 7px;border-radius:99px;display:inline-flex;align-items:center;gap:3px}.sl-top i .lic{width:11px;height:11px;color:inherit}
+.slot .sl-top{min-width:0;max-width:100%}.slot .sl-top b{min-width:0;max-width:100%} /* 이름 칸이 좁으면(휴대폰 레드 쪽) 이름이 …로 줄고 옆 점수 위로 넘치지 않게 */
+/* 휴대폰: 문파 엠블럼은 칸 위쪽 모서리에 작은 배지로(이름 자리를 차지하지 않아 세 글자 이름도 그대로 보임) */
+@media (max-width:600px){.slot{position:relative}.slot .sl-top .gnm .gem{position:absolute;top:-1px;width:12px;height:12px;margin:0;filter:drop-shadow(0 1px 2px rgba(0,0,0,.8))}.slot.blue .sl-top .gnm .gem{left:7px}.slot.red .sl-top .gnm .gem{right:7px}}
+.sl-top i:not(.gem){font-style:normal;font-size:11px;font-weight:700;padding:1px 7px;border-radius:99px;display:inline-flex;align-items:center;gap:3px}.sl-top i .lic{width:11px;height:11px;color:inherit}
 .sl-top .main{color:var(--gold2);background:rgba(217,164,65,.14)}.sl-top .off{color:#ff8ea2;background:rgba(240,80,110,.13)}
 .sl-meta{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--mut);flex-wrap:wrap}.slot.red .sl-meta{flex-direction:row-reverse}
 .sl-meta .dots i{width:14px;height:14px;font-size:10px}
@@ -1251,7 +1254,7 @@ button,a,.slot{-webkit-tap-highlight-color:transparent}
   #chat{z-index:11}
   /* 라인업 칸: 좁은 화면에서는 챔피언 · 이름 · 점수만 */
   .slot{flex-wrap:nowrap;gap:6px;min-height:52px;padding:6px 7px}
-  .slot .sl-top i,.slot .sl-meta{display:none}
+  .slot .sl-top i:not(.gem),.slot .sl-meta{display:none} /* 문파 엠블럼(i.gem)은 숨기지 않음 */
   .sl-champ .ci{width:30px;height:30px}.sl-top b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
   .sl-body{min-width:0}.sl-score{font-size:15px;flex:none}
 }
